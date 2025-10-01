@@ -332,7 +332,7 @@ export default function MyCommuteDashboard() {
             <Ionicons name="train" size={48} color="#007AFF" />
             <Text style={styles.welcomeTitle}>Welcome to My Commute!</Text>
             <Text style={styles.welcomeText}>
-              Your personal London commute dashboard. Tap the settings icon to add your lines.
+              Your personal London commute dashboard. Tap the settings icon to add your lines and stations.
             </Text>
             <TouchableOpacity
               style={styles.getStartedButton}

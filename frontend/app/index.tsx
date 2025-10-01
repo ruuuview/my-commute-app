@@ -817,6 +817,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
   },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    padding: 8,
+  },
   // Management Interface Styles
   managementContainer: {
     flex: 1,

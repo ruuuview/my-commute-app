@@ -346,7 +346,7 @@ export default function MyCommuteDashboard() {
         {/* Lines Section */}
         {lineStatuses.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Lines</Text>
+            <Text style={styles.sectionTitle}>My Lines</Text>
             {lineStatuses.map(renderLineItem)}
           </View>
         )}

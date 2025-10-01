@@ -366,7 +366,7 @@ export default function MyCommuteDashboard() {
           </TouchableOpacity>
           
           <TouchableOpacity
-            onPress={() => setIsSetupMode(true)}
+            onPress={() => setSetupMode('lines')}
             style={styles.setupButton}
           >
             <Ionicons name="settings-outline" size={24} color="#007AFF" />

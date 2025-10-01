@@ -508,6 +508,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Station Search Endpoint
+@api_router.get("/stations/search/{query}")
+async def search_stations(query: str):
+    """Search for stations by name using TfL API"""
+    return await tfl_service.search_stations(query)
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    await tfl_service.close_client()

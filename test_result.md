@@ -143,15 +143,18 @@ backend:
 
   - task: "User Preferences Storage"
     implemented: true
-    working: "NA"
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "MongoDB endpoints created for user preferences but not yet tested with frontend integration."
+        - working: true
+          agent: "testing"
+          comment: "Comprehensive backend API testing completed. All 12 endpoints tested successfully: GET /api/lines (8 lines with TfL colors), GET /api/lines/{id} (central/northern), GET /api/stations/{id} (oxford-circus/king-cross with realistic departures), GET /api/stations/nearby (4 stations with distances), user preferences CRUD operations with MongoDB persistence, and proper 404 error handling. Fixed route ordering issue for nearby stations endpoint. All responses include proper timestamps and data structure matches real TfL integration requirements."
 
 frontend:
   - task: "Personal Dashboard UI"

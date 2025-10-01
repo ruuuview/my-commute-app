@@ -485,18 +485,22 @@ export default function MyCommuteDashboard() {
     );
   }
 
-  if (isSetupMode) {
+  if (setupMode !== null) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setIsSetupMode(false)}>
+          <TouchableOpacity onPress={() => {
+            setSetupMode(null);
+            setSearchQuery('');
+            setSearchResults([]);
+          }}>
             <Ionicons name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Setup</Text>
+          <Text style={styles.headerTitle}>Manage {setupMode === 'lines' ? 'Lines' : 'Stations'}</Text>
           <View style={{ width: 24 }} />
         </View>
-        {renderSetupMode()}
+        {renderManagementMode()}
       </SafeAreaView>
     );
   }

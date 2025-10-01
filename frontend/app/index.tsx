@@ -778,49 +778,141 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
   },
-  setupContainer: {
+  // Management Interface Styles
+  managementContainer: {
+    flex: 1,
+  },
+  managementContent: {
     flex: 1,
     padding: 16,
   },
-  setupTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  setupSubtitle: {
-    fontSize: 16,
-    color: '#666',
+  managementHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    padding: 4,
     marginBottom: 24,
   },
-  setupLineItem: {
+  managementTab: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  managementTabActive: {
+    backgroundColor: '#007AFF',
+  },
+  managementTabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  managementTabTextActive: {
+    color: '#fff',
+  },
+  currentItemsSection: {
+    marginBottom: 32,
+  },
+  currentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  setupLineItemSelected: {
-    borderColor: '#007AFF',
-  },
-  setupLineName: {
+  currentItemText: {
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
     flex: 1,
     marginLeft: 12,
   },
-  setupDoneButton: {
+  emptyStateText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 20,
+  },
+  addItemsSection: {
+    marginBottom: 32,
+  },
+  searchContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    paddingRight: 50,
+  },
+  searchSpinner: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    marginTop: -10,
+  },
+  addableItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  addableItemContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  addableItemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 2,
+  },
+  addableItemStatus: {
+    fontSize: 14,
+    color: '#666',
+  },
+  noResultsText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
+  },
+  helpText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    padding: 20,
+    lineHeight: 24,
+  },
+  doneButton: {
     backgroundColor: '#007AFF',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 16,
+    marginBottom: 32,
   },
-  setupDoneText: {
+  doneButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

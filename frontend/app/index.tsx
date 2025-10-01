@@ -53,7 +53,7 @@ const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || proc
 export default function MyCommuteDashboard() {
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     saved_lines: ['central', 'victoria'],
-    saved_stations: ['oxford-circus'],
+    saved_stations: ['940GZZLUOXC'], // Real TfL station ID for Oxford Circus
     is_pro: false,
   });
   const [lineStatuses, setLineStatuses] = useState<LineStatus[]>([]);

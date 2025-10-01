@@ -128,10 +128,18 @@ class TfLService:
             return 3
         elif "severe delay" in status_lower or "major disruption" in status_lower:
             return 7
-        elif "suspended" in status_lower or "closed" in status_lower:
+        elif "suspended" in status_lower and "part" not in status_lower:
             return 10
-        elif "planned closure" in status_lower or "part suspended" in status_lower:
+        elif "part suspended" in status_lower:
             return 8
+        elif "planned closure" in status_lower or "closure" in status_lower:
+            return 8
+        elif "reduced service" in status_lower:
+            return 4
+        elif "bus service" in status_lower:
+            return 6
+        elif "no service" in status_lower:
+            return 10
         else:
             return 2  # Default for unknown statuses
     

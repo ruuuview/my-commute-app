@@ -62,6 +62,10 @@ export default function MyCommuteDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [isSetupMode, setIsSetupMode] = useState(false);
   const [allLines, setAllLines] = useState<LineStatus[]>([]);
+  const [setupMode, setSetupMode] = useState<'lines' | 'stations' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Mock feature flag for Pro features
   const [devMode, setDevMode] = useState(false);

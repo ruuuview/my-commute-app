@@ -442,61 +442,15 @@ async def get_line_status(line_id: str):
 
 @api_router.get("/stations/nearby", response_model=List[NearbyStation])
 async def get_nearby_stations(lat: float, lon: float):
-    """Get nearby stations based on GPS coordinates (mock implementation)"""
-    # Mock nearby stations - in real implementation, this would use TfL API
-    nearby = []
-    base_distance = 200  # meters
-    
-    for i, (station_id, station_data) in enumerate(MOCK_STATIONS.items()):
-        # Mock distance calculation
-        distance = base_distance + (i * 150)
-        walk_time = max(2, distance // 80)  # Rough walking time estimate
-        
-        # Get line statuses for this station
-        line_statuses = []
-        for line_id in station_data['lines']:
-            line_data = MOCK_LINES.get(line_id)
-            if line_data:
-                line_status = LineStatusResponse(
-                    id=line_data['id'],
-                    name=line_data['name'],
-                    color=line_data['color'],
-                    status=line_data['status'],
-                    status_severity=line_data['status_severity'],
-                    reason=line_data.get('reason'),
-                    updated_at=datetime.utcnow()
-                )
-                line_statuses.append(line_status)
-        
-        nearby_station = NearbyStation(
-            id=station_data['id'],
-            name=station_data['name'],
-            distance_meters=distance,
-            walk_time_minutes=walk_time,
-            lines=station_data['lines'],
-            line_statuses=line_statuses
-        )
-        nearby.append(nearby_station)
-    
-    # Sort by distance
-    return sorted(nearby, key=lambda x: x.distance_meters)[:5]
+    """Get nearby stations based on GPS coordinates"""
+    # For now, return mock nearby stations
+    # In full production, this would use TfL StopPoint API with lat/lon radius search
+    return calculate_mock_nearby_stations(lat, lon)
 
 @api_router.get("/stations/{station_id}", response_model=StationResponse)
 async def get_station_departures(station_id: str):
-    """Get departure information for a specific station"""
-    station_data = MOCK_STATIONS.get(station_id)
-    if not station_data:
-        raise HTTPException(status_code=404, detail="Station not found")
-    
-    departures = generate_mock_departures(station_id)
-    
-    return StationResponse(
-        id=station_data['id'],
-        name=station_data['name'],
-        lines=station_data['lines'],
-        departures=departures,
-        updated_at=datetime.utcnow()
-    )
+    """Get departure information for a specific station from TfL API"""
+    return await tfl_service.get_station_arrivals(station_id)
 
 # User Preferences Routes
 @api_router.post("/user/preferences", response_model=UserPreferences)

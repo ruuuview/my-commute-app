@@ -173,11 +173,12 @@ export default function MyCommuteDashboard() {
       ? userPrefs.saved_lines.filter(id => id !== lineId)
       : [...userPrefs.saved_lines, lineId];
     
-    // Free version limit: max 3 lines
-    if (!userPrefs.is_pro && !devMode && newSavedLines.length > 3) {
+    // Free version limit: max 3 lines total
+    const totalItems = newSavedLines.length + userPrefs.saved_stations.length;
+    if (!userPrefs.is_pro && !devMode && totalItems > 3) {
       Alert.alert(
         'Upgrade to Pro',
-        'Free version allows up to 3 lines. Upgrade to Pro for unlimited lines.',
+        'Free version allows up to 3 items total (lines + stations). Upgrade to Pro for unlimited.',
         [{ text: 'OK' }]
       );
       return;
@@ -186,6 +187,53 @@ export default function MyCommuteDashboard() {
     const newPrefs = { ...userPrefs, saved_lines: newSavedLines };
     saveUserPreferences(newPrefs);
     fetchDashboardData();
+  };
+
+  const toggleStationInPreferences = (stationId: string) => {
+    const newSavedStations = userPrefs.saved_stations.includes(stationId)
+      ? userPrefs.saved_stations.filter(id => id !== stationId)
+      : [...userPrefs.saved_stations, stationId];
+    
+    // Free version limit: max 3 items total
+    const totalItems = userPrefs.saved_lines.length + newSavedStations.length;
+    if (!userPrefs.is_pro && !devMode && totalItems > 3) {
+      Alert.alert(
+        'Upgrade to Pro', 
+        'Free version allows up to 3 items total (lines + stations). Upgrade to Pro for unlimited.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const newPrefs = { ...userPrefs, saved_stations: newSavedStations };
+    saveUserPreferences(newPrefs);
+    fetchDashboardData();
+  };
+
+  const searchStations = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/stations/search/${encodeURIComponent(query)}`);
+      const results = await response.json();
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Error searching stations:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchInput = (text: string) => {
+    setSearchQuery(text);
+    if (setupMode === 'stations') {
+      searchStations(text);
+    }
   };
 
   const renderLineItem = (line: LineStatus) => (

@@ -75,8 +75,11 @@ export default function MyCommuteDashboard() {
 
   useEffect(() => {
     loadUserPreferences();
-    fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [userPrefs]);
 
   const loadUserPreferences = async () => {
     try {

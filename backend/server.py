@@ -382,28 +382,48 @@ class TfLService:
 # Initialize TfL service
 tfl_service = TfLService()
 
-# Helper functions
-def generate_mock_departures(station_id: str) -> List[Departure]:
-    station = MOCK_STATIONS.get(station_id, {})
-    departures = []
-    now = datetime.utcnow()
+# Helper functions for nearby stations (mock implementation)
+def calculate_mock_nearby_stations(lat: float, lon: float) -> List[NearbyStation]:
+    """Mock implementation of nearby stations - in production this would use TfL StopPoint API"""
+    # Mock popular London stations with their approximate coordinates
+    mock_nearby = [
+        {
+            "id": "940GZZLUOXC", 
+            "name": "Oxford Circus Underground Station",
+            "distance": 200
+        },
+        {
+            "id": "940GZZLUTCR", 
+            "name": "Tottenham Court Road Underground Station", 
+            "distance": 400
+        },
+        {
+            "id": "940GZZLUBND",
+            "name": "Bond Street Underground Station",
+            "distance": 600
+        },
+        {
+            "id": "940GZZLUGPS",
+            "name": "Goodge Street Underground Station", 
+            "distance": 800
+        }
+    ]
     
-    for line_id in station.get('lines', []):
-        line = MOCK_LINES.get(line_id)
-        if line:
-            # Generate 2-3 departures per line
-            for i in range(2):
-                minutes_away = 2 + (i * 3) + (hash(f"{station_id}{line_id}{i}") % 5)
-                departure = Departure(
-                    line=line['name'],
-                    destination=f"{line['name']} - Eastbound" if i % 2 == 0 else f"{line['name']} - Westbound",
-                    platform=f"Platform {(hash(f'{line_id}{i}') % 4) + 1}",
-                    expected_arrival=now + timedelta(minutes=minutes_away),
-                    minutes_away=minutes_away
-                )
-                departures.append(departure)
+    nearby_stations = []
+    for station in mock_nearby:
+        walk_time = max(2, station["distance"] // 80)  # Rough walking time estimate
+        
+        nearby_station = NearbyStation(
+            id=station["id"],
+            name=station["name"],
+            distance_meters=station["distance"],
+            walk_time_minutes=walk_time,
+            lines=[],  # Would be populated by actual TfL data
+            line_statuses=[]  # Would be populated by actual TfL data  
+        )
+        nearby_stations.append(nearby_station)
     
-    return sorted(departures, key=lambda x: x.minutes_away)[:6]  # Return top 6 soonest
+    return sorted(nearby_stations, key=lambda x: x.distance_meters)[:5]
 
 # API Routes
 @api_router.get("/")

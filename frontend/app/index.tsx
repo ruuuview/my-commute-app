@@ -287,37 +287,191 @@ export default function MyCommuteDashboard() {
     );
   };
 
-  const renderSetupMode = () => (
-    <ScrollView style={styles.setupContainer}>
-      <Text style={styles.setupTitle}>Choose Your Lines</Text>
-      <Text style={styles.setupSubtitle}>
-        Select up to {userPrefs.is_pro || devMode ? 'unlimited' : '3'} lines for your dashboard
-      </Text>
-      
-      {allLines.map((line) => (
-        <TouchableOpacity
-          key={line.id}
-          style={[
-            styles.setupLineItem,
-            userPrefs.saved_lines.includes(line.id) && styles.setupLineItemSelected
-          ]}
-          onPress={() => toggleLineInPreferences(line.id)}
-        >
-          <View style={[styles.lineIndicator, { backgroundColor: line.color }]} />
-          <Text style={styles.setupLineName}>{line.name}</Text>
-          {userPrefs.saved_lines.includes(line.id) && (
-            <Ionicons name="checkmark" size={20} color="#007AFF" />
+  const renderManagementMode = () => (
+    <KeyboardAvoidingView 
+      style={styles.managementContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView style={styles.managementContent}>
+        {/* Header with Tabs */}
+        <View style={styles.managementHeader}>
+          <TouchableOpacity
+            style={[
+              styles.managementTab,
+              setupMode === 'lines' && styles.managementTabActive
+            ]}
+            onPress={() => {
+              setSetupMode('lines');
+              setSearchQuery('');
+              setSearchResults([]);
+            }}
+          >
+            <Text style={[
+              styles.managementTabText,
+              setupMode === 'lines' && styles.managementTabTextActive
+            ]}>
+              Lines
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.managementTab,
+              setupMode === 'stations' && styles.managementTabActive
+            ]}
+            onPress={() => {
+              setSetupMode('stations');
+              setSearchQuery('');
+              setSearchResults([]);
+            }}
+          >
+            <Text style={[
+              styles.managementTabText,
+              setupMode === 'stations' && styles.managementTabTextActive
+            ]}>
+              Stations
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Current Items */}
+        <View style={styles.currentItemsSection}>
+          <Text style={styles.sectionTitle}>
+            Your {setupMode === 'lines' ? 'Lines' : 'Stations'} 
+            ({setupMode === 'lines' ? userPrefs.saved_lines.length : userPrefs.saved_stations.length}/
+            {userPrefs.is_pro || devMode ? '∞' : '3 total'})
+          </Text>
+          
+          {setupMode === 'lines' ? (
+            userPrefs.saved_lines.length === 0 ? (
+              <Text style={styles.emptyStateText}>No lines added yet</Text>
+            ) : (
+              userPrefs.saved_lines.map((lineId) => {
+                const line = allLines.find(l => l.id === lineId);
+                if (!line) return null;
+                return (
+                  <TouchableOpacity
+                    key={lineId}
+                    style={styles.currentItem}
+                    onPress={() => toggleLineInPreferences(lineId)}
+                  >
+                    <View style={[styles.lineIndicator, { backgroundColor: line.color }]} />
+                    <Text style={styles.currentItemText}>{line.name}</Text>
+                    <Ionicons name="close-circle" size={20} color="#ff4757" />
+                  </TouchableOpacity>
+                );
+              })
+            )
+          ) : (
+            userPrefs.saved_stations.length === 0 ? (
+              <Text style={styles.emptyStateText}>No stations added yet</Text>
+            ) : (
+              userPrefs.saved_stations.map((stationId) => {
+                const station = stationData[stationId];
+                const stationName = station?.name || stationId;
+                return (
+                  <TouchableOpacity
+                    key={stationId}
+                    style={styles.currentItem}
+                    onPress={() => toggleStationInPreferences(stationId)}
+                  >
+                    <Ionicons name="train" size={16} color="#007AFF" />
+                    <Text style={styles.currentItemText}>{stationName}</Text>
+                    <Ionicons name="close-circle" size={20} color="#ff4757" />
+                  </TouchableOpacity>
+                );
+              })
+            )
           )}
+        </View>
+
+        {/* Add New Items */}
+        <View style={styles.addItemsSection}>
+          <Text style={styles.sectionTitle}>
+            Add {setupMode === 'lines' ? 'Line' : 'Station'}
+          </Text>
+          
+          {setupMode === 'stations' && (
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search stations (e.g. 'King Cross', 'Waterloo')"
+                value={searchQuery}
+                onChangeText={handleSearchInput}
+                placeholderTextColor="#666"
+              />
+              {isSearching && (
+                <ActivityIndicator size="small" color="#007AFF" style={styles.searchSpinner} />
+              )}
+            </View>
+          )}
+          
+          {setupMode === 'lines' ? (
+            allLines
+              .filter(line => !userPrefs.saved_lines.includes(line.id))
+              .map((line) => (
+                <TouchableOpacity
+                  key={line.id}
+                  style={styles.addableItem}
+                  onPress={() => toggleLineInPreferences(line.id)}
+                >
+                  <View style={[styles.lineIndicator, { backgroundColor: line.color }]} />
+                  <View style={styles.addableItemContent}>
+                    <Text style={styles.addableItemName}>{line.name}</Text>
+                    <Text style={[styles.addableItemStatus, { color: getStatusColor(line.status) }]}>
+                      {line.status}
+                    </Text>
+                  </View>
+                  <Ionicons name="add-circle" size={24} color="#007AFF" />
+                </TouchableOpacity>
+              ))
+          ) : (
+            <>
+              {searchResults
+                .filter(station => !userPrefs.saved_stations.includes(station.id))
+                .map((station) => (
+                  <TouchableOpacity
+                    key={station.id}
+                    style={styles.addableItem}
+                    onPress={() => toggleStationInPreferences(station.id)}
+                  >
+                    <Ionicons name="train" size={16} color="#007AFF" />
+                    <View style={styles.addableItemContent}>
+                      <Text style={styles.addableItemName}>{station.name}</Text>
+                      <Text style={styles.addableItemStatus}>Station</Text>
+                    </View>
+                    <Ionicons name="add-circle" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                ))
+              }
+              
+              {searchQuery.length > 0 && !isSearching && searchResults.length === 0 && (
+                <Text style={styles.noResultsText}>
+                  No stations found for "{searchQuery}"
+                </Text>
+              )}
+              
+              {searchQuery.length === 0 && (
+                <Text style={styles.helpText}>
+                  Start typing to search the TfL network...
+                </Text>
+              )}
+            </>
+          )}
+        </View>
+        
+        <TouchableOpacity
+          style={styles.doneButton}
+          onPress={() => {
+            setSetupMode(null);
+            setSearchQuery('');
+            setSearchResults([]);
+          }}
+        >
+          <Text style={styles.doneButtonText}>Done</Text>
         </TouchableOpacity>
-      ))}
-      
-      <TouchableOpacity
-        style={styles.setupDoneButton}
-        onPress={() => setIsSetupMode(false)}
-      >
-        <Text style={styles.setupDoneText}>Done</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 
   if (loading) {

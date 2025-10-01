@@ -460,6 +460,11 @@ async def get_nearby_stations(lat: float, lon: float):
     # In full production, this would use TfL StopPoint API with lat/lon radius search
     return calculate_mock_nearby_stations(lat, lon)
 
+@api_router.get("/stations/search/{query}")
+async def search_stations(query: str):
+    """Search for stations by name using TfL API"""
+    return await tfl_service.search_stations(query)
+
 @api_router.get("/stations/{station_id}", response_model=StationResponse)
 async def get_station_departures(station_id: str):
     """Get departure information for a specific station from TfL API"""

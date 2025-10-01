@@ -19,6 +19,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# TfL API Configuration
+TFL_PRIMARY_KEY = "5a820a9256064e34bf512451b75338ec"
+TFL_SECONDARY_KEY = "67c501f2b54d4c6a89d2dfa2f9a2cd92"
+TFL_BASE_URL = "https://api.tfl.gov.uk"
+
 # Create the main app without a prefix
 app = FastAPI(title="My Commute API")
 

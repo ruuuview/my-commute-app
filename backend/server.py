@@ -432,37 +432,13 @@ async def root():
 
 @api_router.get("/lines", response_model=List[LineStatusResponse])
 async def get_all_lines():
-    """Get status of all tube lines"""
-    lines = []
-    for line_data in MOCK_LINES.values():
-        line_response = LineStatusResponse(
-            id=line_data['id'],
-            name=line_data['name'],
-            color=line_data['color'],
-            status=line_data['status'],
-            status_severity=line_data['status_severity'],
-            reason=line_data.get('reason'),
-            updated_at=datetime.utcnow()
-        )
-        lines.append(line_response)
-    return lines
+    """Get status of all tube lines from TfL API"""
+    return await tfl_service.get_tube_line_status()
 
 @api_router.get("/lines/{line_id}", response_model=LineStatusResponse)
 async def get_line_status(line_id: str):
-    """Get status of a specific tube line"""
-    line_data = MOCK_LINES.get(line_id)
-    if not line_data:
-        raise HTTPException(status_code=404, detail="Line not found")
-    
-    return LineStatusResponse(
-        id=line_data['id'],
-        name=line_data['name'],
-        color=line_data['color'],
-        status=line_data['status'],
-        status_severity=line_data['status_severity'],
-        reason=line_data.get('reason'),
-        updated_at=datetime.utcnow()
-    )
+    """Get status of a specific tube line from TfL API"""
+    return await tfl_service.get_single_line_status(line_id)
 
 @api_router.get("/stations/nearby", response_model=List[NearbyStation])
 async def get_nearby_stations(lat: float, lon: float):

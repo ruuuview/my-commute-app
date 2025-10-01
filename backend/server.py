@@ -280,44 +280,20 @@ async def get_nearby_stations(lat: float, lon: float):
 
 @api_router.get("/stations/{station_id}", response_model=StationResponse)
 async def get_station_departures(station_id: str):
-    """Get nearby stations based on GPS coordinates (mock implementation)"""
-    # Mock nearby stations - in real implementation, this would use TfL API
-    nearby = []
-    base_distance = 200  # meters
+    """Get departure information for a specific station"""
+    station_data = MOCK_STATIONS.get(station_id)
+    if not station_data:
+        raise HTTPException(status_code=404, detail="Station not found")
     
-    for i, (station_id, station_data) in enumerate(MOCK_STATIONS.items()):
-        # Mock distance calculation
-        distance = base_distance + (i * 150)
-        walk_time = max(2, distance // 80)  # Rough walking time estimate
-        
-        # Get line statuses for this station
-        line_statuses = []
-        for line_id in station_data['lines']:
-            line_data = MOCK_LINES.get(line_id)
-            if line_data:
-                line_status = LineStatusResponse(
-                    id=line_data['id'],
-                    name=line_data['name'],
-                    color=line_data['color'],
-                    status=line_data['status'],
-                    status_severity=line_data['status_severity'],
-                    reason=line_data.get('reason'),
-                    updated_at=datetime.utcnow()
-                )
-                line_statuses.append(line_status)
-        
-        nearby_station = NearbyStation(
-            id=station_data['id'],
-            name=station_data['name'],
-            distance_meters=distance,
-            walk_time_minutes=walk_time,
-            lines=station_data['lines'],
-            line_statuses=line_statuses
-        )
-        nearby.append(nearby_station)
+    departures = generate_mock_departures(station_id)
     
-    # Sort by distance
-    return sorted(nearby, key=lambda x: x.distance_meters)[:5]
+    return StationResponse(
+        id=station_data['id'],
+        name=station_data['name'],
+        lines=station_data['lines'],
+        departures=departures,
+        updated_at=datetime.utcnow()
+    )
 
 # User Preferences Routes
 @api_router.post("/user/preferences", response_model=UserPreferences)

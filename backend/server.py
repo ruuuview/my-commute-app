@@ -97,90 +97,290 @@ class NearbyStation(BaseModel):
     lines: List[str]
     line_statuses: List[LineStatusResponse]
 
-# Mock Data
-MOCK_LINES = {
-    "central": {
-        "id": "central",
-        "name": "Central Line",
-        "color": LineColor.CENTRAL,
-        "status": LineStatus.GOOD_SERVICE,
-        "status_severity": 0
-    },
-    "circle": {
-        "id": "circle",
-        "name": "Circle Line",
-        "color": LineColor.CIRCLE,
-        "status": LineStatus.MINOR_DELAYS,
-        "status_severity": 3,
-        "reason": "Signal problems at King's Cross"
-    },
-    "district": {
-        "id": "district",
-        "name": "District Line",
-        "color": LineColor.DISTRICT,
-        "status": LineStatus.GOOD_SERVICE,
-        "status_severity": 0
-    },
-    "jubilee": {
-        "id": "jubilee",
-        "name": "Jubilee Line",
-        "color": LineColor.JUBILEE,
-        "status": LineStatus.GOOD_SERVICE,
-        "status_severity": 0
-    },
-    "northern": {
-        "id": "northern",
-        "name": "Northern Line",
-        "color": LineColor.NORTHERN,
-        "status": LineStatus.SEVERE_DELAYS,
-        "status_severity": 7,
-        "reason": "Customer incident at Camden Town"
-    },
-    "piccadilly": {
-        "id": "piccadilly",
-        "name": "Piccadilly Line",
-        "color": LineColor.PICCADILLY,
-        "status": LineStatus.GOOD_SERVICE,
-        "status_severity": 0
-    },
-    "victoria": {
-        "id": "victoria",
-        "name": "Victoria Line",
-        "color": LineColor.VICTORIA,
-        "status": LineStatus.GOOD_SERVICE,
-        "status_severity": 0
-    },
-    "elizabeth": {
-        "id": "elizabeth",
-        "name": "Elizabeth Line",
-        "color": LineColor.ELIZABETH,
-        "status": LineStatus.GOOD_SERVICE,
-        "status_severity": 0
-    }
-}
+# TfL Service Class
+class TfLService:
+    def __init__(self):
+        self.primary_key = TFL_PRIMARY_KEY
+        self.secondary_key = TFL_SECONDARY_KEY
+        self.base_url = TFL_BASE_URL
+        self.client = None
+        
+    async def get_client(self):
+        if not self.client:
+            self.client = httpx.AsyncClient(timeout=30.0)
+        return self.client
+    
+    async def close_client(self):
+        if self.client:
+            await self.client.aclose()
+    
+    def map_tfl_status_to_severity(self, status_description: str) -> int:
+        """Map TfL status descriptions to severity levels (0-10)"""
+        status_lower = status_description.lower()
+        if "good service" in status_lower or "running well" in status_lower:
+            return 0
+        elif "minor delay" in status_lower or "minor disruption" in status_lower:
+            return 3
+        elif "severe delay" in status_lower or "major disruption" in status_lower:
+            return 7
+        elif "suspended" in status_lower or "closed" in status_lower:
+            return 10
+        elif "planned closure" in status_lower or "part suspended" in status_lower:
+            return 8
+        else:
+            return 2  # Default for unknown statuses
+    
+    def get_line_color(self, line_id: str) -> str:
+        """Get official TfL line colors"""
+        color_map = {
+            "central": "#E32017",
+            "circle": "#FFD300", 
+            "district": "#00782A",
+            "hammersmith-city": "#F3A9BB",
+            "jubilee": "#A0A5A9",
+            "metropolitan": "#9B0056",
+            "northern": "#000000",
+            "piccadilly": "#003688",
+            "victoria": "#0098D4",
+            "waterloo-city": "#95CDBA",
+            "bakerloo": "#B36305",
+            "elizabeth": "#7156A5",
+            "dlr": "#00A4A7",
+            "london-overground": "#EE7C0E"
+        }
+        return color_map.get(line_id, "#666666")
+    
+    async def get_tube_line_status(self):
+        """Get status of all tube lines from TfL API"""
+        try:
+            client = await self.get_client()
+            url = f"{self.base_url}/line/mode/tube,elizabeth-line,dlr/status"
+            params = {"app_key": self.primary_key}
+            
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            lines = []
+            
+            for line_data in data:
+                line_id = line_data.get("id", "")
+                line_name = line_data.get("name", "")
+                
+                # Get status info
+                line_statuses = line_data.get("lineStatuses", [])
+                status_description = "Good Service"
+                reason = None
+                severity = 0
+                
+                if line_statuses:
+                    status_info = line_statuses[0]
+                    status_description = status_info.get("statusSeverityDescription", "Good Service")
+                    reason = status_info.get("reason", None)
+                    severity = self.map_tfl_status_to_severity(status_description)
+                
+                line_response = LineStatusResponse(
+                    id=line_id,
+                    name=line_name,
+                    color=self.get_line_color(line_id),
+                    status=status_description,
+                    status_severity=severity,
+                    reason=reason,
+                    updated_at=datetime.utcnow()
+                )
+                lines.append(line_response)
+            
+            return lines
+            
+        except Exception as e:
+            logger.error(f"Error fetching TfL line status: {e}")
+            # Return mock data as fallback
+            return await self._get_mock_lines()
+    
+    async def get_single_line_status(self, line_id: str):
+        """Get status of a specific line"""
+        try:
+            client = await self.get_client()
+            url = f"{self.base_url}/line/{line_id}/status"
+            params = {"app_key": self.primary_key}
+            
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            if not data:
+                raise HTTPException(status_code=404, detail="Line not found")
+            
+            line_data = data[0]  # TfL returns array with single item
+            line_name = line_data.get("name", "")
+            
+            # Get status info
+            line_statuses = line_data.get("lineStatuses", [])
+            status_description = "Good Service"
+            reason = None
+            severity = 0
+            
+            if line_statuses:
+                status_info = line_statuses[0]
+                status_description = status_info.get("statusSeverityDescription", "Good Service")
+                reason = status_info.get("reason", None)
+                severity = self.map_tfl_status_to_severity(status_description)
+            
+            return LineStatusResponse(
+                id=line_id,
+                name=line_name,
+                color=self.get_line_color(line_id),
+                status=status_description,
+                status_severity=severity,
+                reason=reason,
+                updated_at=datetime.utcnow()
+            )
+            
+        except Exception as e:
+            logger.error(f"Error fetching TfL line status for {line_id}: {e}")
+            # Return mock data as fallback
+            return await self._get_mock_single_line(line_id)
+    
+    async def get_station_arrivals(self, station_id: str):
+        """Get arrivals for a specific station"""
+        try:
+            client = await self.get_client()
+            
+            # First get station info
+            station_url = f"{self.base_url}/StopPoint/{station_id}"
+            station_params = {"app_key": self.primary_key}
+            
+            station_response = await client.get(station_url, params=station_params)
+            station_response.raise_for_status()
+            station_data = station_response.json()
+            
+            station_name = station_data.get("commonName", "Unknown Station")
+            
+            # Get arrivals
+            arrivals_url = f"{self.base_url}/StopPoint/{station_id}/Arrivals"
+            arrivals_params = {"app_key": self.primary_key}
+            
+            arrivals_response = await client.get(arrivals_url, params=arrivals_params)
+            arrivals_response.raise_for_status()
+            arrivals_data = arrivals_response.json()
+            
+            # Process arrivals
+            departures = []
+            for arrival in arrivals_data[:10]:  # Limit to 10 arrivals
+                line_name = arrival.get("lineName", "")
+                destination = arrival.get("destinationName", "")
+                platform_name = arrival.get("platformName", "Platform")
+                time_to_station = arrival.get("timeToStation", 0)
+                minutes_away = max(1, time_to_station // 60)
+                expected_time = datetime.utcnow() + timedelta(seconds=time_to_station)
+                
+                departure = Departure(
+                    line=line_name,
+                    destination=destination,
+                    platform=platform_name,
+                    expected_arrival=expected_time,
+                    minutes_away=minutes_away
+                )
+                departures.append(departure)
+            
+            # Sort by arrival time
+            departures.sort(key=lambda x: x.minutes_away)
+            
+            return StationResponse(
+                id=station_id,
+                name=station_name,
+                lines=[],  # TfL doesn't provide this in a simple way
+                departures=departures[:6],  # Top 6
+                updated_at=datetime.utcnow()
+            )
+            
+        except Exception as e:
+            logger.error(f"Error fetching TfL arrivals for {station_id}: {e}")
+            # Return mock data as fallback
+            return await self._get_mock_station(station_id)
+    
+    async def search_stations(self, query: str):
+        """Search for stations by name"""
+        try:
+            client = await self.get_client()
+            url = f"{self.base_url}/StopPoint/Search/{query}"
+            params = {
+                "app_key": self.primary_key,
+                "modes": "tube,elizabeth-line,dlr",
+                "maxResults": 10
+            }
+            
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            stations = []
+            
+            for match in data.get("matches", []):
+                station_id = match.get("id", "")
+                station_name = match.get("name", "")
+                
+                if station_id and station_name:
+                    stations.append({
+                        "id": station_id,
+                        "name": station_name,
+                        "lines": []  # Would need additional call to get this
+                    })
+            
+            return stations
+            
+        except Exception as e:
+            logger.error(f"Error searching TfL stations for '{query}': {e}")
+            return []
+    
+    async def _get_mock_lines(self):
+        """Fallback mock data for when TfL API fails"""
+        mock_lines = [
+            LineStatusResponse(
+                id="central",
+                name="Central Line",
+                color="#E32017",
+                status="Good Service",
+                status_severity=0,
+                reason=None,
+                updated_at=datetime.utcnow()
+            ),
+            LineStatusResponse(
+                id="victoria",
+                name="Victoria Line", 
+                color="#0098D4",
+                status="Good Service",
+                status_severity=0,
+                reason=None,
+                updated_at=datetime.utcnow()
+            )
+        ]
+        return mock_lines
+    
+    async def _get_mock_single_line(self, line_id: str):
+        """Fallback mock data for single line"""
+        return LineStatusResponse(
+            id=line_id,
+            name=f"{line_id.title()} Line",
+            color=self.get_line_color(line_id),
+            status="Service Update Unavailable",
+            status_severity=1,
+            reason="Unable to connect to live data",
+            updated_at=datetime.utcnow()
+        )
+    
+    async def _get_mock_station(self, station_id: str):
+        """Fallback mock data for station"""
+        return StationResponse(
+            id=station_id,
+            name="Station (Live Data Unavailable)",
+            lines=[],
+            departures=[],
+            updated_at=datetime.utcnow()
+        )
 
-MOCK_STATIONS = {
-    "king-cross": {
-        "id": "king-cross",
-        "name": "King's Cross St. Pancras",
-        "lines": ["circle", "hammersmith-city", "metropolitan", "northern", "piccadilly", "victoria"]
-    },
-    "oxford-circus": {
-        "id": "oxford-circus",
-        "name": "Oxford Circus",
-        "lines": ["central", "northern", "victoria"]
-    },
-    "london-bridge": {
-        "id": "london-bridge",
-        "name": "London Bridge",
-        "lines": ["jubilee", "northern"]
-    },
-    "waterloo": {
-        "id": "waterloo",
-        "name": "Waterloo",
-        "lines": ["bakerloo", "jubilee", "northern", "waterloo-city"]
-    }
-}
+# Initialize TfL service
+tfl_service = TfLService()
 
 # Helper functions
 def generate_mock_departures(station_id: str) -> List[Departure]:

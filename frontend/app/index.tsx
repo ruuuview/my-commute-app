@@ -267,26 +267,56 @@ export default function MyCommuteDashboard() {
 
   const renderStationItem = (stationId: string) => {
     const station = stationData[stationId];
-    if (!station) return null;
+    
+    const handleStationPress = () => {
+      // Open station management - for now show alert
+      Alert.alert(
+        'Station Options',
+        `Manage ${station?.name || stationId}`,
+        [
+          { text: 'Remove Station', onPress: () => toggleStationInPreferences(stationId), style: 'destructive' },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    };
+
+    // Handle case where station data is unavailable
+    if (!station) {
+      return (
+        <TouchableOpacity key={stationId} style={styles.stationItem} onPress={handleStationPress}>
+          <View style={styles.stationHeader}>
+            <Ionicons name="warning" size={20} color="#ff4757" />
+            <Text style={styles.stationName}>Live Data Unavailable</Text>
+          </View>
+          <Text style={styles.errorText}>
+            Tap to manage this station (ID: {stationId})
+          </Text>
+        </TouchableOpacity>
+      );
+    }
 
     return (
-      <View key={stationId} style={styles.stationItem}>
+      <TouchableOpacity key={stationId} style={styles.stationItem} onPress={handleStationPress}>
         <View style={styles.stationHeader}>
           <Ionicons name="train" size={20} color="#007AFF" />
           <Text style={styles.stationName}>{station.name}</Text>
         </View>
         <View style={styles.departuresContainer}>
-          {station.departures.slice(0, 3).map((departure, index) => (
-            <View key={index} style={styles.departureRow}>
-              <Text style={styles.departureLine}>{departure.line}</Text>
-              <Text style={styles.departureDestination} numberOfLines={1}>
-                {departure.destination}
-              </Text>
-              <Text style={styles.departureTime}>{departure.minutes_away} min</Text>
-            </View>
-          ))}
+          {station.departures && station.departures.length > 0 ? (
+            station.departures.slice(0, 3).map((departure, index) => (
+              <View key={index} style={styles.departureRow}>
+                <Text style={styles.departureLine}>{departure.line}</Text>
+                <Text style={styles.departureDestination} numberOfLines={1}>
+                  {departure.destination}
+                </Text>
+                <Text style={styles.departureTime}>{departure.minutes_away} min</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.errorText}>No departures available</Text>
+          )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

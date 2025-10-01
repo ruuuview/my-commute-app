@@ -582,11 +582,14 @@ export default function MyCommuteDashboard() {
               • Offline mode for underground
               • Home screen widget
             </Text>
+            <Text style={styles.noSubscriptionText}>
+              No subscriptions. Pay once, own it forever.
+            </Text>
             <TouchableOpacity 
               style={styles.upgradeButton}
               onPress={() => Alert.alert('Upgrade', 'Pro upgrade coming soon!')}
             >
-              <Text style={styles.upgradeText}>Upgrade for £7.99</Text>
+              <Text style={styles.upgradeText}>Unlock Pro (Pay £7.99 Once)</Text>
             </TouchableOpacity>
           </View>
         )}

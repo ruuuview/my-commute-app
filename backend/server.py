@@ -40,6 +40,11 @@ class LineStatus(str, Enum):
     PLANNED_CLOSURE = "Planned Closure"
     SUSPENDED = "Suspended"
     SPECIAL_SERVICE = "Special Service"
+    PART_SUSPENDED = "Part Suspended"
+    REDUCED_SERVICE = "Reduced Service"
+    BUS_SERVICE = "Bus Service"
+    CLOSURE = "Closure"
+    NO_SERVICE = "No Service"
 
 class LineColor(str, Enum):
     CENTRAL = "#E32017"

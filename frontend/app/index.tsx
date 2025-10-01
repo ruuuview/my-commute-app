@@ -545,7 +545,7 @@ export default function MyCommuteDashboard() {
             </Text>
             <TouchableOpacity
               style={styles.getStartedButton}
-              onPress={() => setIsSetupMode(true)}
+              onPress={() => setSetupMode('lines')}
             >
               <Text style={styles.getStartedText}>Get Started</Text>
             </TouchableOpacity>

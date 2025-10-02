@@ -199,19 +199,22 @@ export default function MyCommuteDashboard() {
   };
 
   const toggleStationInPreferences = (stationId: string) => {
-    const newSavedStations = userPrefs.saved_stations.includes(stationId)
+    const isRemoving = userPrefs.saved_stations.includes(stationId);
+    const newSavedStations = isRemoving
       ? userPrefs.saved_stations.filter(id => id !== stationId)
       : [...userPrefs.saved_stations, stationId];
     
-    // Free version limit: max 3 items total
-    const totalItems = userPrefs.saved_lines.length + newSavedStations.length;
-    if (!userPrefs.is_pro && !devMode && totalItems > 3) {
-      Alert.alert(
-        'Upgrade to Pro', 
-        'Free version allows up to 3 items total (lines + stations). Upgrade to Pro for unlimited.',
-        [{ text: 'OK' }]
-      );
-      return;
+    // Only check limit when ADDING (not removing)
+    if (!isRemoving) {
+      const totalItems = userPrefs.saved_lines.length + newSavedStations.length;
+      if (!userPrefs.is_pro && !devMode && totalItems > 3) {
+        Alert.alert(
+          'Upgrade to Pro', 
+          'Free version allows up to 3 items total. Remove an existing item first, or upgrade to Pro for unlimited.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
     }
 
     const newPrefs = { ...userPrefs, saved_stations: newSavedStations };

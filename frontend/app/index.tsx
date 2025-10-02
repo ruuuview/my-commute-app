@@ -736,6 +736,15 @@ export default function MyCommuteDashboard() {
           </View>
         )}
 
+        {/* Add/Manage Button */}
+        <TouchableOpacity 
+          style={styles.addManageButton}
+          onPress={() => setShowManagementSheet(true)}
+        >
+          <Ionicons name="add" size={24} color="#007AFF" style={styles.addIcon} />
+          <Text style={styles.addManageText}>Add/Manage Lines & Stations</Text>
+        </TouchableOpacity>
+
         {/* Pro Features Preview */}
         {!userPrefs.is_pro && (
           <View style={styles.proPreview}>

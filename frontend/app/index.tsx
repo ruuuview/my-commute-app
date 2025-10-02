@@ -249,6 +249,50 @@ export default function MyCommuteDashboard() {
     }
   };
 
+  // Traffic Light System - Calculate overall commute status
+  const getOverallCommuteStatus = (): 'good' | 'minor' | 'severe' => {
+    if (lineStatuses.length === 0) return 'good';
+    
+    const maxSeverity = Math.max(...lineStatuses.map(line => line.status_severity));
+    
+    if (maxSeverity >= 7) return 'severe';      // Red
+    if (maxSeverity >= 3) return 'minor';       // Amber  
+    return 'good';                              // Green
+  };
+
+  const getStatusColor = (status: string, severity?: number) => {
+    if (severity !== undefined) {
+      if (severity >= 7) return '#dc3545';      // Red
+      if (severity >= 3) return '#ffc107';      // Amber
+      return '#28a745';                         // Green
+    }
+    
+    // Fallback to old logic
+    switch (status) {
+      case 'Good Service':
+        return '#28a745';
+      case 'Minor Delays':
+        return '#ffc107';
+      case 'Severe Delays':
+      case 'Suspended':
+        return '#dc3545';
+      case 'Planned Closure':
+        return '#6f42c1';
+      default:
+        return '#6c757d';
+    }
+  };
+
+  const getHeaderBackgroundColor = (): string => {
+    const overallStatus = getOverallCommuteStatus();
+    switch (overallStatus) {
+      case 'good': return '#28a745';    // Green
+      case 'minor': return '#ffc107';   // Amber
+      case 'severe': return '#dc3545';  // Red
+      default: return '#007AFF';        // Default blue
+    }
+  };
+
   const renderLineItem = (line: LineStatus) => (
     <View key={line.id} style={styles.lineItem}>
       <View style={[styles.lineIndicator, { backgroundColor: line.color }]} />

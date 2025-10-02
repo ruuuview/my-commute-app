@@ -689,14 +689,8 @@ export default function MyCommuteDashboard() {
       
       {/* Header with My Commute Logo */}
       <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <View style={styles.brandLogo}>
-            <View style={styles.tflRoundel}>
-              <View style={styles.tflBlueBar} />
-              <Text style={styles.mcLetters}>MC</Text>
-            </View>
-            <Text style={styles.appNameText}>My Commute</Text>
-          </View>
+        <View style={styles.centeredLogoContainer}>
+          <Text style={styles.myCommuteTitle}>MY COMMUTE</Text>
         </View>
       </View>
 

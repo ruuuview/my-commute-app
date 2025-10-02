@@ -727,30 +727,109 @@ export default function MyCommuteDashboard() {
           </View>
         )}
 
-        {/* Lines Section */}
-        {lineStatuses.length > 0 && (
-          <View style={styles.section}>
+        {/* Interactive Lines Section */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.collapsibleSectionHeader}
+            onPress={() => {
+              setExpandedCard(expandedCard === 'lines' ? null : 'lines');
+            }}
+          >
             <Text style={styles.brandedSectionTitle}>My Lines</Text>
-            {lineStatuses.map(renderLineItem)}
-          </View>
-        )}
+            <Ionicons 
+              name={expandedCard === 'lines' ? 'chevron-up' : 'chevron-down'} 
+              size={24} 
+              color="#333" 
+            />
+          </TouchableOpacity>
+          
+          {lineStatuses.map(renderLineItem)}
+          
+          {expandedCard === 'lines' && (
+            <View style={styles.expandedEditor}>
+              <Text style={styles.editorTitle}>Select Lines for Your Dashboard</Text>
+              <ScrollView style={styles.editorScrollView} showsVerticalScrollIndicator={false}>
+                {allLines
+                  .filter(line => !userPrefs.saved_lines.includes(line.id))
+                  .map((line) => (
+                    <TouchableOpacity
+                      key={line.id}
+                      style={[styles.editorLineItem, { borderLeftColor: line.color }]}
+                      onPress={() => toggleLineInPreferences(line.id)}
+                    >
+                      <Text style={styles.editorLineName}>{line.name}</Text>
+                      <View style={styles.addCheckbox}>
+                        <Ionicons name="add-circle" size={24} color="#007AFF" />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
 
-        {/* Stations Section */}
+        {/* Interactive Stations Section */}
         {Object.keys(stationData).length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.brandedSectionTitle}>Your Stations</Text>
+            <TouchableOpacity 
+              style={styles.collapsibleSectionHeader}
+              onPress={() => {
+                setExpandedCard(expandedCard === 'stations' ? null : 'stations');
+              }}
+            >
+              <Text style={styles.brandedSectionTitle}>Your Stations</Text>
+              <Ionicons 
+                name={expandedCard === 'stations' ? 'chevron-up' : 'chevron-down'} 
+                size={24} 
+                color="#333" 
+              />
+            </TouchableOpacity>
+            
             {userPrefs.saved_stations.map(renderStationItem)}
+            
+            {expandedCard === 'stations' && (
+              <View style={styles.expandedEditor}>
+                <Text style={styles.editorTitle}>Search & Add Stations</Text>
+                <TextInput
+                  style={styles.stationSearchInput}
+                  placeholder="Search stations (e.g. 'King's Cross', 'Waterloo')"
+                  value={searchQuery}
+                  onChangeText={handleSearchInput}
+                  placeholderTextColor="#666"
+                />
+                <ScrollView style={styles.editorScrollView} showsVerticalScrollIndicator={false}>
+                  {searchResults
+                    .filter(station => !userPrefs.saved_stations.includes(station.id))
+                    .map((station) => (
+                      <TouchableOpacity
+                        key={station.id}
+                        style={styles.editorStationItem}
+                        onPress={() => toggleStationInPreferences(station.id)}
+                      >
+                        <Ionicons name="train" size={20} color="#007AFF" />
+                        <Text style={styles.editorStationName}>{station.name}</Text>
+                        <View style={styles.addCheckbox}>
+                          <Ionicons name="add-circle" size={24} color="#007AFF" />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  
+                  {searchQuery.length > 0 && !isSearching && searchResults.length === 0 && (
+                    <Text style={styles.noResultsText}>
+                      No stations found for "{searchQuery}"
+                    </Text>
+                  )}
+                  
+                  {searchQuery.length === 0 && (
+                    <Text style={styles.searchHelpText}>
+                      Start typing to search the TfL network...
+                    </Text>
+                  )}
+                </ScrollView>
+              </View>
+            )}
           </View>
         )}
-
-        {/* Add/Manage Button */}
-        <TouchableOpacity 
-          style={styles.addManageButton}
-          onPress={() => setShowManagementSheet(true)}
-        >
-          <Ionicons name="add" size={24} color="#007AFF" style={styles.addIcon} />
-          <Text style={styles.addManageText}>Add/Manage Lines & Stations</Text>
-        </TouchableOpacity>
 
         {/* Pro Features Preview */}
         {!userPrefs.is_pro && (

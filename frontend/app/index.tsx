@@ -698,7 +698,7 @@ export default function MyCommuteDashboard() {
 
       {/* Dashboard Content */}
       <ScrollView
-        style={styles.content}
+        style={[styles.content, { backgroundColor: getDashboardBackgroundColor() }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

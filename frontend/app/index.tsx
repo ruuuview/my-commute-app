@@ -816,8 +816,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  setupButton: {
+  editButton: {
     padding: 4,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  editDeleteButton: {
+    position: 'absolute',
+    left: -12,
+    top: '50%',
+    marginTop: -12,
+    zIndex: 10,
+  },
+  dragHandle: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    marginTop: -12,
   },
   content: {
     flex: 1,

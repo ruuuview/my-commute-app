@@ -279,6 +279,22 @@ export default function MyCommuteDashboard() {
     }
   };
 
+  const getDashboardBackgroundColor = (): string => {
+    const overallStatus = getOverallCommuteStatus();
+    switch (overallStatus) {
+      case 'good': return 'rgba(40, 167, 69, 0.05)';    // Light green tint
+      case 'minor': return 'rgba(255, 193, 7, 0.05)';   // Light amber tint
+      case 'severe': return 'rgba(220, 53, 69, 0.05)';  // Light red tint
+      default: return '#f8f9fa';                         // Default light gray
+    }
+  };
+
+  const getTrafficLightColor = (status: string, severity: number): string => {
+    if (severity >= 7) return '#dc3545';  // Red
+    if (severity >= 3) return '#ffc107';  // Amber
+    return '#28a745';                     // Green
+  };
+
   const renderLineItem = (line: LineStatus) => (
     <TouchableOpacity 
       key={line.id} 

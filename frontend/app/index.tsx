@@ -593,15 +593,25 @@ export default function MyCommuteDashboard() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header with Traffic Light System */}
+      <View style={[styles.header, { backgroundColor: getHeaderBackgroundColor() }]}>
         <Text style={styles.headerTitle}>My Commute</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            onPress={() => setSetupMode('lines')}
-            style={styles.setupButton}
+            onPress={() => {
+              if (editMode) {
+                setEditMode(false);
+              } else {
+                setEditMode(true);
+              }
+            }}
+            style={styles.editButton}
           >
-            <Ionicons name="settings-outline" size={24} color="#007AFF" />
+            {editMode ? (
+              <Text style={styles.doneButtonText}>Done</Text>
+            ) : (
+              <Ionicons name="create-outline" size={24} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
       </View>

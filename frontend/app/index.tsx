@@ -915,48 +915,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Professional Brand Logo Styles
-  logoContainer: {
+  // Centered My Commute Logo Styles
+  centeredLogoContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 16,
   },
-  brandLogo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tflRoundel: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#E32017', // TfL Red
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  tflBlueBar: {
-    position: 'absolute',
-    width: 60,
-    height: 8,
-    backgroundColor: '#003688', // TfL Blue
-    borderRadius: 4,
-  },
-  mcLetters: {
-    fontSize: 16,
+  myCommuteTitle: {
+    fontSize: 28,
     fontWeight: '800',
     color: '#fff',
-    letterSpacing: 1,
-    zIndex: 1,
-  },
-  appNameText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: -0.5,
+    letterSpacing: 2,
+    textAlign: 'center',
   },
   // Traffic Light Styles
   trafficLight: {

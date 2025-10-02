@@ -683,18 +683,34 @@ export default function MyCommuteDashboard() {
     );
   }
 
-  // Render functions for each tab
-  const renderDashboard = () => (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
-      <ScrollView
-        style={[styles.content, { backgroundColor: getDashboardBackgroundColor() }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      
+      {/* Header with My Commute Logo */}
+      <View style={styles.header}>
+        <View style={styles.logoContainer}>
+          <View style={styles.brandLogo}>
+            <View style={styles.tflRoundel}>
+              <View style={styles.tflBlueBar} />
+              <Text style={styles.mcLetters}>MC</Text>
+            </View>
+            <Text style={styles.appNameText}>My Commute</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Dashboard Content */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        <ScrollView
+          style={[styles.content, { backgroundColor: getDashboardBackgroundColor() }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
 
       {/* Dashboard Content */}
       <KeyboardAvoidingView 

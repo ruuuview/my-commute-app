@@ -182,7 +182,7 @@ export default function MyCommuteDashboard() {
     // Only check limit when ADDING (not removing)
     if (!isRemoving) {
       const totalItems = newSavedLines.length + userPrefs.saved_stations.length;
-      if (!userPrefs.is_pro && !devMode && totalItems > 3) {
+      if (!userPrefs.is_pro && totalItems > 3) {
         Alert.alert(
           'Upgrade to Pro',
           'Free version allows up to 3 items total. Remove an existing item first, or upgrade to Pro for unlimited.',

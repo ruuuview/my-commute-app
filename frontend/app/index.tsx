@@ -70,8 +70,7 @@ export default function MyCommuteDashboard() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Mock feature flag for Pro features
-  const [devMode, setDevMode] = useState(false);
+  // Mock feature flag for Pro features - removed dev mode toggle
 
   useEffect(() => {
     loadUserPreferences();

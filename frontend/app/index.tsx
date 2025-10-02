@@ -747,22 +747,50 @@ export default function MyCommuteDashboard() {
           
           {expandedCard === 'lines' && (
             <View style={styles.expandedEditor}>
-              <Text style={styles.editorTitle}>Select Lines for Your Dashboard</Text>
+              <Text style={styles.editorTitle}>Manage Your Lines</Text>
               <ScrollView style={styles.editorScrollView} showsVerticalScrollIndicator={false}>
-                {allLines
-                  .filter(line => !userPrefs.saved_lines.includes(line.id))
-                  .map((line) => (
-                    <TouchableOpacity
-                      key={line.id}
-                      style={[styles.editorLineItem, { borderLeftColor: line.color }]}
-                      onPress={() => toggleLineInPreferences(line.id)}
-                    >
-                      <Text style={styles.editorLineName}>{line.name}</Text>
-                      <View style={styles.addCheckbox}>
-                        <Ionicons name="add-circle" size={24} color="#007AFF" />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                
+                {/* Currently Selected Lines - with Remove option */}
+                {userPrefs.saved_lines.length > 0 && (
+                  <>
+                    <Text style={styles.editorSectionTitle}>Currently Selected</Text>
+                    {allLines
+                      .filter(line => userPrefs.saved_lines.includes(line.id))
+                      .map((line) => (
+                        <TouchableOpacity
+                          key={line.id}
+                          style={[styles.editorLineItem, styles.selectedLineItem, { borderLeftColor: line.color }]}
+                          onPress={() => toggleLineInPreferences(line.id)}
+                        >
+                          <Text style={styles.editorLineName}>{line.name}</Text>
+                          <View style={styles.removeCheckbox}>
+                            <Ionicons name="remove-circle" size={24} color="#ff4757" />
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                  </>
+                )}
+
+                {/* Available Lines - with Add option */}
+                {allLines.filter(line => !userPrefs.saved_lines.includes(line.id)).length > 0 && (
+                  <>
+                    <Text style={styles.editorSectionTitle}>Add More Lines</Text>
+                    {allLines
+                      .filter(line => !userPrefs.saved_lines.includes(line.id))
+                      .map((line) => (
+                        <TouchableOpacity
+                          key={line.id}
+                          style={[styles.editorLineItem, { borderLeftColor: line.color }]}
+                          onPress={() => toggleLineInPreferences(line.id)}
+                        >
+                          <Text style={styles.editorLineName}>{line.name}</Text>
+                          <View style={styles.addCheckbox}>
+                            <Ionicons name="add-circle" size={24} color="#007AFF" />
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                  </>
+                )}
               </ScrollView>
             </View>
           )}

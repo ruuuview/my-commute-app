@@ -601,7 +601,7 @@ export default function MyCommuteDashboard() {
         )}
 
         {/* Pro Features Preview */}
-        {!userPrefs.is_pro && !devMode && (
+        {!userPrefs.is_pro && (
           <View style={styles.proPreview}>
             <Text style={styles.proTitle}>Unlock Pro Features</Text>
             <Text style={styles.proDescription}>

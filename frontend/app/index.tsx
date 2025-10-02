@@ -660,14 +660,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  devModeText: {
-    fontSize: 24,
-    color: '#ccc',
-    marginRight: 16,
-  },
-  devModeActive: {
-    color: '#007AFF',
-  },
   setupButton: {
     padding: 4,
   },

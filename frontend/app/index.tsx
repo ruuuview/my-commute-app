@@ -891,33 +891,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // MC Logo Styles (London Underground Roundel inspired)
-  mcLogo: {
+  // My Commute Logotype Styles (TfL Roundel inspired)
+  logotypeContainer: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  mcLogoCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  logotype: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roundelCircle: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#E32017', // TfL Red
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
+    zIndex: 1,
   },
-  mcLogoBar: {
+  roundelBar: {
+    position: 'absolute',
+    top: '50%',
+    left: -10,
+    right: -10,
+    height: 20,
     backgroundColor: '#003688', // TfL Blue
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: -10,
+    zIndex: 2,
   },
-  mcLogoText: {
-    fontSize: 18,
+  logotypeText: {
+    fontSize: 32,
+    fontWeight: '700',
+    zIndex: 3,
+    textAlign: 'center',
+  },
+  emphasizedLetters: {
+    fontSize: 36,
     fontWeight: '800',
     color: '#fff',
-    letterSpacing: 1,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  regularLetters: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   // Traffic Light Styles
   trafficLight: {

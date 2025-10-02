@@ -298,23 +298,12 @@ export default function MyCommuteDashboard() {
   const renderLineItem = (line: LineStatus) => (
     <TouchableOpacity 
       key={line.id} 
-      style={styles.lineItem}
-      onPress={() => {
-        if (editMode) return; // Disable tap in edit mode
-        setSelectedLineDetail(line.id);
-      }}
-      disabled={editMode}
+      style={[styles.lineItem, { 
+        borderLeftColor: line.color, 
+        borderLeftWidth: 6 
+      }]}
+      onPress={() => setSelectedLineDetail(line.id)}
     >
-      {editMode && (
-        <TouchableOpacity
-          onPress={() => toggleLineInPreferences(line.id)}
-          style={styles.editDeleteButton}
-        >
-          <Ionicons name="remove-circle" size={24} color="#ff4757" />
-        </TouchableOpacity>
-      )}
-      
-      <View style={[styles.lineIndicator, { backgroundColor: line.color }]} />
       <View style={styles.lineContent}>
         <Text style={styles.lineName}>{line.name}</Text>
         <View style={styles.statusRow}>
@@ -333,11 +322,12 @@ export default function MyCommuteDashboard() {
         )}
       </View>
       
-      {editMode && (
-        <View style={styles.dragHandle}>
-          <Ionicons name="reorder-three" size={24} color="#666" />
-        </View>
-      )}
+      <View style={styles.trafficLight}>
+        <View style={[
+          styles.trafficLightIndicator, 
+          { backgroundColor: getTrafficLightColor(line.status, line.status_severity) }
+        ]} />
+      </View>
     </TouchableOpacity>
   );
 

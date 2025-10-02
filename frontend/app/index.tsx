@@ -711,18 +711,6 @@ export default function MyCommuteDashboard() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-
-      {/* Dashboard Content */}
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          style={[styles.content, { backgroundColor: getDashboardBackgroundColor() }]}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
         {/* Welcome Message */}
         {userPrefs.saved_lines.length === 0 && userPrefs.saved_stations.length === 0 && (
           <View style={styles.welcomeContainer}>

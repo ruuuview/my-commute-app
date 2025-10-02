@@ -686,19 +686,15 @@ export default function MyCommuteDashboard() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Header with My Commute Logotype */}
+      {/* Header with My Commute Logo */}
       <View style={styles.header}>
-        <View style={styles.logotypeContainer}>
-          <View style={styles.logotype}>
-            <View style={styles.roundelCircle}>
-              <View style={styles.roundelBar} />
+        <View style={styles.logoContainer}>
+          <View style={styles.brandLogo}>
+            <View style={styles.tflRoundel}>
+              <View style={styles.tflBlueBar} />
+              <Text style={styles.mcLetters}>MC</Text>
             </View>
-            <Text style={styles.logotypeText}>
-              <Text style={styles.emphasizedLetters}>M</Text>
-              <Text style={styles.regularLetters}>y </Text>
-              <Text style={styles.emphasizedLetters}>C</Text>
-              <Text style={styles.regularLetters}>ommute</Text>
-            </Text>
+            <Text style={styles.appNameText}>My Commute</Text>
           </View>
         </View>
       </View>

@@ -377,7 +377,7 @@ export default function MyCommuteDashboard() {
           <Text style={styles.sectionTitle}>
             Your {setupMode === 'lines' ? 'Lines' : 'Stations'} 
             ({setupMode === 'lines' ? userPrefs.saved_lines.length : userPrefs.saved_stations.length}/
-            {userPrefs.is_pro || devMode ? '∞' : '3 total'})
+            {userPrefs.is_pro ? '∞' : '3 total'})
           </Text>
           
           {setupMode === 'lines' ? (

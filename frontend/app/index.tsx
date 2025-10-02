@@ -71,6 +71,7 @@ export default function MyCommuteDashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedLineDetail, setSelectedLineDetail] = useState<string | null>(null);
   const [showManagementSheet, setShowManagementSheet] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   // Mock feature flag for Pro features - removed dev mode toggle
 

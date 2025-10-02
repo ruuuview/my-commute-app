@@ -1237,4 +1237,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  addManageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    margin: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  addIcon: {
+    marginRight: 12,
+  },
+  addManageText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
 });

@@ -1230,6 +1230,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
+  noSubscriptionText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
   upgradeButton: {
     backgroundColor: '#007AFF',
     borderRadius: 8,

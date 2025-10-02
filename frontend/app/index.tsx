@@ -806,29 +806,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  editButton: {
-    padding: 4,
-    minWidth: 60,
+  // MC Logo Styles (London Underground Roundel inspired)
+  mcLogo: {
+    alignItems: 'center',
+  },
+  mcLogoCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E32017', // TfL Red
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  mcLogoBar: {
+    backgroundColor: '#003688', // TfL Blue
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  doneButtonText: {
+  mcLogoText: {
+    fontSize: 18,
+    fontWeight: '800',
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    letterSpacing: 1,
   },
-  editDeleteButton: {
-    position: 'absolute',
-    left: -12,
-    top: '50%',
-    marginTop: -12,
-    zIndex: 10,
+  // Traffic Light Styles
+  trafficLight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
-  dragHandle: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -12,
+  trafficLightIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
   content: {
     flex: 1,

@@ -231,7 +231,7 @@ export default function MyCommuteDashboard() {
 
   const handleSearchInput = (text: string) => {
     setSearchQuery(text);
-    if (setupMode === 'stations') {
+    if (expandedCard === 'stations') {
       searchStations(text);
     }
   };

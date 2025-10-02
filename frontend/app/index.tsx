@@ -679,26 +679,14 @@ export default function MyCommuteDashboard() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Header with Traffic Light System */}
+      {/* Header with MC Logo */}
       <View style={[styles.header, { backgroundColor: getHeaderBackgroundColor() }]}>
-        <Text style={styles.headerTitle}>My Commute</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => {
-              if (editMode) {
-                setEditMode(false);
-              } else {
-                setEditMode(true);
-              }
-            }}
-            style={styles.editButton}
-          >
-            {editMode ? (
-              <Text style={styles.doneButtonText}>Done</Text>
-            ) : (
-              <Ionicons name="create-outline" size={24} color="#fff" />
-            )}
-          </TouchableOpacity>
+        <View style={styles.mcLogo}>
+          <View style={styles.mcLogoCircle}>
+            <View style={styles.mcLogoBar}>
+              <Text style={styles.mcLogoText}>MC</Text>
+            </View>
+          </View>
         </View>
       </View>
 

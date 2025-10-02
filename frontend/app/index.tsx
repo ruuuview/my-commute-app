@@ -341,36 +341,48 @@ export default function MyCommuteDashboard() {
 
   const renderStationItem = (stationId: string) => {
     const station = stationData[stationId];
-    
-    const handleStationPress = () => {
-      // Open station management - for now show alert
-      Alert.alert(
-        'Station Options',
-        `Manage ${station?.name || stationId}`,
-        [
-          { text: 'Remove Station', onPress: () => toggleStationInPreferences(stationId), style: 'destructive' },
-          { text: 'Cancel', style: 'cancel' }
-        ]
-      );
-    };
 
     // Handle case where station data is unavailable
     if (!station) {
       return (
-        <TouchableOpacity key={stationId} style={styles.stationItem} onPress={handleStationPress}>
+        <View key={stationId} style={styles.stationItem}>
+          {editMode && (
+            <TouchableOpacity
+              onPress={() => toggleStationInPreferences(stationId)}
+              style={styles.editDeleteButton}
+            >
+              <Ionicons name="remove-circle" size={24} color="#ff4757" />
+            </TouchableOpacity>
+          )}
+          
           <View style={styles.stationHeader}>
             <Ionicons name="warning" size={20} color="#ff4757" />
             <Text style={styles.stationName}>Live Data Unavailable</Text>
           </View>
           <Text style={styles.errorText}>
-            Tap to manage this station (ID: {stationId})
+            Station ID: {stationId}
           </Text>
-        </TouchableOpacity>
+          
+          {editMode && (
+            <View style={styles.dragHandle}>
+              <Ionicons name="reorder-three" size={24} color="#666" />
+            </View>
+          )}
+        </View>
       );
     }
 
     return (
-      <TouchableOpacity key={stationId} style={styles.stationItem} onPress={handleStationPress}>
+      <View key={stationId} style={styles.stationItem}>
+        {editMode && (
+          <TouchableOpacity
+            onPress={() => toggleStationInPreferences(stationId)}
+            style={styles.editDeleteButton}
+          >
+            <Ionicons name="remove-circle" size={24} color="#ff4757" />
+          </TouchableOpacity>
+        )}
+        
         <View style={styles.stationHeader}>
           <Ionicons name="train" size={20} color="#007AFF" />
           <Text style={styles.stationName}>{station.name}</Text>
@@ -390,7 +402,13 @@ export default function MyCommuteDashboard() {
             <Text style={styles.errorText}>No departures available</Text>
           )}
         </View>
-      </TouchableOpacity>
+        
+        {editMode && (
+          <View style={styles.dragHandle}>
+            <Ionicons name="reorder-three" size={24} color="#666" />
+          </View>
+        )}
+      </View>
     );
   };
 

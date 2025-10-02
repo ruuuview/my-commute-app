@@ -724,7 +724,7 @@ export default function MyCommuteDashboard() {
         {/* Lines Section */}
         {lineStatuses.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My Lines</Text>
+            <Text style={styles.brandedSectionTitle}>My Lines</Text>
             {lineStatuses.map(renderLineItem)}
           </View>
         )}
@@ -732,7 +732,7 @@ export default function MyCommuteDashboard() {
         {/* Stations Section */}
         {Object.keys(stationData).length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Stations</Text>
+            <Text style={styles.brandedSectionTitle}>Your Stations</Text>
             {userPrefs.saved_stations.map(renderStationItem)}
           </View>
         )}

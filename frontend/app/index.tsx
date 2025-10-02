@@ -887,53 +887,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // My Commute Logotype Styles (TfL Roundel inspired)
-  logotypeContainer: {
+  // Professional Brand Logo Styles
+  logoContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
   },
-  logotype: {
-    position: 'relative',
+  brandLogo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tflRoundel: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#E32017', // TfL Red
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  roundelCircle: {
+  tflBlueBar: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#E32017', // TfL Red
-    zIndex: 1,
-  },
-  roundelBar: {
-    position: 'absolute',
-    top: '50%',
-    left: -10,
-    right: -10,
-    height: 20,
+    width: 60,
+    height: 8,
     backgroundColor: '#003688', // TfL Blue
-    marginTop: -10,
-    zIndex: 2,
+    borderRadius: 4,
   },
-  logotypeText: {
-    fontSize: 32,
-    fontWeight: '700',
-    zIndex: 3,
-    textAlign: 'center',
-  },
-  emphasizedLetters: {
-    fontSize: 36,
+  mcLetters: {
+    fontSize: 16,
     fontWeight: '800',
     color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    letterSpacing: 1,
+    zIndex: 1,
   },
-  regularLetters: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#1a1a1a',
+  appNameText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: -0.5,
   },
   // Traffic Light Styles
   trafficLight: {

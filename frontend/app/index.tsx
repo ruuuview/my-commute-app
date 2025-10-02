@@ -1447,6 +1447,21 @@ const styles = StyleSheet.create({
   addCheckbox: {
     marginLeft: 8,
   },
+  removeCheckbox: {
+    marginLeft: 8,
+  },
+  selectedLineItem: {
+    backgroundColor: '#f8f4f4',
+    borderWidth: 1,
+    borderColor: '#ff4757',
+  },
+  editorSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    marginTop: 12,
+  },
   stationSearchInput: {
     backgroundColor: '#fff',
     borderRadius: 8,

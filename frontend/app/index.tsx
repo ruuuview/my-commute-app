@@ -552,16 +552,6 @@ export default function MyCommuteDashboard() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Commute</Text>
         <View style={styles.headerActions}>
-          {/* Dev Mode Toggle - Hidden feature for testing Pro features */}
-          <TouchableOpacity
-            onPress={() => setDevMode(!devMode)}
-            onLongPress={() => {
-              Alert.alert('Dev Mode', devMode ? 'Pro features disabled' : 'Pro features enabled');
-            }}
-          >
-            <Text style={[styles.devModeText, devMode && styles.devModeActive]}>•</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity
             onPress={() => setSetupMode('lines')}
             style={styles.setupButton}

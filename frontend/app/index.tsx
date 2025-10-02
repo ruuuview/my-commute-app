@@ -610,6 +610,65 @@ export default function MyCommuteDashboard() {
     );
   }
 
+  // Line Detail Screen
+  if (selectedLineDetail) {
+    const selectedLine = allLines.find(line => line.id === selectedLineDetail) || 
+                        lineStatuses.find(line => line.id === selectedLineDetail);
+    
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <View style={[styles.header, { backgroundColor: selectedLine?.color || '#007AFF' }]}>
+          <TouchableOpacity onPress={() => setSelectedLineDetail(null)}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{selectedLine?.name || 'Line Detail'}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        
+        <ScrollView style={styles.content}>
+          <View style={styles.lineDetailContainer}>
+            <View style={styles.lineStatusCard}>
+              <Text style={styles.lineDetailTitle}>Current Status</Text>
+              <View style={styles.statusRow}>
+                <Ionicons
+                  name={getStatusIcon(selectedLine?.status || 'Good Service') as any}
+                  size={24}
+                  color={getStatusColor(selectedLine?.status || 'Good Service', selectedLine?.status_severity)}
+                />
+                <Text style={[styles.lineDetailStatus, { 
+                  color: getStatusColor(selectedLine?.status || 'Good Service', selectedLine?.status_severity) 
+                }]}>
+                  {selectedLine?.status || 'Good Service'}
+                </Text>
+              </View>
+              {selectedLine?.reason && (
+                <Text style={styles.lineDetailReason}>{selectedLine.reason}</Text>
+              )}
+            </View>
+            
+            <View style={styles.lineMapCard}>
+              <Text style={styles.lineDetailTitle}>Line Map</Text>
+              <View style={styles.mapPlaceholder}>
+                <Ionicons name="map" size={48} color="#666" />
+                <Text style={styles.mapPlaceholderText}>
+                  Interactive line map coming soon
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.engineeringWorksCard}>
+              <Text style={styles.lineDetailTitle}>Planned Works</Text>
+              <Text style={styles.engineeringWorksText}>
+                No planned engineering works this weekend.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   if (setupMode !== null) {
     return (
       <SafeAreaView style={styles.container}>

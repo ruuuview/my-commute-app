@@ -1284,4 +1284,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
   },
+  // Professional Typography
+  brandedSectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 16,
+    letterSpacing: -0.5,
+  },
 });
+
+// Update line item to remove old line indicator and use new border design
+const updatedLineItemStyle = {
+  ...StyleSheet.create({
+    lineItem: {
+      flexDirection: 'row',
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      marginBottom: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+    },
+  }).lineItem,
+};

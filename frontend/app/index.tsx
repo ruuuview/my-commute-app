@@ -175,19 +175,22 @@ export default function MyCommuteDashboard() {
   };
 
   const toggleLineInPreferences = (lineId: string) => {
-    const newSavedLines = userPrefs.saved_lines.includes(lineId)
+    const isRemoving = userPrefs.saved_lines.includes(lineId);
+    const newSavedLines = isRemoving
       ? userPrefs.saved_lines.filter(id => id !== lineId)
       : [...userPrefs.saved_lines, lineId];
     
-    // Free version limit: max 3 lines total
-    const totalItems = newSavedLines.length + userPrefs.saved_stations.length;
-    if (!userPrefs.is_pro && !devMode && totalItems > 3) {
-      Alert.alert(
-        'Upgrade to Pro',
-        'Free version allows up to 3 items total (lines + stations). Upgrade to Pro for unlimited.',
-        [{ text: 'OK' }]
-      );
-      return;
+    // Only check limit when ADDING (not removing)
+    if (!isRemoving) {
+      const totalItems = newSavedLines.length + userPrefs.saved_stations.length;
+      if (!userPrefs.is_pro && !devMode && totalItems > 3) {
+        Alert.alert(
+          'Upgrade to Pro',
+          'Free version allows up to 3 items total. Remove an existing item first, or upgrade to Pro for unlimited.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
     }
 
     const newPrefs = { ...userPrefs, saved_lines: newSavedLines };

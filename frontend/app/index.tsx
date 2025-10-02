@@ -143,21 +143,7 @@ export default function MyCommuteDashboard() {
     fetchDashboardData();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Good Service':
-        return '#28a745';
-      case 'Minor Delays':
-        return '#ffc107';
-      case 'Severe Delays':
-      case 'Suspended':
-        return '#dc3545';
-      case 'Planned Closure':
-        return '#6f42c1';
-      default:
-        return '#6c757d';
-    }
-  };
+  // Moved getStatusColor function below to include severity support
 
   const getStatusIcon = (status: string) => {
     switch (status) {

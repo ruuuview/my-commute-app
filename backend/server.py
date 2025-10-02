@@ -139,7 +139,7 @@ class TfLService:
             return 4
         elif "bus service" in status_lower:
             return 6
-        elif "no service" in status_lower:
+        elif "no service" in status_lower or "service closed" in status_lower:
             return 10
         else:
             return 2  # Default for unknown statuses

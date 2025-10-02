@@ -45,6 +45,7 @@ class LineStatus(str, Enum):
     BUS_SERVICE = "Bus Service"
     CLOSURE = "Closure"
     NO_SERVICE = "No Service"
+    SERVICE_CLOSED = "Service Closed"
 
 class LineColor(str, Enum):
     CENTRAL = "#E32017"

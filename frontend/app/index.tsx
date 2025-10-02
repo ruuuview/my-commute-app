@@ -686,13 +686,19 @@ export default function MyCommuteDashboard() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Header with MC Logo */}
-      <View style={[styles.header, { backgroundColor: getHeaderBackgroundColor() }]}>
-        <View style={styles.mcLogo}>
-          <View style={styles.mcLogoCircle}>
-            <View style={styles.mcLogoBar}>
-              <Text style={styles.mcLogoText}>MC</Text>
+      {/* Header with My Commute Logotype */}
+      <View style={styles.header}>
+        <View style={styles.logotypeContainer}>
+          <View style={styles.logotype}>
+            <View style={styles.roundelCircle}>
+              <View style={styles.roundelBar} />
             </View>
+            <Text style={styles.logotypeText}>
+              <Text style={styles.emphasizedLetters}>M</Text>
+              <Text style={styles.regularLetters}>y </Text>
+              <Text style={styles.emphasizedLetters}>C</Text>
+              <Text style={styles.regularLetters}>ommute</Text>
+            </Text>
           </View>
         </View>
       </View>

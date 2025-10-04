@@ -774,21 +774,47 @@ export default function MyCommuteDashboard() {
                   <Text style={styles.emptyStateText}>No lines selected yet</Text>
                 )}
 
-                {/* Available Lines - with Add option */}
+                {/* Available Lines - with Smart Add Logic */}
                 {allLines.filter(line => !userPrefs.saved_lines.includes(line.id)).length > 0 && (
                   <>
-                    <Text style={styles.editorSectionTitle}>Add More Lines</Text>
+                    <Text style={styles.editorSectionTitle}>
+                      Add More Lines {userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro && '(Remove one above first)'}
+                    </Text>
                     {allLines
                       .filter(line => !userPrefs.saved_lines.includes(line.id))
                       .map((line) => (
                         <TouchableOpacity
                           key={line.id}
-                          style={[styles.editorLineItem, { borderLeftColor: line.color }]}
-                          onPress={() => toggleLineInPreferences(line.id)}
+                          style={[
+                            styles.editorLineItem, 
+                            { borderLeftColor: line.color },
+                            userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro && styles.disabledLineItem
+                          ]}
+                          onPress={() => {
+                            // Smart logic: No popup, just visual feedback
+                            if (!userPrefs.is_pro && userPrefs.saved_lines.length >= 3) {
+                              // Don't add, but give visual feedback (could add animation here)
+                              return;
+                            }
+                            // Add the line
+                            const newSavedLines = [...userPrefs.saved_lines, line.id];
+                            const newPrefs = { ...userPrefs, saved_lines: newSavedLines };
+                            saveUserPreferences(newPrefs);
+                            fetchDashboardData();
+                          }}
                         >
-                          <Text style={styles.editorLineName}>{line.name}</Text>
+                          <Text style={[
+                            styles.editorLineName,
+                            userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro && styles.disabledText
+                          ]}>
+                            {line.name}
+                          </Text>
                           <View style={styles.addCheckbox}>
-                            <Ionicons name="add-circle" size={24} color="#007AFF" />
+                            <Ionicons 
+                              name="add-circle" 
+                              size={24} 
+                              color={userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro ? "#ccc" : "#007AFF"} 
+                            />
                           </View>
                         </TouchableOpacity>
                       ))}

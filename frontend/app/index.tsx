@@ -749,10 +749,19 @@ export default function MyCommuteDashboard() {
                 <Text style={styles.editorSectionTitle}>Currently Selected ({userPrefs.saved_lines.length}/3)</Text>
                 {userPrefs.saved_lines.length > 0 ? (
                   userPrefs.saved_lines.map((lineId) => {
-                    const line = allLines.find(l => l.id === lineId);
-                    return line ? (
+                    // Use lineStatuses first (current dashboard lines), then fall back to allLines
+                    let line = lineStatuses.find(l => l.id === lineId);
+                    if (!line) {
+                      line = allLines.find(l => l.id === lineId);
+                    }
+                    // If still no line found, create a basic one so user can still remove it
+                    if (!line) {
+                      line = { id: lineId, name: lineId + ' Line', color: '#666666' };
+                    }
+                    
+                    return (
                       <TouchableOpacity
-                        key={line.id}
+                        key={lineId}
                         style={[styles.editorLineItem, styles.selectedLineItem, { borderLeftColor: line.color }]}
                         onPress={() => {
                           // Direct remove without popup
@@ -768,7 +777,7 @@ export default function MyCommuteDashboard() {
                         <Text style={styles.editorLineName}>{line.name}</Text>
                         <Text style={styles.tapToRemoveText}>Tap to remove</Text>
                       </TouchableOpacity>
-                    ) : null;
+                    );
                   })
                 ) : (
                   <Text style={styles.emptyStateText}>No lines selected yet</Text>

@@ -746,24 +746,32 @@ export default function MyCommuteDashboard() {
               <ScrollView style={styles.editorScrollView} showsVerticalScrollIndicator={false}>
                 
                 {/* Currently Selected Lines - with Remove option */}
-                {userPrefs.saved_lines.length > 0 && (
-                  <>
-                    <Text style={styles.editorSectionTitle}>Currently Selected</Text>
-                    {allLines
-                      .filter(line => userPrefs.saved_lines.includes(line.id))
-                      .map((line) => (
-                        <TouchableOpacity
-                          key={line.id}
-                          style={[styles.editorLineItem, styles.selectedLineItem, { borderLeftColor: line.color }]}
-                          onPress={() => toggleLineInPreferences(line.id)}
-                        >
-                          <Text style={styles.editorLineName}>{line.name}</Text>
-                          <View style={styles.removeCheckbox}>
-                            <Ionicons name="remove-circle" size={24} color="#ff4757" />
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                  </>
+                <Text style={styles.editorSectionTitle}>Currently Selected ({userPrefs.saved_lines.length}/3)</Text>
+                {userPrefs.saved_lines.length > 0 ? (
+                  userPrefs.saved_lines.map((lineId) => {
+                    const line = allLines.find(l => l.id === lineId);
+                    return line ? (
+                      <TouchableOpacity
+                        key={line.id}
+                        style={[styles.editorLineItem, styles.selectedLineItem, { borderLeftColor: line.color }]}
+                        onPress={() => {
+                          // Direct remove without popup
+                          const newSavedLines = userPrefs.saved_lines.filter(id => id !== lineId);
+                          const newPrefs = { ...userPrefs, saved_lines: newSavedLines };
+                          saveUserPreferences(newPrefs);
+                          fetchDashboardData();
+                        }}
+                      >
+                        <View style={styles.removeIcon}>
+                          <Ionicons name="remove-circle" size={24} color="#ff4757" />
+                        </View>
+                        <Text style={styles.editorLineName}>{line.name}</Text>
+                        <Text style={styles.tapToRemoveText}>Tap to remove</Text>
+                      </TouchableOpacity>
+                    ) : null;
+                  })
+                ) : (
+                  <Text style={styles.emptyStateText}>No lines selected yet</Text>
                 )}
 
                 {/* Available Lines - with Add option */}

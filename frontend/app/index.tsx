@@ -688,7 +688,7 @@ export default function MyCommuteDashboard() {
       <StatusBar barStyle="dark-content" />
       
       {/* Header with My Commute Logo */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: getHeaderBackgroundColor() }]}>
         <View style={styles.centeredLogoContainer}>
           <Text style={styles.myCommuteTitle}>MY COMMUTE</Text>
         </View>

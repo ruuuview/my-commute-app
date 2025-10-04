@@ -1462,6 +1462,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 12,
   },
+  removeIcon: {
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tapToRemoveText: {
+    fontSize: 12,
+    color: '#ff4757',
+    marginLeft: 'auto',
+    fontWeight: '500',
+  },
+  disabledLineItem: {
+    opacity: 0.5,
+    backgroundColor: '#f8f8f8',
+  },
+  disabledText: {
+    color: '#999',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    padding: 16,
+    fontStyle: 'italic',
+  },
   stationSearchInput: {
     backgroundColor: '#fff',
     borderRadius: 8,

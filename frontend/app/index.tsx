@@ -846,7 +846,42 @@ export default function MyCommuteDashboard() {
             
             {expandedCard === 'stations' && (
               <View style={styles.expandedEditor}>
-                <Text style={styles.editorTitle}>Search & Add Stations</Text>
+                <Text style={styles.editorTitle}>Manage Your Stations</Text>
+                
+                {/* Currently Selected Stations - with Remove option */}
+                <Text style={styles.editorSectionTitle}>Currently Selected ({userPrefs.saved_stations.length}/3)</Text>
+                {userPrefs.saved_stations.length > 0 ? (
+                  userPrefs.saved_stations.map((stationId) => {
+                    const station = stationData[stationId] || { name: stationId };
+                    return (
+                      <TouchableOpacity
+                        key={stationId}
+                        style={[styles.editorStationItem, styles.selectedLineItem]}
+                        onPress={() => {
+                          // Direct remove without popup
+                          const newSavedStations = userPrefs.saved_stations.filter(id => id !== stationId);
+                          const newPrefs = { ...userPrefs, saved_stations: newSavedStations };
+                          saveUserPreferences(newPrefs);
+                          fetchDashboardData();
+                        }}
+                      >
+                        <View style={styles.removeIcon}>
+                          <Ionicons name="remove-circle" size={24} color="#ff4757" />
+                        </View>
+                        <Ionicons name="train" size={20} color="#007AFF" />
+                        <Text style={styles.editorStationName}>{station.name}</Text>
+                        <Text style={styles.tapToRemoveText}>Tap to remove</Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.emptyStateText}>No stations selected yet</Text>
+                )}
+
+                {/* Add New Stations */}
+                <Text style={styles.editorSectionTitle}>
+                  Search & Add Stations {userPrefs.saved_stations.length >= 3 && !userPrefs.is_pro && '(Remove one above first)'}
+                </Text>
                 <TextInput
                   style={styles.stationSearchInput}
                   placeholder="Search stations (e.g. 'King's Cross', 'Waterloo')"
@@ -860,13 +895,35 @@ export default function MyCommuteDashboard() {
                     .map((station) => (
                       <TouchableOpacity
                         key={station.id}
-                        style={styles.editorStationItem}
-                        onPress={() => toggleStationInPreferences(station.id)}
+                        style={[
+                          styles.editorStationItem,
+                          userPrefs.saved_stations.length >= 3 && !userPrefs.is_pro && styles.disabledLineItem
+                        ]}
+                        onPress={() => {
+                          // Smart logic: No popup, just visual feedback
+                          if (!userPrefs.is_pro && userPrefs.saved_stations.length >= 3) {
+                            return;
+                          }
+                          // Add the station
+                          const newSavedStations = [...userPrefs.saved_stations, station.id];
+                          const newPrefs = { ...userPrefs, saved_stations: newSavedStations };
+                          saveUserPreferences(newPrefs);
+                          fetchDashboardData();
+                        }}
                       >
                         <Ionicons name="train" size={20} color="#007AFF" />
-                        <Text style={styles.editorStationName}>{station.name}</Text>
+                        <Text style={[
+                          styles.editorStationName,
+                          userPrefs.saved_stations.length >= 3 && !userPrefs.is_pro && styles.disabledText
+                        ]}>
+                          {station.name}
+                        </Text>
                         <View style={styles.addCheckbox}>
-                          <Ionicons name="add-circle" size={24} color="#007AFF" />
+                          <Ionicons 
+                            name="add-circle" 
+                            size={24} 
+                            color={userPrefs.saved_stations.length >= 3 && !userPrefs.is_pro ? "#ccc" : "#007AFF"} 
+                          />
                         </View>
                       </TouchableOpacity>
                     ))}

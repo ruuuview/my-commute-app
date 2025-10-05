@@ -1671,19 +1671,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  searchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  searchIcon: {
+    padding: 8,
+    backgroundColor: '#f0f0f0',
     borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  searchButtonText: {
-    color: '#fff',
+  searchEmoji: {
+    fontSize: 20,
+  },
+  dropdownSectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 4,
+    color: '#666',
+    marginBottom: 8,
+    marginTop: 8,
+    paddingHorizontal: 16,
   },
   emptySection: {
     padding: 20,

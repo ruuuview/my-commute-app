@@ -722,23 +722,34 @@ export default function MyCommuteDashboard() {
           </View>
         )}
 
-        {/* Interactive Lines Section */}
+        {/* Lines Section with Search */}
         <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.collapsibleSectionHeader}
-            onPress={() => {
-              setExpandedCard(expandedCard === 'lines' ? null : 'lines');
-            }}
-          >
+          <View style={styles.sectionHeaderWithSearch}>
             <Text style={styles.brandedSectionTitle}>My Lines</Text>
-            <Ionicons 
-              name={expandedCard === 'lines' ? 'chevron-up' : 'chevron-down'} 
-              size={24} 
-              color="#333" 
-            />
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.searchButton}
+              onPress={() => {
+                setExpandedCard(expandedCard === 'lines' ? null : 'lines');
+              }}
+            >
+              <Ionicons name="search" size={20} color="#007AFF" />
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
           
-          {lineStatuses.map(renderLineItem)}
+          {/* Only show lines that are actually in userPrefs.saved_lines */}
+          {userPrefs.saved_lines.length > 0 ? (
+            userPrefs.saved_lines.map((lineId) => {
+              const line = lineStatuses.find(l => l.id === lineId) || 
+                          allLines.find(l => l.id === lineId) ||
+                          { id: lineId, name: lineId + ' Line', color: '#666666', status: 'Unknown', status_severity: 0 };
+              return renderLineItem(line);
+            })
+          ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyStateText}>No lines added yet. Tap Search to add lines.</Text>
+            </View>
+          )}
           
           {expandedCard === 'lines' && (
             <View style={styles.expandedEditor}>

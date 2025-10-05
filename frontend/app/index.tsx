@@ -727,13 +727,12 @@ export default function MyCommuteDashboard() {
           <View style={styles.sectionHeaderWithSearch}>
             <Text style={styles.brandedSectionTitle}>My Lines</Text>
             <TouchableOpacity 
-              style={styles.searchButton}
+              style={styles.searchIcon}
               onPress={() => {
                 setExpandedCard(expandedCard === 'lines' ? null : 'lines');
               }}
             >
-              <Ionicons name="search" size={20} color="#007AFF" />
-              <Text style={styles.searchButtonText}>Search</Text>
+              <Text style={styles.searchEmoji}>🔍</Text>
             </TouchableOpacity>
           </View>
           

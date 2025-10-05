@@ -812,24 +812,141 @@ export default function MyCommuteDashboard() {
           )}
         </View>
 
-        {/* Interactive Stations Section */}
-        {Object.keys(stationData).length > 0 && (
-          <View style={styles.section}>
+        {/* Stations Section with Search */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderWithSearch}>
+            <Text style={styles.brandedSectionTitle}>Your Stations</Text>
             <TouchableOpacity 
-              style={styles.collapsibleSectionHeader}
+              style={styles.searchIcon}
               onPress={() => {
                 setExpandedCard(expandedCard === 'stations' ? null : 'stations');
               }}
             >
-              <Text style={styles.brandedSectionTitle}>Your Stations</Text>
-              <Ionicons 
-                name={expandedCard === 'stations' ? 'chevron-up' : 'chevron-down'} 
-                size={24} 
-                color="#333" 
-              />
+              <Text style={styles.searchEmoji}>🔍</Text>
             </TouchableOpacity>
-            
-            {userPrefs.saved_stations.map(renderStationItem)}
+          </View>
+          
+          {/* Only show stations that are actually in userPrefs.saved_stations */}
+          {userPrefs.saved_stations.length > 0 ? (
+            userPrefs.saved_stations.map((stationId) => {
+              const station = stationData[stationId] || { name: stationId, id: stationId };
+              return renderStationItem(stationId);
+            })
+          ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyStateText}>No stations added yet. Tap 🔍 to add stations.</Text>
+            </View>
+          )}
+          
+          {expandedCard === 'stations' && (
+            <View style={styles.linesDropdown}>
+              <Text style={styles.dropdownTitle}>Select Stations ({userPrefs.saved_stations.length}/3)</Text>
+              
+              {/* Currently Selected Stations */}
+              {userPrefs.saved_stations.length > 0 && (
+                <ScrollView style={styles.dropdownScrollView} showsVerticalScrollIndicator={true}>
+                  <Text style={styles.dropdownSectionTitle}>Currently Selected</Text>
+                  {userPrefs.saved_stations.map((stationId) => {
+                    const station = stationData[stationId] || { name: stationId, id: stationId };
+                    return (
+                      <TouchableOpacity
+                        key={stationId}
+                        style={[styles.dropdownLineItem, styles.selectedDropdownItem]}
+                        onPress={() => {
+                          // Remove station
+                          const newSavedStations = userPrefs.saved_stations.filter(id => id !== stationId);
+                          const newPrefs = { ...userPrefs, saved_stations: newSavedStations };
+                          saveUserPreferences(newPrefs);
+                          fetchDashboardData();
+                        }}
+                      >
+                        <Ionicons name="train" size={20} color="#007AFF" />
+                        <Text style={styles.dropdownLineName}>{station.name}</Text>
+                        <Ionicons name="checkmark-circle" size={24} color="#28a745" />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+              
+              {/* Search for New Stations */}
+              <View style={{ padding: 16 }}>
+                <Text style={styles.dropdownSectionTitle}>Search & Add Stations</Text>
+                <TextInput
+                  style={styles.stationSearchInput}
+                  placeholder="Search stations (e.g. 'King's Cross', 'Waterloo')"
+                  value={searchQuery}
+                  onChangeText={handleSearchInput}
+                  placeholderTextColor="#666"
+                />
+                
+                {searchResults.length > 0 && (
+                  <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={true}>
+                    {searchResults
+                      .filter(station => !userPrefs.saved_stations.includes(station.id))
+                      .slice(0, 10)
+                      .map((station) => {
+                        const canAdd = userPrefs.is_pro || userPrefs.saved_stations.length < 3;
+                        return (
+                          <TouchableOpacity
+                            key={station.id}
+                            style={[
+                              styles.dropdownLineItem,
+                              !canAdd && styles.disabledDropdownItem
+                            ]}
+                            onPress={() => {
+                              if (canAdd) {
+                                // Add station
+                                const newSavedStations = [...userPrefs.saved_stations, station.id];
+                                const newPrefs = { ...userPrefs, saved_stations: newSavedStations };
+                                saveUserPreferences(newPrefs);
+                                fetchDashboardData();
+                                setSearchQuery('');
+                                setSearchResults([]);
+                              }
+                            }}
+                          >
+                            <Ionicons name="train" size={20} color="#007AFF" />
+                            <Text style={[
+                              styles.dropdownLineName,
+                              !canAdd && styles.disabledText
+                            ]}>
+                              {station.name}
+                            </Text>
+                            <View style={styles.dropdownStatus}>
+                              {canAdd ? (
+                                <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+                              ) : (
+                                <Text style={styles.limitText}>Limit reached</Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </ScrollView>
+                )}
+                
+                {searchQuery.length > 0 && !isSearching && searchResults.length === 0 && (
+                  <Text style={styles.noResultsText}>No stations found for "{searchQuery}"</Text>
+                )}
+                
+                {searchQuery.length === 0 && (
+                  <Text style={styles.searchHelpText}>Start typing to search TfL stations...</Text>
+                )}
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.closeDropdownButton}
+                onPress={() => {
+                  setExpandedCard(null);
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }}
+              >
+                <Text style={styles.closeDropdownText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          )}
             
             {expandedCard === 'stations' && (
               <View style={styles.expandedEditor}>

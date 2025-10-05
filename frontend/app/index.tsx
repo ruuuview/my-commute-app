@@ -1548,6 +1548,96 @@ const styles = StyleSheet.create({
     padding: 20,
     fontStyle: 'italic',
   },
+  // New Search Button and Dropdown Styles
+  sectionHeaderWithSearch: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  emptySection: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  linesDropdown: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    maxHeight: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dropdownTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  dropdownScrollView: {
+    maxHeight: 280,
+  },
+  dropdownLineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8f8f8',
+    borderLeftWidth: 4,
+    borderLeftColor: '#ddd',
+  },
+  selectedDropdownItem: {
+    backgroundColor: '#f0f8ff',
+  },
+  disabledDropdownItem: {
+    opacity: 0.5,
+  },
+  dropdownLineName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    flex: 1,
+  },
+  dropdownStatus: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  limitText: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  closeDropdownButton: {
+    backgroundColor: '#007AFF',
+    margin: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeDropdownText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   // Professional Typography
   brandedSectionTitle: {
     fontSize: 22,

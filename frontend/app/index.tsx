@@ -752,95 +752,63 @@ export default function MyCommuteDashboard() {
           )}
           
           {expandedCard === 'lines' && (
-            <View style={styles.expandedEditor}>
-              <Text style={styles.editorTitle}>Manage Your Lines</Text>
-              <ScrollView style={styles.editorScrollView} showsVerticalScrollIndicator={false}>
-                
-                {/* Currently Selected Lines - with Remove option */}
-                <Text style={styles.editorSectionTitle}>Currently Selected ({userPrefs.saved_lines.length}/3)</Text>
-                {userPrefs.saved_lines.length > 0 ? (
-                  userPrefs.saved_lines.map((lineId) => {
-                    // Use lineStatuses first (current dashboard lines), then fall back to allLines
-                    let line = lineStatuses.find(l => l.id === lineId);
-                    if (!line) {
-                      line = allLines.find(l => l.id === lineId);
-                    }
-                    // If still no line found, create a basic one so user can still remove it
-                    if (!line) {
-                      line = { id: lineId, name: lineId + ' Line', color: '#666666' };
-                    }
-                    
-                    return (
-                      <TouchableOpacity
-                        key={lineId}
-                        style={[styles.editorLineItem, styles.selectedLineItem, { borderLeftColor: line.color }]}
-                        onPress={() => {
-                          // Direct remove without popup
-                          const newSavedLines = userPrefs.saved_lines.filter(id => id !== lineId);
+            <View style={styles.linesDropdown}>
+              <Text style={styles.dropdownTitle}>Select Lines ({userPrefs.saved_lines.length}/3)</Text>
+              <ScrollView style={styles.dropdownScrollView} showsVerticalScrollIndicator={true}>
+                {allLines.map((line) => {
+                  const isSelected = userPrefs.saved_lines.includes(line.id);
+                  const canAdd = userPrefs.is_pro || userPrefs.saved_lines.length < 3;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={line.id}
+                      style={[
+                        styles.dropdownLineItem,
+                        { borderLeftColor: line.color },
+                        isSelected && styles.selectedDropdownItem,
+                        !canAdd && !isSelected && styles.disabledDropdownItem
+                      ]}
+                      onPress={() => {
+                        if (isSelected) {
+                          // Remove line
+                          const newSavedLines = userPrefs.saved_lines.filter(id => id !== line.id);
                           const newPrefs = { ...userPrefs, saved_lines: newSavedLines };
                           saveUserPreferences(newPrefs);
                           fetchDashboardData();
-                        }}
-                      >
-                        <View style={styles.removeIcon}>
-                          <Ionicons name="remove-circle" size={24} color="#ff4757" />
-                        </View>
-                        <Text style={styles.editorLineName}>{line.name}</Text>
-                        <Text style={styles.tapToRemoveText}>Tap to remove</Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.emptyStateText}>No lines selected yet</Text>
-                )}
-
-                {/* Available Lines - with Smart Add Logic */}
-                {allLines.filter(line => !userPrefs.saved_lines.includes(line.id)).length > 0 && (
-                  <>
-                    <Text style={styles.editorSectionTitle}>
-                      Add More Lines {userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro && '(Remove one above first)'}
-                    </Text>
-                    {allLines
-                      .filter(line => !userPrefs.saved_lines.includes(line.id))
-                      .map((line) => (
-                        <TouchableOpacity
-                          key={line.id}
-                          style={[
-                            styles.editorLineItem, 
-                            { borderLeftColor: line.color },
-                            userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro && styles.disabledLineItem
-                          ]}
-                          onPress={() => {
-                            // Smart logic: No popup, just visual feedback
-                            if (!userPrefs.is_pro && userPrefs.saved_lines.length >= 3) {
-                              // Don't add, but give visual feedback (could add animation here)
-                              return;
-                            }
-                            // Add the line
-                            const newSavedLines = [...userPrefs.saved_lines, line.id];
-                            const newPrefs = { ...userPrefs, saved_lines: newSavedLines };
-                            saveUserPreferences(newPrefs);
-                            fetchDashboardData();
-                          }}
-                        >
-                          <Text style={[
-                            styles.editorLineName,
-                            userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro && styles.disabledText
-                          ]}>
-                            {line.name}
-                          </Text>
-                          <View style={styles.addCheckbox}>
-                            <Ionicons 
-                              name="add-circle" 
-                              size={24} 
-                              color={userPrefs.saved_lines.length >= 3 && !userPrefs.is_pro ? "#ccc" : "#007AFF"} 
-                            />
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                  </>
-                )}
+                        } else if (canAdd) {
+                          // Add line
+                          const newSavedLines = [...userPrefs.saved_lines, line.id];
+                          const newPrefs = { ...userPrefs, saved_lines: newSavedLines };
+                          saveUserPreferences(newPrefs);
+                          fetchDashboardData();
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.dropdownLineName,
+                        !canAdd && !isSelected && styles.disabledText
+                      ]}>
+                        {line.name}
+                      </Text>
+                      <View style={styles.dropdownStatus}>
+                        {isSelected ? (
+                          <Ionicons name="checkmark-circle" size={24} color="#28a745" />
+                        ) : canAdd ? (
+                          <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+                        ) : (
+                          <Text style={styles.limitText}>Limit reached</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
+              <TouchableOpacity 
+                style={styles.closeDropdownButton}
+                onPress={() => setExpandedCard(null)}
+              >
+                <Text style={styles.closeDropdownText}>Done</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>

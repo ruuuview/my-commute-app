@@ -119,10 +119,31 @@ export default function MyCommuteDashboard() {
       const lineData = await Promise.all(linePromises);
       setLineStatuses(lineData);
 
-      // Fetch user's saved station data
+      // Fetch user's saved station data with error handling
       const stationPromises = userPrefs.saved_stations.map(async (stationId) => {
-        const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`);
-        return response.json();
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`);
+          if (!response.ok) {
+            console.warn(`Station ${stationId} returned ${response.status}, using fallback`);
+            return { 
+              id: stationId, 
+              name: `Station ${stationId}`, 
+              lines: [], 
+              departures: [], 
+              updated_at: new Date().toISOString() 
+            };
+          }
+          return response.json();
+        } catch (error) {
+          console.warn(`Failed to fetch station ${stationId}:`, error);
+          return { 
+            id: stationId, 
+            name: `Station ${stationId}`, 
+            lines: [], 
+            departures: [], 
+            updated_at: new Date().toISOString() 
+          };
+        }
       });
       const stationResults = await Promise.all(stationPromises);
       

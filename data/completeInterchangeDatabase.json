@@ -1,0 +1,381 @@
+{
+  "bakerloo-central": [],
+  "bakerloo-circle": [
+    { "id": "940GZZLUBST", "name": "Baker Street" },
+    { "id": "940GZZLUEMB", "name": "Embankment" }
+  ],
+  "bakerloo-district": [
+    { "id": "940GZZLUEMB", "name": "Embankment" }
+  ],
+  "bakerloo-dlr": [],
+  "bakerloo-elizabeth": [
+    { "id": "940GZZLUPAC", "name": "Paddington" }
+  ],
+  "bakerloo-hammersmith-city": [
+    { "id": "940GZZLUBST", "name": "Baker Street" }
+  ],
+  "bakerloo-jubilee": [
+    { "id": "940GZZLUBST", "name": "Baker Street" },
+    { "id": "940GZZLUWLO", "name": "Waterloo" }
+  ],
+  "bakerloo-liberty": [],
+  "bakerloo-lioness": [],
+  "bakerloo-metropolitan": [
+    { "id": "940GZZLUBST", "name": "Baker Street" }
+  ],
+  "bakerloo-mildmay": [],
+  "bakerloo-northern": [
+    { "id": "940GZZLUEPH", "name": "Elephant & Castle" }
+  ],
+  "bakerloo-piccadilly": [],
+  "bakerloo-suffragette": [],
+  "bakerloo-victoria": [
+    { "id": "940GZZLUOXC", "name": "Oxford Circus" }
+  ],
+  "bakerloo-waterloo-city": [
+    { "id": "940GZZLUWLO", "name": "Waterloo" }
+  ],
+  "bakerloo-weaver": [],
+  "bakerloo-windrush": [],
+  "central-circle": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" },
+    { "id": "940GZZLUNHG", "name": "Notting Hill Gate" }
+  ],
+  "central-district": [
+    { "id": "940GZZLUNHG", "name": "Notting Hill Gate" },
+    { "id": "940GZZLUMLE", "name": "Mile End" }
+  ],
+  "central-dlr": [
+    { "id": "940GZZLUBNK", "name": "Bank" },
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "central-elizabeth": [
+    { "id": "940GZZLUBND", "name": "Bond Street" },
+    { "id": "940GZZLULVT", "name": "Liverpool Street" },
+    { "id": "940GZZLUTCR", "name": "Tottenham Court Road" }
+  ],
+  "central-hammersmith-city": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" }
+  ],
+  "central-jubilee": [
+    { "id": "940GZZLUBND", "name": "Bond Street" },
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "central-liberty": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "central-lioness": [],
+  "central-metropolitan": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" }
+  ],
+  "central-mildmay": [],
+  "central-northern": [
+    { "id": "940GZZLUBNK", "name": "Bank" },
+    { "id": "940GZZLUTCR", "name": "Tottenham Court Road" }
+  ],
+  "central-piccadilly": [
+    { "id": "940GZZLUHBN", "name": "Holborn" }
+  ],
+  "central-suffragette": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "central-victoria": [],
+  "central-waterloo-city": [
+    { "id": "940GZZLUBNK", "name": "Bank" }
+  ],
+  "central-weaver": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" }
+  ],
+  "central-windrush": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "circle-district": {
+    "sharedTrack": "These lines share the majority of their route around central London. You can switch at almost any shared station."
+  },
+  "circle-dlr": [
+    { "id": "940GZZLUTMP", "name": "Tower Hill" }
+  ],
+  "circle-elizabeth": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" },
+    { "id": "940GZZLUPAH", "name": "Paddington" }
+  ],
+  "circle-hammersmith-city": {
+    "sharedTrack": "These lines share multiple stations between Paddington and Liverpool Street. You can switch at most stations on this section."
+  },
+  "circle-jubilee": [
+    { "id": "940GZZLUWSM", "name": "Westminster" }
+  ],
+  "circle-liberty": [],
+  "circle-lioness": [],
+  "circle-metropolitan": {
+    "sharedTrack": "These lines share multiple stations including Baker Street, King's Cross St Pancras, and the eastern section. You can switch at most shared stations."
+  },
+  "circle-mildmay": [],
+  "circle-northern": [],
+  "circle-piccadilly": [],
+  "circle-suffragette": [],
+  "circle-victoria": [
+    { "id": "940GZZLUVIC", "name": "Victoria" }
+  ],
+  "circle-waterloo-city": [],
+  "circle-weaver": [],
+  "circle-windrush": [],
+  "district-dlr": [
+    { "id": "940GZZLUTMP", "name": "Tower Hill" },
+    { "id": "940GZZLUBWM", "name": "Bow Road" }
+  ],
+  "district-elizabeth": [],
+  "district-hammersmith-city": {
+    "sharedTrack": "These lines share several stations in West London. You can switch at multiple shared stations."
+  },
+  "district-jubilee": [
+    { "id": "940GZZLUWSM", "name": "Westminster" }
+  ],
+  "district-liberty": [],
+  "district-lioness": [],
+  "district-metropolitan": [],
+  "district-mildmay": [],
+  "district-northern": [
+    { "id": "940GZZLUEMB", "name": "Embankment" }
+  ],
+  "district-piccadilly": {
+    "sharedTrack": "These lines run parallel and share multiple stations between South Kensington and Hammersmith. You can switch at most stations on this section."
+  },
+  "district-suffragette": [],
+  "district-victoria": [
+    { "id": "940GZZLUVIC", "name": "Victoria" }
+  ],
+  "district-waterloo-city": [],
+  "district-weaver": [],
+  "district-windrush": [],
+  "dlr-elizabeth": [
+    { "id": "940GZZLUCYF", "name": "Canary Wharf" }
+  ],
+  "dlr-hammersmith-city": [],
+  "dlr-jubilee": [
+    { "id": "940GZZLUCYF", "name": "Canary Wharf" },
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "dlr-liberty": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "dlr-lioness": [
+    { "id": "940GZZLUCYF", "name": "Canary Wharf" }
+  ],
+  "dlr-metropolitan": [],
+  "dlr-mildmay": [],
+  "dlr-northern": [
+    { "id": "940GZZLUBNK", "name": "Bank" }
+  ],
+  "dlr-piccadilly": [],
+  "dlr-suffragette": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "dlr-victoria": [],
+  "dlr-waterloo-city": [
+    { "id": "940GZZLUBNK", "name": "Bank" }
+  ],
+  "dlr-weaver": [],
+  "dlr-windrush": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "elizabeth-hammersmith-city": [
+    { "id": "940GZZLUPAH", "name": "Paddington" },
+    { "id": "940GZZLULVT", "name": "Liverpool Street" }
+  ],
+  "elizabeth-jubilee": [
+    { "id": "940GZZLUBND", "name": "Bond Street" },
+    { "id": "940GZZLUCYF", "name": "Canary Wharf" }
+  ],
+  "elizabeth-liberty": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "elizabeth-lioness": [],
+  "elizabeth-metropolitan": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" }
+  ],
+  "elizabeth-mildmay": [],
+  "elizabeth-northern": [],
+  "elizabeth-piccadilly": [],
+  "elizabeth-suffragette": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "elizabeth-victoria": [
+    { "id": "940GZZLUVIC", "name": "Victoria" }
+  ],
+  "elizabeth-waterloo-city": [],
+  "elizabeth-weaver": [
+    { "id": "940GZZLULVT", "name": "Liverpool Street" }
+  ],
+  "elizabeth-windrush": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "hammersmith-city-jubilee": [],
+  "hammersmith-city-liberty": [],
+  "hammersmith-city-lioness": [],
+  "hammersmith-city-metropolitan": {
+    "sharedTrack": "These lines share multiple stations including Baker Street, King's Cross St Pancras, and sections of the route. You can switch at most shared stations."
+  },
+  "hammersmith-city-mildmay": [],
+  "hammersmith-city-northern": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" }
+  ],
+  "hammersmith-city-piccadilly": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" }
+  ],
+  "hammersmith-city-suffragette": [],
+  "hammersmith-city-victoria": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" }
+  ],
+  "hammersmith-city-waterloo-city": [],
+  "hammersmith-city-weaver": [],
+  "hammersmith-city-windrush": [],
+  "jubilee-liberty": [
+    { "id": "940GZZLUWLY", "name": "West Ham" },
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "jubilee-lioness": [
+    { "id": "940GZZLUCWR", "name": "Canada Water" }
+  ],
+  "jubilee-metropolitan": [
+    { "id": "940GZZLUBST", "name": "Baker Street" },
+    { "id": "940GZZLUWMP", "name": "Wembley Park" }
+  ],
+  "jubilee-mildmay": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "jubilee-northern": [
+    { "id": "940GZZLULNB", "name": "London Bridge" },
+    { "id": "940GZZLUWLO", "name": "Waterloo" },
+    { "id": "940GZZLUGPK", "name": "Green Park" }
+  ],
+  "jubilee-piccadilly": [
+    { "id": "940GZZLUGPK", "name": "Green Park" }
+  ],
+  "jubilee-suffragette": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "jubilee-victoria": [
+    { "id": "940GZZLUGPK", "name": "Green Park" }
+  ],
+  "jubilee-waterloo-city": [
+    { "id": "940GZZLUWLO", "name": "Waterloo" }
+  ],
+  "jubilee-weaver": [],
+  "jubilee-windrush": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "liberty-lioness": [
+    { "id": "910GCMDNRD", "name": "Camden Road" }
+  ],
+  "liberty-metropolitan": [],
+  "liberty-mildmay": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "liberty-northern": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "liberty-piccadilly": [],
+  "liberty-suffragette": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "liberty-victoria": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "liberty-waterloo-city": [],
+  "liberty-weaver": [],
+  "liberty-windrush": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "lioness-metropolitan": [],
+  "lioness-mildmay": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "lioness-northern": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "lioness-piccadilly": [],
+  "lioness-suffragette": [],
+  "lioness-victoria": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "lioness-waterloo-city": [],
+  "lioness-weaver": [],
+  "lioness-windrush": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "metropolitan-mildmay": [],
+  "metropolitan-northern": [
+    { "id": "940GZZLUBST", "name": "Baker Street" },
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" }
+  ],
+  "metropolitan-piccadilly": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" }
+  ],
+  "metropolitan-suffragette": [],
+  "metropolitan-victoria": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" }
+  ],
+  "metropolitan-waterloo-city": [],
+  "metropolitan-weaver": [],
+  "metropolitan-windrush": [],
+  "mildmay-northern": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "mildmay-piccadilly": [],
+  "mildmay-suffragette": [],
+  "mildmay-victoria": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "mildmay-waterloo-city": [],
+  "mildmay-weaver": [],
+  "mildmay-windrush": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "northern-piccadilly": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" },
+    { "id": "940GZZLULST", "name": "Leicester Square" }
+  ],
+  "northern-suffragette": [],
+  "northern-victoria": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" },
+    { "id": "940GZZLUEUS", "name": "Euston" },
+    { "id": "940GZZLUWST", "name": "Warren Street" },
+    { "id": "940GZZLUOXC", "name": "Oxford Circus" },
+    { "id": "940GZZLUGPK", "name": "Green Park" },
+    { "id": "940GZZLUVIC", "name": "Victoria" },
+    { "id": "940GZZLUSKW", "name": "Stockwell" }
+  ],
+  "northern-waterloo-city": [
+    { "id": "940GZZLUWLO", "name": "Waterloo" },
+    { "id": "940GZZLUBNK", "name": "Bank" }
+  ],
+  "northern-weaver": [],
+  "northern-windrush": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "piccadilly-suffragette": [],
+  "piccadilly-victoria": [
+    { "id": "940GZZLUKSX", "name": "King's Cross St Pancras" },
+    { "id": "940GZZLUGPK", "name": "Green Park" }
+  ],
+  "piccadilly-waterloo-city": [],
+  "piccadilly-weaver": [],
+  "piccadilly-windrush": [],
+  "suffragette-victoria": [],
+  "suffragette-waterloo-city": [],
+  "suffragette-weaver": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "suffragette-windrush": [
+    { "id": "940GZZLUSTD", "name": "Stratford" }
+  ],
+  "victoria-waterloo-city": [],
+  "victoria-weaver": [],
+  "victoria-windrush": [
+    { "id": "940GZZLUHSN", "name": "Highbury & Islington" }
+  ],
+  "waterloo-city-weaver": [],
+  "waterloo-city-windrush": [],
+  "weaver-windrush": []
+}

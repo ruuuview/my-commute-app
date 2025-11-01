@@ -10,7 +10,6 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mycommute.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -54,7 +53,8 @@
                           "ios.use_modular_headers": true
           }
         }
-      ]
+       }
+     ]
     ],
     "experiments": {
       "typedRoutes": true

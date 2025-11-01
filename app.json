@@ -1,10 +1,34 @@
 {
   "expo": {
     "name": "My Commute",
-    "slug": "my-commute", //
-    "version": "1.0.0",    //
+    "slug": "frontend",
+    "version": "1.0.0",
     "orientation": "portrait",
-    // ...
+    "icon": "./assets/images/icon.png",
+    "scheme": "frontend",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mycommute.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.mycommute.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#000"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
     "plugins": [
       "expo-router",
       "@react-native-firebase/app",
@@ -20,18 +44,16 @@
       ],
       "expo-font",
       "expo-web-browser",
-      //
-      //
       [
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static" //
+            "useFrameworks": "static",
+            "deploymentTarget": "13.0"
           }
         }
       ]
     ],
-    // ... rest of the file ...
     "experiments": {
       "typedRoutes": true
     },

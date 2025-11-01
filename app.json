@@ -49,7 +49,9 @@
         {
           "ios": {
             "useFrameworks": "static",
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1",
+            "podfileProperties": {
+                          "ios.use_modular_headers": true
           }
         }
       ]

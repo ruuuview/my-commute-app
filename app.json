@@ -1,8 +1,10 @@
 {
   "expo": {
     "name": "My Commute",
-    // ... all other configuration ...
-
+    "slug": "my-commute", //
+    "version": "1.0.0",    //
+    "orientation": "portrait",
+    // ...
     "plugins": [
       "expo-router",
       "@react-native-firebase/app",
@@ -18,13 +20,13 @@
       ],
       "expo-font",
       "expo-web-browser",
-      // CRITICAL FIX: The entire plugin must be inside the array,
-      // with the options passed as the second element.
+      //
+      //
       [
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static" // This is the line that fixes the Pod conflict
+            "useFrameworks": "static" //
           }
         }
       ]

@@ -1,30 +1,8 @@
 {
   "expo": {
     "name": "My Commute",
-    "slug": "frontend",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.mycommute.app"
-    },
-    "android": {
-      "package": "com.mycommute.app",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
-      },
-      "edgeToEdgeEnabled": true
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
+    // ... all other configuration ...
+
     "plugins": [
       "expo-router",
       "@react-native-firebase/app",
@@ -39,8 +17,19 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      // CRITICAL FIX: The entire plugin must be inside the array,
+      // with the options passed as the second element.
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static" // This is the line that fixes the Pod conflict
+          }
+        }
+      ]
     ],
+    // ... rest of the file ...
     "experiments": {
       "typedRoutes": true
     },

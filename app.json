@@ -13,7 +13,8 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "bundleIdentifier": "com.mycommute.app"
     },
     "android": {
       "package": "com.mycommute.app",
@@ -48,10 +49,10 @@
         {
           "ios": {
             "useFrameworks": "dynamic",
-            
+            "compilerFlags": ["-Wno-error=non-modular-include-in-framework-module"]
           }
         }
-     ]
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -9,14 +9,7 @@
       "distribution": "internal",
       "ios": {
         "resourceClass": "m-medium"
-      },
-      // --- FINAL FIX: CUSTOM BUILD HOOK TO FORCE POD INSTALL ---
-      "mods": {
-        "ios": {
-          "post_install": "cd ios && pod install"
-        }
       }
-      // --- END FINAL FIX ---
     },
     "preview": {
       "distribution": "internal",

@@ -11,7 +11,7 @@
         "resourceClass": "m-medium"
       },
       // --- FINAL FIX: CUSTOM BUILD HOOK TO FORCE POD INSTALL ---
-      "override": {
+      "mods": {
         "ios": {
           "post_install": "cd ios && pod install"
         }

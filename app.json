@@ -31,8 +31,8 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
+      ["@react-native-firebase/app", {}],
+      ["@react-native-firebase/messaging",{}],
       [
         "expo-splash-screen",
         {
@@ -43,26 +43,7 @@
         }
       ],
       "expo-font",
-      "expo-web-browser",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "dynamic",
-            "podfileProperties": {
-                "post_install": [
-                    "installer.pods_project.targets.each do |target|",
-                    "  if target.name.start_with?('RNFB')",
-                    "    target.build_configurations.each do |config|",
-                    "      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'",
-                    "    end",
-                    "  end",
-                    "end"
-                ]
-            }
-          }
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

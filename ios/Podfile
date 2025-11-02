@@ -1,3 +1,5 @@
+
+
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
@@ -46,13 +48,16 @@ target 'MyCommute' do
   )
 
   post_install do |installer|
-    # START OF FINAL COMPREHENSIVE FIREBASE FIX
+    # START OF FINAL COMPREHENSIVE FIX: CLANG and SWIFT Version
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
+        # Fix for non-modular Firebase headers
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        # Explicitly set Swift version for compatibility with modern pods
+        config.build_settings['SWIFT_VERSION'] = '5.0'
       end
     end
-    # END OF FINAL COMPREHENSIVE FIREBASE FIX
+    # END OF FINAL COMPREHENSIVE FIX
 
     react_native_post_install(
       installer,
@@ -62,3 +67,4 @@ target 'MyCommute' do
     )
   end
 end
+

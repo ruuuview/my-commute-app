@@ -31,8 +31,8 @@
     },
     "plugins": [
       "expo-router",
-      ["@react-native-firebase/app", {}],
-      ["@react-native-firebase/messaging",{}],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-splash-screen",
         {
@@ -54,6 +54,14 @@
       "eas": {
         "projectId": "e858f07f-d13c-4639-80fc-054534497d1f"
       }
-    }
+    },
+    [
+      "expo-build-properties",
+      {
+        "ios": {
+          "useFrameworks": "static"
+        }
+      }
+    ]
   }
 }

@@ -18,7 +18,7 @@ ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNati
 platform :ios, '18.0'
 
 prepare_react_native_project!
-use_frameworks! :linkage => :static
+
 target 'MyCommute' do
   use_expo_modules!
   use_frameworks! :linkage => :static
@@ -36,11 +36,11 @@ target 'MyCommute' do
     ]
   end
 
-pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
-
   config = use_native_modules!(config_command)
 
- 
+#  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+#  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+  use_frameworks! :linkage => :static
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -50,6 +50,7 @@ pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
   )
 
   post_install do |installer|
+    # START OF FINAL COMPREHENSIVE FIX: CLANG and SWIFT Version
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         # Fix for non-modular Firebase headers
@@ -59,23 +60,10 @@ pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
       end
       # Enforce 18.0 target on all Pods to prevent old library settings from interfering
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '18.0'
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '18.0'
       end
-      
-      # --- CRITICAL FIX: Add the necessary -ObjC flag to RNFB/Firebase targets ---
-      # This addresses the original "_RCTRegisterModule" linker error.
-      if target.name.include?('RNFB') || target.name.include?('Firebase')
-        target.build_configurations.each do |config|
-          flags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
-          unless flags.include?('-ObjC')
-            flags << '-ObjC'
-          end
-          config.build_settings['OTHER_LDFLAGS'] = flags
-        end
-      end
-      # -------------------------------------------------------------------------
-      
     end
+    # END OF FINAL COMPREHENSIVE FIX
 
     react_native_post_install(
       installer,
@@ -84,6 +72,10 @@ pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
   end
+  rnfb_pods = ['RNFBApp', 'RNFBMessaging']
+    rnfb_pods.each do |pod|
+      pod pod, :modular_headers => true, :linkage => :static
+    end
 end
 
 # EAS Build Sun Nov 2 18:07:14 GMT 2025

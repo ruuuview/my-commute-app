@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -33,7 +33,8 @@
     },
     "plugins": [
       "expo-router",
-    
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-splash-screen",
         {
@@ -51,8 +52,7 @@
             "cxxLanguageStandard": "c++17"
           }
         }
-      ],
-      "expo-web-browser"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -61,7 +61,7 @@
       "EXPO_PUBLIC_BACKEND_URL": "https://tube-notifier.preview.emergentagent.com",
       "router": {},
       "eas": {
-        "projectId": "e858f07f-d13c-4639-80fc-054534497d1f"
+        "projectId": "21a923a6-69bd-4d7d-bdce-e578d76aada4"
       }
     }
   }

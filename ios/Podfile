@@ -12,7 +12,7 @@ target 'MyCommute' do
   
   config = use_native_modules!
   
-  # Firebase Dependency Fix
+  # Firebase fix
   pod 'GoogleUtilities', :modular_headers => true
 
   use_react_native!(
@@ -30,36 +30,31 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
+    # 2. Define the path to React Native in node_modules
+    # We use this to force the widget to look here
+    react_native_node_modules_path = File.expand_path("../node_modules/react-native", __dir__)
+
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # 2. General Compiler Fixes
+        # Compiler Settings
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # 🔴 CRITICAL FIX FOR BORINGSSL-GRPC on Apple Silicon (M1/M2/M3)
-        # Removes the unsupported '-G' compiler flag from C and C++ settings.
-        if target.name == 'BoringSSL-GRPC'
-          config.build_settings['OTHER_CFLAGS'] = config.build_settings['OTHER_CFLAGS'].to_s.gsub('-G', '')
-          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = config.build_settings['OTHER_CPLUSPLUSFLAGS'].to_s.gsub('-G', '')
-        end
-        
-        # 3. CRITICAL WIDGET FIX
-        # We target "Pods-CommuteWidgetExtension" because that is the name CocoaPods uses.
+        # 3. ABSOLUTE PATH FIX FOR WIDGET
+        # We target the Pods wrapper for the widget
         if target.name == 'Pods-CommuteWidgetExtension'
           config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
           
-          # Add every possible path for React headers
-          extra_paths = [
-            '"${PODS_ROOT}/Headers/Public"',
-            '"${PODS_ROOT}/Headers/Public/React-Core"',
-            '"${PODS_ROOT}/Headers/Public/ReactCommon"',
-            '"${PODS_ROOT}/Headers/Public/React-cxxreact"',
-            '"${PODS_ROOT}/Headers/Public/React-callinvoker"',
-            '"${PODS_ROOT}/Headers/Public/Yoga"',
-            '"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers"'
+          # Force lookups directly in node_modules
+          # This bypasses CocoaPods' header copying entirely
+          search_paths = [
+            "\"#{react_native_node_modules_path}\"",
+            "\"#{react_native_node_modules_path}/ReactCommon\"",
+            "\"#{react_native_node_modules_path}/React\"",
+            "\"#{react_native_node_modules_path}/React/Base\""
           ]
           
-          config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + extra_paths.join(' ')
+          config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + search_paths.join(' ')
         end
       end
     end

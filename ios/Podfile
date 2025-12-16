@@ -7,6 +7,25 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
 
+# --- HELPER FUNCTION: FIND THE MISSING HEADER ---
+def find_header_path
+  # Search node_modules for the elusive file
+  # This runs on the EAS server during 'pod install'
+  puts "🔍 Hunting for RCTTurboModule.h..."
+  rn_root = File.expand_path("../node_modules/react-native", __dir__)
+  found_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
+  
+  if found_file
+    # Return the directory containing the file
+    dir = File.dirname(found_file)
+    puts "✅ Found Header at: #{dir}"
+    return dir
+  else
+    puts "⚠️ Could not find RCTTurboModule.h"
+    return nil
+  end
+end
+
 target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
@@ -27,34 +46,25 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
+    # 1. Get the absolute path using the helper above
+    header_path = find_header_path()
+
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         
-        # --- FIX FOR WIDGET HEADER SEARCH PATHS ---
-        # We target the Pods wrapper for the widget
+        # 2. Inject the path into the Widget Target
         if target.name == 'Pods-CommuteWidgetExtension'
           config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
           
-          # Use $(SRCROOT) which points to the 'ios' folder on EAS
-          # We go up one level (..) to find node_modules
+          # Add the specific folder we found
+          if header_path
+             config.build_settings['HEADER_SEARCH_PATHS'] << " \"#{header_path}\""
+          end
           
-          search_paths = [
-            # 1. The Standard Roots
-            '"$(SRCROOT)/../node_modules/react-native"',
-            '"$(SRCROOT)/../node_modules/react-native/ReactCommon"',
-            
-            # 2. THE DEEP SEARCH (Where the file actually lives in RN 0.73+)
-            '"$(SRCROOT)/../node_modules/react-native/ReactCommon/react/nativemodule/core"',
-            '"$(SRCROOT)/../node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon"',
-            
-            # 3. Fallbacks
-            '"$(SRCROOT)/../node_modules/react-native/React"',
-            '"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers"'
-          ]
-          
-          config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + search_paths.join(' ')
+          # Also add the standard ReactCommon folder just in case
+          config.build_settings['HEADER_SEARCH_PATHS'] << " \"${PODS_ROOT}/Headers/Private/React-Core\""
         end
       end
     end
@@ -62,5 +72,6 @@ target 'MyCommute' do
 end
 
 target 'CommuteWidgetExtension' do
+  # We revert to inheriting because isolation failed
   inherit! :search_paths
 end

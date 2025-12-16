@@ -9,10 +9,9 @@ prepare_react_native_project!
 
 target 'MyCommute' do
   use_expo_modules!
-  
   config = use_native_modules!
   
-  # Firebase fix
+  # Firebase Fix
   pod 'GoogleUtilities', :modular_headers => true
 
   use_react_native!(
@@ -23,39 +22,34 @@ target 'MyCommute' do
   )
 
   post_install do |installer|
-    # 1. Standard React Native Fixes
     react_native_post_install(
       installer,
       config[:reactNativePath],
       :mac_catalyst_enabled => false
     )
 
-    # 2. Define the path to React Native in node_modules
-    # We use this to force the widget to look here
-    react_native_node_modules_path = File.expand_path("../node_modules/react-native", __dir__)
-
+    # --- THE BRUTE FORCE FIX ---
+    # Apply to EVERY target so we don't miss the Widget
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # Compiler Settings
+        
+        # 1. Relax Compiler Strictness
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # 3. ABSOLUTE PATH FIX FOR WIDGET
-        # We target the Pods wrapper for the widget
-        if target.name == 'Pods-CommuteWidgetExtension'
-          config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
-          
-          # Force lookups directly in node_modules
-          # This bypasses CocoaPods' header copying entirely
-          search_paths = [
-            "\"#{react_native_node_modules_path}\"",
-            "\"#{react_native_node_modules_path}/ReactCommon\"",
-            "\"#{react_native_node_modules_path}/React\"",
-            "\"#{react_native_node_modules_path}/React/Base\""
-          ]
-          
-          config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + search_paths.join(' ')
-        end
+        # 2. Force Headers on EVERYTHING
+        # This adds the Private headers (where RCTTurboModule lives) to every single target.
+        config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
+        
+        search_paths = [
+          '"${PODS_ROOT}/Headers/Private"',
+          '"${PODS_ROOT}/Headers/Private/React-Core"',
+          '"${PODS_ROOT}/Headers/Public"',
+          '"${PODS_ROOT}/Headers/Public/React-Core"',
+          '"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers"'
+        ]
+        
+        config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + search_paths.join(' ')
       end
     end
   end

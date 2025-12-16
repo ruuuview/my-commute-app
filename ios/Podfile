@@ -12,6 +12,10 @@ target 'MyCommute' do
   
   # Standard setup
   config = use_native_modules!
+
+  # --- FIX: Force Modular Headers for GoogleUtilities ---
+  # This fixes the "FirebaseCoreInternal depends upon GoogleUtilities" error
+  pod 'GoogleUtilities', :modular_headers => true
   
   use_react_native!(
     :path => config[:reactNativePath],

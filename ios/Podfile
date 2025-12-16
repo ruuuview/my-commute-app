@@ -36,9 +36,15 @@ target 'MyCommute' do
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
+        # 🔴 CRITICAL FIX FOR BORINGSSL-GRPC on Apple Silicon (M1/M2/M3)
+        # Removes the unsupported '-G' compiler flag from C and C++ settings.
+        if target.name == 'BoringSSL-GRPC'
+          config.build_settings['OTHER_CFLAGS'] = config.build_settings['OTHER_CFLAGS'].to_s.gsub('-G', '')
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = config.build_settings['OTHER_CPLUSPLUSFLAGS'].to_s.gsub('-G', '')
+        end
+        
         # 3. CRITICAL WIDGET FIX
         # We target "Pods-CommuteWidgetExtension" because that is the name CocoaPods uses.
-        # This pushes the React headers into the Widget's build configuration.
         if target.name == 'Pods-CommuteWidgetExtension'
           config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
           

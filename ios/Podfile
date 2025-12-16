@@ -1,7 +1,6 @@
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 require 'json'
-require 'xcodeproj' # Import the tool to edit Xcode projects
 
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
@@ -13,7 +12,7 @@ target 'MyCommute' do
   
   config = use_native_modules!
   
-  # Firebase fix
+  # Firebase Dependency Fix
   pod 'GoogleUtilities', :modular_headers => true
 
   use_react_native!(
@@ -31,51 +30,32 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 2. Fix Pods Targets (Compiler Settings)
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
+        # 2. General Compiler Fixes
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-      end
-    end
-
-    # 3. CRITICAL FIX: Open User Project and Force Widget Paths
-    # This edits MyCommute.xcodeproj directly to fix the missing RCTTurboModule.h
-    puts "🔧 Fixing Widget Extension Search Paths..."
-    
-    project_path = File.join(File.dirname(__FILE__), 'MyCommute.xcodeproj')
-    project = Xcodeproj::Project.open(project_path)
-    
-    # Find your Widget Target
-    widget_target = project.targets.find { |t| t.name == 'CommuteWidgetExtension' }
-    
-    if widget_target
-      puts "✅ Found target: CommuteWidgetExtension"
-      widget_target.build_configurations.each do |config|
-        # Ensure HEADER_SEARCH_PATHS exists
-        config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
         
-        # Add the specific React Native header paths
-        # This tells the Widget exactly where to find the missing file
-        extra_paths = [
-          '"${PODS_ROOT}/Headers/Public"',
-          '"${PODS_ROOT}/Headers/Public/React-Core"',
-          '"${PODS_ROOT}/Headers/Public/ReactCommon"',
-          '"${PODS_ROOT}/Headers/Public/React-cxxreact"',
-          '"${PODS_ROOT}/Headers/Public/React-callinvoker"'
-        ]
-        
-        # Append only if not already present
-        extra_paths.each do |path|
-          unless config.build_settings['HEADER_SEARCH_PATHS'].include?(path)
-            config.build_settings['HEADER_SEARCH_PATHS'] << " #{path}"
-          end
+        # 3. CRITICAL WIDGET FIX
+        # We target "Pods-CommuteWidgetExtension" because that is the name CocoaPods uses.
+        # This pushes the React headers into the Widget's build configuration.
+        if target.name == 'Pods-CommuteWidgetExtension'
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
+          
+          # Add every possible path for React headers
+          extra_paths = [
+            '"${PODS_ROOT}/Headers/Public"',
+            '"${PODS_ROOT}/Headers/Public/React-Core"',
+            '"${PODS_ROOT}/Headers/Public/ReactCommon"',
+            '"${PODS_ROOT}/Headers/Public/React-cxxreact"',
+            '"${PODS_ROOT}/Headers/Public/React-callinvoker"',
+            '"${PODS_ROOT}/Headers/Public/Yoga"',
+            '"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers"'
+          ]
+          
+          config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + extra_paths.join(' ')
         end
       end
-      project.save
-      puts "💾 Saved Search Paths to MyCommute.xcodeproj"
-    else
-      puts "⚠️ Warning: Could not find CommuteWidgetExtension target!"
     end
   end
 end

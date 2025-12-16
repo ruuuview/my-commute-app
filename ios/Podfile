@@ -11,7 +11,7 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
   
-  # Firebase Fix
+  # Essential for Firebase
   pod 'GoogleUtilities', :modular_headers => true
 
   use_react_native!(
@@ -28,33 +28,33 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # --- THE BRUTE FORCE FIX ---
-    # Apply to EVERY target so we don't miss the Widget
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        
-        # 1. Relax Compiler Strictness
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # 2. Force Headers on EVERYTHING
-        # This adds the Private headers (where RCTTurboModule lives) to every single target.
-        config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
-        
-        search_paths = [
-          '"${PODS_ROOT}/Headers/Private"',
-          '"${PODS_ROOT}/Headers/Private/React-Core"',
-          '"${PODS_ROOT}/Headers/Public"',
-          '"${PODS_ROOT}/Headers/Public/React-Core"',
-          '"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers"'
-        ]
-        
-        config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + search_paths.join(' ')
+        # --- CRITICAL FIX: Allow Widget to find React Native Headers ---
+        # We target the Pods wrapper "Pods-CommuteWidgetExtension"
+        if target.name == 'Pods-CommuteWidgetExtension'
+          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
+          
+          # Use relative paths to find node_modules from the Pods folder
+          # This works on your Mac AND on EAS
+          node_modules_paths = [
+            '"$(PODS_ROOT)/../../node_modules/react-native/React"',
+            '"$(PODS_ROOT)/../../node_modules/react-native/ReactCommon"',
+            '"$(PODS_ROOT)/../../node_modules/react-native/ReactCommon/react/nativemodule/core"',
+            '"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers"'
+          ]
+          
+          config.build_settings['HEADER_SEARCH_PATHS'] << ' ' + node_modules_paths.join(' ')
+        end
       end
     end
   end
 end
 
+# Must use the REAL target name found in your Xcode project
 target 'CommuteWidgetExtension' do
   inherit! :search_paths
 end

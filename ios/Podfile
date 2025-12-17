@@ -20,7 +20,6 @@ target 'MyCommute' do
   pod 'FirebaseFirestoreInternal', :modular_headers => true
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
-  # pod 'Firebase/Messaging' # Uncomment if needed
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -36,9 +35,7 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # =========================================================
-    # FIX 1: INJECT MISSING HEADER (Solves "File Not Found")
-    # =========================================================
+    # --- 1. INJECTION FIX (Keep this for "File Not Found") ---
     puts "💉 Injecting RCTTurboModule.h..."
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
@@ -46,26 +43,24 @@ target 'MyCommute' do
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
       FileUtils.cp(source_file, dest_dir)
-      puts "✅ Injected RCTTurboModule.h to Public Headers"
-    else
-      puts "⚠️ Warning: Could not find RCTTurboModule.h"
+      puts "✅ Copied header to Public/ReactCommon"
     end
-
-    # =========================================================
-    # FIX 2: PATCH C++20 (Solves "no template named result_of")
-    # =========================================================
-    puts "🩹 Patching C++20 incompatibilities..."
-    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::result_of/std::invoke_result/g'")
-    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::invoke_result<F()>/std::invoke_result<F>/g'")
 
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # Force C++20 (Required by React Native)
+        # --- 2. THE TIME MACHINE FIX ---
+        # A. Force C++20 (Fixes 'unknown type name requires')
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # Silence all warnings
+        # B. Define the Magic Macro
+        # This tells the compiler: "Enable the C++ traits that were removed in C++20"
+        # This restores 'std::result_of' without us needing to edit any files.
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
+        
+        # C. Silence Warnings
         config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
         config.build_settings['WARNING_CFLAGS'] = '-w -Wno-everything'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
@@ -75,6 +70,6 @@ target 'MyCommute' do
 end
 
 # --- WIDGET EXTENSION (ISOLATED) ---
-# Kept empty to ensure a clean build first
 target 'CommuteWidgetExtension' do
+  # Keep empty to prevent header conflicts
 end

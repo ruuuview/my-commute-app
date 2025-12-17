@@ -12,7 +12,15 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
   
+  # --- FIREBASE MODULES (Explicitly Listed) ---
   pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseFirestoreInternal', :modular_headers => true
+  pod 'Firebase/Auth'
+  pod 'Firebase/Firestore'
+  # pod 'Firebase/Messaging' # Uncomment if you use it
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -28,35 +36,23 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # --- THE INJECTION FIX ---
+    # --- THE "MISSING FILE" INJECTION FIX ---
+    # This finds RCTTurboModule.h and copies it to where Xcode looks
     puts "💉 Injecting RCTTurboModule.h directly into Pod Headers..."
     
-    # 1. Find the source file in node_modules
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     
     if source_file
-      puts "✅ Found source: #{source_file}"
-      
-      # 2. Define where Xcode expects it to be (In the Public Headers)
-      # We create a 'ReactCommon' folder inside the Public headers
+      # Copy to Public Headers/ReactCommon so <ReactCommon/RCTTurboModule.h> works
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
-      
-      # 3. Copy the file there
       FileUtils.cp(source_file, dest_dir)
       puts "✅ Copied to: #{dest_dir}/RCTTurboModule.h"
-      
-      # 4. ALSO copy it to the Private headers just to be safe
-      private_dest_dir = File.join(installer.sandbox.root, "Headers/Private/ReactCommon")
-      FileUtils.mkdir_p(private_dest_dir)
-      FileUtils.cp(source_file, private_dest_dir)
-      
     else
-      puts "⚠️ Could not find RCTTurboModule.h in node_modules!"
+      puts "⚠️ Warning: Could not find RCTTurboModule.h to inject."
     end
 
-    # Standard Compiler Fixes
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
@@ -66,6 +62,8 @@ target 'MyCommute' do
   end
 end
 
+# --- CORRECT WIDGET TARGET ---
+# We use the REAL name 'CommuteWidgetExtension', not 'CommuteWidget'
 target 'CommuteWidgetExtension' do
   inherit! :search_paths
 end

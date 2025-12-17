@@ -35,7 +35,7 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # --- 1. INJECTION FIX (Kept because it works) ---
+    # 1. INJECTION FIX (Keep it!)
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
@@ -48,18 +48,21 @@ target 'MyCommute' do
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # --- 2. TIME MACHINE FIX (The Critical Part) ---
-        # Force C++20 for React Native
+        # 2. Force C++20 (Required for React Native)
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # Enable the "Time Machine" macro to restore old C++ features for Firebase
+        # 3. Restore "result_of" (Fixes Firebase C++ crash)
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         
-        # --- 3. GENTLE SILENCING (Fixed!) ---
-        # We removed "WARNING_CFLAGS" because it broke BoringSSL.
-        # We use only the standard Xcode silence setting.
-        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        # 4. SURGICAL SILENCE (The New Fix)
+        # We apply these flags ONLY to C++ files. This avoids the BoringSSL "-G" error.
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] ||= ['$(inherited)']
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] << ' -Wno-missing-template-arg-list-after-template-kw'
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] << ' -Wno-error' # Don't treat warnings as errors
+        
+        # 5. General Relaxations
+        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end
@@ -67,4 +70,5 @@ target 'MyCommute' do
 end
 
 target 'CommuteWidgetExtension' do
+  # Keep empty
 end

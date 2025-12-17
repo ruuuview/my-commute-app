@@ -1,30 +1,12 @@
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
+require 'fileutils'
 require 'json'
 
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
-
-# --- HELPER FUNCTION: FIND THE MISSING HEADER ---
-def find_header_path
-  # Search node_modules for the elusive file
-  # This runs on the EAS server during 'pod install'
-  puts "🔍 Hunting for RCTTurboModule.h..."
-  rn_root = File.expand_path("../node_modules/react-native", __dir__)
-  found_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
-  
-  if found_file
-    # Return the directory containing the file
-    dir = File.dirname(found_file)
-    puts "✅ Found Header at: #{dir}"
-    return dir
-  else
-    puts "⚠️ Could not find RCTTurboModule.h"
-    return nil
-  end
-end
 
 target 'MyCommute' do
   use_expo_modules!
@@ -46,32 +28,44 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 1. Get the absolute path using the helper above
-    header_path = find_header_path()
+    # --- THE INJECTION FIX ---
+    puts "💉 Injecting RCTTurboModule.h directly into Pod Headers..."
+    
+    # 1. Find the source file in node_modules
+    rn_root = File.expand_path("../node_modules/react-native", __dir__)
+    source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
+    
+    if source_file
+      puts "✅ Found source: #{source_file}"
+      
+      # 2. Define where Xcode expects it to be (In the Public Headers)
+      # We create a 'ReactCommon' folder inside the Public headers
+      dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
+      FileUtils.mkdir_p(dest_dir)
+      
+      # 3. Copy the file there
+      FileUtils.cp(source_file, dest_dir)
+      puts "✅ Copied to: #{dest_dir}/RCTTurboModule.h"
+      
+      # 4. ALSO copy it to the Private headers just to be safe
+      private_dest_dir = File.join(installer.sandbox.root, "Headers/Private/ReactCommon")
+      FileUtils.mkdir_p(private_dest_dir)
+      FileUtils.cp(source_file, private_dest_dir)
+      
+    else
+      puts "⚠️ Could not find RCTTurboModule.h in node_modules!"
+    end
 
+    # Standard Compiler Fixes
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        
-        # 2. Inject the path into the Widget Target
-        if target.name == 'Pods-CommuteWidgetExtension'
-          config.build_settings['HEADER_SEARCH_PATHS'] ||= '$(inherited) '
-          
-          # Add the specific folder we found
-          if header_path
-             config.build_settings['HEADER_SEARCH_PATHS'] << " \"#{header_path}\""
-          end
-          
-          # Also add the standard ReactCommon folder just in case
-          config.build_settings['HEADER_SEARCH_PATHS'] << " \"${PODS_ROOT}/Headers/Private/React-Core\""
-        end
       end
     end
   end
 end
 
 target 'CommuteWidgetExtension' do
-  # We revert to inheriting because isolation failed
   inherit! :search_paths
 end

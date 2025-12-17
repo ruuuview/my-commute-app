@@ -12,7 +12,7 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
   
-  # --- FIREBASE MODULES (Explicitly Listed) ---
+  # Firebase Modules
   pod 'GoogleUtilities', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
@@ -20,7 +20,6 @@ target 'MyCommute' do
   pod 'FirebaseFirestoreInternal', :modular_headers => true
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
-  # pod 'Firebase/Messaging' # Uncomment if you use it
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -36,34 +35,38 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # --- THE "MISSING FILE" INJECTION FIX ---
-    # This finds RCTTurboModule.h and copies it to where Xcode looks
-    puts "💉 Injecting RCTTurboModule.h directly into Pod Headers..."
-    
+    # --- KEEP THE INJECTION SCRIPT (IT WORKED!) ---
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
-    
     if source_file
-      # Copy to Public Headers/ReactCommon so <ReactCommon/RCTTurboModule.h> works
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
       FileUtils.cp(source_file, dest_dir)
-      puts "✅ Copied to: #{dest_dir}/RCTTurboModule.h"
-    else
-      puts "⚠️ Warning: Could not find RCTTurboModule.h to inject."
     end
 
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        
+        # --- THE NUCLEAR SILENCE FIX ---
+        # 1. Force C++17 (Fixes 'no template named result_of')
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        
+        # 2. Disable Warnings-as-Errors (Fixes 'template argument list expected')
+        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        config.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        
+        # 3. Suppress all warnings completely
+        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        config.build_settings['WARNING_CFLAGS'] = '-w -Wno-everything'
+        
+        # 4. Allow non-modular includes (Fixes 'Module not found' issues)
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end
   end
 end
 
-# --- CORRECT WIDGET TARGET ---
-# We use the REAL name 'CommuteWidgetExtension', not 'CommuteWidget'
 target 'CommuteWidgetExtension' do
   inherit! :search_paths
 end

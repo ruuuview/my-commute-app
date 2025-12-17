@@ -35,41 +35,36 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # --- 1. INJECTION FIX (Keep this for "File Not Found") ---
-    puts "💉 Injecting RCTTurboModule.h..."
+    # --- 1. INJECTION FIX (Kept because it works) ---
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
       FileUtils.cp(source_file, dest_dir)
-      puts "✅ Copied header to Public/ReactCommon"
     end
 
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # --- 2. THE TIME MACHINE FIX ---
-        # A. Force C++20 (Fixes 'unknown type name requires')
+        # --- 2. TIME MACHINE FIX (The Critical Part) ---
+        # Force C++20 for React Native
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # B. Define the Magic Macro
-        # This tells the compiler: "Enable the C++ traits that were removed in C++20"
-        # This restores 'std::result_of' without us needing to edit any files.
+        # Enable the "Time Machine" macro to restore old C++ features for Firebase
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         
-        # C. Silence Warnings
+        # --- 3. GENTLE SILENCING (Fixed!) ---
+        # We removed "WARNING_CFLAGS" because it broke BoringSSL.
+        # We use only the standard Xcode silence setting.
         config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-        config.build_settings['WARNING_CFLAGS'] = '-w -Wno-everything'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end
   end
 end
 
-# --- WIDGET EXTENSION (ISOLATED) ---
 target 'CommuteWidgetExtension' do
-  # Keep empty to prevent header conflicts
 end

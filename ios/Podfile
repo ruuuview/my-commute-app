@@ -1,5 +1,6 @@
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
+require 'fileutils'
 require 'json'
 
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
@@ -11,7 +12,7 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
   
-  # --- FIREBASE DEPENDENCIES ---
+  # --- FIREBASE MODULES ---
   pod 'GoogleUtilities', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
@@ -19,7 +20,7 @@ target 'MyCommute' do
   pod 'FirebaseFirestoreInternal', :modular_headers => true
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
-  # pod 'Firebase/Messaging' # Uncomment if you use Messaging
+  # pod 'Firebase/Messaging' # Uncomment if needed
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -35,9 +36,25 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # --- THE FRANKENSTEIN PATCH ---
-    # This automatically rewrites old C++ code to work with the new compiler
-    puts "🩹 Patching C++20 incompatibilities (result_of -> invoke_result)..."
+    # =========================================================
+    # FIX 1: INJECT MISSING HEADER (Solves "File Not Found")
+    # =========================================================
+    puts "💉 Injecting RCTTurboModule.h..."
+    rn_root = File.expand_path("../node_modules/react-native", __dir__)
+    source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
+    if source_file
+      dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
+      FileUtils.mkdir_p(dest_dir)
+      FileUtils.cp(source_file, dest_dir)
+      puts "✅ Injected RCTTurboModule.h to Public Headers"
+    else
+      puts "⚠️ Warning: Could not find RCTTurboModule.h"
+    end
+
+    # =========================================================
+    # FIX 2: PATCH C++20 (Solves "no template named result_of")
+    # =========================================================
+    puts "🩹 Patching C++20 incompatibilities..."
     system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::result_of/std::invoke_result/g'")
     system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::invoke_result<F()>/std::invoke_result<F>/g'")
 
@@ -45,10 +62,10 @@ target 'MyCommute' do
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # 1. Force C++20 (Required for React Native)
+        # Force C++20 (Required by React Native)
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # 2. Silence all warnings so the build doesn't stop
+        # Silence all warnings
         config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
         config.build_settings['WARNING_CFLAGS'] = '-w -Wno-everything'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
@@ -58,6 +75,6 @@ target 'MyCommute' do
 end
 
 # --- WIDGET EXTENSION (ISOLATED) ---
-# We keep this empty to stop it from looking for React Native files
+# Kept empty to ensure a clean build first
 target 'CommuteWidgetExtension' do
 end

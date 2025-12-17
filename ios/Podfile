@@ -45,28 +45,30 @@ target 'MyCommute' do
     end
 
     installer.pods_project.targets.each do |target|
-      # --- THE SMART FILTER ---
-      # BoringSSL is delicate. Do NOT touch its settings.
+      # --- SMART FILTER ---
+      # BoringSSL is safe. We skip it so it doesn't crash.
       if target.name.include?("BoringSSL")
-        puts "🛡️  Skipping flags for #{target.name} to prevent -G error"
         next
       end
 
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # 2. Force C++20 (Required for React Native)
+        # 2. Force C++20
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # 3. Restore "result_of" (Fixes Firebase)
+        # 3. Restore "result_of"
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         
-        # 4. Silence Warnings (SAFE because we skipped BoringSSL)
-        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        # 4. THE SPECIFIC SILENCER
+        # This fixes the exact error you just saw: [-Wmissing-template-arg-list-after-template-kw]
+        # We add it to "OTHER_CPLUSPLUSFLAGS" so it only applies to C++ files (safe for everything else)
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] ||= ['$(inherited)']
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] << ' -Wno-missing-template-arg-list-after-template-kw'
         
-        # 5. Compatibility
+        # 5. General Relaxations
+        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end

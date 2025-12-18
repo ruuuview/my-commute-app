@@ -35,71 +35,57 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # =========================================================
-    # FIX 1: INJECT MISSING HEADER (Solves "File Not Found")
-    # =========================================================
+    # 1. INJECT MISSING HEADER (Fixes 'RCTTurboModule.h not found')
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
       FileUtils.cp(source_file, dest_dir)
-      puts "✅ Injected RCTTurboModule.h"
     end
 
-    # =========================================================
-    # FIX 2: RUBY-BASED C++ PATCH (Cross-Platform)
-    # This replaces the failing 'sed' commands
-    # =========================================================
-    puts "🩹 Applying C++20 patches using Ruby..."
-    
-    # We look for all header files in the Pods directory
+    # 2. RUBY PATCH (Fixes C++20 Syntax Errors)
+    puts "🩹 Applying C++ patches..."
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
-    patched_count = 0
-
     header_files.each do |file_path|
       begin
         content = File.read(file_path)
         original_content = content.dup
-
-        # Apply all three necessary patches
-        # 1. result_of -> invoke_result
+        # Fix: std::result_of -> std::invoke_result
         content.gsub!(/std::result_of/, 'std::invoke_result')
-        # 2. Fix function types
         content.gsub!(/std::invoke_result<F\(\)>/, 'std::invoke_result<F>')
-        # 3. Fix gRPC template syntax
+        # Fix: Template syntax in gRPC
         content.gsub!(/Traits::template CallSeqFactory\(/, 'Traits::template CallSeqFactory<>(')
-
-        # Only write if changes were made
+        
         if content != original_content
           File.write(file_path, content)
-          patched_count += 1
         end
-      rescue => e
-        # Ignore read errors on weird files
-      end
+      rescue; end
     end
-    puts "✅ Patched #{patched_count} C++ files."
 
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # Force C++20
+        # 3. GLOBAL C++ SETTINGS
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
-        
-        # Backup Macro (Just in case Ruby misses one)
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
-        
-        # Safe Silencing
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        
+        # 4. BORINGSSL FIX (The Golden Ticket)
+        # Disable Assembly code so it compiles as standard C. 
+        # This prevents the '-G' and 'unsupported option' errors.
+        if target.name.include?("BoringSSL") || target.name.include?("gRPC")
+           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'OPENSSL_NO_ASM=1'
+           # Ensure optimization flags don't conflict
+           config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '0'
+        end
       end
     end
   end
 end
 
 target 'CommuteWidgetExtension' do
-  # Keep empty
+  # Keep empty to prevent header pollution
 end

@@ -36,45 +36,70 @@ target 'MyCommute' do
     )
 
     # =========================================================
-    # PATCH 1: INJECT MISSING HEADER (Solves "File Not Found")
+    # FIX 1: INJECT MISSING HEADER (Solves "File Not Found")
     # =========================================================
-    puts "💉 Injecting RCTTurboModule.h..."
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
       FileUtils.cp(source_file, dest_dir)
+      puts "✅ Injected RCTTurboModule.h"
     end
 
     # =========================================================
-    # PATCH 2: FIX C++20 INCOMPATIBILITIES (Solves Crashes)
+    # FIX 2: RUBY-BASED C++ PATCH (Cross-Platform)
+    # This replaces the failing 'sed' commands
     # =========================================================
-    puts "🩹 Patching C++20 syntax errors in Pods..."
+    puts "🩹 Applying C++20 patches using Ruby..."
     
-    # Fix 1: result_of -> invoke_result (For Firebase)
-    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::result_of/std::invoke_result/g'")
-    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::invoke_result<F()>/std::invoke_result<F>/g'")
-    
-    # Fix 2: CallSeqFactory -> CallSeqFactory<> (For gRPC Template Error)
-    # This is the critical new patch!
-    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/Traits::template CallSeqFactory(/Traits::template CallSeqFactory<>(/g'")
+    # We look for all header files in the Pods directory
+    header_files = Dir.glob("Pods/**/*.{h,hpp}")
+    patched_count = 0
+
+    header_files.each do |file_path|
+      begin
+        content = File.read(file_path)
+        original_content = content.dup
+
+        # Apply all three necessary patches
+        # 1. result_of -> invoke_result
+        content.gsub!(/std::result_of/, 'std::invoke_result')
+        # 2. Fix function types
+        content.gsub!(/std::invoke_result<F\(\)>/, 'std::invoke_result<F>')
+        # 3. Fix gRPC template syntax
+        content.gsub!(/Traits::template CallSeqFactory\(/, 'Traits::template CallSeqFactory<>(')
+
+        # Only write if changes were made
+        if content != original_content
+          File.write(file_path, content)
+          patched_count += 1
+        end
+      rescue => e
+        # Ignore read errors on weird files
+      end
+    end
+    puts "✅ Patched #{patched_count} C++ files."
 
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # Force C++20 (Required for React Native)
+        # Force C++20
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # Silence standard warnings just in case
-        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        # Backup Macro (Just in case Ruby misses one)
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
+        
+        # Safe Silencing
+        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end
   end
 end
 
-# --- WIDGET EXTENSION (ISOLATED) ---
 target 'CommuteWidgetExtension' do
+  # Keep empty
 end

@@ -35,7 +35,10 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 1. INJECTION FIX (Keep this!)
+    # =========================================================
+    # PATCH 1: INJECT MISSING HEADER (Solves "File Not Found")
+    # =========================================================
+    puts "💉 Injecting RCTTurboModule.h..."
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
@@ -44,29 +47,34 @@ target 'MyCommute' do
       FileUtils.cp(source_file, dest_dir)
     end
 
+    # =========================================================
+    # PATCH 2: FIX C++20 INCOMPATIBILITIES (Solves Crashes)
+    # =========================================================
+    puts "🩹 Patching C++20 syntax errors in Pods..."
+    
+    # Fix 1: result_of -> invoke_result (For Firebase)
+    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::result_of/std::invoke_result/g'")
+    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/std::invoke_result<F()>/std::invoke_result<F>/g'")
+    
+    # Fix 2: CallSeqFactory -> CallSeqFactory<> (For gRPC Template Error)
+    # This is the critical new patch!
+    system("LC_ALL=C find Pods -type f -name '*.h' -o -name '*.hpp' | xargs sed -i '' 's/Traits::template CallSeqFactory(/Traits::template CallSeqFactory<>(/g'")
+
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         
-        # 2. Force C++20 (Required)
+        # Force C++20 (Required for React Native)
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         
-        # 3. Restore "result_of" (Required for Firebase)
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
-        
-        # 4. THE FIX: TURN OFF "WARNINGS AS ERRORS"
-        # We do NOT add any flags. We just tell Xcode to keep going if it sees a warning.
-        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-        config.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-        
-        # 5. Allow standard includes
+        # Silence standard warnings just in case
+        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end
   end
 end
 
+# --- WIDGET EXTENSION (ISOLATED) ---
 target 'CommuteWidgetExtension' do
-  # Keep empty
 end

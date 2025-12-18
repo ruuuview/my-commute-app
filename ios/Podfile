@@ -35,7 +35,7 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 1. INJECT MISSING HEADER (Fixes 'RCTTurboModule.h not found')
+    # 1. INJECTION FIX (Keep this)
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
@@ -44,19 +44,16 @@ target 'MyCommute' do
       FileUtils.cp(source_file, dest_dir)
     end
 
-    # 2. RUBY PATCH (Fixes C++20 Syntax Errors)
+    # 2. RUBY C++ PATCH (Keep this)
     puts "🩹 Applying C++ patches..."
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
       begin
         content = File.read(file_path)
         original_content = content.dup
-        # Fix: std::result_of -> std::invoke_result
         content.gsub!(/std::result_of/, 'std::invoke_result')
         content.gsub!(/std::invoke_result<F\(\)>/, 'std::invoke_result<F>')
-        # Fix: Template syntax in gRPC
         content.gsub!(/Traits::template CallSeqFactory\(/, 'Traits::template CallSeqFactory<>(')
-        
         if content != original_content
           File.write(file_path, content)
         end
@@ -66,20 +63,39 @@ target 'MyCommute' do
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-        
-        # 3. GLOBAL C++ SETTINGS
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        
+        # Restore "result_of"
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
-        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
         
-        # 4. BORINGSSL FIX (The Golden Ticket)
-        # Disable Assembly code so it compiles as standard C. 
-        # This prevents the '-G' and 'unsupported option' errors.
-        if target.name.include?("BoringSSL") || target.name.include?("gRPC")
-           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'OPENSSL_NO_ASM=1'
-           # Ensure optimization flags don't conflict
-           config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '0'
+        # 3. THE SCRUBBER (Solution 1 Logic)
+        # This finds the config file and deletes the invalid "-G" flag
+        if config.base_configuration_reference
+          xcconfig_path = config.base_configuration_reference.real_path
+          if File.exist?(xcconfig_path)
+            xcconfig = File.read(xcconfig_path)
+            if xcconfig.include?("-G")
+              puts "🧹 Scrubbing '-G' flag from #{target.name}..."
+              xcconfig.gsub!(/-G\s+/, '') # Remove -G followed by space
+              xcconfig.gsub!(/-G/, '')    # Remove -G at end of line
+              File.open(xcconfig_path, "w") { |file| file << xcconfig }
+            end
+          end
+        end
+      end
+      
+      # 4. DEEP SCRUB FOR BoringSSL
+      # Sometimes flags hide in the file list settings, not just the global config
+      if target.name == 'BoringSSL-GRPC'
+        target.source_build_phase.files.each do |file|
+          if file.settings && file.settings['COMPILER_FLAGS']
+            flags = file.settings['COMPILER_FLAGS']
+            if flags.include?("-G")
+              puts "🧹 Deep Scrubbing '-G' from BoringSSL source file..."
+              file.settings['COMPILER_FLAGS'] = flags.gsub(/-G/, '')
+            end
+          end
         end
       end
     end
@@ -87,5 +103,5 @@ target 'MyCommute' do
 end
 
 target 'CommuteWidgetExtension' do
-  # Keep empty to prevent header pollution
+  # Keep empty
 end

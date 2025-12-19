@@ -3,6 +3,7 @@
     "name": "My Commute",
     "slug": "frontend",
     "version": "1.0.2",
+    "owner": "ruuuview",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
@@ -15,7 +16,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.mycommute.app",
-      "deploymentTarget": "13.4"
+      "deploymentTarget": "15.1"
     },
     "android": {
       "package": "com.mycommute.app",
@@ -49,7 +50,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "cxxLanguageStandard": "c++17"
+            "cxxLanguageStandard": "c++20"
           }
         }
       ]
@@ -59,10 +60,7 @@
     },
     "extra": {
       "EXPO_PUBLIC_BACKEND_URL": "https://tube-notifier.preview.emergentagent.com",
-      "router": {},
-      "eas": {
-        "projectId": "a59a4c69-afde-41a2-b730-811ed2113a8d"
-      }
+      "router": {}
     }
   }
 }

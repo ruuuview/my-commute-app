@@ -69,16 +69,17 @@ target 'MyCommute' do
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         
-        # Restore Non-Modular Includes & Warning Suppression
+        # Restore Non-Modular Includes
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
       end
       
-      # 3. ROBUST TARGETED SCRUBBER (The Fix)
+      # 3. ROBUST LOGIC SCRUBBER (The Safe Fix)
       # We target ONLY BoringSSL and wrap in a safety block to prevent crashes.
       if target.name == 'BoringSSL-GRPC'
         target.source_build_phase.files.each do |file|
           begin
+            # Check if settings exist before trying to read them
             if file.settings && file.settings['COMPILER_FLAGS']
               flags = file.settings['COMPILER_FLAGS']
               
@@ -96,6 +97,7 @@ target 'MyCommute' do
               end
             end
           rescue => e
+            # Just log warnings, do NOT crash the build
             puts "⚠️ Warning: Failed to scrub file in #{target.name}: #{e}"
           end
         end

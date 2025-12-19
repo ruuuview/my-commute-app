@@ -6,21 +6,6 @@ require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
-
-# === NEW LAYER 0: PRE-INSTALL INTERCEPTOR ===
-# This runs BEFORE CocoaPods generates the project. It cleans the source Podspecs.
-pre_install do |installer|
-  puts "🔍 PRE-INSTALL: Hunting for -G flags in external Podspecs..."
-  installer.pod_targets.each do |pod|
-    if pod.name.include?('BoringSSL') || pod.name.include?('gRPC')
-      puts "🎯 Checking #{pod.name}..."
-      if pod.root_spec.compiler_flags.is_a?(Array)
-        pod.root_spec.compiler_flags = pod.root_spec.compiler_flags.reject { |f| f == '-G' }
-      end
-    end
-  end
-end
-
 prepare_react_native_project!
 
 target 'MyCommute' do
@@ -50,7 +35,7 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 1. INJECTION FIX
+    # 1. INJECTION FIX (Standard)
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
@@ -59,7 +44,7 @@ target 'MyCommute' do
       FileUtils.cp(source_file, dest_dir)
     end
 
-    # 2. RUBY C++ PATCH
+    # 2. RUBY C++ PATCH (Standard)
     puts "🩹 Applying C++ patches..."
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
@@ -75,23 +60,8 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. GHOST BUSTER: CMAKE PATCHER (NEW!)
-    # Hunts down CMake files that might generate the -G flag dynamically
-    puts "🔧 Patching gRPC CMake files..."
-    Dir.glob("Pods/**/grpc*.{cmake,txt}").each do |cmake_file|
-      begin
-        content = File.read(cmake_file)
-        if content.include?('-G')
-          puts "   ✅ Patching CMake file: #{File.basename(cmake_file)}"
-          content.gsub!(/\s-G\s/, ' ')
-          content.gsub!(/"-G"/, '""')
-          File.write(cmake_file, content)
-        end
-      rescue; end
-    end
-
-    # 4. TRIPLE-LAYER -G FLAG ANNIHILATOR (Your existing strong script)
-    puts "💣 DEPLOYING TRIPLE-LAYER -G FLAG DESTROYER..."
+    # 3. LOGIC-BASED FLAG REMOVAL (The Correct Fix)
+    puts "🧹 Running Logic Scrubber for -G flags..."
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
@@ -100,57 +70,27 @@ target 'MyCommute' do
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-
-        # Layer 1: Strip from Build Settings
-        config.build_settings.each do |key, value|
-          if value.is_a?(String) && value.include?('-G')
-             if value.split.include?('-G')
-               config.build_settings[key] = value.split.reject { |f| f == '-G' }.join(' ')
-               puts "🔥 LAYER 1: Nuked -G from #{target.name} > #{key}"
-             end
-          elsif value.is_a?(Array) && value.include?('-G')
-              config.build_settings[key] = value.reject { |f| f == '-G' }
-              puts "🔥 LAYER 1: Nuked -G array from #{target.name} > #{key}"
-          end
-        end
-        
-        # Layer 2: Force Override Known Keys
-        [
-          'OTHER_CFLAGS',
-          'OTHER_CPLUSPLUSFLAGS', 
-          'OTHER_LDFLAGS',
-          'WARNING_CFLAGS',
-          'GCC_PREPROCESSOR_DEFINITIONS'
-        ].each do |flag_key|
-          if config.build_settings[flag_key]
-            original = config.build_settings[flag_key]
-            if original.is_a?(String)
-              config.build_settings[flag_key] = original.split.reject { |f| f == '-G' }.join(' ')
-            elsif original.is_a?(Array)
-              config.build_settings[flag_key] = original.reject { |f| f == '-G' }
-            end
-          end
-        end
       end
-      
-      # Layer 3: File Level Scrub
-      if target.name.include?('BoringSSL') || target.name.include?('gRPC') || target.name.include?('GRPC')
+
+      # Target ONLY BoringSSL and gRPC
+      if target.name.include?('BoringSSL') || target.name.include?('gRPC')
         target.source_build_phase.files.each do |file|
           begin
             if file.settings && file.settings['COMPILER_FLAGS']
               flags = file.settings['COMPILER_FLAGS']
-              if flags.is_a?(String) && flags.include?('-G')
-                file.settings['COMPILER_FLAGS'] = flags.split.reject { |f| f == '-G' }.join(' ')
-                puts "   ✅ Scrubbed -G from file in #{target.name}"
-              elsif flags.is_a?(Array) && flags.include?('-G')
-                file.settings['COMPILER_FLAGS'] = flags.reject { |f| f == '-G' }
+              
+              # LOGIC: Split string into words -> Filter out "-G" -> Join back
+              # This CANNOT delete "GCC" or parts of other words.
+              if flags.is_a?(String) && flags.split.include?('-G')
+                new_flags = flags.split.reject { |f| f == '-G' }.join(' ')
+                file.settings['COMPILER_FLAGS'] = new_flags
+                puts "   ✅ Cleaned -G from #{target.name}"
               end
             end
           rescue; end
         end
       end
     end
-    puts "✅ TRIPLE-LAYER DESTROYER COMPLETE!"
   end
 end
 

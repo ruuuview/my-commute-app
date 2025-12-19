@@ -1,25 +1,26 @@
 {
   "cli": {
-    "version": ">= 5.9.0",
-    "appVersionSource": "local"
+    "version": ">= 7.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m-medium"
-      }
-    },
-    "preview": {
-      "distribution": "internal",
-      "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "large",
+        "image": "latest",
+        "cache": {
+          "disabled": true
+        }
       }
     },
     "production": {
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "large",
+        "image": "latest",
+        "cache": {
+          "disabled": true
+        }
       }
     }
   },
@@ -27,4 +28,3 @@
     "production": {}
   }
 }
-

@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "eas-build-post-install": "chmod +x ios/scripts/fix_boringssl.sh && ./ios/scripts/fix_boringssl.sh"
   },
   "dependencies": {
     "@expo/ngrok": "4.1.3",

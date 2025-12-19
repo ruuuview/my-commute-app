@@ -6,6 +6,21 @@ require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+
+# === NEW LAYER 0: PRE-INSTALL INTERCEPTOR ===
+# This runs BEFORE CocoaPods generates the project. It cleans the source Podspecs.
+pre_install do |installer|
+  puts "🔍 PRE-INSTALL: Hunting for -G flags in external Podspecs..."
+  installer.pod_targets.each do |pod|
+    if pod.name.include?('BoringSSL') || pod.name.include?('gRPC')
+      puts "🎯 Checking #{pod.name}..."
+      if pod.root_spec.compiler_flags.is_a?(Array)
+        pod.root_spec.compiler_flags = pod.root_spec.compiler_flags.reject { |f| f == '-G' }
+      end
+    end
+  end
+end
+
 prepare_react_native_project!
 
 target 'MyCommute' do
@@ -60,9 +75,23 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. TRIPLE-LAYER -G FLAG ANNIHILATOR
+    # 3. GHOST BUSTER: CMAKE PATCHER (NEW!)
+    # Hunts down CMake files that might generate the -G flag dynamically
+    puts "🔧 Patching gRPC CMake files..."
+    Dir.glob("Pods/**/grpc*.{cmake,txt}").each do |cmake_file|
+      begin
+        content = File.read(cmake_file)
+        if content.include?('-G')
+          puts "   ✅ Patching CMake file: #{File.basename(cmake_file)}"
+          content.gsub!(/\s-G\s/, ' ')
+          content.gsub!(/"-G"/, '""')
+          File.write(cmake_file, content)
+        end
+      rescue; end
+    end
+
+    # 4. TRIPLE-LAYER -G FLAG ANNIHILATOR (Your existing strong script)
     puts "💣 DEPLOYING TRIPLE-LAYER -G FLAG DESTROYER..."
-    
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
@@ -71,24 +100,21 @@ target 'MyCommute' do
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-        
-        # === LAYER 1: NUCLEAR OPTION - STRIP ALL -G FLAGS FROM ALL BUILD SETTINGS ===
+
+        # Layer 1: Strip from Build Settings
         config.build_settings.each do |key, value|
           if value.is_a?(String) && value.include?('-G')
-            # Precise split to avoid deleting "GCC"
-            if value.split.include?('-G')
+             if value.split.include?('-G')
                config.build_settings[key] = value.split.reject { |f| f == '-G' }.join(' ')
                puts "🔥 LAYER 1: Nuked -G from #{target.name} > #{key}"
-            end
-          elsif value.is_a?(Array)
-            if value.include?('-G')
+             end
+          elsif value.is_a?(Array) && value.include?('-G')
               config.build_settings[key] = value.reject { |f| f == '-G' }
               puts "🔥 LAYER 1: Nuked -G array from #{target.name} > #{key}"
-            end
           end
         end
         
-        # === LAYER 2: FORCE OVERRIDE ALL POSSIBLE FLAG LOCATIONS ===
+        # Layer 2: Force Override Known Keys
         [
           'OTHER_CFLAGS',
           'OTHER_CPLUSPLUSFLAGS', 
@@ -107,36 +133,23 @@ target 'MyCommute' do
         end
       end
       
-      # === LAYER 3: SURGICAL FILE-LEVEL SCRUB (BoringSSL + ALL GRPC TARGETS) ===
+      # Layer 3: File Level Scrub
       if target.name.include?('BoringSSL') || target.name.include?('gRPC') || target.name.include?('GRPC')
-        puts "🎯 LAYER 3: Targeting #{target.name} at FILE LEVEL..."
-        
-        begin
-          target.source_build_phase.files.each do |file|
-            begin
-              if file.settings && file.settings['COMPILER_FLAGS']
-                flags = file.settings['COMPILER_FLAGS']
-                
-                if flags.is_a?(String) && flags.include?('-G')
-                  new_flags = flags.split.reject { |f| f == '-G' }.join(' ')
-                  file.settings['COMPILER_FLAGS'] = new_flags
-                  puts "   ✅ Scrubbed -G from file in #{target.name}"
-                
-                elsif flags.is_a?(Array) && flags.include?('-G')
-                  file.settings['COMPILER_FLAGS'] = flags.reject { |f| f == '-G' }
-                  puts "   ✅ Scrubbed -G array from file in #{target.name}"
-                end
+        target.source_build_phase.files.each do |file|
+          begin
+            if file.settings && file.settings['COMPILER_FLAGS']
+              flags = file.settings['COMPILER_FLAGS']
+              if flags.is_a?(String) && flags.include?('-G')
+                file.settings['COMPILER_FLAGS'] = flags.split.reject { |f| f == '-G' }.join(' ')
+                puts "   ✅ Scrubbed -G from file in #{target.name}"
+              elsif flags.is_a?(Array) && flags.include?('-G')
+                file.settings['COMPILER_FLAGS'] = flags.reject { |f| f == '-G' }
               end
-            rescue => e
-              puts "   ⚠️ Skipped file in #{target.name}: #{e.message}"
             end
-          end
-        rescue => e
-          puts "   ⚠️ Could not access source files in #{target.name}: #{e.message}"
+          rescue; end
         end
       end
     end
-    
     puts "✅ TRIPLE-LAYER DESTROYER COMPLETE!"
   end
 end

@@ -59,20 +59,28 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. DIRECT PROJECT FILE PATCHER (The Nuclear Difference)
+    # 3. DIRECT PROJECT FILE PATCHER (FIXED)
     puts "💣 PATCHING BORINGSSL-GRPC DIRECTLY IN PROJECT FILE..."
-    project_path = installer.pods_project.path
-    project_content = File.read(project_path)
-    original_content = project_content.dup
+    # FIX: Point to the actual pbxproj file inside the xcodeproj folder
+    project_path = File.join(installer.pods_project.path, 'project.pbxproj')
     
-    # Remove all instances of -G flag from the project file directly
-    project_content.gsub!(/"-G"[,;]?\s*/, '')
-    project_content.gsub!(/,\s*"-G"/, '')
-    project_content.gsub!(/\s"-G"\s/, ' ')
-    
-    if project_content != original_content
-      File.write(project_path, project_content)
-      puts "✅ Removed -G flags from Pods project file"
+    if File.exist?(project_path)
+      project_content = File.read(project_path)
+      original_content = project_content.dup
+      
+      # Remove all instances of -G flag from the project file directly
+      project_content.gsub!(/"-G"[,;]?\s*/, '')
+      project_content.gsub!(/,\s*"-G"/, '')
+      project_content.gsub!(/\s"-G"\s/, ' ')
+      
+      if project_content != original_content
+        File.write(project_path, project_content)
+        puts "✅ Removed -G flags from Pods project file"
+      else
+        puts "⚠️ No -G flags found to remove (this might be good!)"
+      end
+    else
+      puts "❌ Could not find project.pbxproj at #{project_path}"
     end
 
     # 4. STANDARD BUILD CONFIGURATIONS

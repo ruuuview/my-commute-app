@@ -74,22 +74,29 @@ target 'MyCommute' do
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
       end
       
-      # 3. AGGRESSIVE SCRUBBER (The Scorched Earth Fix)
-      # Removes "-G" from EVERY target's file settings, regardless of name.
-      target.source_build_phase.files.each do |file|
-        if file.settings && file.settings['COMPILER_FLAGS']
-          flags = file.settings['COMPILER_FLAGS']
-          
-          # If it's a string, split and reject "-G"
-          if flags.is_a?(String) && flags.include?("-G")
-            new_flags = flags.split.reject { |f| f == '-G' }.join(' ')
-            file.settings['COMPILER_FLAGS'] = new_flags
-            puts "🧹 Scrubbed '-G' from #{file.file_ref.name}"
-          
-          # If it's an array (rare but possible), delete "-G"
-          elsif flags.is_a?(Array) && flags.include?("-G")
-            file.settings['COMPILER_FLAGS'] = flags.reject { |f| f == "-G" }
-            puts "🧹 Scrubbed '-G' array from #{file.file_ref.name}"
+      # 3. ROBUST TARGETED SCRUBBER (The Fix)
+      # We target ONLY BoringSSL and wrap in a safety block to prevent crashes.
+      if target.name == 'BoringSSL-GRPC'
+        target.source_build_phase.files.each do |file|
+          begin
+            if file.settings && file.settings['COMPILER_FLAGS']
+              flags = file.settings['COMPILER_FLAGS']
+              
+              # 1. Handle String Flags
+              if flags.is_a?(String) && flags.include?("-G")
+                # Split by space, remove '-G' exactly, join back
+                new_flags = flags.split.reject { |f| f == '-G' }.join(' ')
+                file.settings['COMPILER_FLAGS'] = new_flags
+                puts "🧹 Scrubbed '-G' string from #{target.name}"
+              
+              # 2. Handle Array Flags (just in case)
+              elsif flags.is_a?(Array) && flags.include?("-G")
+                file.settings['COMPILER_FLAGS'] = flags.reject { |f| f == "-G" }
+                puts "🧹 Scrubbed '-G' array from #{target.name}"
+              end
+            end
+          rescue => e
+            puts "⚠️ Warning: Failed to scrub file in #{target.name}: #{e}"
           end
         end
       end

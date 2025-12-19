@@ -3,6 +3,13 @@ require File.join(File.dirname(`node --print "require.resolve('react-native/pack
 require 'fileutils'
 require 'json'
 
+# Attempt to load xcodeproj for the injection script
+begin
+  require 'xcodeproj'
+rescue LoadError
+  puts "⚠️ xcodeproj gem not found, some patches might fail"
+end
+
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
@@ -59,36 +66,52 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. DIRECT PROJECT FILE PATCHER
-    puts "💣 PATCHING PROJECT FILE..."
-    project_path = File.join(installer.pods_project.path, 'project.pbxproj')
-    if File.exist?(project_path)
-      project_content = File.read(project_path)
-      # Remove -G flags (careful regex to avoid removing -GCC)
-      if project_content.gsub!(/\s-G\s/, ' ') || project_content.gsub!(/"-G"/, '')
-         File.write(project_path, project_content)
-         puts "✅ Cleaned -G from project.pbxproj"
+    # 3. BUILD PHASE INJECTOR (The New Strategy)
+    puts "💉 INJECTING PRE-COMPILE SCRIPT INTO BORINGSSL..."
+    pods_project = installer.pods_project
+    boringssl_target = pods_project.targets.find { |t| t.name.include?('BoringSSL') }
+
+    if boringssl_target
+      puts "   🎯 Found BoringSSL target: #{boringssl_target.name}"
+      script_name = "[CP-User] Remove -G Flag"
+      
+      # Check if script already exists to avoid duplicates
+      existing_phase = boringssl_target.shell_script_build_phases.find { |phase| phase.name == script_name }
+      
+      unless existing_phase
+        puts "   🔧 Adding build phase to strip -G flags..."
+        phase = boringssl_target.new_shell_script_build_phase(script_name)
+        
+        # The script runs inside Xcode during the build
+        phase.shell_script = <<-SCRIPT
+#!/bin/bash
+set -e
+echo "🧹 PRE-COMPILE: Searching for -G flags in xcconfig..."
+find "${PODS_ROOT}/Target Support Files" -name "*.xcconfig" -type f | while read xcconfig; do
+    if grep -q "\\-G " "$xcconfig" 2>/dev/null; then
+        echo "   🔥 Found -G in $(basename $xcconfig) - Removing..."
+        # Remove -G when it's surrounded by spaces or at start/end
+        sed -i '' 's/ -G / /g' "$xcconfig"
+        sed -i '' 's/ -G$/ /g' "$xcconfig"
+        sed -i '' 's/^-G / /g' "$xcconfig"
+        sed -i '' 's/"-G"/ /g' "$xcconfig"
+    fi
+done
+echo "✅ Pre-compile cleanup complete"
+SCRIPT
+        
+        # Move this phase to be the FIRST thing that runs (Index 0)
+        boringssl_target.build_phases.unshift(phase)
+        puts "   ✅ Injected pre-compile script at position 0"
+        pods_project.save
+      else
+        puts "   ℹ️ Pre-compile script already exists"
       end
+    else
+      puts "   ⚠️ BoringSSL target not found for injection"
     end
 
-    # 4. NEW: XCCONFIG FILE SCRUBBER (The Missing Link)
-    puts "🧹 HUNTING -G IN XCCONFIG FILES..."
-    Dir.glob("Pods/Target Support Files/**/*.xcconfig").each do |xcconfig_path|
-      content = File.read(xcconfig_path)
-      # Look for -G flag surrounded by spaces or quotes
-      if content.include?("-G ") || content.include?(" -G") || content.include?('"-G"')
-        puts "   🔥 Found hidden -G in #{File.basename(xcconfig_path)} - BURNING IT!"
-        
-        # Remove it surgically
-        content.gsub!(/-G /, '')
-        content.gsub!(/ -G/, '')
-        content.gsub!(/"-G"/, '')
-        
-        File.write(xcconfig_path, content)
-      end
-    end
-
-    # 5. STANDARD BUILD CONFIGURATIONS
+    # 4. STANDARD BUILD CONFIGURATIONS
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'

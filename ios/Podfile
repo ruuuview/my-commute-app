@@ -4,14 +4,13 @@ require 'fileutils'
 require 'json'
 
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
-
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
 
 target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
-  
+
   # --- FIREBASE MODULES ---
   pod 'GoogleUtilities', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
@@ -35,7 +34,7 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 1. INJECTION FIX (Standard)
+    # 1. INJECTION FIX
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
@@ -44,7 +43,7 @@ target 'MyCommute' do
       FileUtils.cp(source_file, dest_dir)
     end
 
-    # 2. RUBY C++ PATCH (Standard)
+    # 2. RUBY C++ PATCH
     puts "🩹 Applying C++ patches..."
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
@@ -60,8 +59,23 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. LOGIC-BASED FLAG REMOVAL (The Correct Fix)
-    puts "🧹 Running Logic Scrubber for -G flags..."
+    # 3. DIRECT PROJECT FILE PATCHER (The Nuclear Difference)
+    puts "💣 PATCHING BORINGSSL-GRPC DIRECTLY IN PROJECT FILE..."
+    project_path = installer.pods_project.path
+    project_content = File.read(project_path)
+    original_content = project_content.dup
+    
+    # Remove all instances of -G flag from the project file directly
+    project_content.gsub!(/"-G"[,;]?\s*/, '')
+    project_content.gsub!(/,\s*"-G"/, '')
+    project_content.gsub!(/\s"-G"\s/, ' ')
+    
+    if project_content != original_content
+      File.write(project_path, project_content)
+      puts "✅ Removed -G flags from Pods project file"
+    end
+
+    # 4. STANDARD BUILD CONFIGURATIONS
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
@@ -70,25 +84,6 @@ target 'MyCommute' do
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-      end
-
-      # Target ONLY BoringSSL and gRPC
-      if target.name.include?('BoringSSL') || target.name.include?('gRPC')
-        target.source_build_phase.files.each do |file|
-          begin
-            if file.settings && file.settings['COMPILER_FLAGS']
-              flags = file.settings['COMPILER_FLAGS']
-              
-              # LOGIC: Split string into words -> Filter out "-G" -> Join back
-              # This CANNOT delete "GCC" or parts of other words.
-              if flags.is_a?(String) && flags.split.include?('-G')
-                new_flags = flags.split.reject { |f| f == '-G' }.join(' ')
-                file.settings['COMPILER_FLAGS'] = new_flags
-                puts "   ✅ Cleaned -G from #{target.name}"
-              end
-            end
-          rescue; end
-        end
       end
     end
   end

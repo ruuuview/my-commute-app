@@ -7,9 +7,40 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
 
+# Helper function to patch Xcode 15 issues in older pods
+def __apply_Xcode_15_patch(installer)
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      if config.base_configuration_reference
+        xcconfig_path = config.base_configuration_reference.real_path
+        if File.exist?(xcconfig_path)
+          xcconfig = File.read(xcconfig_path)
+          original = xcconfig.dup
+          
+          # Remove -G flag if present
+          xcconfig.gsub!(/ -G /, ' ')
+          xcconfig.gsub!(/-G /, '')
+          xcconfig.gsub!(/ -G$/, '')
+          
+          if xcconfig != original
+            File.write(xcconfig_path, xcconfig)
+            puts "   ✅ Cleaned -G from xcconfig: #{File.basename(xcconfig_path)}"
+          end
+        end
+      end
+    end
+  end
+end
+
 target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
+
+  # --- FORCE OLDER VERSIONS TO AVOID -G FLAG ---
+  # These versions predate the strict Xcode 15/16 flag checks
+  pod 'gRPC-Core', '1.44.3', :modular_headers => true
+  pod 'gRPC-C++', '1.44.3', :modular_headers => true
+  pod 'BoringSSL-GRPC', '0.0.24', :modular_headers => true
 
   # --- FIREBASE MODULES ---
   pod 'GoogleUtilities', :modular_headers => true
@@ -34,7 +65,11 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    # 1. INJECTION FIX
+    # 1. Apply Xcode 15 patch (The Cleanup)
+    puts "🧹 Running XCConfig Cleanup..."
+    __apply_Xcode_15_patch(installer)
+
+    # 2. INJECTION FIX
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
     if source_file
@@ -43,7 +78,7 @@ target 'MyCommute' do
       FileUtils.cp(source_file, dest_dir)
     end
 
-    # 2. RUBY C++ PATCH
+    # 3. RUBY C++ PATCH
     puts "🩹 Applying C++ patches..."
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
@@ -59,55 +94,7 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. ULTIMATE -G FLAG DESTROYER
-    puts "🔥 FINAL ASSAULT ON -G FLAGS..."
-    
-    # Patch ALL possible locations for .xcconfig files
-    [
-      "Pods/Target Support Files/**/*.xcconfig",
-      "Pods/**/*.xcconfig", 
-      "Pods/**/Pods-*.*.xcconfig"
-    ].each do |pattern|
-      Dir.glob(pattern).each do |file|
-        begin
-          content = File.read(file)
-          original = content.dup
-          
-          # Remove -G with various spacing
-          content.gsub!(/ -G /, ' ')
-          content.gsub!(/^-G /, '')
-          content.gsub!(/ -G$/, '')
-          content.gsub!(/"-G"/, '')
-          content.gsub!(/\s-G\s/, ' ')
-          
-          if content != original
-            File.write(file, content)
-            puts "   ✅ Cleaned: #{File.basename(file)}"
-          end
-        rescue => e
-          # Skip files we can't read
-        end
-      end
-    end
-
-    # 4. Patch project.pbxproj directly (The Classic Fix)
-    project_path = File.join(installer.pods_project.path, 'project.pbxproj')
-    if File.exist?(project_path)
-      content = File.read(project_path)
-      original = content.dup
-      
-      content.gsub!(/ -G /, ' ')
-      content.gsub!(/"-G"/, '')
-      content.gsub!(/"-G",/, '')
-      content.gsub!(/, "-G"/, '')
-      
-      if content != original
-        File.write(project_path, content)
-        puts "   ✅ Cleaned: project.pbxproj"
-      end
-    end
-
-    # 5. STANDARD BUILD CONFIGURATIONS & OTHER_CFLAGS SCRUBBER
+    # 4. STANDARD BUILD CONFIGURATIONS
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
@@ -116,19 +103,8 @@ target 'MyCommute' do
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-        
-        # Remove -G from OTHER_CFLAGS if it exists (This is the new key check)
-        if config.build_settings['OTHER_CFLAGS']
-          if config.build_settings['OTHER_CFLAGS'].is_a?(String)
-            config.build_settings['OTHER_CFLAGS'] = config.build_settings['OTHER_CFLAGS'].gsub('-G', '').strip
-          elsif config.build_settings['OTHER_CFLAGS'].is_a?(Array)
-            config.build_settings['OTHER_CFLAGS'].delete('-G')
-          end
-        end
       end
     end
-    
-    puts "✅ -G FLAG DESTRUCTION COMPLETE"
   end
 end
 

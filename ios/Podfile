@@ -11,27 +11,14 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
 
-  # --------------------------------------------------------
-  # 🔒 THE VERSION LOCK
-  # We align ALL versions to a matching set from April 2024.
-  # This set is known to be stable and devoid of the -G flag issue.
-  # --------------------------------------------------------
-  
-  # 1. The Safe gRPC (No -G Flag)
-  pod 'gRPC-Core', '1.62.2', :modular_headers => true
-  pod 'gRPC-C++', '1.62.2', :modular_headers => true
-  pod 'BoringSSL-GRPC', '0.0.32', :modular_headers => true
-
-  # 2. The Matching Firebase Set (Compatible with gRPC 1.62.2)
-  # We override the versions react-native-firebase tries to pick
-  $firebase_version = '10.24.0'
-  pod 'Firebase/Auth', $firebase_version
-  pod 'Firebase/Firestore', $firebase_version
-  pod 'FirebaseCore', $firebase_version
-  pod 'FirebaseCoreInternal', $firebase_version
-  pod 'FirebaseCoreExtension', $firebase_version
-  pod 'FirebaseFirestoreInternal', $firebase_version
+  # --- FIREBASE MODULES (Using new versions from package.json) ---
   pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseFirestoreInternal', :modular_headers => true
+  pod 'Firebase/Auth'
+  pod 'Firebase/Firestore'
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -47,7 +34,7 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
-    puts "🔧 RUNNING FINAL SAFETY CHECKS..."
+    puts "🔧 RUNNING POST-INSTALL CLEANUP..."
 
     # 1. INJECTION FIX
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
@@ -72,9 +59,22 @@ target 'MyCommute' do
         end
       rescue; end
     end
+
+    # 3. SAFETY NET: Scrub -G flag from Assembly and Configs
+    puts "🔥 Scrubbing BoringSSL flags..."
     
-    # 3. SAFETY NET: Scrub BoringSSL assembly just in case
-    # Even though we pinned versions, this ensures no stray flags survive
+    # A. Config Files
+    Dir.glob("Pods/**/*.xcconfig").each do |file|
+      begin
+        content = File.read(file)
+        if content.gsub!(/ -G /, ' ') || content.gsub!(/-G /, '') || content.gsub!(/ -G$/, '')
+          File.write(file, content)
+          puts "   ✅ Cleaned xcconfig: #{File.basename(file)}"
+        end
+      rescue; end
+    end
+
+    # B. Assembly Files (.S)
     Dir.glob("Pods/BoringSSL-GRPC/**/*.{S,s}").each do |asm_file|
       begin
         content = File.read(asm_file)
@@ -83,7 +83,7 @@ target 'MyCommute' do
            content.gsub!(/-G /, '')
            content.gsub!(/ -G$/, '')
            File.write(asm_file, content)
-           puts "   ✅ Patched assembly file: #{File.basename(asm_file)}"
+           puts "   ✅ Patched assembly: #{File.basename(asm_file)}"
         end
       rescue; end
     end
@@ -93,14 +93,16 @@ target 'MyCommute' do
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        # Ensure we don't have stray -G flags in settings
+        ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS'].each do |key|
+          if config.build_settings[key].is_a?(String)
+            config.build_settings[key] = config.build_settings[key].gsub('-G', '').strip
+          end
+        end
       end
     end
     
-    puts "✅ VERSIONS ALIGNED & PATCHED"
+    puts "✅ DEPENDENCIES ALIGNED & SCRUBBED"
   end
 end
 

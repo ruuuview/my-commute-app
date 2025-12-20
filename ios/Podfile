@@ -12,12 +12,12 @@ target 'MyCommute' do
   config = use_native_modules!
 
   # --------------------------------------------------------
-  # 🛡️ THE LOCAL OVERRIDE
-  # This points to the JSON file we just created.
-  # It forces CocoaPods to use OUR definition, which has
-  # no -G flags and includes a script to scrub assembly files.
+  # 🔒 FORCE STABLE GRPC VERSIONS
+  # We pin this to 1.62.2 to avoid the "Bleeding Edge" 
+  # BoringSSL versions that introduced the -G flag.
   # --------------------------------------------------------
-  pod 'BoringSSL-GRPC', :podspec => 'LocalPodspecs/BoringSSL-GRPC.podspec.json'
+  pod 'gRPC-Core', '1.62.2', :modular_headers => true
+  pod 'gRPC-C++', '1.62.2', :modular_headers => true
 
   # --- FIREBASE MODULES ---
   pod 'GoogleUtilities', :modular_headers => true
@@ -42,6 +42,8 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false
     )
 
+    puts "🔧 POST-INSTALL PATCHES..."
+
     # 1. INJECTION FIX
     rn_root = File.expand_path("../node_modules/react-native", __dir__)
     source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
@@ -49,9 +51,10 @@ target 'MyCommute' do
       dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
       FileUtils.mkdir_p(dest_dir)
       FileUtils.cp(source_file, dest_dir)
+      puts "   ✅ Copied RCTTurboModule.h"
     end
 
-    # 2. RUBY C++ PATCH
+    # 2. C++ PATCHES
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
       begin
@@ -65,9 +68,42 @@ target 'MyCommute' do
         end
       rescue; end
     end
-    
-    # 3. STANDARD BUILD CONFIGURATIONS
+
+    # 3. PATCH BORINGSSL ASSEMBLY FILES (The -G Killer)
+    puts "🔥 Patching BoringSSL assembly files..."
+    Dir.glob("Pods/BoringSSL-GRPC/**/*.{S,s}").each do |asm_file|
+      begin
+        content = File.read(asm_file)
+        if content.include?('-G')
+          # Be careful to only remove the flag, not other code
+          content.gsub!(/ -G /, ' ')
+          content.gsub!(/-G /, '')
+          content.gsub!(/ -G$/, '')
+          File.write(asm_file, content)
+          puts "   ✅ Patched assembly: #{File.basename(asm_file)}"
+        end
+      rescue; end
+    end
+
+    # 4. REMOVE -G FROM BUILD SETTINGS
     installer.pods_project.targets.each do |target|
+      # A. Specific BoringSSL Targeting
+      if target.name.include?('BoringSSL')
+        target.build_configurations.each do |config|
+          ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'WARNING_CFLAGS'].each do |key|
+            if config.build_settings[key]
+              if config.build_settings[key].is_a?(Array)
+                config.build_settings[key].delete('-G')
+                config.build_settings[key].delete_if { |f| f.strip == '-G' }
+              elsif config.build_settings[key].is_a?(String)
+                config.build_settings[key] = config.build_settings[key].gsub(/-G\b/, '').strip
+              end
+            end
+          end
+        end
+      end
+      
+      # B. Standard Settings for ALL targets
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
@@ -77,6 +113,7 @@ target 'MyCommute' do
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
       end
     end
+    puts "✅ POST-INSTALL COMPLETE"
   end
 end
 

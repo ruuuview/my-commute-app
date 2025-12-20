@@ -11,12 +11,19 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
 
-  # --- FIREBASE MODULES (Using new versions from package.json) ---
+  # --- FIREBASE MODULES ---
+  # Explicitly enable modular headers for Swift compatibility
   pod 'GoogleUtilities', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
   pod 'FirebaseCoreExtension', :modular_headers => true
   pod 'FirebaseFirestoreInternal', :modular_headers => true
+  
+  # 👇 NEW: Fix for "Swift pods cannot yet be integrated as static libraries"
+  pod 'FirebaseAuthInterop', :modular_headers => true
+  pod 'FirebaseAppCheckInterop', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
 
@@ -61,6 +68,7 @@ target 'MyCommute' do
     end
 
     # 3. SAFETY NET: Scrub -G flag from Assembly and Configs
+    # Vital because you are now on the latest BoringSSL (0.0.37) which DEFINITELY has the flag.
     puts "🔥 Scrubbing BoringSSL flags..."
     
     # A. Config Files

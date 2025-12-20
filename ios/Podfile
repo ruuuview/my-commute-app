@@ -12,14 +12,13 @@ target 'MyCommute' do
   config = use_native_modules!
 
   # --- FIREBASE MODULES ---
-  # Explicitly enable modular headers for Swift compatibility
   pod 'GoogleUtilities', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
   pod 'FirebaseCoreExtension', :modular_headers => true
   pod 'FirebaseFirestoreInternal', :modular_headers => true
   
-  # 👇 NEW: Fix for "Swift pods cannot yet be integrated as static libraries"
+  # Swift Static Library Fixes
   pod 'FirebaseAuthInterop', :modular_headers => true
   pod 'FirebaseAppCheckInterop', :modular_headers => true
   pod 'RecaptchaInterop', :modular_headers => true
@@ -43,16 +42,11 @@ target 'MyCommute' do
 
     puts "🔧 RUNNING POST-INSTALL CLEANUP..."
 
-    # 1. INJECTION FIX
-    rn_root = File.expand_path("../node_modules/react-native", __dir__)
-    source_file = Dir.glob("#{rn_root}/**/RCTTurboModule.h").first
-    if source_file
-      dest_dir = File.join(installer.sandbox.root, "Headers/Public/ReactCommon")
-      FileUtils.mkdir_p(dest_dir)
-      FileUtils.cp(source_file, dest_dir)
-    end
+    # ❌ DELETED SECTION 1 (The Duplicate Cause):
+    # We no longer copy RCTTurboModule.h manually. 
+    # React Native 0.81+ handles this itself.
 
-    # 2. C++ PATCHES
+    # 1. C++ PATCHES (Keep these for now, they are safe)
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
       begin
@@ -67,8 +61,7 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 3. SAFETY NET: Scrub -G flag from Assembly and Configs
-    # Vital because you are now on the latest BoringSSL (0.0.37) which DEFINITELY has the flag.
+    # 2. SAFETY NET: Scrub -G flag from Assembly and Configs
     puts "🔥 Scrubbing BoringSSL flags..."
     
     # A. Config Files
@@ -96,7 +89,7 @@ target 'MyCommute' do
       rescue; end
     end
 
-    # 4. STANDARD BUILD CONFIGURATIONS
+    # 3. STANDARD BUILD CONFIGURATIONS
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'

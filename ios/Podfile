@@ -7,21 +7,27 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
 
+# ⚡️ STATIC FRAMEWORKS ARCHITECTURE
+# This is the modern standard for RN + Firebase (v10+).
+# It fixes the "Header not found" errors by bundling Swift code correctly.
+use_frameworks! :linkage => :static
+
 target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
 
   # --- FIREBASE MODULES ---
-  pod 'GoogleUtilities', :modular_headers => true
-  pod 'FirebaseCoreInternal', :modular_headers => true
-  pod 'FirebaseCore', :modular_headers => true
-  pod 'FirebaseCoreExtension', :modular_headers => true
-  pod 'FirebaseFirestoreInternal', :modular_headers => true
+  # Note: modular_headers flags removed (not needed with use_frameworks!)
+  pod 'GoogleUtilities'
+  pod 'FirebaseCoreInternal'
+  pod 'FirebaseCore'
+  pod 'FirebaseCoreExtension'
+  pod 'FirebaseFirestoreInternal'
   
-  # Swift Static Library Fixes
-  pod 'FirebaseAuthInterop', :modular_headers => true
-  pod 'FirebaseAppCheckInterop', :modular_headers => true
-  pod 'RecaptchaInterop', :modular_headers => true
+  # Interop pods to ensure dependencies resolve correctly
+  pod 'FirebaseAuthInterop'
+  pod 'FirebaseAppCheckInterop'
+  pod 'RecaptchaInterop'
 
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
@@ -42,11 +48,7 @@ target 'MyCommute' do
 
     puts "🔧 RUNNING POST-INSTALL CLEANUP..."
 
-    # ❌ DELETED SECTION 1 (The Duplicate Cause):
-    # We no longer copy RCTTurboModule.h manually. 
-    # React Native 0.81+ handles this itself.
-
-    # 1. C++ PATCHES (Keep these for now, they are safe)
+    # 1. C++ PATCHES (Standard)
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
       begin
@@ -62,6 +64,7 @@ target 'MyCommute' do
     end
 
     # 2. SAFETY NET: Scrub -G flag from Assembly and Configs
+    # Vital for BoringSSL compatibility
     puts "🔥 Scrubbing BoringSSL flags..."
     
     # A. Config Files
@@ -103,7 +106,7 @@ target 'MyCommute' do
       end
     end
     
-    puts "✅ DEPENDENCIES ALIGNED & SCRUBBED"
+    puts "✅ STATIC FRAMEWORKS CONFIGURED"
   end
 end
 

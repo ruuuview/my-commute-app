@@ -11,7 +11,15 @@ target 'MyCommute' do
   use_expo_modules!
   config = use_native_modules!
 
-  # --- FIREBASE MODULES (Dynamic Versions) ---
+  # --------------------------------------------------------
+  # 🛡️ THE LOCAL OVERRIDE
+  # This points to the JSON file we just created.
+  # It forces CocoaPods to use OUR definition, which has
+  # no -G flags and includes a script to scrub assembly files.
+  # --------------------------------------------------------
+  pod 'BoringSSL-GRPC', :podspec => 'LocalPodspecs/BoringSSL-GRPC.podspec.json'
+
+  # --- FIREBASE MODULES ---
   pod 'GoogleUtilities', :modular_headers => true
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
@@ -44,7 +52,6 @@ target 'MyCommute' do
     end
 
     # 2. RUBY C++ PATCH
-    puts "🩹 Applying C++ patches..."
     header_files = Dir.glob("Pods/**/*.{h,hpp}")
     header_files.each do |file_path|
       begin
@@ -58,56 +65,8 @@ target 'MyCommute' do
         end
       rescue; end
     end
-
-    # 3. AGGRESSIVE -G FLAG REMOVAL (The Kitchen Sink)
-    puts "🔥 NUCLEAR OPTION: Removing -G from EVERYTHING..."
-
-    # A. Patch ALL xcconfig files
-    Dir.glob("Pods/**/*.xcconfig").each do |file|
-      begin
-        content = File.read(file)
-        original = content.dup
-        content.gsub!(/ -G /, ' ')
-        content.gsub!(/-G /, '')
-        content.gsub!(/ -G$/, '')
-        content.gsub!(/^-G /, '')
-        if content != original
-          File.write(file, content)
-          puts "   ✅ Cleaned xcconfig: #{File.basename(file)}"
-        end
-      rescue; end
-    end
-
-    # B. Patch project.pbxproj
-    project_path = File.join(installer.pods_project.path, 'project.pbxproj')
-    if File.exist?(project_path)
-      content = File.read(project_path)
-      original = content.dup
-      content.gsub!(/ -G /, ' ')
-      content.gsub!(/"-G"/, '')
-      content.gsub!(/, "-G"/, '')
-      content.gsub!(/"-G",/, '')
-      if content != original
-        File.write(project_path, content)
-        puts "   ✅ Cleaned: project.pbxproj"
-      end
-    end
-
-    # C. Patch BoringSSL assembly files directly (Risky but necessary)
-    Dir.glob("Pods/BoringSSL-GRPC/**/*.{S,s}").each do |asm_file|
-      begin
-        content = File.read(asm_file)
-        if content.include?('-G')
-          # Be specific to avoid breaking code labels
-          if content.gsub!(/ -G /, ' ') || content.gsub!(/-G/, '')
-            File.write(asm_file, content)
-            puts "   ✅ Cleaned assembly: #{File.basename(asm_file)}"
-          end
-        end
-      rescue; end
-    end
-
-    # 4. STANDARD BUILD CONFIGURATIONS & OTHER_CFLAGS SCRUBBER
+    
+    # 3. STANDARD BUILD CONFIGURATIONS
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
@@ -116,27 +75,8 @@ target 'MyCommute' do
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << '_LIBCPP_ENABLE_CXX20_REMOVED_TYPE_TRAITS=1'
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
         config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-
-        # Remove -G from build settings arrays and strings
-        ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'WARNING_CFLAGS'].each do |key|
-          if config.build_settings[key]
-            if config.build_settings[key].is_a?(Array)
-              if config.build_settings[key].include?('-G')
-                 config.build_settings[key].delete('-G')
-                 puts "   ✅ Removed -G from #{key} array in #{target.name}"
-              end
-            elsif config.build_settings[key].is_a?(String)
-              if config.build_settings[key].include?('-G')
-                 config.build_settings[key] = config.build_settings[key].gsub(' -G ', ' ').gsub(/-G /, '').gsub(/ -G/, '').strip
-                 puts "   ✅ Removed -G from #{key} string in #{target.name}"
-              end
-            end
-          end
-        end
       end
     end
-    
-    puts "✅ Finished nuclear -G removal"
   end
 end
 

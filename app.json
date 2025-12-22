@@ -16,7 +16,8 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.mycommute.app",
-      "deploymentTarget": "15.1"
+      "deploymentTarget": "15.1",
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.mycommute.app",

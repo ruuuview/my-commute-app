@@ -7,7 +7,6 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "resourceClass": "large",
         "image": "latest",
         "cache": {
           "disabled": true
@@ -16,7 +15,6 @@
     },
     "production": {
       "ios": {
-        "resourceClass": "large",
         "image": "latest",
         "cache": {
           "disabled": true

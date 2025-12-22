@@ -60,7 +60,10 @@
     },
     "extra": {
       "EXPO_PUBLIC_BACKEND_URL": "https://tube-notifier.preview.emergentagent.com",
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "e858f07f-d13c-4639-80fc-054534497d1f"
+      }
     }
   }
 }

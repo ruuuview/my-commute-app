@@ -16,7 +16,7 @@
       },
       "bundleIdentifier": "com.mycommute.app",
       "deploymentTarget": "15.1",
-      "buildNumber": "5"
+      "buildNumber": "10"
     },
     "android": {
       "package": "com.mycommute.app",
@@ -60,7 +60,10 @@
     },
     "extra": {
       "EXPO_PUBLIC_BACKEND_URL": "https://tube-notifier.preview.emergentagent.com",
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "1efee0b5-6e68-4c91-830a-fde4f951c1f0"
+      }
     }
   }
 }

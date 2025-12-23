@@ -1,9 +1,8 @@
 {
   "expo": {
     "name": "My Commute",
-    "slug": "frontend",
+    "slug": "my-commute",
     "version": "1.0.2",
-    "owner": "ruuuview",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
@@ -61,10 +60,7 @@
     },
     "extra": {
       "EXPO_PUBLIC_BACKEND_URL": "https://tube-notifier.preview.emergentagent.com",
-      "router": {},
-      "eas": {
-        "projectId": "e858f07f-d13c-4639-80fc-054534497d1f"
-      }
+      "router": {}
     }
   }
 }

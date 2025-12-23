@@ -16,7 +16,7 @@
       },
       "bundleIdentifier": "com.mycommute.app",
       "deploymentTarget": "15.1",
-      "buildNumber": "10"
+      "buildNumber": "20"
     },
     "android": {
       "package": "com.mycommute.app",

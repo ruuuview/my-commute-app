@@ -1,115 +1,60 @@
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
-require 'fileutils'
+
 require 'json'
-
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
-platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
-prepare_react_native_project!
 
-# ⚡️ STATIC FRAMEWORKS ARCHITECTURE
-# This is the modern standard for RN + Firebase (v10+).
-# It fixes the "Header not found" errors by bundling Swift code correctly.
-use_frameworks! :linkage => :static
+def ccache_enabled?(podfile_properties)
+  # Environment variable takes precedence
+  return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
+  
+  # Fall back to Podfile properties
+  podfile_properties['apple.ccacheEnabled'] == 'true'
+end
+
+ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
+ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
+ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+
+prepare_react_native_project!
 
 target 'MyCommute' do
   use_expo_modules!
-  config = use_native_modules!
 
-  # --- FIREBASE MODULES ---
-  # Note: modular_headers flags removed (not needed with use_frameworks!)
-  pod 'GoogleUtilities'
-  pod 'FirebaseCoreInternal'
-  pod 'FirebaseCore'
-  pod 'FirebaseCoreExtension'
-  pod 'FirebaseFirestoreInternal'
-  
-  # Interop pods to ensure dependencies resolve correctly
-  pod 'FirebaseAuthInterop'
-  pod 'FirebaseAppCheckInterop'
-  pod 'RecaptchaInterop'
+  if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+    config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
+  else
+    config_command = [
+      'npx',
+      'expo-modules-autolinking',
+      'react-native-config',
+      '--json',
+      '--platform',
+      'ios'
+    ]
+  end
 
-  pod 'Firebase/Auth'
-  pod 'Firebase/Firestore'
+  config = use_native_modules!(config_command)
+
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
   use_react_native!(
     :path => config[:reactNativePath],
-    :hermes_enabled => true,
+    :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
+    # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
-    :privacy_file_aggregation_enabled => true,
+    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
 
   post_install do |installer|
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false
+      :mac_catalyst_enabled => false,
+      :ccache_enabled => ccache_enabled?(podfile_properties),
     )
-
-    puts "🔧 RUNNING POST-INSTALL CLEANUP..."
-
-    # 1. C++ PATCHES (Standard)
-    header_files = Dir.glob("Pods/**/*.{h,hpp}")
-    header_files.each do |file_path|
-      begin
-        content = File.read(file_path)
-        original_content = content.dup
-        content.gsub!(/std::result_of/, 'std::invoke_result')
-        content.gsub!(/std::invoke_result<F\(\)>/, 'std::invoke_result<F>')
-        content.gsub!(/Traits::template CallSeqFactory\(/, 'Traits::template CallSeqFactory<>(')
-        if content != original_content
-          File.write(file_path, content)
-        end
-      rescue; end
-    end
-
-    # 2. SAFETY NET: Scrub -G flag from Assembly and Configs
-    # Vital for BoringSSL compatibility
-    puts "🔥 Scrubbing BoringSSL flags..."
-    
-    # A. Config Files
-    Dir.glob("Pods/**/*.xcconfig").each do |file|
-      begin
-        content = File.read(file)
-        if content.gsub!(/ -G /, ' ') || content.gsub!(/-G /, '') || content.gsub!(/ -G$/, '')
-          File.write(file, content)
-          puts "   ✅ Cleaned xcconfig: #{File.basename(file)}"
-        end
-      rescue; end
-    end
-
-    # B. Assembly Files (.S)
-    Dir.glob("Pods/BoringSSL-GRPC/**/*.{S,s}").each do |asm_file|
-      begin
-        content = File.read(asm_file)
-        if content.include?('-G')
-           content.gsub!(/ -G /, ' ')
-           content.gsub!(/-G /, '')
-           content.gsub!(/ -G$/, '')
-           File.write(asm_file, content)
-           puts "   ✅ Patched assembly: #{File.basename(asm_file)}"
-        end
-      rescue; end
-    end
-
-    # 3. STANDARD BUILD CONFIGURATIONS
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
-        # Ensure we don't have stray -G flags in settings
-        ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS'].each do |key|
-          if config.build_settings[key].is_a?(String)
-            config.build_settings[key] = config.build_settings[key].gsub('-G', '').strip
-          end
-        end
-      end
-    end
-    
-    puts "✅ STATIC FRAMEWORKS CONFIGURED"
   end
-end
-
-target 'CommuteWidgetExtension' do
-  # Keep empty
 end

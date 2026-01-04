@@ -1,20 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-  ActivityIndicator,
+import { APP_CONFIG } from '../config/app.config';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  RefreshControl, 
+  StatusBar,
+  Animated,
   Platform,
+  Linking
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { stationDataCache } from './index'; // Import the pre-fetch cache
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { stationDataCache } from './index';
 
-const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+// ✅ Use Config
+const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 
 interface Departure {
   destination: string;
@@ -22,7 +30,7 @@ interface Departure {
   platform: string;
   minutes_away: number;
   expected_arrival: string;
-  status?: string; // Line status for dynamic header
+  status?: string;
 }
 
 interface StationDetailData {
@@ -32,7 +40,6 @@ interface StationDetailData {
   updated_at: string;
 }
 
-// TfL Line Colors (official hex codes)
 const getLineColor = (lineName: string): string => {
   const colors: { [key: string]: string } = {
     'Bakerloo': '#B36305',
@@ -50,51 +57,44 @@ const getLineColor = (lineName: string): string => {
     'DLR': '#00AFAD',
   };
   
-  // Handle line name variations
   const normalizedName = lineName.replace(' Line', '').trim();
   return colors[normalizedName] || colors[lineName] || '#666666';
 };
 
-// Extract platform number from platform string
 const extractPlatformNumber = (platform: string): string => {
   const match = platform.match(/Platform (\d+)/);
   return match ? match[1] : platform.split(' ').pop() || '?';
 };
 
-// Determine text color based on background (for platform circles)
 const getPlatformTextColor = (backgroundColor: string): string => {
-  // Light backgrounds get black text, dark backgrounds get white text
   const lightColors = ['#FFD300', '#95CDBA', '#F3A9BB', '#00AFAD'];
   return lightColors.includes(backgroundColor) ? '#000' : '#fff';
 };
 
-// Format minutes to display text - Premium style with "MINS" suffix
 const formatDueTime = (minutes: number): string => {
   if (minutes <= 0) return 'DUE';
   if (minutes === 1) return '1 MIN';
   return `${minutes} MINS`;
 };
 
-// Status severity levels for header color determination
 const getStatusSeverity = (status: string): number => {
   const statusLower = status.toLowerCase();
   if (statusLower.includes('severe') || statusLower.includes('suspended') || statusLower.includes('closure')) {
-    return 3; // Most severe - RED
+    return 3; 
   }
   if (statusLower.includes('minor') || statusLower.includes('delay') || statusLower.includes('disruption')) {
-    return 2; // Moderate - AMBER/YELLOW
+    return 2; 
   }
   if (statusLower.includes('good') || statusLower.includes('service')) {
-    return 1; // Good - GREEN
+    return 1; 
   }
-  return 0; // Unknown/Default
+  return 0; 
 };
 
-// Dynamic header color based on most severe line status
 const getHeaderColor = (departures: Departure[]): string => {
-  if (!departures || departures.length === 0) return '#00A75D'; // Default green
+  if (!departures || departures.length === 0) return '#00A75D'; 
   
-  let maxSeverity = 1; // Default to good service
+  let maxSeverity = 1; 
   
   departures.forEach(departure => {
     const status = departure.status || 'Good Service';
@@ -105,14 +105,13 @@ const getHeaderColor = (departures: Departure[]): string => {
   });
   
   switch (maxSeverity) {
-    case 3: return '#E32017'; // RED - Severe delays/suspended
-    case 2: return '#FFD700'; // YELLOW - Minor delays  
-    case 1: return '#00A75D'; // GREEN - Good service
-    default: return '#00A75D'; // Default green
+    case 3: return '#E32017'; 
+    case 2: return '#FFD700'; 
+    case 1: return '#00A75D'; 
+    default: return '#00A75D'; 
   }
 };
 
-// Group departures by direction and sort chronologically by due time
 const groupDeparturesByDirection = (departures: Departure[]) => {
   const northbound: Departure[] = [];
   const southbound: Departure[] = [];
@@ -124,12 +123,10 @@ const groupDeparturesByDirection = (departures: Departure[]) => {
     } else if (platform.includes('southbound') || platform.includes('westbound')) {
       southbound.push(departure);
     } else {
-      // Default to northbound if direction can't be determined
       northbound.push(departure);
     }
   });
   
-  // Sort each direction chronologically by due time (earliest first)
   northbound.sort((a, b) => a.minutes_away - b.minutes_away);
   southbound.sort((a, b) => a.minutes_away - b.minutes_away);
   
@@ -147,36 +144,30 @@ export default function StationDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Clear old data when stationId changes to prevent flash of old content
     setStationData(null);
     setError(null);
-    // Don't set loading=true here to avoid flash during navigation
     
     fetchStationDetail();
     
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => fetchStationDetail(false), 30000); // Skip cache for auto-refresh
+    const interval = setInterval(() => fetchStationDetail(false), 30000); 
     return () => clearInterval(interval);
   }, [stationId]);
 
   const fetchStationDetail = async (useCache: boolean = true) => {
     try {
-      setLoading(true); // Show loading indicator during refresh
+      setLoading(true); 
       setError(null);
       
-      // ⚡ PRE-FETCH: Check if we have cached data from dashboard
       if (useCache && stationDataCache.has(stationId)) {
         console.log(`⚡ CACHE HIT: Using pre-fetched data for ${stationId}`);
         
         try {
-          // Await the cached promise
           const cachedPromise = stationDataCache.get(stationId);
           const data = await cachedPromise;
           
           console.log(`✅ CACHE DATA LOADED: ${data.name} with ${data.departures.length} trains`);
           setStationData(data);
           
-          // Clear cache after use to prevent stale data
           stationDataCache.delete(stationId);
           console.log(`🧹 Cache cleared for ${stationId}`);
           
@@ -184,13 +175,10 @@ export default function StationDetailScreen() {
           return;
         } catch (cacheError) {
           console.warn(`⚠️ Cache failed, falling back to fresh fetch:`, cacheError);
-          // Clear bad cache entry
           stationDataCache.delete(stationId);
-          // Continue to fresh fetch below
         }
       }
       
-      // 🔴 LIVE API CALL - Fetch real-time station data from TfL (fresh fetch or cache miss)
       console.log(`🚇 FETCHING FRESH DATA for station: ${stationId}`);
       
       const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`, {
@@ -256,12 +244,10 @@ export default function StationDetailScreen() {
     hour12: false 
   });
 
-  // Determine dynamic header color based on most severe status
   const headerBackgroundColor = stationData ? getHeaderColor(stationData.departures) : '#00A75D';
   
   return (
     <SafeAreaView style={styles.container}>
-      {/* Premium Dynamic Header with Status Color */}
       <View style={[styles.header, { backgroundColor: headerBackgroundColor }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
@@ -276,9 +262,7 @@ export default function StationDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Last Updated */}
         {stationData && (
           <View style={styles.lastUpdatedContainer}>
             <Text style={styles.lastUpdatedText}>
@@ -300,7 +284,6 @@ export default function StationDetailScreen() {
           </View>
         )}
 
-        {/* Northbound / Eastbound */}
         {northbound.length > 0 && (
           <View style={styles.directionSection}>
             <Text style={styles.directionTitle}>↑ NORTHBOUND</Text>
@@ -312,7 +295,6 @@ export default function StationDetailScreen() {
                 
                 return (
                   <View key={`nb-${index}`} style={[styles.departureCard, { borderColor: lineColor }]}>
-                    {/* Platform Circle with "PLT" prefix */}
                     <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
                       <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
                       <Text style={[styles.platformNumber, { color: platformTextColor }]}>
@@ -320,13 +302,11 @@ export default function StationDetailScreen() {
                       </Text>
                     </View>
                     
-                    {/* Details */}
                     <View style={styles.departureDetails}>
                       <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
                       <Text style={styles.destination}>{departure.destination.replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
                     </View>
                     
-                    {/* Due Time */}
                     <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
                   </View>
                 );
@@ -335,7 +315,6 @@ export default function StationDetailScreen() {
           </View>
         )}
 
-        {/* Southbound / Westbound */}
         {southbound.length > 0 && (
           <View style={styles.directionSection}>
             <Text style={styles.directionTitle}>↓ SOUTHBOUND</Text>
@@ -347,7 +326,6 @@ export default function StationDetailScreen() {
                 
                 return (
                   <View key={`sb-${index}`} style={[styles.departureCard, { borderColor: lineColor }]}>
-                    {/* Platform Circle with "PLT" prefix */}
                     <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
                       <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
                       <Text style={[styles.platformNumber, { color: platformTextColor }]}>
@@ -355,13 +333,11 @@ export default function StationDetailScreen() {
                       </Text>
                     </View>
                     
-                    {/* Details */}
                     <View style={styles.departureDetails}>
                       <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
                       <Text style={styles.destination}>{departure.destination.replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
                     </View>
                     
-                    {/* Due Time */}
                     <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
                   </View>
                 );
@@ -370,7 +346,6 @@ export default function StationDetailScreen() {
           </View>
         )}
 
-        {/* No Departures */}
         {(!stationData || stationData.departures.length === 0) && (
           <View style={styles.noDeparturesContainer}>
             <Ionicons name="train" size={48} color="#666" />
@@ -388,14 +363,13 @@ export default function StationDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F7', // Premium light grey background
+    backgroundColor: '#F5F5F7', 
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 20,
-    // Dynamic background color set inline
   },
   backButton: {
     padding: 8,

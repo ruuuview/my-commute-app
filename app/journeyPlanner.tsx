@@ -1,3 +1,4 @@
+import { APP_CONFIG } from '../config/app.config';
 import React, { useState } from 'react';
 import {
   View,
@@ -18,7 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+// ✅ Use Config
+const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 
 // Types
 interface StationSearchResult {
@@ -227,8 +229,6 @@ export default function JourneyPlannerV2() {
 
   // Open maps app for walking directions
   const openMapsForWalking = (destinationStation: string) => {
-    // For iOS: Use Apple Maps with walking directions
-    // For Android: Use Google Maps with walking directions
     const destination = encodeURIComponent(destinationStation);
     
     const url = Platform.select({
@@ -241,7 +241,6 @@ export default function JourneyPlannerV2() {
         if (supported) {
           Linking.openURL(url);
         } else {
-          // Fallback to generic maps URL
           const fallbackUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=walking`;
           Linking.openURL(fallbackUrl);
         }
@@ -353,17 +352,6 @@ export default function JourneyPlannerV2() {
     const walkDuration = leg.duration;
     const shouldShowMapButton = (isWalking || isCycling) && walkDuration >= 3 && isFirst;
     
-    // DEBUG: Log leg data
-    console.log('🚇 Leg Data:', {
-      mode: leg.mode,
-      line: leg.line_name,
-      direction: leg.direction,
-      stops: leg.num_stops,
-      platform: leg.platform,
-      from: leg.from_station,
-      to: leg.to_station
-    });
-    
     return (
       <View key={index} style={styles.legContainer}>
         <View style={styles.legIconContainer}>
@@ -437,7 +425,7 @@ export default function JourneyPlannerV2() {
             </View>
           )}
 
-          {/* Duration and Times - shown BEFORE destination */}
+          {/* Duration and Times */}
           <View style={styles.legTimingContainer}>
             <Text style={styles.legDuration}>{formatDuration(leg.duration)}</Text>
             {leg.departure_time && leg.arrival_time && (
@@ -525,7 +513,7 @@ export default function JourneyPlannerV2() {
               </View>
             </View>
 
-            {/* Alternative departure times for the same route */}
+            {/* Alternative departure times */}
             {journey.alternative_times && journey.alternative_times.length > 0 && (
               <View style={styles.alternativeTimesContainer}>
                 <Text style={styles.alternativeTimesTitle}>Other departure times for this route:</Text>
@@ -942,120 +930,6 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: '400',
   },
-  swapButton: {
-    alignSelf: 'center',
-    padding: 8,
-    marginVertical: 4,
-  },
-  timeSection: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  timeSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 12,
-  },
-  departureTimeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#F5F5F7',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E5E7',
-  },
-  departureTimeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  departureTimeTextContainer: {
-    flex: 1,
-  },
-  departureNowText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  departureTimeLabel: {
-    fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  departureTimeValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginTop: 2,
-  },
-  departureTimeHint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 2,
-  },
-  clearTimeButtonInline: {
-    padding: 4,
-  },
-  accessibilityToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    backgroundColor: '#F5F5F7',
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  accessibilityLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  accessibilityTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  accessibilityTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  accessibilitySubtitle: {
-    fontSize: 13,
-    color: '#666',
-  },
-  toggle: {
-    width: 51,
-    height: 31,
-    borderRadius: 15.5,
-    backgroundColor: '#E5E5E7',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleActive: {
-    backgroundColor: '#34C759',
-  },
-  toggleThumb: {
-    width: 27,
-    height: 27,
-    borderRadius: 13.5,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
   planButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1329,7 +1203,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  // Modal Styles
   modalContainer: {
     flex: 1,
     backgroundColor: '#F5F5F7',
@@ -1418,7 +1291,6 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
   },
-  // Alternative times styles
   alternativeTimesContainer: {
     marginTop: 16,
     marginBottom: 16,

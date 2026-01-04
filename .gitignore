@@ -45,3 +45,4 @@ android/
 !/ios/Podfile
 !/ios/Podfile.properties.json
 # --- END EAS BUILD OVERRIDE ---
+.vercel

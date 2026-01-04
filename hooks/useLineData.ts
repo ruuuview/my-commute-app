@@ -1,76 +1,55 @@
-/**
- * Data fetching hook for Zustand store
- * 
- * Purpose: Fetch TfL line data from API and populate the store
- * Migration Step: 2/4 - LineDetailView integration
- */
-
 import { useCallback } from 'react';
-import Constants from 'expo-constants';
 import { useLineDataStore } from '../store/lineDataStore';
+import { APP_CONFIG } from '../config/app.config';
 
-const BACKEND_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
-
-/**
- * Hook for fetching and managing line data
- * Integrates with Zustand store
- */
 export const useLineData = () => {
   const setLines = useLineDataStore(state => state.setLines);
   const setLoading = useLineDataStore(state => state.setLoading);
   const setError = useLineDataStore(state => state.setError);
   const lastFetchTime = useLineDataStore(state => state.lastFetchTime);
 
-  /**
-   * Fetch all lines from API and update store
-   * @param forceRefresh - Skip cache and fetch fresh data
-   */
   const fetchAllLines = useCallback(async (forceRefresh = false) => {
-    const CACHE_DURATION = 30000; // 30 seconds
-    const now = Date.now();
-    
-    // Skip if cache is still fresh (unless forcing refresh)
-    if (!forceRefresh && lastFetchTime > 0 && (now - lastFetchTime) < CACHE_DURATION) {
-      console.log('📦 STORE: Using cached data (cache still fresh)');
-      return;
-    }
+    // Cache check (30 seconds)
+    if (!forceRefresh && lastFetchTime > 0 && (Date.now() - lastFetchTime) < 30000) return;
 
     try {
       setLoading(true);
-      setError(null);
-
-      console.log('🌐 STORE: Fetching all lines from API...');
-      const response = await fetch(`${BACKEND_URL}/api/lines`, {
+      console.log(`🌐 FETCHING: ${APP_CONFIG.BACKEND_URL}/api/lines`);
+      
+      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
       const lines = await response.json();
-      console.log(`✅ STORE: Fetched ${lines.length} lines from API`);
-      
+
+      // 🚨 PATCH: Fix Severity Logic
+      // If the API sends status 0 (Green) for bad events, we override it here.
+      lines.forEach((line: any) => {
+        const s = (line.status || '').toLowerCase();
+        
+        if (s.includes('part closure') || s.includes('suspended') || s.includes('closure')) {
+           // Force RED (Severity 7+)
+           line.status_severity = 9; 
+        } else if (s.includes('severe')) {
+           // Force High AMBER (Severity 6)
+           line.status_severity = 6;
+        } else if (s.includes('minor') || s.includes('part')) {
+           // Force AMBER (Severity 3)
+           line.status_severity = 3;
+        }
+      });
+
       setLines(lines);
-    } catch (error) {
-      console.error('❌ STORE: Error fetching lines:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch line data');
+    } catch (error: any) {
+      console.error('❌ FETCH FAILED:', error);
+      setError(error.message);
+    } finally {
       setLoading(false);
     }
   }, [lastFetchTime, setLines, setLoading, setError]);
 
-  /**
-   * Force refresh all lines (bypasses cache)
-   */
-  const refreshLines = useCallback(async () => {
-    console.log('🔄 STORE: Force refreshing lines...');
-    await fetchAllLines(true);
-  }, [fetchAllLines]);
-
-  return {
-    fetchAllLines,
-    refreshLines,
-    lastFetchTime,
-  };
+  return { fetchAllLines, refreshLines: () => fetchAllLines(true) };
 };

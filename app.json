@@ -5,27 +5,28 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "mycommute",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "googleServicesFile": "./GoogleService-Info.plist",
+      "bundleIdentifier": "com.mycommute.app",
+      "buildNumber": "430",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.mycommute.app",
-      "deploymentTarget": "15.1",
-      "buildNumber": "100"
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.mycommute.app"
+        ]
+      }
     },
     "android": {
       "package": "com.mycommute.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
-      },
-      "edgeToEdgeEnabled": true,
-      "googleServicesFile": "./google-services.json"
+        "backgroundColor": "#000000"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -34,35 +35,22 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#000"
-        }
-      ],
       "expo-font",
       [
         "expo-build-properties",
         {
           "ios": {
-            "cxxLanguageStandard": "c++20"
+            "useFrameworks": "static",
+            "flipper": false
           }
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
-      "EXPO_PUBLIC_BACKEND_URL": "https://tube-notifier.preview.emergentagent.com",
+      "EXPO_PUBLIC_BACKEND_URL": "https://my-commute-backend.vercel.app",
       "router": {},
       "eas": {
-        "projectId": "1efee0b5-6e68-4c91-830a-fde4f951c1f0"
+        "projectId": "21bce490-c99c-4452-97ca-c058e48c40ec"
       }
     }
   }

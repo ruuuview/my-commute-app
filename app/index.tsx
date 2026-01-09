@@ -1,5 +1,3 @@
-import { syncToWidget } from "./utils/widgetSync";
-import { APP_CONFIG } from '../config/app.config';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -17,9 +15,14 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+
+// --- CUSTOM IMPORTS ---
+import { APP_CONFIG } from '../config/app.config';
 import { useLineData } from '../hooks/useLineData';
 import { useLines, useLineDataStore } from '../store/lineDataStore';
 import AddManageModal from './AddManageModal';
+import { syncToWidget } from "./utils/widgetSync"; 
+import { useWidgetSync } from '../hooks/useWidgetSync'; // <--- 1. IMPORT THE HOOK
 
 // ✅ Use Single Config Source
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
@@ -63,7 +66,7 @@ export default function MyCommuteDashboard() {
   // State
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     saved_lines: ['central', 'victoria'],
-    saved_stations: ['940GZZLUOXC', '940GZZLUKSX'], // Oxford Circus, Kings Cross
+    saved_stations: ['940GZZLUOXC', '940GZZLUKSX'], 
     is_pro: false,
   });
 
@@ -80,6 +83,44 @@ export default function MyCommuteDashboard() {
   const allLinesFromStore = useLines();
   const { fetchAllLines } = useLineData();
   const [lineStatuses, setLineStatuses] = useState<LineStatus[]>([]);
+
+  // ---------------------------------------------------------
+  // ⚡️ 2. WIDGET SYNC INTEGRATION
+  // ---------------------------------------------------------
+  
+  // We define a specialized fetcher for the widget hook.
+  // It fetches fresh data and returns it in the format the hook expects.
+  const fetchWidgetData = useCallback(async () => {
+    try {
+      // A. Force fetch latest data from API
+      await fetchAllLines(true); 
+      
+      // B. Get the fresh data from the store
+      const freshLines = Object.values(useLineDataStore.getState().lines);
+      
+      // C. We need to know which lines the user has saved to show the right one.
+      // We read directly from storage to ensure we have the latest prefs even in background.
+      const prefsJson = await AsyncStorage.getItem('user_preferences');
+      const currentPrefs = prefsJson ? JSON.parse(prefsJson) : { saved_lines: [] };
+      
+      // D. Filter: Keep only saved lines
+      const myLines = freshLines.filter((l: any) => 
+        currentPrefs.saved_lines.includes(l.id)
+      );
+
+      // E. Return in the format useWidgetSync expects
+      return { myLines }; 
+    } catch (e) {
+      console.warn("Widget background fetch failed", e);
+      return null;
+    }
+  }, [fetchAllLines]);
+
+  // 3. ACTIVATE THE HOOK
+  // This will run automatically when the app opens (background -> active)
+  useWidgetSync(fetchWidgetData);
+
+  // ---------------------------------------------------------
 
   // Load Preferences & Initial Data
   useEffect(() => {
@@ -121,7 +162,10 @@ export default function MyCommuteDashboard() {
       const filteredLines = allLinesArray.filter((line: LineStatus) => 
         activePrefs.saved_lines.includes(line.id)
       );
-      setLineStatuses(filteredLines); syncToWidget(filteredLines);
+      setLineStatuses(filteredLines); 
+      
+      // Sync to widget manually as well (keeps it up to date while using app)
+      syncToWidget(filteredLines);
 
       // 3. Fetch Stations
       if (activePrefs.saved_stations.length > 0) {
@@ -129,7 +173,7 @@ export default function MyCommuteDashboard() {
         const response = await fetch(`${BACKEND_URL}/api/stations/batch?ids=${encodeURIComponent(stationIds)}`);
         if (!response.ok) throw new Error('Station fetch failed');
         const batchData = await response.json();
-        setStationData(batchData.stations || {}); syncToWidget(Object.values(batchData.stations || {}));
+        setStationData(batchData.stations || {}); 
       }
     } catch (err: any) {
       console.error('Fetch Error:', err);

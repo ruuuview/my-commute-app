@@ -1,32 +1,27 @@
 import SharedGroupPreferences from 'react-native-shared-group-preferences';
 
-const APP_GROUP_ID = "group.com.mycommute.app";
+const APP_GROUP = 'group.com.mycommute.app';
 
-interface WidgetData {
-  lineName: string;
-  status: string;
-  updatedAt: string;
-  severity: number;
-}
-
-export const syncToWidget = async (data: WidgetData): Promise<void> => {
+export const syncToWidget = async (data: any[]) => {
   try {
-    await SharedGroupPreferences.setItem(
-      "tubeStatus",
-      JSON.stringify(data),
-      APP_GROUP_ID
-    );
-    console.log("Widget synced:", data.lineName);
-  } catch (error) {
-    console.log("Widget sync failed:", error);
-  }
-};
+    const lines = Array.isArray(data) ? data.filter(item => item.status_severity !== undefined) : [];
+    
+    if (lines.length === 0) {
+       console.log("⚠️ Widget Sync: No lines to sync");
+       return;
+    }
 
-export const getWidgetData = async (): Promise<WidgetData | null> => {
-  try {
-    const data = await SharedGroupPreferences.getItem("tubeStatus", APP_GROUP_ID);
-    return data ? JSON.parse(data) : null;
+    lines.sort((a, b) => b.status_severity - a.status_severity);
+    const worstLine = lines[0];
+
+    const statusText = `${worstLine.name}: ${worstLine.status}`;
+    const severity = worstLine.status_severity;
+
+    await SharedGroupPreferences.setItem('widget_line_status', statusText, APP_GROUP);
+    await SharedGroupPreferences.setItem('widget_severity', severity, APP_GROUP);
+    
+    console.log(`✅ Widget Synced: ${statusText} (Severity: ${severity})`);
   } catch (error) {
-    return null;
+    console.log('❌ Widget Sync Failed:', error);
   }
 };

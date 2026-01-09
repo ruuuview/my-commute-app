@@ -9,13 +9,10 @@ export const useLineData = () => {
   const lastFetchTime = useLineDataStore(state => state.lastFetchTime);
 
   const fetchAllLines = useCallback(async (forceRefresh = false) => {
-    // Cache check (30 seconds)
     if (!forceRefresh && lastFetchTime > 0 && (Date.now() - lastFetchTime) < 30000) return;
 
     try {
       setLoading(true);
-      console.log(`🌐 FETCHING: ${APP_CONFIG.BACKEND_URL}/api/lines`);
-      
       const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -25,20 +22,18 @@ export const useLineData = () => {
 
       const lines = await response.json();
 
-      // 🚨 PATCH: Fix Severity Logic
-      // If the API sends status 0 (Green) for bad events, we override it here.
+      // 🚨 PATCH: Fix Sorting Logic (Safe Numbers)
       lines.forEach((line: any) => {
         const s = (line.status || '').toLowerCase();
         
         if (s.includes('part closure') || s.includes('suspended') || s.includes('closure')) {
-           // Force RED (Severity 7+)
-           line.status_severity = 9; 
+           line.status_severity = 20; // RED (Highest Priority)
         } else if (s.includes('severe')) {
-           // Force High AMBER (Severity 6)
-           line.status_severity = 6;
-        } else if (s.includes('minor') || s.includes('part')) {
-           // Force AMBER (Severity 3)
-           line.status_severity = 3;
+           line.status_severity = 9;  // RED (High Priority)
+        } else if (s.includes('minor') || s.includes('part') || s.includes('reduced')) {
+           line.status_severity = 5;  // AMBER (Medium Priority)
+        } else {
+           line.status_severity = 1;  // GREEN (Low Priority)
         }
       });
 

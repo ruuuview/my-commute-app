@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
-      "buildNumber": "430",
+      "buildNumber": "480",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -50,8 +50,9 @@
       "EXPO_PUBLIC_BACKEND_URL": "https://my-commute-backend.vercel.app",
       "router": {},
       "eas": {
-        "projectId": "21bce490-c99c-4452-97ca-c058e48c40ec"
+        "projectId": "d85912a6-a890-417c-968c-85aaea2e2515"
       }
-    }
+    },
+    "owner": "iamrudra00046"
   }
 }

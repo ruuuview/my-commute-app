@@ -51,16 +51,11 @@ struct CommuteWidgetEntryView: View {
         return .black
     }
     
+    // Subtext (Header/Footer) color
     var secondaryTextColor: Color {
         if isSevere { return .white.opacity(0.8) }
         if isMinor { return .black.opacity(0.7) }
         return .gray
-    }
-    
-    var statusDotColor: Color {
-        if isSevere { return .white } // White dot on Red background
-        if isMinor { return .black }
-        return Color(red: 0.0, green: 0.5, blue: 0.0) // Green dot on White background
     }
     
     var lineName: String {
@@ -73,60 +68,56 @@ struct CommuteWidgetEntryView: View {
         return parts.count > 1 ? String(parts[1]).trimmingCharacters(in: .whitespaces) : entry.lineStatus
     }
     
+    // Check specifically for "Suspended" to show the extra icon
+    var isSuspended: Bool {
+        statusText.lowercased().contains("suspended")
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // HEADER
-            HStack {
-                Text("MY COMMUTE")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundColor(secondaryTextColor)
-                    .tracking(1.0)
-                Spacer()
-                // Status Indicator
-                Circle()
-                    .fill(statusDotColor)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: .black.opacity(0.1), radius: 2)
-            }
-            .padding(.bottom, 8)
+            Text("MY COMMUTE")
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundColor(secondaryTextColor)
+                .tracking(1.0)
+                .padding(.bottom, 8)
             
             Spacer()
             
             // HERO CONTENT
-            // Huge Line Name
-            Text(lineName.uppercased())
-                .font(.system(size: 22, weight: .black)) // Massive
-                .foregroundColor(textColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            // We use an HStack here to put the Icon next to the Name if suspended
+            HStack(spacing: 6) {
+                if isSuspended {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 20)) // Same size as text
+                        .foregroundColor(textColor)
+                }
+                
+                Text(lineName.uppercased())
+                    .font(.system(size: 22, weight: .black)) // Massive
+                    .foregroundColor(textColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
             
-            // Status Text
             Text(statusText)
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 17, weight: .bold))
                 .foregroundColor(textColor)
                 .lineLimit(2)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.85)
                 .padding(.top, 2)
             
             Spacer()
             
-            // FOOTER
-            HStack {
-                if isSevere {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white)
-                    Text("AVOID TRAVEL")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white)
-                } else {
-                    Text("Updated:")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(secondaryTextColor)
-                    Text(entry.date, style: .time)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(secondaryTextColor)
-                }
+            // FOOTER: Timestamp
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(secondaryTextColor)
+                
+                Text(entry.date, style: .time)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(secondaryTextColor)
             }
         }
         .padding(16)
@@ -147,7 +138,7 @@ struct CommuteWidget: Widget {
             CommuteWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Live Status")
-        .description("Bold alerts for your commute.")
+        .description("Check your line status instantly.")
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }

@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
-      "buildNumber": "480",
+      "buildNumber": "490",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

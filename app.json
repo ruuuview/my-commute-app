@@ -2,18 +2,23 @@
   "expo": {
     "name": "My Commute",
     "slug": "my-commute",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycommute",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
-      "buildNumber": "490",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "UIBackgroundModes": [
+          "fetch"
+        ]
       },
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -22,11 +27,11 @@
       }
     },
     "android": {
-      "package": "com.mycommute.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
-      }
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.mycommute.app"
     },
     "web": {
       "bundler": "metro",
@@ -35,24 +40,25 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font",
       [
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static",
-            "flipper": false
+            "useFrameworks": "static"
           }
         }
       ]
     ],
-    "extra": {
-      "EXPO_PUBLIC_BACKEND_URL": "https://my-commute-backend.vercel.app",
-      "router": {},
-      "eas": {
-        "projectId": "d85912a6-a890-417c-968c-85aaea2e2515"
-      }
+    "experiments": {
+      "typedRoutes": true
     },
-    "owner": "iamrudra00046"
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "35855244-95b6-4db2-b481-dd8b563f7ca8"
+      }
+    }
   }
 }

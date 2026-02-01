@@ -4,6 +4,7 @@ import SharedGroupPreferences from 'react-native-shared-group-preferences';
 
 const APP_GROUP = 'group.com.mycommute.app'; 
 
+// Helper: Convert text status to a severity number
 const getSeverity = (status: string | null | undefined): number => {
   if (!status) return 0;
   const s = status.toLowerCase();
@@ -17,6 +18,7 @@ export const useWidgetSync = (fetchDataFunction: () => Promise<any>) => {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      // Trigger update when app opens (Background -> Active)
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
@@ -27,6 +29,7 @@ export const useWidgetSync = (fetchDataFunction: () => Promise<any>) => {
       appState.current = nextAppState;
     });
 
+    // Also run immediately on mount
     performSync();
 
     return () => {
@@ -38,17 +41,26 @@ export const useWidgetSync = (fetchDataFunction: () => Promise<any>) => {
     if (Platform.OS !== 'ios') return;
 
     try {
+      // 1. Fetch fresh data
       const data = await fetchDataFunction(); 
       if (!data || !data.myLines || data.myLines.length === 0) return;
 
-      const line = data.myLines[0]; 
-      const statusString = `${line.name}: ${line.status}`;
-      const severity = getSeverity(line.status);
+      // 2. SMART SORTING: Put the worst line first!
+      const sortedLines = data.myLines.sort((a: any, b: any) => {
+        const sevA = getSeverity(a.status);
+        const sevB = getSeverity(b.status);
+        return sevB - sevA; // Descending: 6 (Severe) -> 0 (Good)
+      });
 
+      const priorityLine = sortedLines[0];
+      const statusString = `${priorityLine.name}: ${priorityLine.status}`;
+      const severity = getSeverity(priorityLine.status);
+
+      // 3. Save to Widget Storage
       await SharedGroupPreferences.setItem('widget_line_status', statusString, APP_GROUP);
       await SharedGroupPreferences.setItem('widget_severity', severity, APP_GROUP);
 
-      console.log(`✅ Widget Data Saved: ${statusString}`);
+      console.log(`✅ Widget Saved Priority Line: ${statusString}`);
 
     } catch (error) {
       console.error("❌ Widget sync failed:", error);

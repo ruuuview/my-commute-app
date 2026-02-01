@@ -1,27 +1,38 @@
+import { NativeModules } from 'react-native';
 import SharedGroupPreferences from 'react-native-shared-group-preferences';
 
 const APP_GROUP = 'group.com.mycommute.app';
 
-export const syncToWidget = async (data: any[]) => {
+export const syncToWidget = async (lines: any[]) => {
   try {
-    const lines = Array.isArray(data) ? data.filter(item => item.status_severity !== undefined) : [];
-    
-    if (lines.length === 0) {
-       console.log("⚠️ Widget Sync: No lines to sync");
-       return;
+    // 1. Prepare Data
+    const widgetData = lines.slice(0, 5).map(line => ({
+      id: line.id,
+      name: line.name,
+      status: line.statusDescription || line.status || "Unknown",
+      severity: 0, 
+      lastUpdated: Date.now()
+    }));
+
+    const jsonString = JSON.stringify(widgetData);
+    console.log(`🔄 Syncing ${widgetData.length} lines to Widget...`);
+
+    // 2. Try Native Direct Channel (Fastest)
+    if (NativeModules.WidgetHelper) {
+      try {
+        await NativeModules.WidgetHelper.reloadWidget(jsonString);
+        console.log("✅ Widget refreshed instantly via Native Module.");
+        return;
+      } catch (nativeErr) {
+        console.warn("⚠️ Native WidgetHelper failed, falling back to SharedPrefs:", nativeErr);
+      }
     }
 
-    lines.sort((a, b) => b.status_severity - a.status_severity);
-    const worstLine = lines[0];
+    // 3. Fallback
+    console.log("⚠️ Falling back to SharedGroupPreferences");
+    await SharedGroupPreferences.setItem('widget_data_json', jsonString, APP_GROUP);
 
-    const statusText = `${worstLine.name}: ${worstLine.status}`;
-    const severity = worstLine.status_severity;
-
-    await SharedGroupPreferences.setItem('widget_line_status', statusText, APP_GROUP);
-    await SharedGroupPreferences.setItem('widget_severity', severity, APP_GROUP);
-    
-    console.log(`✅ Widget Synced: ${statusText} (Severity: ${severity})`);
   } catch (error) {
-    console.log('❌ Widget Sync Failed:', error);
+    console.error('❌ Widget Sync Failed:', error);
   }
 };

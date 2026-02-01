@@ -1,7 +1,20 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
+import { registerBackgroundFetchAsync } from '../services/backgroundTask';
 
 export default function TabLayout() {
+  useEffect(() => {
+    const initBackground = async () => {
+      try {
+        await registerBackgroundFetchAsync();
+      } catch (err) {
+        console.error("Register Failed:", err);
+      }
+    };
+    initBackground();
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -31,16 +44,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Journey Planner - Hidden for MVP, will be enabled in V2 */}
-      {/* <Tabs.Screen
-        name="journeyPlanner"
-        options={{
-          title: 'Plan Journey',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map" size={size} color={color} />
-          ),
-        }}
-      /> */}
       <Tabs.Screen
         name="settings"
         options={{
@@ -50,36 +53,11 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="(lineStack)"
-        options={{
-          href: null, // Hide from tabs - this is a stack navigator for lineDetail
-        }}
-      />
-      <Tabs.Screen
-        name="stationDetail"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-      <Tabs.Screen
-        name="AddManageModal"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-      <Tabs.Screen
-        name="apiTest"
-        options={{
-          href: null, // Hide from tabs - Debug screen only
-        }}
-      />
-      <Tabs.Screen
-        name="journeyPlanner"
-        options={{
-          href: null, // Hidden for MVP - Will be enabled in V2
-        }}
-      />
+      <Tabs.Screen name="(lineStack)" options={{ href: null }} />
+      <Tabs.Screen name="stationDetail" options={{ href: null }} />
+      <Tabs.Screen name="AddManageModal" options={{ href: null }} />
+      <Tabs.Screen name="apiTest" options={{ href: null }} />
+      <Tabs.Screen name="journeyPlanner" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -1,3 +1,9 @@
-.git
-.expo
-node_modules
+node_modules/
+ios/Pods/
+.metro-cache/
+.expo/
+dist/
+.git/
+android/app/build/
+ios/build/
+*.log

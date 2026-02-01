@@ -16,18 +16,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// --- CUSTOM IMPORTS ---
+// --- WIDGET SYNC IMPORTS ---
+import SharedGroupPreferences from 'react-native-shared-group-preferences';
+import * as WidgetKicker from '../../modules/my-widget-kicker'; 
+// ---------------------------
+
 import { APP_CONFIG } from '../config/app.config';
 import { useLineData } from '../hooks/useLineData';
 import { useLines, useLineDataStore } from '../store/lineDataStore';
 import AddManageModal from './AddManageModal';
-import { syncToWidget } from "./utils/widgetSync"; 
-import { useWidgetSync } from '../hooks/useWidgetSync'; // <--- 1. IMPORT THE HOOK
+import { useWidgetSync } from '../hooks/useWidgetSync';
 
-// ✅ Use Single Config Source
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
+const APP_GROUP_ID = 'group.com.mycommute.app'; // Ensure this matches your Apple Developer Entitlement
 
-// Types
 interface LineStatus {
   id: string;
   name: string;
@@ -63,7 +65,6 @@ export const stationDataCache = new Map<string, Promise<any>>();
 export default function MyCommuteDashboard() {
   const router = useRouter();
   
-  // State
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     saved_lines: ['central', 'victoria'],
     saved_stations: ['940GZZLUOXC', '940GZZLUKSX'], 
@@ -74,41 +75,26 @@ export default function MyCommuteDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // UI State
   const [isEditing, setIsEditing] = useState(false);
   const [showAddManageModal, setShowAddManageModal] = useState(false);
   const jiggleAnim = useRef(new Animated.Value(0)).current;
   
-  // ✅ ZUSTAND Integration
   const allLinesFromStore = useLines();
   const { fetchAllLines } = useLineData();
   const [lineStatuses, setLineStatuses] = useState<LineStatus[]>([]);
 
-  // ---------------------------------------------------------
-  // ⚡️ 2. WIDGET SYNC INTEGRATION
-  // ---------------------------------------------------------
-  
-  // We define a specialized fetcher for the widget hook.
-  // It fetches fresh data and returns it in the format the hook expects.
+  // Optional: Keep background sync as backup
   const fetchWidgetData = useCallback(async () => {
     try {
-      // A. Force fetch latest data from API
       await fetchAllLines(true); 
-      
-      // B. Get the fresh data from the store
       const freshLines = Object.values(useLineDataStore.getState().lines);
-      
-      // C. We need to know which lines the user has saved to show the right one.
-      // We read directly from storage to ensure we have the latest prefs even in background.
       const prefsJson = await AsyncStorage.getItem('user_preferences');
       const currentPrefs = prefsJson ? JSON.parse(prefsJson) : { saved_lines: [] };
       
-      // D. Filter: Keep only saved lines
       const myLines = freshLines.filter((l: any) => 
         currentPrefs.saved_lines.includes(l.id)
       );
 
-      // E. Return in the format useWidgetSync expects
       return { myLines }; 
     } catch (e) {
       console.warn("Widget background fetch failed", e);
@@ -116,18 +102,12 @@ export default function MyCommuteDashboard() {
     }
   }, [fetchAllLines]);
 
-  // 3. ACTIVATE THE HOOK
-  // This will run automatically when the app opens (background -> active)
   useWidgetSync(fetchWidgetData);
 
-  // ---------------------------------------------------------
-
-  // Load Preferences & Initial Data
   useEffect(() => {
     loadUserPreferences();
   }, []);
 
-  // Refresh when screen focuses
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData(undefined, true);
@@ -154,20 +134,38 @@ export default function MyCommuteDashboard() {
     setErrorMsg(null);
     
     try {
-      // 1. Fetch Lines
+      // 1. Load cached data to show something immediately
+      const cachedLines = Object.values(useLineDataStore.getState().lines);
+      if (cachedLines.length > 0) {
+        const activeCachedLines = cachedLines.filter((line: LineStatus) => 
+          activePrefs.saved_lines.includes(line.id)
+        );
+        setLineStatuses(activeCachedLines);
+      }
+
+      // 2. Fetch fresh data from API
       await fetchAllLines(forceRefresh);
       
-      // 2. Filter Lines
       const allLinesArray = Object.values(useLineDataStore.getState().lines);
       const filteredLines = allLinesArray.filter((line: LineStatus) => 
         activePrefs.saved_lines.includes(line.id)
       );
       setLineStatuses(filteredLines); 
       
-      // Sync to widget manually as well (keeps it up to date while using app)
-      syncToWidget(filteredLines);
+      // --- 3. WIDGET SYNC LOGIC (THE FIX) ---
+      try {
+        console.log('🔄 Syncing to Widget...');
+        // Save raw data to the Shared App Group so the Widget can read it
+        await SharedGroupPreferences.setItem('myLines', JSON.stringify(filteredLines), APP_GROUP_ID);
+        // Kick the widget to refresh immediately
+        WidgetKicker.reloadAllTimelines();
+        console.log('✅ Widget Synced & Kicked');
+      } catch (err) {
+        console.log('❌ Widget Sync Failed:', err);
+      }
+      // --------------------------------------
 
-      // 3. Fetch Stations
+      // 4. Fetch Stations
       if (activePrefs.saved_stations.length > 0) {
         const stationIds = activePrefs.saved_stations.join(',');
         const response = await fetch(`${BACKEND_URL}/api/stations/batch?ids=${encodeURIComponent(stationIds)}`);
@@ -188,9 +186,9 @@ export default function MyCommuteDashboard() {
   };
 
   const getStatusColor = (severity: number) => {
-    if (severity >= 6) return '#dc3545'; // Severe
-    if (severity >= 3) return '#ffc107'; // Minor
-    return '#28a745'; // Good
+    if (severity >= 6) return '#dc3545';
+    if (severity >= 3) return '#ffc107';
+    return '#28a745';
   };
 
   const startJiggle = () => {
@@ -258,6 +256,7 @@ export default function MyCommuteDashboard() {
                 const newPrefs = { ...userPrefs, saved_lines: newLines };
                 setUserPrefs(newPrefs);
                 AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
+                // Trigger refresh to update widget immediately
                 fetchDashboardData(newPrefs, true);
               }}
             >
@@ -369,6 +368,7 @@ export default function MyCommuteDashboard() {
           const newPrefs = { ...userPrefs, saved_lines: lines, saved_stations: stations };
           setUserPrefs(newPrefs);
           await AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
+          // This will trigger the fetch and the widget kick
           fetchDashboardData(newPrefs, true);
         }}
       />

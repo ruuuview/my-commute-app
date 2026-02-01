@@ -3,22 +3,9 @@
     "version": ">= 7.0.0"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "image": "latest",
-        "cache": {
-          "disabled": true
-        }
-      }
-    },
     "production": {
       "ios": {
-        "image": "latest",
-        "cache": {
-          "disabled": true
-        }
+        "image": "latest"
       }
     }
   },

@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLines } from '../store/lineDataStore';
 import { useLineData } from '../hooks/useLineData';
+import { syncToWidget } from '../utils/widgetSync'; // <--- IMPORT ADDED
 
 // ✅ Use Config
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
@@ -63,7 +64,7 @@ export default function AddManageModal({
   const allLinesMap = useLines();
   const allLines = Object.values(allLinesMap);
   const { fetchAllLines } = useLineData();
-  
+   
   const [selectedLines, setSelectedLines] = useState<string[]>(savedLines);
   const [selectedStations, setSelectedStations] = useState<string[]>(savedStations);
   const [stationSearchQuery, setStationSearchQuery] = useState('');
@@ -117,8 +118,18 @@ export default function AddManageModal({
     setSelectedStations(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   };
 
+  // --- V533 FIX: TRIGGER WIDGET SYNC ON SAVE ---
   const handleSave = () => {
+    // 1. Update App State
     onSave(selectedLines, selectedStations);
+    
+    // 2. Filter the full line objects to only include the ones user selected
+    const linesToSync = allLines.filter(line => selectedLines.includes(line.id));
+    
+    // 3. Send to Widget immediately
+    syncToWidget(linesToSync);
+    
+    // 4. Close Modal
     onClose();
   };
 

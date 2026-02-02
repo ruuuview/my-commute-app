@@ -1,178 +1,483 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, AppState, Text, View } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+  Animated,
+  StatusBar,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { syncToWidget } from '../../utils/widgetSync';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// Define the Line Type
-type Line = {
+// --- 🔧 ROBUST WIDGET IMPORTS ---
+// @ts-ignore
+import SharedGroupPreferences from 'react-native-shared-group-preferences';
+// @ts-ignore
+import WidgetCenter from 'react-native-widgetcenter';
+// --------------------------------
+
+import { APP_CONFIG } from '../config/app.config';
+import { useLineData } from '../hooks/useLineData';
+import { useLines, useLineDataStore } from '../store/lineDataStore';
+import AddManageModal from './AddManageModal';
+// REMOVED BROKEN IMPORT
+
+const BACKEND_URL = APP_CONFIG.BACKEND_URL;
+const APP_GROUP_ID = 'group.com.mycommute.app'; 
+
+interface LineStatus {
   id: string;
   name: string;
+  color: string;
   status: string;
-  statusDescription?: string;
-};
+  status_severity: number;
+}
 
-export default function TabOneScreen() {
+interface Departure {
+  line: string;
+  destination: string;
+  platform: string;
+  expected_arrival: string;
+  minutes_away: number;
+}
+
+interface StationData {
+  id: string;
+  name: string;
+  lines: string[];
+  departures: Departure[];
+  updated_at: string;
+}
+
+interface UserPreferences {
+  saved_lines: string[];
+  saved_stations: string[];
+  is_pro: boolean;
+}
+
+export const stationDataCache = new Map<string, Promise<any>>();
+
+export default function MyCommuteDashboard() {
   const router = useRouter();
-  const [myLines, setMyLines] = useState<Line[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  
+  const [userPrefs, setUserPrefs] = useState<UserPreferences>({
+    saved_lines: ['central', 'victoria'],
+    saved_stations: ['940GZZLUOXC', '940GZZLUKSX'], 
+    is_pro: false,
+  });
 
-  // 1. LOAD DATA
-  const loadLines = async () => {
+  const [stationData, setStationData] = useState<{ [key: string]: StationData }>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAddManageModal, setShowAddManageModal] = useState(false);
+  const jiggleAnim = useRef(new Animated.Value(0)).current;
+  
+  const allLinesFromStore = useLines();
+  const { fetchAllLines } = useLineData();
+  const [lineStatuses, setLineStatuses] = useState<LineStatus[]>([]);
+
+  // Keep background sync for non-interactive updates
+  const fetchWidgetData = useCallback(async () => {
     try {
-      const stored = await AsyncStorage.getItem('myLines');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setMyLines(parsed);
-        syncToWidget(parsed);
-      }
+      await fetchAllLines(true); 
+      const freshLines = Object.values(useLineDataStore.getState().lines);
+      const prefsJson = await AsyncStorage.getItem('user_preferences');
+      const currentPrefs = prefsJson ? JSON.parse(prefsJson) : { saved_lines: [] };
+      
+      const myLines = freshLines.filter((l: any) => 
+        currentPrefs.saved_lines.includes(l.id)
+      );
+
+      return { myLines }; 
     } catch (e) {
-      console.error("Failed to load lines", e);
+      console.warn("Widget background fetch failed", e);
+      return null;
+    }
+  }, [fetchAllLines]);
+
+  // useWidgetSync(fetchWidgetData); // Disabled broken sync hook
+
+  useEffect(() => {
+    loadUserPreferences();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData(undefined, true);
+    }, [])
+  );
+
+  const loadUserPreferences = async () => {
+    try {
+      const savedPrefs = await AsyncStorage.getItem('user_preferences');
+      if (savedPrefs) {
+        const parsed = JSON.parse(savedPrefs);
+        setUserPrefs(parsed);
+        fetchDashboardData(parsed, true);
+      } else {
+        fetchDashboardData(userPrefs, true);
+      }
+    } catch (error) {
+      console.error('Error loading prefs:', error);
     }
   };
 
-  // 2. APP STATE LISTENER (Auto-Wake Fix)
-  useEffect(() => {
-    loadLines();
-
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') {
-        console.log('⚡️ App Woke Up! Syncing Widget...');
-        AsyncStorage.getItem('myLines').then(stored => {
-            if (stored) syncToWidget(JSON.parse(stored));
-        });
+  const fetchDashboardData = async (prefsOverride?: UserPreferences, forceRefresh = false) => {
+    const activePrefs = prefsOverride || userPrefs;
+    setErrorMsg(null);
+    
+    try {
+      // 1. Load cached data
+      const cachedLines = Object.values(useLineDataStore.getState().lines);
+      if (cachedLines.length > 0) {
+        const activeCachedLines = cachedLines.filter((line: LineStatus) => 
+          activePrefs.saved_lines.includes(line.id)
+        );
+        setLineStatuses(activeCachedLines);
       }
-    });
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+      // 2. Fetch fresh data
+      await fetchAllLines(forceRefresh);
+      
+      const allLinesArray = Object.values(useLineDataStore.getState().lines);
+      const filteredLines = allLinesArray.filter((line: LineStatus) => 
+        activePrefs.saved_lines.includes(line.id)
+      );
+      setLineStatuses(filteredLines); 
+      
+      // --- 3. ROBUST WIDGET SYNC ---
+      try {
+        console.log('🔄 Syncing to Widget...');
+        
+        // Step A: Save Data (Standard library)
+        await SharedGroupPreferences.setItem('myLines', JSON.stringify(filteredLines), APP_GROUP_ID);
+        console.log('✅ Data Saved to Group');
 
-  // 3. REFRESH HANDLER
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadLines();
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
-
-  // 4. DELETE LINE (Ghost Line Fix)
-  const deleteLine = async (id: string) => {
-    Alert.alert("Remove Line", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      { 
-        text: "Remove", 
-        style: "destructive", 
-        onPress: async () => {
-          const newLines = myLines.filter(l => l.id !== id);
-          setMyLines(newLines);
-          await AsyncStorage.setItem('myLines', JSON.stringify(newLines));
-          // INSTANTLY Update Widget
-          syncToWidget(newLines);
-        }
+        // Step B: Kick the Widget (Dedicated Kicker)
+        WidgetCenter.reloadAllTimelines();
+        console.log('✅ Widget Reload Triggered');
+        
+      } catch (err) {
+        console.log('❌ Widget Sync Failed:', err);
       }
-    ]);
+      // -----------------------------
+
+      // 4. Fetch Stations
+      if (activePrefs.saved_stations.length > 0) {
+        const stationIds = activePrefs.saved_stations.join(',');
+        const response = await fetch(`${BACKEND_URL}/api/stations/batch?ids=${encodeURIComponent(stationIds)}`);
+        if (!response.ok) throw new Error('Station fetch failed');
+        const batchData = await response.json();
+        setStationData(batchData.stations || {}); 
+      }
+    } catch (err: any) {
+      console.error('Fetch Error:', err);
+      setErrorMsg(err.message);
+    }
   };
 
-  // 5. HELPER: Get Color based on Status
-  const getStatusColor = (status: string) => {
-    const s = (status || "").toLowerCase();
-    if (s.includes('severe') || s.includes('closed') || s.includes('suspend')) return '#FF3B30'; // Red
-    if (s.includes('minor') || s.includes('delay') || s.includes('busy')) return '#FF9500'; // Amber
-    return '#34C759'; // Green
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData(undefined, true);
+    setRefreshing(false);
+  };
+
+  const getStatusColor = (severity: number) => {
+    if (severity >= 6) return '#dc3545';
+    if (severity >= 3) return '#ffc107';
+    return '#28a745';
+  };
+
+  const startJiggle = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(jiggleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
+        Animated.timing(jiggleAnim, { toValue: -1, duration: 100, useNativeDriver: true }),
+        Animated.timing(jiggleAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  const toggleEditMode = () => {
+    if (isEditing) {
+      setIsEditing(false);
+      jiggleAnim.stopAnimation();
+      jiggleAnim.setValue(0);
+    } else {
+      setIsEditing(true);
+      startJiggle();
+    }
+  };
+
+  const renderLineItem = (lineId: string) => {
+    const line = lineStatuses.find(l => l.id === lineId) || 
+                 Object.values(allLinesFromStore).find(l => l.id === lineId) ||
+                 { id: lineId, name: lineId, color: '#ccc', status: 'Loading...', status_severity: 0 };
+
+    return (
+      <Animated.View key={lineId} style={{
+        transform: isEditing ? [{ rotate: jiggleAnim.interpolate({
+          inputRange: [-1, 1], outputRange: ['-1deg', '1deg']
+        })}] : []
+      }}>
+        <TouchableOpacity 
+          style={[styles.card, { borderLeftColor: line.color, borderLeftWidth: 6 }]}
+          onLongPress={toggleEditMode}
+          onPress={() => {
+            if (!isEditing) {
+              router.push({ pathname: '/lineDetail', params: { lineId: line.id, lineName: line.name, lineColor: line.color }});
+            }
+          }}
+        >
+          <View style={styles.cardContent}>
+            <View>
+              <Text style={styles.lineName}>{line.name}</Text>
+              <View style={styles.statusRow}>
+                <Ionicons 
+                  name={line.status_severity < 3 ? 'checkmark-circle' : 'warning'} 
+                  size={14} 
+                  color={getStatusColor(line.status_severity)} 
+                />
+                <Text style={[styles.statusText, { color: getStatusColor(line.status_severity) }]}>
+                  {line.status}
+                </Text>
+              </View>
+            </View>
+          </View>
+          
+          {isEditing && (
+            <TouchableOpacity 
+              style={styles.deleteBadge}
+              onPress={() => {
+                const newLines = userPrefs.saved_lines.filter(id => id !== lineId);
+                const newPrefs = { ...userPrefs, saved_lines: newLines };
+                setUserPrefs(newPrefs);
+                AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
+                // Trigger refresh to update widget immediately
+                fetchDashboardData(newPrefs, true);
+              }}
+            >
+              <Ionicons name="remove" size={16} color="white" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderStationItem = (stationId: string) => {
+    const station = stationData[stationId];
+    
+    if (!station) return (
+      <View key={stationId} style={styles.card}>
+        <ActivityIndicator color="#007AFF" />
+        <Text style={{marginLeft: 10, color: '#666'}}>Loading...</Text>
+      </View>
+    );
+
+    return (
+      <Animated.View key={stationId} style={{
+        transform: isEditing ? [{ rotate: jiggleAnim.interpolate({
+          inputRange: [-1, 1], outputRange: ['-1deg', '1deg']
+        })}] : []
+      }}>
+        <TouchableOpacity 
+          style={styles.card}
+          onLongPress={toggleEditMode}
+          onPress={() => {
+            if (!isEditing) router.push({ pathname: '/stationDetail', params: { stationId, stationName: station.name }});
+          }}
+        >
+          <View style={styles.stationContent}>
+            <Text style={styles.stationName}>{station.name}</Text>
+            {station.departures.length > 0 ? (
+              station.departures.slice(0, 2).map((dep, idx) => (
+                <View key={idx} style={styles.departureRow}>
+                  <Text style={styles.depLine}>{dep.line}</Text>
+                  <Text style={styles.depDest} numberOfLines={1}>{dep.destination}</Text>
+                  <Text style={styles.depTime}>{dep.minutes_away} min</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noDepText}>No live departures</Text>
+            )}
+          </View>
+
+          {isEditing && (
+            <TouchableOpacity 
+              style={styles.deleteBadge}
+              onPress={() => {
+                const newStations = userPrefs.saved_stations.filter(id => id !== stationId);
+                const newPrefs = { ...userPrefs, saved_stations: newStations };
+                setUserPrefs(newPrefs);
+                AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
+                setStationData(prev => { const n = {...prev}; delete n[stationId]; return n; });
+              }}
+            >
+              <Ionicons name="remove" size={16} color="white" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.title}>MY COMMUTE</Text>
-        <TouchableOpacity onPress={() => router.push('/modal')}>
-          <Ionicons name="add-circle" size={32} color="#007AFF" />
+    <LinearGradient colors={['#007AFF', '#f5f5f7']} style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      <SafeAreaView edges={['top']} style={styles.header}>
+        <Text style={styles.headerTitle}>MY COMMUTE</Text>
+        <TouchableOpacity onPress={() => setShowAddManageModal(true)}>
+          <Ionicons name="add-circle" size={32} color="white" />
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
+
+      {errorMsg && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>Connection Error: {errorMsg}</Text>
+        </View>
+      )}
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
       >
+        <Text style={styles.sectionTitle}>My Lines</Text>
+        {userPrefs.saved_lines.map(renderLineItem)}
+
+        <Text style={styles.sectionTitle}>My Stations</Text>
+        {userPrefs.saved_stations.map(renderStationItem)}
         
-        {/* SECTION: MY LINES */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My Lines</Text>
-        </View>
-
-        {myLines.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No lines added yet.</Text>
-            <Text style={styles.emptySubText}>Tap + to add your commute.</Text>
-          </View>
-        ) : (
-          myLines.map((line) => (
-            <TouchableOpacity 
-              key={line.id} 
-              style={[styles.card, { borderLeftColor: getStatusColor(line.status || line.statusDescription || "") }]}
-              onLongPress={() => deleteLine(line.id)}
-            >
-              <View style={styles.cardContent}>
-                <Text style={styles.lineName}>{line.name}</Text>
-                <View style={styles.statusRow}>
-                  <Ionicons 
-                    name={getStatusColor(line.status || "").includes('34C759') ? "checkmark-circle" : "warning"} 
-                    size={16} 
-                    color={getStatusColor(line.status || "")} 
-                  />
-                  <Text style={[styles.statusText, { color: getStatusColor(line.status || "") }]}>
-                    {line.status || line.statusDescription || "Unknown"}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-            </TouchableOpacity>
-          ))
+        {isEditing && (
+          <TouchableOpacity style={styles.doneButton} onPress={toggleEditMode}>
+            <Text style={styles.doneText}>Done Editing</Text>
+          </TouchableOpacity>
         )}
-
-        {/* SECTION: MY STATIONS */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My Stations</Text>
-        </View>
-        <View style={styles.stationCard}>
-            <Text style={styles.stationTitle}>Oxford Circus Underground Station</Text>
-            <View style={styles.stationRow}><Text style={styles.lineLabel}>Bakerloo</Text><Text style={styles.timeText}>0 min</Text></View>
-            <View style={styles.stationRow}><Text style={styles.lineLabel}>Central</Text><Text style={styles.timeText}>0 min</Text></View>
-        </View>
-
-         <View style={styles.stationCard}>
-            <Text style={styles.stationTitle}>King's Cross & St Pancras</Text>
-            <View style={styles.stationRow}><Text style={styles.lineLabel}>Circle</Text><Text style={styles.timeText}>0 min</Text></View>
-            <View style={styles.stationRow}><Text style={styles.lineLabel}>Northern</Text><Text style={styles.timeText}>0 min</Text></View>
-        </View>
-
       </ScrollView>
-    </SafeAreaView>
+
+      <AddManageModal 
+        visible={showAddManageModal}
+        onClose={() => setShowAddManageModal(false)}
+        savedLines={userPrefs.saved_lines}
+        savedStations={userPrefs.saved_stations}
+        onSave={async (lines, stations) => {
+          const newPrefs = { ...userPrefs, saved_lines: lines, saved_stations: stations };
+          setUserPrefs(newPrefs);
+          await AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
+          fetchDashboardData(newPrefs, true);
+        }}
+      />
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10 },
-  title: { fontSize: 28, fontWeight: '900', color: '#007AFF', letterSpacing: -0.5 },
-  scrollContent: { paddingBottom: 40 },
-  sectionHeader: { paddingHorizontal: 20, marginTop: 20, marginBottom: 8 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#1C1C1E' },
-  emptyState: { alignItems: 'center', padding: 40, opacity: 0.5 },
-  emptyText: { fontSize: 18, fontWeight: '600', marginBottom: 4, color: '#000' },
-  emptySubText: { fontSize: 14, color: '#666' },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', marginHorizontal: 20, marginBottom: 12, padding: 16, borderRadius: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, borderLeftWidth: 4 },
-  cardContent: { flex: 1 },
-  lineName: { fontSize: 18, fontWeight: '700', color: '#000', marginBottom: 4 },
-  statusRow: { flexDirection: 'row', alignItems: 'center' },
-  statusText: { fontSize: 14, fontWeight: '600', marginLeft: 4 },
-  stationCard: { backgroundColor: 'white', marginHorizontal: 20, marginBottom: 12, padding: 16, borderRadius: 16 },
-  stationTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8, color: '#000' },
-  stationRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  lineLabel: { fontSize: 14, color: 'gray' },
-  timeText: { fontSize: 14, fontWeight: '600', color: '#007AFF' }
+  container: { flex: 1 },
+  header: {
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: 'white',
+    letterSpacing: 1,
+  },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lineName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  stationContent: { flex: 1 },
+  stationName: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  departureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  depLine: { fontSize: 12, color: '#666', width: 60 },
+  depDest: { fontSize: 12, color: '#333', flex: 1 },
+  depTime: { fontSize: 12, fontWeight: '700', color: '#007AFF' },
+  noDepText: { fontSize: 12, color: '#999', fontStyle: 'italic' },
+  errorBanner: {
+    backgroundColor: '#ff3b30',
+    padding: 12,
+    marginHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  errorText: { color: 'white', fontWeight: '600', fontSize: 12 },
+  deleteBadge: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    backgroundColor: '#ff3b30',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  doneButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  doneText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });

@@ -32,7 +32,7 @@ struct RefreshIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // A. Read Cached IDs (To know what to fetch)
         if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app"),
-           let jsonString = userDefaults.string(forKey: "widget_data_json"),
+           let jsonString = userDefaults.string(forKey: "myLines"),
            let data = jsonString.data(using: .utf8),
            let cachedLines = try? JSONDecoder().decode([CommuteLine].self, from: data) {
             
@@ -58,7 +58,7 @@ struct RefreshIntent: AppIntent {
                 // C. Save Updates
                 if let newData = try? JSONEncoder().encode(updatedLines),
                    let newJson = String(data: newData, encoding: .utf8) {
-                    userDefaults.set(newJson, forKey: "widget_data_json")
+                    userDefaults.set(newJson, forKey: "myLines")
                     userDefaults.synchronize()
                 }
             }
@@ -108,7 +108,7 @@ struct Provider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         var lines: [CommuteLine] = []
         if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app") {
-            let jsonString = userDefaults.string(forKey: "widget_data_json") ?? ""
+            let jsonString = userDefaults.string(forKey: "myLines") ?? ""
             if let data = jsonString.data(using: .utf8) {
                 let decoder = JSONDecoder()
                 if let decoded = try? decoder.decode([CommuteLine].self, from: data) {

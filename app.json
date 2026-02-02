@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "buildNumber": "626",
+      "buildNumber": "628",
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
       "infoPlist": {

@@ -16,7 +16,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLines } from '../store/lineDataStore';
 import { useLineData } from '../hooks/useLineData';
-import { syncToWidget } from '../utils/widgetSync'; // <--- IMPORT ADDED
 
 // ✅ Use Config
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
@@ -127,7 +126,6 @@ export default function AddManageModal({
     const linesToSync = allLines.filter(line => selectedLines.includes(line.id));
     
     // 3. Send to Widget immediately
-    syncToWidget(linesToSync);
     
     // 4. Close Modal
     onClose();

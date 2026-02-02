@@ -9,7 +9,6 @@ import {
   Animated,
   StatusBar,
   ActivityIndicator,
-  NativeModules, // <--- Added NativeModules
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,13 +16,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// --- WIDGET SYNC FIXES ---
-// @ts-ignore (Ignores missing type definition warning)
-import SharedGroupPreferences from 'react-native-shared-group-preferences';
-
-// We access the Kicker directly from NativeModules to avoid file import errors
-const { WidgetKicker } = NativeModules; 
-// -------------------------
+// --- 🚀 NEW WIDGET LIBRARY ---
+import { SharedStorage } from 'react-native-widget-extension';
+// -----------------------------
 
 import { APP_CONFIG } from '../config/app.config';
 import { useLineData } from '../hooks/useLineData';
@@ -32,7 +27,7 @@ import AddManageModal from './AddManageModal';
 import { useWidgetSync } from '../hooks/useWidgetSync';
 
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
-const APP_GROUP_ID = 'group.com.mycommute.app'; 
+const APP_GROUP_ID = 'group.com.mycommute.app'; // Matches your entitlement
 
 interface LineStatus {
   id: string;
@@ -87,7 +82,7 @@ export default function MyCommuteDashboard() {
   const { fetchAllLines } = useLineData();
   const [lineStatuses, setLineStatuses] = useState<LineStatus[]>([]);
 
-  // Optional: Keep background sync as backup
+  // Keep background sync for non-interactive updates
   const fetchWidgetData = useCallback(async () => {
     try {
       await fetchAllLines(true); 
@@ -156,22 +151,22 @@ export default function MyCommuteDashboard() {
       );
       setLineStatuses(filteredLines); 
       
-      // --- 3. WIDGET SYNC LOGIC (FIXED) ---
+      // --- 3. THE RELIABLE WIDGET SYNC ---
       try {
-        console.log('🔄 Syncing to Widget...');
-        await SharedGroupPreferences.setItem('myLines', JSON.stringify(filteredLines), APP_GROUP_ID);
+        console.log('🔄 Syncing to Widget via Extension...');
         
-        // Safely check if the Native Module exists before calling it
-        if (WidgetKicker && WidgetKicker.reloadAllTimelines) {
-            WidgetKicker.reloadAllTimelines();
-            console.log('✅ Widget Kicked');
-        } else {
-            console.log('⚠️ WidgetKicker module not found - Data saved, but instant refresh skipped.');
-        }
+        // This sets the JSON string AND forces a reload in one go
+        await SharedStorage.set(
+          JSON.stringify(filteredLines), // Data
+          'myLines',                     // Key
+          APP_GROUP_ID                   // Group ID
+        );
+        
+        console.log('✅ Widget Data Saved & Reload Triggered');
       } catch (err) {
         console.log('❌ Widget Sync Failed:', err);
       }
-      // ------------------------------------
+      // -----------------------------------
 
       // 4. Fetch Stations
       if (activePrefs.saved_stations.length > 0) {
@@ -376,6 +371,7 @@ export default function MyCommuteDashboard() {
           const newPrefs = { ...userPrefs, saved_lines: lines, saved_stations: stations };
           setUserPrefs(newPrefs);
           await AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
+          // This will trigger the fetch and the widget kick
           fetchDashboardData(newPrefs, true);
         }}
       />

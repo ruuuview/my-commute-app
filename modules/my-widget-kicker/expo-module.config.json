@@ -1,9 +1,0 @@
-{
-  "platforms": ["apple", "android", "web"],
-  "apple": {
-    "modules": ["MyWidgetKickerModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.mywidgetkicker.MyWidgetKickerModule"]
-  }
-}

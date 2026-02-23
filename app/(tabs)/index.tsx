@@ -6,12 +6,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// --- 🔧 ROBUST WIDGET IMPORTS ---
+// --- 🔧 REAL WIDGET IMPORTS ---
 // @ts-ignore
 import SharedGroupPreferences from 'react-native-shared-group-preferences';
 // @ts-ignore
-import WidgetCenter from 'react-native-widgetcenter';
-// --------------------------------
+import { reloadAllTimelines } from 'react-native-widgetkit';
+// ------------------------------
 
 import { APP_CONFIG } from '../config/app.config';
 import { useLineData } from '../hooks/useLineData';
@@ -63,14 +63,14 @@ export default function MyCommuteDashboard() {
       const filteredLines = allLinesArray.filter((l: LineStatus) => activePrefs.saved_lines.includes(l.id));
       setLineStatuses(filteredLines); 
       
-      // --- ROBUST SYNC ---
+      // --- REAL WIDGET SYNC ---
       try {
         console.log('🔄 Syncing to Widget...');
         await SharedGroupPreferences.setItem('myLines', JSON.stringify(filteredLines), APP_GROUP_ID);
-        WidgetCenter.reloadAllTimelines();
+        reloadAllTimelines();
         console.log('✅ Widget Sync Success');
       } catch (err) { console.log('❌ Widget Sync Failed:', err); }
-      // -------------------
+      // ------------------------
 
       if (activePrefs.saved_stations.length > 0) {
         const stationIds = activePrefs.saved_stations.join(',');

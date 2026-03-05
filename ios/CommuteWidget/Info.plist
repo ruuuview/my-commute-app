@@ -5,13 +5,13 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.3</string>
 	<key>CFBundleVersion</key>
-	<string>639</string>
+	<string>640</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
 	<key>RCTNewArchEnabled</key>
-	<false/>
+	<true/>
 </dict>
 </plist>

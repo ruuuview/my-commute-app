@@ -6,17 +6,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// --- 🚀 MODERN EXPO WIDGET API ---
-import { ExtensionStorage } from '@bacons/apple-targets';
-// ---------------------------------
-
 import { APP_CONFIG } from '../config/app.config';
 import { useLineData } from '../hooks/useLineData';
 import { useLines, useLineDataStore } from '../store/lineDataStore';
 import AddManageModal from './AddManageModal';
 
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
-const APP_GROUP_ID = 'group.com.mycommute.app'; 
 
 interface LineStatus { id: string; name: string; color: string; status: string; status_severity: number; }
 interface Departure { line: string; destination: string; platform: string; expected_arrival: string; minutes_away: number; }
@@ -59,16 +54,6 @@ export default function MyCommuteDashboard() {
       const allLinesArray = Object.values(useLineDataStore.getState().lines);
       const filteredLines = allLinesArray.filter((l: LineStatus) => activePrefs.saved_lines.includes(l.id));
       setLineStatuses(filteredLines); 
-      
-      // --- 🚀 MODERN EXPO WIDGET SYNC ---
-      try {
-        console.log('🔄 Syncing to Widget...');
-        const widgetStorage = new ExtensionStorage(APP_GROUP_ID);
-        widgetStorage.set('myLines', JSON.stringify(filteredLines));
-        ExtensionStorage.reloadWidget();
-        console.log('✅ Widget Sync Success');
-      } catch (err) { console.log('❌ Widget Sync Failed:', err); }
-      // ----------------------------------
 
       if (activePrefs.saved_stations.length > 0) {
         const stationIds = activePrefs.saved_stations.join(',');

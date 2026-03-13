@@ -16,13 +16,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// --- 🔧 ROBUST WIDGET IMPORTS ---
-// @ts-ignore
-import SharedGroupPreferences from 'react-native-shared-group-preferences';
-// @ts-ignore
-import WidgetCenter from 'react-native-widgetcenter';
-// --------------------------------
-
 import { APP_CONFIG } from '../config/app.config';
 import { useLineData } from '../hooks/useLineData';
 import { useLines, useLineDataStore } from '../store/lineDataStore';
@@ -30,7 +23,6 @@ import AddManageModal from './AddManageModal';
 import { useWidgetSync } from '../hooks/useWidgetSync';
 
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
-const APP_GROUP_ID = 'group.com.mycommute.app'; 
 
 interface LineStatus {
   id: string;
@@ -153,25 +145,8 @@ export default function MyCommuteDashboard() {
         activePrefs.saved_lines.includes(line.id)
       );
       setLineStatuses(filteredLines); 
-      
-      // --- 3. ROBUST WIDGET SYNC ---
-      try {
-        console.log('🔄 Syncing to Widget...');
-        
-        // Step A: Save Data (Standard library)
-        await SharedGroupPreferences.setItem('myLines', JSON.stringify(filteredLines), APP_GROUP_ID);
-        console.log('✅ Data Saved to Group');
 
-        // Step B: Kick the Widget (Dedicated Kicker)
-        WidgetCenter.reloadAllTimelines();
-        console.log('✅ Widget Reload Triggered');
-        
-      } catch (err) {
-        console.log('❌ Widget Sync Failed:', err);
-      }
-      // -----------------------------
-
-      // 4. Fetch Stations
+      // 3. Fetch Stations
       if (activePrefs.saved_stations.length > 0) {
         const stationIds = activePrefs.saved_stations.join(',');
         const response = await fetch(`${BACKEND_URL}/api/stations/batch?ids=${encodeURIComponent(stationIds)}`);

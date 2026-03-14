@@ -20,7 +20,7 @@ struct CommuteLine: Codable, Identifiable {
     let id: String
     let name: String
     let status: String
-    let severity: Int
+    let status_severity: Int
     let lastUpdated: TimeInterval? 
 }
 
@@ -48,7 +48,7 @@ struct RefreshIntent: AppIntent {
                             id: cached.id,
                             name: cached.name,
                             status: fresh.status,
-                            severity: newScore, 
+                            status_severity: newScore, 
                             lastUpdated: Date().timeIntervalSince1970
                         )
                     }
@@ -83,7 +83,7 @@ func fetchTfLData(ids: String) async -> [CommuteLine]? {
                    let statuses = item["lineStatuses"] as? [[String: Any]],
                    let firstStatus = statuses.first,
                    let statusDesc = firstStatus["statusSeverityDescription"] as? String {
-                    lines.append(CommuteLine(id: id, name: "", status: statusDesc, severity: 0, lastUpdated: 0))
+                    lines.append(CommuteLine(id: id, name: "", status: statusDesc, status_severity: 0, lastUpdated: 0))
                 }
             }
             return lines

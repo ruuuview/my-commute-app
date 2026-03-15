@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // --- 1. SHARED LOGIC & UI HELPERS ---
 func calculateSeverityScore(_ status: String) -> Int {
@@ -30,7 +31,17 @@ struct CommuteLine: Codable, Identifiable {
     var lastUpdated: TimeInterval?
 }
 
-// --- 2. THE ENGINE (Live Native Fetch) ---
+// --- 2. THE REFRESH BUTTON INTENT ---
+@available(iOS 16.0, *)
+struct RefreshIntent: AppIntent {
+    static var title: LocalizedStringResource = "Refresh Commute"
+    func perform() async throws -> some IntentResult {
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+// --- 3. THE ENGINE (Live Native Fetch) ---
 func fetchLiveTfLData(ids: String) async -> [String: String]? {
     guard let url = URL(string: "https://api.tfl.gov.uk/Line/\(ids)/Status") else { return nil }
     do {
@@ -51,7 +62,7 @@ func fetchLiveTfLData(ids: String) async -> [String: String]? {
     return nil
 }
 
-// --- 3. TIMELINE PROVIDER ---
+// --- 4. TIMELINE PROVIDER ---
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry { SimpleEntry(date: Date(), lines: []) }
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) { completion(SimpleEntry(date: Date(), lines: [])) }
@@ -92,7 +103,7 @@ struct SimpleEntry: TimelineEntry {
     let lines: [CommuteLine]
 }
 
-// --- 4. THE VIEW ---
+// --- 5. THE VIEW ---
 struct CommuteWidgetEntryView : View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) var family
@@ -142,7 +153,7 @@ struct CommuteWidgetEntryView : View {
                                                 .foregroundColor(getTrafficLightColor(score: score))
                                         }
                                         
-                                        // STACKED TEXT (Name on top, Status underneath)
+                                        // STACKED TEXT
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(line.name ?? "Line")
                                                 .font(.system(size: 11, weight: .bold))
@@ -175,7 +186,25 @@ struct HeroContent: View {
     var body: some View {
         let score = calculateSeverityScore(line.status ?? "")
         VStack(alignment: .leading, spacing: 0) {
-            Text("PRIORITY").font(.system(size: 10, weight: .black)).opacity(0.7).foregroundColor(.white)
+            
+            // TOP ROW: PRIORITY TEXT + REFRESH BUTTON
+            HStack {
+                Text("PRIORITY").font(.system(size: 10, weight: .black)).opacity(0.7).foregroundColor(.white)
+                Spacer()
+                
+                if #available(iOS 17.0, *) {
+                    Button(intent: RefreshIntent()) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(6)
+                            .background(Color.white.opacity(0.25))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
             Spacer()
             
             Text((line.name ?? "Unknown").uppercased()).font(.system(size: 24, weight: .black)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.6).shadow(radius: 2)

@@ -4,7 +4,6 @@ import AppIntents
 
 // ============================================================
 // MARK: - BRIDGE MODEL
-// Matches EXACTLY what useWidgetSync.ts writes. Two strings.
 // ============================================================
 struct SavedLine: Codable {
     let id: String
@@ -12,19 +11,19 @@ struct SavedLine: Codable {
 }
 
 // ============================================================
-// MARK: - INTERNAL MODEL (after TfL fetch)
+// MARK: - INTERNAL MODEL
 // ============================================================
 struct CommuteLine: Identifiable {
     let id: String
     let name: String
     let status: String
-    let severity: Int // TfL scale: 10 = Good Service, lower = worse
+    let severity: Int 
     
     var level: SeverityLevel {
         switch severity {
-        case 10...: return .good
+        case 10...:  return .good
         case 7...9:  return .minor
-        default:     return .severe
+        default:     return .severe // Catches 6 (Suspended) and 20 (Not Running)
         }
     }
 }
@@ -35,7 +34,7 @@ enum SeverityLevel {
     var gradientColors: [Color] {
         switch self {
         case .good:   return [Color(red: 0.06, green: 0.45, blue: 0.22), Color(red: 0.03, green: 0.25, blue: 0.12)]
-        case .minor:  return [Color(red: 0.60, green: 0.40, blue: 0.00), Color(red: 0.38, green: 0.24, blue: 0.00)]
+        case .minor:  return [Color(red: 1.00, green: 0.82, blue: 0.10), Color(red: 0.90, green: 0.65, blue: 0.00)]
         case .severe: return [Color(red: 0.56, green: 0.08, blue: 0.08), Color(red: 0.32, green: 0.04, blue: 0.04)]
         }
     }
@@ -43,8 +42,30 @@ enum SeverityLevel {
     var iconColor: Color {
         switch self {
         case .good:   return Color(red: 0.13, green: 0.65, blue: 0.30)
-        case .minor:  return Color(red: 0.95, green: 0.65, blue: 0.00)
+        case .minor:  return Color(red: 0.85, green: 0.55, blue: 0.00)
         case .severe: return Color(red: 0.85, green: 0.15, blue: 0.15)
+        }
+    }
+    
+    // WCAG Contrast Fixes
+    var textColor: Color {
+        switch self {
+        case .good, .severe: return .white
+        case .minor:         return Color(red: 0.15, green: 0.10, blue: 0.00) // Near-black for yellow background
+        }
+    }
+    
+    var secondaryTextColor: Color {
+        switch self {
+        case .good, .severe: return .white.opacity(0.80)
+        case .minor:         return Color(red: 0.25, green: 0.15, blue: 0.00).opacity(0.85)
+        }
+    }
+    
+    var dividerColor: Color {
+        switch self {
+        case .good, .severe: return .white.opacity(0.3)
+        case .minor:         return Color.black.opacity(0.15)
         }
     }
 }
@@ -70,6 +91,9 @@ struct CommuteEntry: TimelineEntry {
     let lines: [CommuteLine]
     let debugMessage: String?
     
+    // ⚠️ MAINTAINABILITY NOTE: TfL's severity scale is INVERTED.
+    // 0 is "Special Service" / 6 is "Suspended" / 10 is "Good Service".
+    // Therefore, using .min() correctly finds the WORST active delay.
     var worstLine: CommuteLine? {
         lines.min(by: { $0.severity < $1.severity })
     }
@@ -85,13 +109,10 @@ struct CommuteEntry: TimelineEntry {
 }
 
 // ============================================================
-// MARK: - APP GROUP CONFIG
+// MARK: - APP GROUP CONFIG & PROVIDER
 // ============================================================
 private let kAppGroupID = "group.com.mycommute.app"
 
-// ============================================================
-// MARK: - TIMELINE PROVIDER
-// ============================================================
 struct CommuteProvider: TimelineProvider {
     func placeholder(in context: Context) -> CommuteEntry {
         CommuteEntry(date: Date(), lines: [], debugMessage: nil)
@@ -114,8 +135,7 @@ struct CommuteProvider: TimelineProvider {
         do {
             savedLines = try readSavedLines()
         } catch {
-            let msg = "BRIDGE ERROR:\n\(error.localizedDescription)"
-            return CommuteEntry(date: Date(), lines: [], debugMessage: msg)
+            return CommuteEntry(date: Date(), lines: [], debugMessage: "BRIDGE ERROR:\n\(error.localizedDescription)")
         }
         
         guard !savedLines.isEmpty else {
@@ -126,23 +146,14 @@ struct CommuteProvider: TimelineProvider {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
             return CommuteEntry(date: Date(), lines: commuteLines, debugMessage: nil)
         } catch {
-            let msg = "TFL API ERROR:\n\(error.localizedDescription)"
-            return CommuteEntry(date: Date(), lines: [], debugMessage: msg)
+            return CommuteEntry(date: Date(), lines: [], debugMessage: "TFL API ERROR:\n\(error.localizedDescription)")
         }
     }
     
     private func readSavedLines() throws -> [SavedLine] {
-        guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else {
-            throw WidgetError.appGroupUnavailable
-        }
-        
-        guard let jsonString = userDefaults.string(forKey: "myLines") else {
-            throw WidgetError.fileNotFound 
-        }
-        
-        guard let data = jsonString.data(using: .utf8) else {
-            throw WidgetError.decodingFailed("Could not convert string to UTF-8 data")
-        }
+        guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else { throw WidgetError.appGroupUnavailable }
+        guard let jsonString = userDefaults.string(forKey: "myLines") else { throw WidgetError.fileNotFound }
+        guard let data = jsonString.data(using: .utf8) else { throw WidgetError.decodingFailed("String to UTF-8 failed") }
 
         do {
             return try JSONDecoder().decode([SavedLine].self, from: data)
@@ -173,17 +184,13 @@ struct CommuteProvider: TimelineProvider {
 }
 
 // ============================================================
-// MARK: - ERRORS
+// MARK: - ERRORS & INTENTS
 // ============================================================
 enum WidgetError: LocalizedError {
-    case appGroupUnavailable
-    case fileNotFound
-    case invalidURL
-    case decodingFailed(String)
-    
+    case appGroupUnavailable, fileNotFound, invalidURL, decodingFailed(String)
     var errorDescription: String? {
         switch self {
-        case .appGroupUnavailable:     return "App Group container not found.\nCheck entitlements."
+        case .appGroupUnavailable:     return "App Group container not found."
         case .fileNotFound:            return "Data missing.\nOpen the app first."
         case .invalidURL:              return "Could not build TfL API URL."
         case .decodingFailed(let msg): return msg
@@ -191,9 +198,6 @@ enum WidgetError: LocalizedError {
     }
 }
 
-// ============================================================
-// MARK: - APP INTENT
-// ============================================================
 @available(iOS 16.0, *)
 struct RefreshCommuteIntent: AppIntent {
     static var title: LocalizedStringResource = "Refresh Commute Status"
@@ -208,24 +212,24 @@ struct RefreshCommuteIntent: AppIntent {
 // ============================================================
 struct CommutePremiumEntryView: View {
     var entry: CommuteEntry
-    @Environment(\.widgetFamily) var family // <-- Added to check size
+    @Environment(\.widgetFamily) var family
 
     var body: some View {
         ZStack {
             LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
             Group {
                 if let msg = entry.debugMessage { 
-                    DebugView(message: msg) 
+                    DebugView(message: msg, theme: entry.overallLevel) 
                 } 
                 else if entry.lines.isEmpty { 
-                    EmptyStateView() 
+                    EmptyStateView(theme: entry.overallLevel) 
                 } 
                 else {
-                    // Make sure small widgets only show the Priority box
                     if family == .systemSmall, let worst = entry.worstLine {
-                        PriorityView(line: worst).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        SmallPriorityView(line: worst, theme: entry.overallLevel, timestamp: entry.date)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        DashboardView(entry: entry)
+                        DashboardView(entry: entry, theme: entry.overallLevel)
                     }
                 }
             }
@@ -234,51 +238,95 @@ struct CommutePremiumEntryView: View {
     }
 }
 
+// --- MEDIUM WIDGET LAYOUT ---
 struct DashboardView: View {
     let entry: CommuteEntry
+    let theme: SeverityLevel
+    
     var body: some View {
         HStack(spacing: 0) {
-            if let worst = entry.worstLine { PriorityView(line: worst).frame(maxWidth: .infinity, maxHeight: .infinity) }
-            Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1).padding(.vertical, 10)
+            if let worst = entry.worstLine { 
+                PriorityView(line: worst, theme: theme).frame(maxWidth: .infinity, maxHeight: .infinity) 
+            }
+            
+            Rectangle()
+                .fill(theme.dividerColor)
+                .frame(width: 1)
+                .padding(.vertical, 16)
+            
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Spacer()
                     if #available(iOS 17.0, *) {
                         Button(intent: RefreshCommuteIntent()) {
-                            Image(systemName: "arrow.clockwise").font(.system(size: 10, weight: .semibold)).foregroundColor(.white.opacity(0.6))
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(theme.secondaryTextColor)
                         }.buttonStyle(.plain)
                     }
-                }.padding(.trailing, 10).padding(.top, 8)
+                }.padding(.trailing, 12).padding(.top, 10)
+                
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(entry.otherLines.prefix(4)) { line in LineRowView(line: line) }
-                }.padding(.leading, 10).padding(.top, 4)
+                    ForEach(entry.otherLines.prefix(4)) { line in LineRowView(line: line, theme: theme) }
+                }.padding(.leading, 12).padding(.top, 4)
                 Spacer()
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-        }.padding(10)
+        }.padding(.horizontal, 4)
     }
 }
 
+// --- MEDIUM WIDGET LEFT SIDE ---
 struct PriorityView: View {
     let line: CommuteLine
+    let theme: SeverityLevel
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("PRIORITY").font(.system(size: 8, weight: .bold)).tracking(1.8).foregroundColor(.white.opacity(0.55))
+            Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
             Spacer()
-            StatusIcon(level: line.level, size: 34)
-            Text(line.name).font(.system(size: 15, weight: .bold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.7)
-            Text(line.status).font(.system(size: 11, weight: .medium)).foregroundColor(.white.opacity(0.85)).lineLimit(2).minimumScaleFactor(0.75).fixedSize(horizontal: false, vertical: true)
-        }.padding(10).frame(maxHeight: .infinity, alignment: .leading)
+            StatusIcon(level: line.level, size: 36)
+            Text(line.name).font(.system(size: 16, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7).padding(.top, 2)
+            Text(line.status).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.75).fixedSize(horizontal: false, vertical: true)
+        }.padding(.leading, 14).padding(.vertical, 16).frame(maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+// --- SMALL WIDGET ---
+struct SmallPriorityView: View {
+    let line: CommuteLine
+    let theme: SeverityLevel
+    let timestamp: Date
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 6) {
+            Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
+            Spacer().frame(height: 2)
+            StatusIcon(level: line.level, size: 40)
+            Spacer().frame(height: 2)
+            Text(line.name).font(.system(size: 16, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7)
+            Text(line.status).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.secondaryTextColor).multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.75)
+            
+            Text(getTimeText(date: timestamp)).font(.system(size: 8, weight: .bold)).foregroundColor(theme.secondaryTextColor).padding(.top, 2)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+    
+    func getTimeText(date: Date) -> String {
+        let formatter = DateFormatter(); formatter.dateFormat = "HH:mm"; return formatter.string(from: date)
     }
 }
 
 struct LineRowView: View {
     let line: CommuteLine
+    let theme: SeverityLevel
+    
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             StatusIcon(level: line.level, size: 20)
             VStack(alignment: .leading, spacing: 1) {
-                Text(line.name).font(.system(size: 12, weight: .semibold)).foregroundColor(.white).lineLimit(1)
-                Text(line.status).font(.system(size: 10)).foregroundColor(.white.opacity(0.72)).lineLimit(1)
+                Text(line.name).font(.system(size: 12, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1)
+                Text(line.status).font(.system(size: 10, weight: .medium)).foregroundColor(theme.secondaryTextColor).lineLimit(1)
             }
         }
     }
@@ -293,26 +341,30 @@ struct StatusIcon: View {
     var body: some View {
         ZStack {
             Circle().fill(Color.white).frame(width: size, height: size)
-            Image(systemName: iconName).font(.system(size: size * 0.38, weight: .bold)).foregroundColor(level.iconColor)
+            Image(systemName: iconName).font(.system(size: size * 0.38, weight: .black)).foregroundColor(level.iconColor)
         }
     }
 }
 
 struct DebugView: View {
     let message: String
+    let theme: SeverityLevel
+    
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.yellow).font(.title3)
-            Text(message).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(.white).multilineTextAlignment(.center).padding(.horizontal, 10)
+            Text(message).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(theme.textColor).multilineTextAlignment(.center).padding(.horizontal, 10)
         }
     }
 }
 
 struct EmptyStateView: View {
+    let theme: SeverityLevel
+    
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: "tram.fill").font(.title2).foregroundColor(.white.opacity(0.6))
-            Text("Open My Commute to\nsync your saved lines").font(.system(size: 11)).foregroundColor(.white.opacity(0.7)).multilineTextAlignment(.center)
+            Image(systemName: "tram.fill").font(.title2).foregroundColor(theme.secondaryTextColor)
+            Text("Open My Commute to\nsync your saved lines").font(.system(size: 11)).foregroundColor(theme.secondaryTextColor).multilineTextAlignment(.center)
         }
     }
 }
@@ -330,7 +382,7 @@ struct CommutePremiumWidget: Widget {
         StaticConfiguration(kind: kind, provider: CommuteProvider()) { entry in CommutePremiumEntryView(entry: entry) }
         .configurationDisplayName("My Commute")
         .description("Live TfL status, colour-coded by your worst delay.")
-        .supportedFamilies([.systemSmall, .systemMedium]) // <-- Both sizes restored!
+        .supportedFamilies([.systemSmall, .systemMedium]) 
         .disableContentMarginsIfAvailable()
     }
 }

@@ -12,22 +12,34 @@ export function useWidgetSync(fetchWidgetData: () => Promise<any>) {
       try {
         const rawData = await fetchWidgetData();
         
-        // Safely extract the array
-        let lines = [];
-        if (Array.isArray(rawData)) lines = rawData;
-        else if (rawData?.myLines) lines = rawData.myLines;
-        else if (rawData?.lines) lines = rawData.lines;
+        let parsed = [];
+        if (Array.isArray(rawData)) parsed = rawData;
+        else if (rawData?.myLines) parsed = rawData.myLines;
+        else if (rawData?.lines) parsed = rawData.lines;
 
-        // ONLY sync if we have actual real data (No more fake X-Ray data!)
-        if (lines && lines.length > 0) {
-            await syncToWidget(lines);
+        if (!parsed || parsed.length === 0) {
+          console.log('[WidgetSync] No saved lines found.');
+          return;
         }
-      } catch (e: any) {
-        console.log("Widget sync error:", e);
+
+        // Strip everything. Force strings.
+        const payload = parsed.map((line: any) => ({
+          id: String(line.id || '').toLowerCase(),
+          name: String(line.name || 'Unknown Line'),
+        })).filter(line => line.id !== '');
+
+        // THIS IS THE CONSOLE LOG WE NEED TO SEE
+        console.log('[WidgetSync] RAW BRIDGE PAYLOAD:', JSON.stringify(payload, null, 2));
+
+        // Write to App Group shared container using your existing function
+        await syncToWidget(payload);
+        console.log(`[WidgetSync] ✅ Synced ${payload.length} line(s) to widget container.`);
+
+      } catch (error) {
+        console.error('[WidgetSync] ❌ Sync failed:', error);
       }
     };
 
-    // Fire when the app opens
     pushData();
 
     const subscription = AppState.addEventListener('change', nextAppState => {

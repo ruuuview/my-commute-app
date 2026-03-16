@@ -131,7 +131,6 @@ struct CommuteProvider: TimelineProvider {
         }
     }
     
-    // THIS READS FROM YOUR REACT NATIVE USERDEFAULTS 
     private func readSavedLines() throws -> [SavedLine] {
         guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else {
             throw WidgetError.appGroupUnavailable
@@ -209,13 +208,26 @@ struct RefreshCommuteIntent: AppIntent {
 // ============================================================
 struct CommutePremiumEntryView: View {
     var entry: CommuteEntry
+    @Environment(\.widgetFamily) var family // <-- Added to check size
+
     var body: some View {
         ZStack {
             LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
             Group {
-                if let msg = entry.debugMessage { DebugView(message: msg) } 
-                else if entry.lines.isEmpty { EmptyStateView() } 
-                else { DashboardView(entry: entry) }
+                if let msg = entry.debugMessage { 
+                    DebugView(message: msg) 
+                } 
+                else if entry.lines.isEmpty { 
+                    EmptyStateView() 
+                } 
+                else {
+                    // Make sure small widgets only show the Priority box
+                    if family == .systemSmall, let worst = entry.worstLine {
+                        PriorityView(line: worst).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        DashboardView(entry: entry)
+                    }
+                }
             }
         }
         .modifier(ContainerBackgroundModifier())
@@ -318,7 +330,7 @@ struct CommutePremiumWidget: Widget {
         StaticConfiguration(kind: kind, provider: CommuteProvider()) { entry in CommutePremiumEntryView(entry: entry) }
         .configurationDisplayName("My Commute")
         .description("Live TfL status, colour-coded by your worst delay.")
-        .supportedFamilies([.systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium]) // <-- Both sizes restored!
         .disableContentMarginsIfAvailable()
     }
 }

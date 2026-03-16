@@ -12,31 +12,34 @@ export function useWidgetSync(fetchWidgetData: () => Promise<any>) {
       try {
         const rawData = await fetchWidgetData();
         
-        let parsed = [];
+        let parsed: any[] = [];
         if (Array.isArray(rawData)) parsed = rawData;
         else if (rawData?.myLines) parsed = rawData.myLines;
         else if (rawData?.lines) parsed = rawData.lines;
+        else if (rawData?.data) parsed = rawData.data; // Added common fallback
+        else if (rawData?.data?.lines) parsed = rawData.data.lines;
 
-        if (!parsed || parsed.length === 0) {
-          console.log('[WidgetSync] No saved lines found.');
-          return;
+        let payload = [];
+        if (parsed && parsed.length > 0) {
+            payload = parsed.map((line: any) => ({
+              id: String(line.id || '').toLowerCase(),
+              name: String(line.name || 'Unknown Line'),
+            })).filter(line => line.id !== '');
         }
 
-        // Strip everything. Force strings.
-        const payload = parsed.map((line: any) => ({
-          id: String(line.id || '').toLowerCase(),
-          name: String(line.name || 'Unknown Line'),
-        })).filter(line => line.id !== '');
+        // 🚨 IF IT FAILS TO PARSE, DO NOT SILENTLY RETURN.
+        // Force an error payload across the bridge so we can see it on the widget.
+        if (payload.length === 0) {
+            let errorString = JSON.stringify(rawData) || "Unknown Data Shape";
+            payload = [{ 
+                id: "bakerloo", // Fake ID so TfL API doesn't crash
+                name: "Parse Error: " + errorString.substring(0, 20) 
+            }];
+        }
 
-        // THIS IS THE CONSOLE LOG WE NEED TO SEE
-        console.log('[WidgetSync] RAW BRIDGE PAYLOAD:', JSON.stringify(payload, null, 2));
-
-        // Write to App Group shared container using your existing function
         await syncToWidget(payload);
-        console.log(`[WidgetSync] ✅ Synced ${payload.length} line(s) to widget container.`);
-
-      } catch (error) {
-        console.error('[WidgetSync] ❌ Sync failed:', error);
+      } catch (error: any) {
+        await syncToWidget([{ id: "bakerloo", name: "JS Crash: " + String(error.message).substring(0,20) }]);
       }
     };
 

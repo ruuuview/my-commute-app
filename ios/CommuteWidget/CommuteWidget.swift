@@ -3,6 +3,20 @@ import SwiftUI
 import AppIntents
 
 // ============================================================
+// MARK: - METRICS CONSTANTS
+// ============================================================
+struct WidgetMetrics {
+    static let headerFontSize: CGFloat = 9
+    static let lineNameMedium: CGFloat = 18
+    static let lineStatusMedium: CGFloat = 12
+    static let lineNameSmall: CGFloat = 16
+    static let lineStatusSmall: CGFloat = 11
+    static let iconSizeMedium: CGFloat = 42
+    static let iconSizeSmall: CGFloat = 38
+    static let iconLineRow: CGFloat = 20
+}
+
+// ============================================================
 // MARK: - BRIDGE MODEL
 // ============================================================
 struct SavedLine: Codable {
@@ -121,7 +135,20 @@ struct CommuteProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<CommuteEntry>) -> Void) {
         Task {
             let entry = await buildEntry()
-            let refresh = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
+            
+            // 🔋 SMART REFRESH: Battery saving logic based on Time of Day
+            let hour = Calendar.current.component(.hour, from: Date())
+            let refreshMinutes: Int
+            
+            if hour < 5 || hour > 23 {
+                refreshMinutes = 15 // Overnight: 15 mins (TfL rarely changes, saves battery)
+            } else if hour < 7 || hour > 20 {
+                refreshMinutes = 5  // Evening/Early Morning: 5 mins
+            } else {
+                refreshMinutes = 2  // Peak Commute Hours: 2 mins (Hyper-live)
+            }
+            
+            let refresh = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: Date())!
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
@@ -168,7 +195,6 @@ struct CommuteProvider: TimelineProvider {
         let ids = savedLines.map(\.id).joined(separator: ",")
         guard let url = URL(string: "https://api.tfl.gov.uk/Line/\(ids)/Status") else { throw WidgetError.invalidURL }
         
-        // 🚨 FIX: Bypass Apple's aggressive caching so the refresh button actually pulls live data
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         
@@ -208,6 +234,16 @@ struct RefreshCommuteIntent: AppIntent {
 }
 
 // ============================================================
+// MARK: - HELPERS
+// ============================================================
+func getRelativeTime(from date: Date) -> String {
+    let minutes = Int(Date().timeIntervalSince(date) / 60)
+    if minutes < 1 { return "Just now" }
+    else if minutes < 60 { return "\(minutes)m ago" }
+    else { return "\(minutes / 60)h ago" }
+}
+
+// ============================================================
 // MARK: - VIEWS
 // ============================================================
 struct CommutePremiumEntryView: View {
@@ -229,7 +265,7 @@ struct CommutePremiumEntryView: View {
                         SmallPriorityView(line: worst, theme: entry.overallLevel, timestamp: entry.date)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        DashboardView(entry: entry, theme: entry.overallLevel)
+                        DashboardView(entry: entry, theme: entry.overallLevel, timestamp: entry.date)
                     }
                 }
             }
@@ -242,11 +278,12 @@ struct CommutePremiumEntryView: View {
 struct DashboardView: View {
     let entry: CommuteEntry
     let theme: SeverityLevel
+    let timestamp: Date
     
     var body: some View {
         HStack(spacing: 0) {
             if let worst = entry.worstLine { 
-                PriorityView(line: worst, theme: theme).frame(maxWidth: .infinity, maxHeight: .infinity) 
+                PriorityView(line: worst, theme: theme, timestamp: timestamp).frame(maxWidth: .infinity, maxHeight: .infinity) 
             }
             
             Rectangle()
@@ -279,22 +316,31 @@ struct DashboardView: View {
 struct PriorityView: View {
     let line: CommuteLine
     let theme: SeverityLevel
+    let timestamp: Date
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
-            Spacer()
+            HStack {
+                Text("PRIORITY").font(.system(size: WidgetMetrics.headerFontSize, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
+                Spacer()
+                Text(getRelativeTime(from: timestamp)).font(.system(size: 8, weight: .bold)).foregroundColor(theme.secondaryTextColor.opacity(0.8))
+            }
+            
+            Spacer() 
             
             HStack(spacing: 12) {
-                StatusIcon(level: line.level, size: 40)
+                StatusIcon(level: line.level, size: WidgetMetrics.iconSizeMedium)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(line.name).font(.system(size: 18, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7)
-                    Text(line.status).font(.system(size: 12, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.75).fixedSize(horizontal: false, vertical: true)
+                    Text(line.name).font(.system(size: WidgetMetrics.lineNameMedium, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7)
+                    Text(line.status).font(.system(size: WidgetMetrics.lineStatusMedium, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.75).fixedSize(horizontal: false, vertical: true)
                 }
             }
             
-            Spacer().frame(height: 8) 
-        }.padding(.leading, 14).padding(.vertical, 16).frame(maxHeight: .infinity, alignment: .leading)
+            Spacer() 
+        }
+        .padding(.leading, 14).padding(.vertical, 16).frame(maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(line.name) line priority: \(line.status)")
     }
 }
 
@@ -307,12 +353,11 @@ struct SmallPriorityView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
+                Text("PRIORITY").font(.system(size: WidgetMetrics.headerFontSize, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
                 Spacer()
                 
-                // Small Widget Refresh & Timestamp Block
                 HStack(spacing: 6) {
-                    Text(getTimeText(date: timestamp)).font(.system(size: 8, weight: .bold)).foregroundColor(theme.secondaryTextColor)
+                    Text(getRelativeTime(from: timestamp)).font(.system(size: 8, weight: .bold)).foregroundColor(theme.secondaryTextColor)
                     if #available(iOS 17.0, *) {
                         Button(intent: RefreshCommuteIntent()) {
                             Image(systemName: "arrow.clockwise")
@@ -322,24 +367,23 @@ struct SmallPriorityView: View {
                     }
                 }
             }
-            Spacer()
+            
+            Spacer() 
             
             HStack(spacing: 10) {
-                StatusIcon(level: line.level, size: 36)
+                StatusIcon(level: line.level, size: WidgetMetrics.iconSizeSmall)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(line.name).font(.system(size: 16, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.6)
-                    Text(line.status).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.7)
+                    Text(line.name).font(.system(size: WidgetMetrics.lineNameSmall, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.6)
+                    Text(line.status).font(.system(size: WidgetMetrics.lineStatusSmall, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.7)
                 }
             }
             
-            Spacer().frame(height: 8)
+            Spacer() 
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-    
-    func getTimeText(date: Date) -> String {
-        let formatter = DateFormatter(); formatter.dateFormat = "HH:mm"; return formatter.string(from: date)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(line.name) line priority: \(line.status)")
     }
 }
 
@@ -349,26 +393,45 @@ struct LineRowView: View {
     
     var body: some View {
         HStack(spacing: 8) {
-            StatusIcon(level: line.level, size: 20)
+            StatusIcon(level: line.level, size: WidgetMetrics.iconLineRow)
             VStack(alignment: .leading, spacing: 1) {
                 Text(line.name).font(.system(size: 12, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1)
                 Text(line.status).font(.system(size: 10, weight: .medium)).foregroundColor(theme.secondaryTextColor).lineLimit(1)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(line.name): \(line.status)")
     }
 }
 
 struct StatusIcon: View {
     let level: SeverityLevel
     let size: CGFloat
+    
     var iconName: String {
-        switch level { case .good: return "checkmark"; case .minor: return "triangle.fill"; case .severe: return "octagon.fill" }
+        switch level { 
+        case .good: return "checkmark"
+        case .minor: return "exclamationmark.triangle.fill" 
+        case .severe: return "octagon.fill" 
+        }
     }
+    
+    var a11yLabel: String {
+        switch level {
+        case .good: return "Good service"
+        case .minor: return "Minor delays"
+        case .severe: return "Severe disruption"
+        }
+    }
+    
     var body: some View {
         ZStack {
             Circle().fill(Color.white).frame(width: size, height: size)
-            Image(systemName: iconName).font(.system(size: size * 0.38, weight: .black)).foregroundColor(level.iconColor)
+            Image(systemName: iconName)
+                .font(.system(size: size * 0.45, weight: .black)) 
+                .foregroundColor(level.iconColor)
         }
+        .accessibilityLabel(a11yLabel)
     }
 }
 

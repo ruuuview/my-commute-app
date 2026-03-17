@@ -23,7 +23,7 @@ struct CommuteLine: Identifiable {
         switch severity {
         case 10...:  return .good
         case 7...9:  return .minor
-        default:     return .severe // Catches 6 (Suspended) and 20 (Not Running)
+        default:     return .severe 
         }
     }
 }
@@ -47,11 +47,10 @@ enum SeverityLevel {
         }
     }
     
-    // WCAG Contrast Fixes
     var textColor: Color {
         switch self {
         case .good, .severe: return .white
-        case .minor:         return Color(red: 0.15, green: 0.10, blue: 0.00) // Near-black for yellow background
+        case .minor:         return Color(red: 0.15, green: 0.10, blue: 0.00) 
         }
     }
     
@@ -91,9 +90,6 @@ struct CommuteEntry: TimelineEntry {
     let lines: [CommuteLine]
     let debugMessage: String?
     
-    // ⚠️ MAINTAINABILITY NOTE: TfL's severity scale is INVERTED.
-    // 0 is "Special Service" / 6 is "Suspended" / 10 is "Good Service".
-    // Therefore, using .min() correctly finds the WORST active delay.
     var worstLine: CommuteLine? {
         lines.min(by: { $0.severity < $1.severity })
     }
@@ -172,7 +168,11 @@ struct CommuteProvider: TimelineProvider {
         let ids = savedLines.map(\.id).joined(separator: ",")
         guard let url = URL(string: "https://api.tfl.gov.uk/Line/\(ids)/Status") else { throw WidgetError.invalidURL }
         
-        let (data, _) = try await URLSession.shared.data(from: url)
+        // 🚨 FIX: Bypass Apple's aggressive caching so the refresh button actually pulls live data
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
         let response  = try JSONDecoder().decode([TfLLine].self, from: data)
         
         return response.compactMap { tflLine in
@@ -281,12 +281,19 @@ struct PriorityView: View {
     let theme: SeverityLevel
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
             Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
             Spacer()
-            StatusIcon(level: line.level, size: 36)
-            Text(line.name).font(.system(size: 16, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7).padding(.top, 2)
-            Text(line.status).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.75).fixedSize(horizontal: false, vertical: true)
+            
+            HStack(spacing: 12) {
+                StatusIcon(level: line.level, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(line.name).font(.system(size: 18, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7)
+                    Text(line.status).font(.system(size: 12, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.75).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            
+            Spacer().frame(height: 8) 
         }.padding(.leading, 14).padding(.vertical, 16).frame(maxHeight: .infinity, alignment: .leading)
     }
 }
@@ -298,18 +305,37 @@ struct SmallPriorityView: View {
     let timestamp: Date
     
     var body: some View {
-        VStack(alignment: .center, spacing: 6) {
-            Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
-            Spacer().frame(height: 2)
-            StatusIcon(level: line.level, size: 40)
-            Spacer().frame(height: 2)
-            Text(line.name).font(.system(size: 16, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.7)
-            Text(line.status).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.secondaryTextColor).multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.75)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Text("PRIORITY").font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundColor(theme.secondaryTextColor)
+                Spacer()
+                
+                // Small Widget Refresh & Timestamp Block
+                HStack(spacing: 6) {
+                    Text(getTimeText(date: timestamp)).font(.system(size: 8, weight: .bold)).foregroundColor(theme.secondaryTextColor)
+                    if #available(iOS 17.0, *) {
+                        Button(intent: RefreshCommuteIntent()) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(theme.secondaryTextColor)
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+            Spacer()
             
-            Text(getTimeText(date: timestamp)).font(.system(size: 8, weight: .bold)).foregroundColor(theme.secondaryTextColor).padding(.top, 2)
+            HStack(spacing: 10) {
+                StatusIcon(level: line.level, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(line.name).font(.system(size: 16, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1).minimumScaleFactor(0.6)
+                    Text(line.status).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.secondaryTextColor).lineLimit(2).minimumScaleFactor(0.7)
+                }
+            }
+            
+            Spacer().frame(height: 8)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
     
     func getTimeText(date: Date) -> String {

@@ -15,7 +15,9 @@ struct WidgetMetrics {
     static let iconSizeMedium: CGFloat  = 42
     static let iconSizeSmall: CGFloat   = 38
     static let iconLineRow: CGFloat     = 20
-    static let staleThreshold: TimeInterval = 300 // 5 min → amber
+    
+    // 🚨 SET TO 15 SECONDS FOR TESTING. (Change to 300 for Production)
+    static let staleThreshold: TimeInterval = 15 
 }
 
 // ============================================================
@@ -103,8 +105,13 @@ struct TfLStatus: Decodable {
 // ============================================================
 struct CommuteEntry: TimelineEntry {
     let date: Date
+    let fetchDate: Date
     let lines: [CommuteLine]
     let debugMessage: String?
+
+    var isStale: Bool {
+        date.timeIntervalSince(fetchDate) >= WidgetMetrics.staleThreshold
+    }
 
     var worstLine: CommuteLine? {
         lines.min(by: { $0.severity < $1.severity })
@@ -127,41 +134,52 @@ private let kAppGroupID = "group.com.mycommute.app"
 
 struct CommuteProvider: TimelineProvider {
     func placeholder(in context: Context) -> CommuteEntry {
-        CommuteEntry(date: Date(), lines: [], debugMessage: nil)
+        CommuteEntry(date: Date(), fetchDate: Date(), lines: [], debugMessage: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CommuteEntry) -> Void) {
-        Task { completion(await buildEntry()) }
+        Task {
+            let (lines, msg) = await fetchRawData()
+            completion(CommuteEntry(date: Date(), fetchDate: Date(), lines: lines, debugMessage: msg))
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CommuteEntry>) -> Void) {
         Task {
-            let entry = await buildEntry()
-            let hour = Calendar.current.component(.hour, from: Date())
+            let (lines, msg) = await fetchRawData()
+            let now = Date()
+            
+            let freshEntry = CommuteEntry(date: now, fetchDate: now, lines: lines, debugMessage: msg)
+            let staleTime = now.addingTimeInterval(WidgetMetrics.staleThreshold)
+            let staleEntry = CommuteEntry(date: staleTime, fetchDate: now, lines: lines, debugMessage: msg)
+            
+            let hour = Calendar.current.component(.hour, from: now)
             let refreshMinutes: Int
             if hour < 5 || hour > 23      { refreshMinutes = 15 }
             else if hour < 7 || hour > 20 { refreshMinutes = 5  }
-            else                           { refreshMinutes = 2  }
-            let refresh = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: Date())!
-            completion(Timeline(entries: [entry], policy: .after(refresh)))
+            else                          { refreshMinutes = 2  }
+            
+            let nextRefresh = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: now)!
+            
+            completion(Timeline(entries: [freshEntry, staleEntry], policy: .after(nextRefresh)))
         }
     }
 
-    private func buildEntry() async -> CommuteEntry {
+    private func fetchRawData() async -> ([CommuteLine], String?) {
         let savedLines: [SavedLine]
         do {
             savedLines = try readSavedLines()
         } catch {
-            return CommuteEntry(date: Date(), lines: [], debugMessage: "BRIDGE ERROR:\n\(error.localizedDescription)")
+            return ([], "BRIDGE ERROR:\n\(error.localizedDescription)")
         }
         guard !savedLines.isEmpty else {
-            return CommuteEntry(date: Date(), lines: [], debugMessage: "Open the app to save your commute lines.")
+            return ([], "Open the app to save your commute lines.")
         }
         do {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
-            return CommuteEntry(date: Date(), lines: commuteLines, debugMessage: nil)
+            return (commuteLines, nil)
         } catch {
-            return CommuteEntry(date: Date(), lines: [], debugMessage: "TFL API ERROR:\n\(error.localizedDescription)")
+            return ([], "TFL API ERROR:\n\(error.localizedDescription)")
         }
     }
 
@@ -230,38 +248,66 @@ func getAbsoluteTime(from date: Date) -> String {
     return "Updated \(f.string(from: date))"
 }
 
-/// Normal → theme secondary colour. Stale (>5 min) → amber warning.
-func timestampForegroundColor(for date: Date, theme: SeverityLevel) -> Color {
-    Date().timeIntervalSince(date) > WidgetMetrics.staleThreshold
-        ? Color.orange.opacity(0.9)
-        : theme.secondaryTextColor.opacity(0.8)
-}
-
 // ============================================================
-// MARK: - SHARED FOOTER  ← used identically by small & medium
+// MARK: - SHARED FOOTER
 // ============================================================
 struct WidgetFooterView: View {
-    let timestamp: Date
+    let entry: CommuteEntry
     let theme: SeverityLevel
+    @Environment(\.widgetFamily) var family
+
+    private var isStale: Bool { entry.isStale }
+
+    // ── STALE: solid white pill, dark label
+    // ── FRESH: ghost pill, theme-blended label
+    private var pillBackground: Color {
+        isStale ? .white : theme.textColor.opacity(0.12)
+    }
+    
+    private var pillForeground: Color {
+        isStale ? Color(white: 0.12) : theme.secondaryTextColor
+    }
+    
+    private var timestampColor: Color {
+        isStale ? .white.opacity(0.9) : theme.secondaryTextColor.opacity(0.8)
+    }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Text(getAbsoluteTime(from: timestamp))
+        HStack(alignment: .center, spacing: 0) {
+            Text(getAbsoluteTime(from: entry.fetchDate))
                 .font(.system(size: WidgetMetrics.footerFontSize, weight: .bold))
-                .foregroundColor(timestampForegroundColor(for: timestamp, theme: theme))
-
-            Spacer()
-
+                .foregroundColor(timestampColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            
+            Spacer(minLength: 6)
+            
             if #available(iOS 17.0, *) {
                 Button(intent: RefreshCommuteIntent()) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(theme.secondaryTextColor.opacity(0.8))
-                }.buttonStyle(.plain)
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: isStale ? 10 : 9, weight: .bold))
+                        
+                        // Text label ONLY appears when stale + medium widget
+                        // Fresh state = icon only, recedes from view
+                        if isStale && family != .systemSmall {
+                            Text("WAKE UP")
+                                .font(.system(size: 9, weight: .heavy))
+                                .tracking(0.5)
+                        }
+                    }
+                    .padding(.horizontal, isStale ? 12 : 8)
+                    .padding(.vertical, isStale ? 7 : 5)
+                    .background(pillBackground)
+                    .clipShape(Capsule())
+                    .foregroundColor(pillForeground)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isStale ? "Wake up widget" : "Refresh commute status")
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 5)
+        .padding(.vertical, 6)
     }
 }
 
@@ -282,14 +328,17 @@ struct CommutePremiumEntryView: View {
                     EmptyStateView(theme: entry.overallLevel)
                 } else {
                     if family == .systemSmall, let worst = entry.worstLine {
-                        SmallPriorityView(line: worst, theme: entry.overallLevel, timestamp: entry.date)
+                        SmallPriorityView(line: worst, theme: entry.overallLevel, entry: entry)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        DashboardView(entry: entry, theme: entry.overallLevel, timestamp: entry.date)
+                        DashboardView(entry: entry, theme: entry.overallLevel)
                     }
                 }
             }
         }
+        // Drains color and dims the entire widget when data is stale
+        .grayscale(entry.isStale ? 1.0 : 0.0)
+        .opacity(entry.isStale ? 0.75 : 1.0)
         .modifier(ContainerBackgroundModifier())
     }
 }
@@ -297,17 +346,12 @@ struct CommutePremiumEntryView: View {
 // ============================================================
 // MARK: - MEDIUM WIDGET
 // ============================================================
-
-// Top-level layout: content row + footer divider + shared footer
 struct DashboardView: View {
     let entry: CommuteEntry
     let theme: SeverityLevel
-    let timestamp: Date
 
     var body: some View {
         VStack(spacing: 0) {
-
-            // ── Content row ──────────────────────────────────
             HStack(spacing: 0) {
                 if let worst = entry.worstLine {
                     PriorityView(line: worst, theme: theme)
@@ -317,7 +361,7 @@ struct DashboardView: View {
                 Rectangle()
                     .fill(theme.dividerColor)
                     .frame(width: 1)
-                    .padding(.top, 12) // gap from widget top; meets footer divider cleanly
+                    .padding(.top, 12)
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -325,18 +369,16 @@ struct DashboardView: View {
 
             // ── Footer divider ────────────────────────────────
             Rectangle()
-                .fill(theme.dividerColor)
+                .fill(entry.isStale ? Color.white.opacity(0.3) : theme.dividerColor)
                 .frame(height: 1)
                 .padding(.horizontal, 10)
 
-            // ── Shared footer ─────────────────────────────────
-            WidgetFooterView(timestamp: timestamp, theme: theme)
+            WidgetFooterView(entry: entry, theme: theme)
         }
         .padding(.horizontal, 4)
     }
 }
 
-// Left panel — no timestamp, no refresh button (both live in the footer now)
 struct PriorityView: View {
     let line: CommuteLine
     let theme: SeverityLevel
@@ -374,7 +416,6 @@ struct PriorityView: View {
     }
 }
 
-// Right panel — "OTHER LINES" header mirrors "PRIORITY"; no refresh button here
 struct OtherLinesPanelView: View {
     let lines: [CommuteLine]
     let theme: SeverityLevel
@@ -403,12 +444,10 @@ struct OtherLinesPanelView: View {
 // ============================================================
 // MARK: - SMALL WIDGET
 // ============================================================
-
-// Header label only at top (refresh moved to footer); identical WidgetFooterView at bottom
 struct SmallPriorityView: View {
     let line: CommuteLine
     let theme: SeverityLevel
-    let timestamp: Date
+    let entry: CommuteEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -439,8 +478,7 @@ struct SmallPriorityView: View {
 
             Spacer()
 
-            // ── Shared footer (identical to medium) ──────────
-            WidgetFooterView(timestamp: timestamp, theme: theme)
+            WidgetFooterView(entry: entry, theme: theme)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)

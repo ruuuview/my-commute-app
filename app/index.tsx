@@ -1,4 +1,4 @@
-import { getSeverityTheme } from '../utils/widgetsync';
+import { getSeverityTheme } from '../utils/widgetSync';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,

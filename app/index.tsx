@@ -1,3 +1,4 @@
+import { getSeverityTheme } from '../utils/widgetsync';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -166,12 +167,6 @@ export default function MyCommuteDashboard() {
     setRefreshing(false);
   };
 
-  const getStatusColor = (severity: number) => {
-    if (severity >= 6) return '#dc3545';
-    if (severity >= 3) return '#ffc107';
-    return '#28a745';
-  };
-
   const startJiggle = () => {
     Animated.loop(
       Animated.sequence([
@@ -198,6 +193,9 @@ export default function MyCommuteDashboard() {
                  Object.values(allLinesFromStore).find(l => l.id === lineId) ||
                  { id: lineId, name: lineId, color: '#ccc', status: 'Loading...', status_severity: 0 };
 
+    // 🎨 Grab the master widget color theme based on the severity!
+    const theme = getSeverityTheme(line.status_severity);
+
     return (
       <Animated.View key={lineId} style={{
         transform: isEditing ? [{ rotate: jiggleAnim.interpolate({
@@ -205,7 +203,7 @@ export default function MyCommuteDashboard() {
         })}] : []
       }}>
         <TouchableOpacity 
-          style={[styles.card, { borderLeftColor: line.color, borderLeftWidth: 6 }]}
+          style={[styles.card, { backgroundColor: theme.gradientStart }]}
           onLongPress={toggleEditMode}
           onPress={() => {
             if (!isEditing) {
@@ -215,14 +213,15 @@ export default function MyCommuteDashboard() {
         >
           <View style={styles.cardContent}>
             <View>
-              <Text style={styles.lineName}>{line.name}</Text>
+              <Text style={[styles.lineName, { color: theme.text }]}>{line.name}</Text>
+              
               <View style={styles.statusRow}>
                 <Ionicons 
                   name={line.status_severity < 3 ? 'checkmark-circle' : 'warning'} 
                   size={14} 
-                  color={getStatusColor(line.status_severity)} 
+                  color={theme.icon} 
                 />
-                <Text style={[styles.statusText, { color: getStatusColor(line.status_severity) }]}>
+                <Text style={[styles.statusText, { color: theme.textSecondary }]}>
                   {line.status}
                 </Text>
               </View>

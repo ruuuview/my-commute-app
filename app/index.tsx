@@ -1,5 +1,5 @@
 import { getSeverityTheme } from '../utils/widgetsync';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -188,13 +188,31 @@ export default function MyCommuteDashboard() {
     }
   };
 
+  // 🚦 APP SORTING: Match the widget by pushing worst delays to the top
+  const sortedSavedLines = useMemo(() => {
+    return [...userPrefs.saved_lines].sort((idA, idB) => {
+      const lineA = lineStatuses.find(l => l.id === idA) || Object.values(allLinesFromStore).find(l => l.id === idA);
+      const lineB = lineStatuses.find(l => l.id === idB) || Object.values(allLinesFromStore).find(l => l.id === idB);
+      const severityA = lineA?.status_severity ?? 10;
+      const severityB = lineB?.status_severity ?? 10;
+      return severityA - severityB; 
+    });
+  }, [userPrefs.saved_lines, lineStatuses, allLinesFromStore]);
+
   const renderLineItem = (lineId: string) => {
     const line = lineStatuses.find(l => l.id === lineId) || 
                  Object.values(allLinesFromStore).find(l => l.id === lineId) ||
                  { id: lineId, name: lineId, color: '#ccc', status: 'Loading...', status_severity: 0 };
 
-    // 🎨 Grab the master widget color theme based on the severity!
     const theme = getSeverityTheme(line.status_severity);
+
+    // 🎨 UI UNIFORMITY: Match Ionicons exactly to the SF Symbols in the Widget
+    let iconName: keyof typeof Ionicons.glyphMap = 'checkmark';
+    if (line.status_severity < 7) {
+      iconName = 'close'; // Match "xmark"
+    } else if (line.status_severity >= 7 && line.status_severity <= 9) {
+      iconName = 'warning'; // Match "exclamationmark.triangle.fill"
+    }
 
     return (
       <Animated.View key={lineId} style={{
@@ -216,11 +234,10 @@ export default function MyCommuteDashboard() {
               <Text style={[styles.lineName, { color: theme.text }]}>{line.name}</Text>
               
               <View style={styles.statusRow}>
-                <Ionicons 
-                  name={line.status_severity < 3 ? 'checkmark-circle' : 'warning'} 
-                  size={14} 
-                  color={theme.icon} 
-                />
+                {/* 🎨 UI UNIFORMITY: White circle background behind icon */}
+                <View style={styles.iconCircle}>
+                  <Ionicons name={iconName} size={14} color={theme.icon} />
+                </View>
                 <Text style={[styles.statusText, { color: theme.textSecondary }]}>
                   {line.status}
                 </Text>
@@ -236,7 +253,6 @@ export default function MyCommuteDashboard() {
                 const newPrefs = { ...userPrefs, saved_lines: newLines };
                 setUserPrefs(newPrefs);
                 AsyncStorage.setItem('user_preferences', JSON.stringify(newPrefs));
-                // Trigger refresh to update widget immediately
                 fetchDashboardData(newPrefs, true);
               }}
             >
@@ -327,7 +343,8 @@ export default function MyCommuteDashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
       >
         <Text style={styles.sectionTitle}>My Lines</Text>
-        {userPrefs.saved_lines.map(renderLineItem)}
+        {/* Render the dynamically sorted lines instead of the raw array */}
+        {sortedSavedLines.map(renderLineItem)}
 
         <Text style={styles.sectionTitle}>My Stations</Text>
         {userPrefs.saved_stations.map(renderStationItem)}
@@ -405,7 +422,15 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  iconCircle: {
+    backgroundColor: 'white',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusText: {
     fontSize: 14,

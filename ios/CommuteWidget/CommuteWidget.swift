@@ -117,9 +117,12 @@ struct CommuteEntry: TimelineEntry {
         lines.min(by: { $0.severity < $1.severity })
     }
 
+    // 🚦 Sorted so the worst delays are always at the top
     var otherLines: [CommuteLine] {
         guard let worst = worstLine else { return [] }
-        return lines.filter { $0.id != worst.id }
+        return lines
+            .filter { $0.id != worst.id }
+            .sorted { $0.severity < $1.severity }
     }
 
     var overallLevel: SeverityLevel {
@@ -510,11 +513,12 @@ struct StatusIcon: View {
     let level: SeverityLevel
     let size: CGFloat
 
+    // 🎨 UX-Optimized Icons
     var iconName: String {
         switch level {
         case .good:   return "checkmark"
         case .minor:  return "exclamationmark.triangle.fill"
-        case .severe: return "octagon.fill"
+        case .severe: return "xmark"
         }
     }
 

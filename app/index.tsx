@@ -55,7 +55,7 @@ interface UserPreferences {
   is_pro: boolean;
 }
 
-export const stationDataCache = new Map<string, Promise<any>>();
+import { stationDataCache } from "../utils/stationCache";
 
 export default function MyCommuteDashboard() {
   const router = useRouter();

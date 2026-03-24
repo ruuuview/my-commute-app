@@ -1,3 +1,4 @@
+
 import WidgetKit
 import SwiftUI
 import AppIntents
@@ -16,8 +17,8 @@ struct WidgetMetrics {
     static let iconSizeSmall: CGFloat   = 38
     static let iconLineRow: CGFloat     = 20
     
-    // 🚨 SET TO 15 SECONDS FOR TESTING. (Change to 300 for Production)
-    static let staleThreshold: TimeInterval = 15 
+    // 🚨 Updated to 120 seconds for Production (Phase 1.6)
+    static let staleThreshold: TimeInterval = 120
 }
 
 // ============================================================
@@ -39,21 +40,23 @@ struct CommuteLine: Identifiable {
 
     var level: SeverityLevel {
         switch severity {
-        case 10...:  return .good
-        case 7...9:  return .minor
-        default:     return .severe
+        case ...2:  return .good
+        case 3...5: return .minor
+        case 6...9: return .severe
+        default:    return .suspended
         }
     }
 }
 
 enum SeverityLevel {
-    case good, minor, severe
+    case good, minor, severe, suspended
 
     var gradientColors: [Color] {
         switch self {
         case .good:   return [Color(red: 0.06, green: 0.45, blue: 0.22), Color(red: 0.03, green: 0.25, blue: 0.12)]
         case .minor:  return [Color(red: 1.00, green: 0.82, blue: 0.10), Color(red: 0.90, green: 0.65, blue: 0.00)]
-        case .severe: return [Color(red: 0.56, green: 0.08, blue: 0.08), Color(red: 0.32, green: 0.04, blue: 0.04)]
+        case .severe: return [Color(red: 0.90, green: 0.36, blue: 0.00), Color(red: 0.70, green: 0.20, blue: 0.00)] // Orange
+        case .suspended: return [Color(red: 0.56, green: 0.08, blue: 0.08), Color(red: 0.32, green: 0.04, blue: 0.04)] // Deep Red
         }
     }
 
@@ -61,27 +64,28 @@ enum SeverityLevel {
         switch self {
         case .good:   return Color(red: 0.13, green: 0.65, blue: 0.30)
         case .minor:  return Color(red: 0.85, green: 0.55, blue: 0.00)
-        case .severe: return Color(red: 0.85, green: 0.15, blue: 0.15)
+        case .severe: return Color(red: 0.90, green: 0.36, blue: 0.00)
+        case .suspended: return Color(red: 0.85, green: 0.15, blue: 0.15)
         }
     }
 
     var textColor: Color {
         switch self {
-        case .good, .severe: return .white
+        case .good, .severe, .suspended: return .white
         case .minor:         return Color(red: 0.15, green: 0.10, blue: 0.00)
         }
     }
 
     var secondaryTextColor: Color {
         switch self {
-        case .good, .severe: return .white.opacity(0.80)
+        case .good, .severe, .suspended: return .white.opacity(0.80)
         case .minor:         return Color(red: 0.25, green: 0.15, blue: 0.00).opacity(0.85)
         }
     }
 
     var dividerColor: Color {
         switch self {
-        case .good, .severe: return .white.opacity(0.3)
+        case .good, .severe, .suspended: return .white.opacity(0.3)
         case .minor:         return Color.black.opacity(0.15)
         }
     }
@@ -291,8 +295,6 @@ struct WidgetFooterView: View {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: isStale ? 10 : 9, weight: .bold))
                         
-                        // Text label ONLY appears when stale + medium widget
-                        // Fresh state = icon only, recedes from view
                         if isStale && family != .systemSmall {
                             Text("WAKE UP")
                                 .font(.system(size: 9, weight: .heavy))
@@ -339,7 +341,6 @@ struct CommutePremiumEntryView: View {
                 }
             }
         }
-        // Drains color and dims the entire widget when data is stale
         .grayscale(entry.isStale ? 1.0 : 0.0)
         .opacity(entry.isStale ? 0.75 : 1.0)
         .modifier(ContainerBackgroundModifier())
@@ -370,7 +371,6 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            // ── Footer divider ────────────────────────────────
             Rectangle()
                 .fill(entry.isStale ? Color.white.opacity(0.3) : theme.dividerColor)
                 .frame(height: 1)
@@ -513,20 +513,12 @@ struct StatusIcon: View {
     let level: SeverityLevel
     let size: CGFloat
 
-    // 🎨 UX-Optimized Icons
     var iconName: String {
         switch level {
         case .good:   return "checkmark"
         case .minor:  return "exclamationmark.triangle.fill"
-        case .severe: return "xmark"
-        }
-    }
-
-    var a11yLabel: String {
-        switch level {
-        case .good:   return "Good service"
-        case .minor:  return "Minor delays"
-        case .severe: return "Severe disruption"
+        case .severe: return "clock.fill"
+        case .suspended: return "xmark"
         }
     }
 
@@ -537,7 +529,6 @@ struct StatusIcon: View {
                 .font(.system(size: size * 0.45, weight: .black))
                 .foregroundColor(level.iconColor)
         }
-        .accessibilityLabel(a11yLabel)
     }
 }
 

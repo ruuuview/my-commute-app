@@ -1,5 +1,5 @@
 import { APP_CONFIG } from '../config/app.config';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,56 +7,23 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator, 
-  RefreshControl, 
-  StatusBar,
-  Animated,
-  Platform,
-  Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
-import { stationDataCache } from './index';
+import { stationDataCache } from '../utils/stationCache'; // ✅ Fixed Circular Dependency
 
-// ✅ Use Config
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 
-interface Departure {
-  destination: string;
-  line: string;
-  platform: string;
-  minutes_away: number;
-  expected_arrival: string;
-  status?: string;
-}
-
-interface StationDetailData {
-  id: string;
-  name: string;
-  departures: Departure[];
-  updated_at: string;
-}
+interface Departure { destination: string; line: string; platform: string; minutes_away: number; expected_arrival: string; status?: string; }
+interface StationDetailData { id: string; name: string; departures: Departure[]; updated_at: string; }
 
 const getLineColor = (lineName: string): string => {
   const colors: { [key: string]: string } = {
-    'Bakerloo': '#B36305',
-    'Central': '#E32017',
-    'Circle': '#FFD300',
-    'District': '#00782A',
-    'Hammersmith & City': '#F3A9BB',
-    'Jubilee': '#A0A5A9',
-    'Metropolitan': '#9B0056',
-    'Northern': '#000000',
-    'Piccadilly': '#003688',
-    'Victoria': '#0098D4',
-    'Waterloo & City': '#95CDBA',
-    'Elizabeth': '#6950a1',
-    'DLR': '#00AFAD',
+    'Bakerloo': '#B36305', 'Central': '#E32017', 'Circle': '#FFD300', 'District': '#00782A',
+    'Hammersmith & City': '#F3A9BB', 'Jubilee': '#A0A5A9', 'Metropolitan': '#9B0056', 'Northern': '#000000',
+    'Piccadilly': '#003688', 'Victoria': '#0098D4', 'Waterloo & City': '#95CDBA', 'Elizabeth': '#6950a1', 'DLR': '#00AFAD',
   };
-  
   const normalizedName = lineName.replace(' Line', '').trim();
   return colors[normalizedName] || colors[lineName] || '#666666';
 };
@@ -79,57 +46,33 @@ const formatDueTime = (minutes: number): string => {
 
 const getStatusSeverity = (status: string): number => {
   const statusLower = status.toLowerCase();
-  if (statusLower.includes('severe') || statusLower.includes('suspended') || statusLower.includes('closure')) {
-    return 3; 
-  }
-  if (statusLower.includes('minor') || statusLower.includes('delay') || statusLower.includes('disruption')) {
-    return 2; 
-  }
-  if (statusLower.includes('good') || statusLower.includes('service')) {
-    return 1; 
-  }
+  if (statusLower.includes('severe') || statusLower.includes('suspended') || statusLower.includes('closure')) return 3; 
+  if (statusLower.includes('minor') || statusLower.includes('delay') || statusLower.includes('disruption')) return 2; 
+  if (statusLower.includes('good') || statusLower.includes('service')) return 1; 
   return 0; 
 };
 
 const getHeaderColor = (departures: Departure[]): string => {
   if (!departures || departures.length === 0) return '#00A75D'; 
-  
   let maxSeverity = 1; 
-  
-  departures.forEach(departure => {
-    const status = departure.status || 'Good Service';
-    const severity = getStatusSeverity(status);
-    if (severity > maxSeverity) {
-      maxSeverity = severity;
-    }
+  departures.forEach(d => {
+    const severity = getStatusSeverity(d.status || 'Good Service');
+    if (severity > maxSeverity) maxSeverity = severity;
   });
-  
-  switch (maxSeverity) {
-    case 3: return '#E32017'; 
-    case 2: return '#FFD700'; 
-    case 1: return '#00A75D'; 
-    default: return '#00A75D'; 
-  }
+  switch (maxSeverity) { case 3: return '#E32017'; case 2: return '#FFD700'; case 1: return '#00A75D'; default: return '#00A75D'; }
 };
 
 const groupDeparturesByDirection = (departures: Departure[]) => {
   const northbound: Departure[] = [];
   const southbound: Departure[] = [];
-  
-  departures.forEach(departure => {
-    const platform = departure.platform.toLowerCase();
-    if (platform.includes('northbound') || platform.includes('eastbound')) {
-      northbound.push(departure);
-    } else if (platform.includes('southbound') || platform.includes('westbound')) {
-      southbound.push(departure);
-    } else {
-      northbound.push(departure);
-    }
+  departures.forEach(d => {
+    const platform = d.platform.toLowerCase();
+    if (platform.includes('northbound') || platform.includes('eastbound')) northbound.push(d);
+    else if (platform.includes('southbound') || platform.includes('westbound')) southbound.push(d);
+    else northbound.push(d);
   });
-  
   northbound.sort((a, b) => a.minutes_away - b.minutes_away);
   southbound.sort((a, b) => a.minutes_away - b.minutes_away);
-  
   return { northbound, southbound };
 };
 
@@ -144,71 +87,34 @@ export default function StationDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setStationData(null);
-    setError(null);
-    
+    setStationData(null); setError(null);
     fetchStationDetail();
-    
     const interval = setInterval(() => fetchStationDetail(false), 30000); 
     return () => clearInterval(interval);
   }, [stationId]);
 
   const fetchStationDetail = async (useCache: boolean = true) => {
     try {
-      setLoading(true); 
-      setError(null);
-      
+      setLoading(true); setError(null);
       if (useCache && stationDataCache.has(stationId)) {
-        console.log(`⚡ CACHE HIT: Using pre-fetched data for ${stationId}`);
-        
         try {
-          const cachedPromise = stationDataCache.get(stationId);
-          const data = await cachedPromise;
-          
-          console.log(`✅ CACHE DATA LOADED: ${data.name} with ${data.departures.length} trains`);
+          const data = await stationDataCache.get(stationId);
           setStationData(data);
-          
           stationDataCache.delete(stationId);
-          console.log(`🧹 Cache cleared for ${stationId}`);
-          
           setLoading(false);
           return;
-        } catch (cacheError) {
-          console.warn(`⚠️ Cache failed, falling back to fresh fetch:`, cacheError);
-          stationDataCache.delete(stationId);
-        }
+        } catch (cacheError) { stationDataCache.delete(stationId); }
       }
       
-      console.log(`🚇 FETCHING FRESH DATA for station: ${stationId}`);
-      
-      const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log(`📥 Station API Response: ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch station data: ${response.status} ${response.statusText}`);
-      }
-      
+      const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`);
+      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
       const data = await response.json();
-      console.log(`✅ LIVE DATA LOADED: ${data.name}`);
-      console.log(`📊 Departures: ${data.departures.length} trains`);
-      
       setStationData(data);
-    } catch (error) {
-      console.error('❌ Error fetching station detail:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load station details');
+    } catch (err: any) {
+      setError(err.message || 'Failed to load station details');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBack = () => {
-    router.back();
   };
 
   if (loading && !stationData) {
@@ -227,8 +133,7 @@ export default function StationDetailScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#E74C3C" />
-          <Text style={styles.errorText}>Failed to load station departures</Text>
-          <Text style={styles.errorSubtext}>{error}</Text>
+          <Text style={styles.errorText}>Failed to load departures</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchStationDetail}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
@@ -238,121 +143,46 @@ export default function StationDetailScreen() {
   }
 
   const { northbound, southbound } = stationData ? groupDeparturesByDirection(stationData.departures) : { northbound: [], southbound: [] };
-  const currentTime = new Date().toLocaleTimeString('en-GB', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: false 
-  });
-
   const headerBackgroundColor = stationData ? getHeaderColor(stationData.departures) : '#00A75D';
   
+  const renderDepartureBlock = (departure: Departure, index: number, prefix: string) => {
+    const lineColor = getLineColor(departure.line);
+    const platformNumber = extractPlatformNumber(departure.platform);
+    const platformTextColor = getPlatformTextColor(lineColor);
+    return (
+      <View key={`${prefix}-${index}`} style={[styles.departureCard, { borderColor: lineColor }]}>
+        <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
+          <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
+          <Text style={[styles.platformNumber, { color: platformTextColor }]}>{platformNumber}</Text>
+        </View>
+        <View style={styles.departureDetails}>
+          <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
+          <Text style={styles.destination} numberOfLines={1}>{departure.destination.replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
+        </View>
+        <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: headerBackgroundColor }]}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <Text style={styles.stationTitle}>{(stationData?.name || stationName).toUpperCase()}</Text>
-        </View>
-        
-        <TouchableOpacity style={styles.refreshButton} onPress={fetchStationDetail}>
-          <Ionicons name="refresh" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></TouchableOpacity>
+        <View style={styles.headerContent}><Text style={styles.stationTitle}>{(stationData?.name || stationName).toUpperCase()}</Text></View>
+        <TouchableOpacity style={styles.refreshButton} onPress={() => fetchStationDetail()}><Ionicons name="refresh" size={24} color="#FFFFFF" /></TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {stationData && (
-          <View style={styles.lastUpdatedContainer}>
-            <Text style={styles.lastUpdatedText}>
-              Last updated: {(() => {
-                try {
-                  const date = new Date(stationData.updated_at);
-                  if (isNaN(date.getTime())) {
-                    return 'Just now';
-                  }
-                  return date.toLocaleTimeString('en-GB', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  });
-                } catch (e) {
-                  return 'Just now';
-                }
-              })()}
-            </Text>
-          </View>
-        )}
-
         {northbound.length > 0 && (
           <View style={styles.directionSection}>
             <Text style={styles.directionTitle}>↑ NORTHBOUND</Text>
-            <View style={styles.departuresList}>
-              {northbound.map((departure, index) => {
-                const lineColor = getLineColor(departure.line);
-                const platformNumber = extractPlatformNumber(departure.platform);
-                const platformTextColor = getPlatformTextColor(lineColor);
-                
-                return (
-                  <View key={`nb-${index}`} style={[styles.departureCard, { borderColor: lineColor }]}>
-                    <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
-                      <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
-                      <Text style={[styles.platformNumber, { color: platformTextColor }]}>
-                        {platformNumber}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.departureDetails}>
-                      <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
-                      <Text style={styles.destination}>{departure.destination.replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
-                    </View>
-                    
-                    <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
-                  </View>
-                );
-              })}
-            </View>
+            {northbound.map((d, i) => renderDepartureBlock(d, i, 'nb'))}
           </View>
         )}
-
         {southbound.length > 0 && (
           <View style={styles.directionSection}>
             <Text style={styles.directionTitle}>↓ SOUTHBOUND</Text>
-            <View style={styles.departuresList}>
-              {southbound.map((departure, index) => {
-                const lineColor = getLineColor(departure.line);
-                const platformNumber = extractPlatformNumber(departure.platform);
-                const platformTextColor = getPlatformTextColor(lineColor);
-                
-                return (
-                  <View key={`sb-${index}`} style={[styles.departureCard, { borderColor: lineColor }]}>
-                    <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
-                      <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
-                      <Text style={[styles.platformNumber, { color: platformTextColor }]}>
-                        {platformNumber}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.departureDetails}>
-                      <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
-                      <Text style={styles.destination}>{departure.destination.replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
-                    </View>
-                    
-                    <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {(!stationData || stationData.departures.length === 0) && (
-          <View style={styles.noDeparturesContainer}>
-            <Ionicons name="train" size={48} color="#666" />
-            <Text style={styles.noDeparturesText}>No departure information available</Text>
-            <Text style={styles.noDeparturesSubtext}>
-              Service may be suspended or station closed
-            </Text>
+            {southbound.map((d, i) => renderDepartureBlock(d, i, 'sb'))}
           </View>
         )}
       </ScrollView>
@@ -361,176 +191,27 @@ export default function StationDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F7', 
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  stationTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 1.5,
-    textAlign: 'center',
-  },
-  currentTime: {
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-  refreshButton: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#E74C3C',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorSubtext: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  lastUpdatedContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  lastUpdatedText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-  },
-  directionSection: {
-    marginTop: 20,
-  },
-  directionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#666666',
-    marginBottom: 12,
-    marginHorizontal: 16,
-    letterSpacing: 0.5,
-  },
-  departuresList: {
-    backgroundColor: 'transparent',
-  },
-  departureCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  platformCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  platformLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  platformNumber: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: -2,
-  },
-  departureDetails: {
-    flex: 1,
-  },
-  lineName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  destination: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#000000',
-  },
-  dueTime: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#000000',
-    minWidth: 90,
-    textAlign: 'right',
-  },
-  noDeparturesContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-  },
-  noDeparturesText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  noDeparturesSubtext: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 8,
-  },
+  container: { flex: 1, backgroundColor: '#F5F5F7' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 20 },
+  backButton: { padding: 8, marginRight: 8 },
+  headerContent: { flex: 1, alignItems: 'center' },
+  stationTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1.5, textAlign: 'center' },
+  refreshButton: { padding: 8 },
+  content: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontSize: 18, color: '#E74C3C', textAlign: 'center', marginTop: 16, marginBottom: 24 },
+  retryButton: { backgroundColor: '#007AFF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  directionSection: { marginTop: 20 },
+  directionTitle: { fontSize: 15, fontWeight: '600', color: '#666666', marginBottom: 12, marginHorizontal: 16, letterSpacing: 0.5 },
+  departureCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginVertical: 6, paddingHorizontal: 16, paddingVertical: 18, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  platformCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  platformLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  platformNumber: { fontSize: 16, fontWeight: '700', marginTop: -2 },
+  departureDetails: { flex: 1 },
+  lineName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  destination: { fontSize: 20, fontWeight: '800', color: '#000000' },
+  dueTime: { fontSize: 22, fontWeight: '800', color: '#000000', minWidth: 90, textAlign: 'right' }
 });

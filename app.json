@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.mycommute.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "fetch"
+          "fetch",
+          "remote-notification"
         ]
       },
       "entitlements": {

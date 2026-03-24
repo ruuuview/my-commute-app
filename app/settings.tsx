@@ -94,9 +94,6 @@ export default function SettingsScreen() {
     try {
       setNotificationSettings(newSettings);
       await AsyncStorage.setItem('notification_settings', JSON.stringify(newSettings));
-      
-      // TODO: Sync with backend API when device token is registered
-      // await syncNotificationSettingsToBackend(newSettings);
     } catch (error) {
       console.error('Error saving notification settings:', error);
       Alert.alert('Error', 'Failed to save notification settings. Please try again.');
@@ -142,34 +139,6 @@ export default function SettingsScreen() {
     return Math.max(0, TRIAL_DURATION_DAYS - diffDays);
   };
 
-  const handleUpgradeToPro = () => {
-    Alert.alert(
-      'Upgrade to Pro - £7.99',
-      'Get lifetime access with a one-time payment. No subscriptions, ever.\n\n✅ Unlimited lines & stations\n✅ All features unlocked\n✅ No ads\n\n(Payment integration coming soon)',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Upgrade Now - £7.99',
-          onPress: async () => {
-            try {
-              // TODO: Integrate Stripe payment here
-              const upgradedPrefs = {
-                ...userPrefs,
-                is_pro: true,
-              };
-              setUserPrefs(upgradedPrefs);
-              await AsyncStorage.setItem('user_preferences', JSON.stringify(upgradedPrefs));
-              Alert.alert('Welcome to Pro! 🎉', 'All features unlocked. Enjoy unlimited access!');
-            } catch (error) {
-              console.error('Error upgrading to Pro:', error);
-              Alert.alert('Error', 'Failed to upgrade. Please try again.');
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const handleOpenLink = (url: string) => {
     Linking.openURL(url).catch((err) => console.error('Error opening link:', err));
   };
@@ -184,16 +153,9 @@ export default function SettingsScreen() {
     ? getTrialDaysRemaining(userPrefs.trial_start_date)
     : 0;
 
-  // Check if user is currently on an active trial
   const isTrialActive = userPrefs.trial_activated && 
                        userPrefs.trial_start_date && 
                        trialDaysRemaining > 0;
-
-  // Determine effective plan status
-  const effectivePlan = userPrefs.is_pro ? 'PRO' : (isTrialActive ? 'PRO (TRIAL)' : 'BASIC');
-  const planDescription = userPrefs.is_pro 
-    ? 'Unlimited lines & stations' 
-    : (isTrialActive ? `${trialDaysRemaining} days remaining` : '3 items maximum');
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -203,25 +165,11 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
-        {/* Upgrade to Pro Button - Only show if not Pro AND trial not active */}
-        {!userPrefs.is_pro && !isTrialActive && (
-          <TouchableOpacity style={styles.upgradeCard} onPress={handleUpgradeToPro}>
-            <View style={styles.upgradeIconContainer}>
-              <Ionicons name="star" size={24} color="#FFFFFF" />
-            </View>
-            <View style={styles.upgradeTextContainer}>
-              <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
-              <Text style={styles.upgradeSubtitle}>One-time payment · Lifetime access</Text>
-            </View>
-            <Text style={styles.upgradePrice}>£7.99</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* ✅ PHASE 2: New Smart Pro Status Card - Shows only ONE relevant status */}
+        {/* Smart Pro Status Card */}
         <ProStatusCard 
           isPro={userPrefs.is_pro}
           trialDaysRemaining={userPrefs.trial_start_date ? getTrialDaysRemaining(userPrefs.trial_start_date) : 0}
-          onUpgrade={handleUpgradeToPro}
+          onUpgrade={() => Alert.alert('Coming Soon', 'Pro features and upgrades will be available in a future update.')}
         />
 
         {/* Notifications Section */}
@@ -239,7 +187,6 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <View style={styles.settingCard}>
-              {/* Master Toggle */}
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
                   <View style={styles.settingLabelRow}>
@@ -262,7 +209,6 @@ export default function SettingsScreen() {
                 <>
                   <View style={styles.divider} />
 
-                  {/* Alert Type: Severe Delays */}
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
@@ -283,7 +229,6 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Alert Type: Minor Delays */}
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
@@ -304,7 +249,6 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Quiet Hours */}
                   <TouchableOpacity 
                     style={styles.settingRow} 
                     onPress={handleEditQuietHours}
@@ -324,7 +268,6 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Push Notification Status */}
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
@@ -341,7 +284,6 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          {/* Info Card */}
           <View style={styles.infoCard}>
             <Ionicons name="information-circle" size={24} color="#007AFF" />
             <Text style={styles.infoText}>
@@ -359,7 +301,7 @@ export default function SettingsScreen() {
               <Ionicons name="information-circle-outline" size={24} color="#666" />
               <View style={styles.aboutInfo}>
                 <Text style={styles.aboutLabel}>App Version</Text>
-                <Text style={styles.aboutValue}>1.0.0</Text>
+                <Text style={styles.aboutValue}>1.0.3</Text>
               </View>
             </View>
             
@@ -375,107 +317,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* DEVELOPER: Trial Testing Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🧪 Trial Testing (Developer)</Text>
-          
-          <TouchableOpacity 
-            style={styles.testButton}
-            onPress={async () => {
-              // Simulate first launch by removing user preferences
-              await AsyncStorage.removeItem('user_preferences');
-              Alert.alert('✅ Reset Complete', 'App data cleared. Close and reopen the app to see Welcome Modal.', [
-                { text: 'OK' }
-              ]);
-            }}
-          >
-            <Text style={styles.testButtonText}>Test 1: First Launch (Welcome Modal)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.testButton}
-            onPress={async () => {
-              const prefs = {
-                saved_lines: ['central', 'victoria'],
-                saved_stations: ['940GZZLUOXC'],
-                is_pro: false,
-                trial_activated: true,
-                trial_start_date: new Date(Date.now() - (38 * 24 * 60 * 60 * 1000)).toISOString(),
-                seven_day_warning_dismissed: false,
-                welcome_modal_shown: true,
-              };
-              await AsyncStorage.setItem('user_preferences', JSON.stringify(prefs));
-              Alert.alert('✅ Setup Complete', 'Close and reopen the app to see 7-Day Warning.', [
-                { text: 'OK' }
-              ]);
-            }}
-          >
-            <Text style={styles.testButtonText}>Test 2: 7-Day Warning Banner</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.testButton}
-            onPress={async () => {
-              const prefs = {
-                saved_lines: ['central'],
-                saved_stations: ['940GZZLUOXC'],
-                is_pro: false,
-                trial_activated: true,
-                trial_start_date: new Date().toISOString(),
-                in_trial_prompt_shown: false,
-                welcome_modal_shown: true,
-              };
-              await AsyncStorage.setItem('user_preferences', JSON.stringify(prefs));
-              Alert.alert('✅ Setup Complete', 'Close and reopen the app to see In-Trial Prompt.', [
-                { text: 'OK' }
-              ]);
-            }}
-          >
-            <Text style={styles.testButtonText}>Test 3: In-Trial Feature Prompt</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.testButton}
-            onPress={async () => {
-              const prefs = {
-                saved_lines: ['central', 'victoria', 'elizabeth', 'northern'],
-                saved_stations: ['940GZZLUOXC', '940GZZLUKSX'],
-                is_pro: false,
-                trial_activated: true,
-                trial_start_date: new Date(Date.now() - (46 * 24 * 60 * 60 * 1000)).toISOString(),
-                trial_expired_modal_shown: false,
-                welcome_modal_shown: true,
-              };
-              await AsyncStorage.setItem('user_preferences', JSON.stringify(prefs));
-              Alert.alert('✅ Setup Complete', 'Close and reopen the app to see Trial Expired Modal.', [
-                { text: 'OK' }
-              ]);
-            }}
-          >
-            <Text style={styles.testButtonText}>Test 4: Trial Expired Modal</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.testButton, styles.resetButton]}
-            onPress={async () => {
-              const prefs = {
-                saved_lines: ['central', 'victoria'],
-                saved_stations: ['940GZZLUOXC', '940GZZLUKSX'],
-                is_pro: true, // Back to Pro
-                trial_activated: true,
-                trial_start_date: new Date().toISOString(),
-              };
-              await AsyncStorage.setItem('user_preferences', JSON.stringify(prefs));
-              Alert.alert('✅ Reset to Pro', 'You are now Pro again. Close and reopen the app.', [
-                { text: 'OK' }
-              ]);
-            }}
-          >
-            <Text style={[styles.testButtonText, { color: '#fff' }]}>Reset to Pro Status</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -511,50 +352,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  // Upgrade Card
-  upgradeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  upgradeIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  upgradeTextContainer: {
-    flex: 1,
-  },
-  upgradeTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  upgradeSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-  },
-  upgradePrice: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  // Section
   section: {
     marginTop: 24,
     paddingHorizontal: 16,
@@ -573,7 +370,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  // Setting Card
   settingCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -615,7 +411,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 8,
   },
-  // Info Card
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -633,7 +428,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     lineHeight: 20,
   },
-  // Status Card
   statusCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -698,7 +492,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#F0F0F0',
   },
-  // About Card
   aboutCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -727,24 +520,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-  },
-  // Developer Test Buttons
-  testButton: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#007AFF',
-  },
-  testButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#007AFF',
-    textAlign: 'center',
-  },
-  resetButton: {
-    backgroundColor: '#D32F2F',
-    borderColor: '#D32F2F',
   },
 });

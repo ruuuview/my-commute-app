@@ -16,11 +16,9 @@ import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ✅ STEP 2: Import Zustand store and hook
 import { useLine, useLines, useLineLoading, useLineError } from '../../store/lineDataStore';
 import { useLineData } from '../../hooks/useLineData';
 
-// Pre-defined alternative line mappings
 const LINE_ALTERNATIVES: { [key: string]: string[] } = {
   'central': ['elizabeth', 'district'],
   'northern': ['victoria', 'jubilee'],
@@ -35,7 +33,6 @@ const LINE_ALTERNATIVES: { [key: string]: string[] } = {
   'waterloo-city': ['northern', 'bakerloo'],
   'dlr': ['jubilee', 'elizabeth'],
   'elizabeth': ['central', 'dlr'],
-  // ✅ FIX: TfL split Overground into 6 named lines - add all of them
   'liberty': ['jubilee', 'northern', 'elizabeth'],
   'lioness': ['jubilee', 'northern', 'bakerloo'],
   'mildmay': ['jubilee', 'northern', 'victoria'],
@@ -44,8 +41,6 @@ const LINE_ALTERNATIVES: { [key: string]: string[] } = {
   'windrush': ['jubilee', 'northern', 'dlr'],
 };
 
-// ✅ COMPLETE TfL INTERCHANGE DATABASE - All 171 line pair combinations
-// Updated structure: Now includes station IDs (naptanId) for navigation and Pro/Free logic
 interface InterchangeStation {
   id: string;
   name: string;
@@ -57,7 +52,6 @@ interface SharedTrackInfo {
 
 type ConnectionData = InterchangeStation[] | SharedTrackInfo;
 
-// Complete database with all 171 unique line-pair combinations
 const COMPLETE_INTERCHANGE_DB: { [key: string]: ConnectionData } = {
   'bakerloo-central': [],
   'bakerloo-circle': [{ id: '940GZZLUBST', name: 'Baker Street' }, { id: '940GZZLUEMB', name: 'Embankment' }],
@@ -265,38 +259,14 @@ interface LineDetailData extends LineData {
   };
 }
 
-// Helper function to get status color (traffic light system)
-const getStatusColor = (severity: number): string => {
-  if (severity <= 2) return '#00B04F'; // Green - Good Service
-  if (severity <= 5) return '#F39C12'; // Amber/Yellow - Minor Delays  
-  return '#E74C3C'; // Red - Severe Delays/Suspended
-};
-
-// Helper function to get station status color and icon
-const getStationStatusIcon = (status: string): { icon: string; color: string } => {
-  switch (status) {
-    case 'closed':
-      return { icon: 'close-circle', color: '#E74C3C' }; // Red
-    case 'part_suspended':
-      return { icon: 'warning', color: '#F39C12' }; // Amber
-    case 'no_service':
-      return { icon: 'remove-circle', color: '#E74C3C' }; // Red
-    default:
-      return { icon: 'checkmark-circle', color: '#00B04F' }; // Green
-  }
-};
-
-// Helper function: Calculate trial days remaining
 const getTrialDaysRemaining = (trialStartDate: string): number => {
   if (!trialStartDate) return 0;
   const startDate = new Date(trialStartDate);
   const currentDate = new Date();
   const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  const daysRemaining = Math.max(0, 45 - daysSinceStart);
-  return daysRemaining;
+  return Math.max(0, 45 - daysSinceStart);
 };
 
-// Helper function: Check if user has Pro access (either paid Pro or active trial)
 const hasProAccess = (isPro: boolean, trialDaysRemaining: number): boolean => {
   return isPro || trialDaysRemaining > 0;
 };
@@ -311,14 +281,10 @@ interface UserPreferences {
 export default function LineDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const navigation = useNavigation();
   const lineId = params.lineId as string;
-  const lineName = params.lineName as string;
-  const lineColor = params.lineColor as string;
-  const fromLineId = params.fromLineId as string | undefined;  // ✅ FIX: Extract fromLineId for "Key Connections" card
-  const fromLineName = params.fromLineName as string | undefined;  // ✅ FIX: Extract fromLineName for display
+  const fromLineId = params.fromLineId as string | undefined;
+  const fromLineName = params.fromLineName as string | undefined;
 
-  // ✅ STEP 2: Get user preferences for Pro/Free logic
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     is_pro: false,
     trial_start_date: '',
@@ -326,7 +292,6 @@ export default function LineDetailScreen() {
     saved_lines: [],
   });
 
-  // Load user preferences on mount
   useEffect(() => {
     const loadUserPrefs = async () => {
       try {
@@ -341,115 +306,61 @@ export default function LineDetailScreen() {
     loadUserPrefs();
   }, []);
 
-  // ✅ STEP 2: Read data from Zustand store instead of local state
   const lineData = useLine(lineId);
   const allLinesMap = useLines();
   const loading = useLineLoading();
   const error = useLineError();
-  
-  // ✅ STEP 2: Use data fetching hook
   const { fetchAllLines } = useLineData();
-  
-  console.log('✨ Line Detail v3.0 - Using Zustand Store (Step 2 Migration)');
-  console.log('📊 Line data from store:', lineData ? lineData.status : 'Not loaded');
 
-  // ✅ STEP 2: Fetch data on mount if store is empty
   useEffect(() => {
     const loadData = async () => {
-      // If we don't have data in the store yet, fetch it
       if (!lineData || Object.keys(allLinesMap).length === 0) {
-        console.log('🔄 Store empty, fetching all lines...');
         await fetchAllLines();
-      } else {
-        console.log('✅ Using cached data from store');
       }
     };
-    
     loadData();
-  }, [lineId]); // Only re-run if lineId changes
+  }, [lineId]);
 
-  // ✅ STEP 2: Get alternative lines with good service (using store data)
   const getAlternativeLines = () => {
     if (!lineData || lineData.status_severity <= 2) {
-      return []; // No alternatives needed for good service
+      return [];
     }
-
     const potentialAlternatives = LINE_ALTERNATIVES[lineId] || [];
-    
-    // Filter alternatives to only show those with good service
-    const goodAlternatives = potentialAlternatives
+    return potentialAlternatives
       .map(altLineId => allLinesMap[altLineId])
-      .filter(altLine => altLine && altLine.status_severity <= 2); // Good service or minor delays only
-    
-    return goodAlternatives;
+      .filter(altLine => altLine && altLine.status_severity <= 2);
   };
 
-  // ✅ Get connection data from complete database
   const getConnectionData = (line1Id: string, line2Id: string): ConnectionData | null => {
-    // Sort IDs to create consistent key
     const key = [line1Id, line2Id].sort().join('-');
     const data = COMPLETE_INTERCHANGE_DB[key];
-    
-    // Return null only if data is empty array (no connection)
-    if (Array.isArray(data) && data.length === 0) {
-      return null;
-    }
-    
+    if (Array.isArray(data) && data.length === 0) return null;
     return data || null;
   };
 
-  // ✅ STEP 3: Show upgrade modal for free users
   const showUpgradeModal = () => {
     Alert.alert(
-      'Unlock All Station Departures',
-      'Get live departure times for any station. Upgrade to Pro for unlimited access.\n\nPay once, own it forever. Just £7.99.',
-      [
-        { text: 'Not Now', style: 'cancel' },
-        { text: 'Upgrade for Life - £7.99', onPress: () => router.push('/settings') },
-      ]
+      'Premium Feature',
+      'Live departure times for unsaved stations will be available in the upcoming Pro version.',
+      [{ text: 'OK', style: 'cancel' }]
     );
   };
 
-  // ✅ STEP 3: Handle station tap with 3-scenario Pro/Free logic
   const handleStationTap = (tappedStationId: string) => {
-    console.log('🚉 Station tapped:', tappedStationId);
-    
     const trialDaysRemaining = getTrialDaysRemaining(userPrefs.trial_start_date);
-    const isPro = userPrefs.is_pro;
-
-    // Scenario 1: User is Pro (or in trial)
-    if (hasProAccess(isPro, trialDaysRemaining)) {
-      console.log('✅ User is Pro/Trial. Navigating to station detail.');
+    if (hasProAccess(userPrefs.is_pro, trialDaysRemaining) || userPrefs.saved_stations.includes(tappedStationId)) {
       router.push(`/stationDetail?stationId=${tappedStationId}`);
-      return;
+    } else {
+      showUpgradeModal();
     }
-
-    // User is on the Free plan. Check if the station is one of their saved ones.
-    const isStationSaved = userPrefs.saved_stations.includes(tappedStationId);
-
-    // Scenario 3: Free user, tapped a station they have already saved
-    if (isStationSaved) {
-      console.log('✅ User is Free, but station is saved. Navigating.');
-      router.push(`/stationDetail?stationId=${tappedStationId}`);
-      return;
-    }
-
-    // Scenario 2: Free user, tapped a station that is NOT saved
-    console.log('🔒 User is Free, station not saved. Showing upgrade modal.');
-    showUpgradeModal();
   };
 
   const alternatives = getAlternativeLines();
 
   const handleBack = () => {
-    console.log('🔙 Back button pressed');
-    console.log('🔙 Can go back:', router.canGoBack());
-    console.log('🔙 Current params:', params);
-    
     if (router.canGoBack()) {
       router.back();
     } else {
-      // Fallback to dashboard if no history
       router.push('/');
     }
   };
@@ -481,7 +392,6 @@ export default function LineDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Sharp Header - Line-branded */}
       <View style={[styles.header, { backgroundColor: lineData.color }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -489,9 +399,7 @@ export default function LineDetailScreen() {
         <Text style={styles.lineTitle}>{lineData.name}</Text>
       </View>
 
-      {/* Content Area */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Status Card with Left Border Accent */}
         <View style={[
           styles.statusCard,
           {
@@ -501,69 +409,50 @@ export default function LineDetailScreen() {
           }
         ]}>
           <Text style={styles.statusTitle}>{lineData.status}</Text>
-          
-          {lineData.reason && (
-            <Text style={styles.statusDescription}>{lineData.reason}</Text>
-          )}
-          
+          {lineData.reason && <Text style={styles.statusDescription}>{lineData.reason}</Text>}
           <Text style={styles.statusTimestamp}>
             Updated: {new Date(lineData.updated_at).toLocaleTimeString()}
           </Text>
         </View>
 
-        {/* ✅ Key Connections Card - 3-tier logic using COMPLETE database */}
         {fromLineId && fromLineName && (() => {
           const connectionData = getConnectionData(fromLineId, lineId);
-          console.log('🔍 KEY CONNECTIONS DEBUG:');
-          console.log('  fromLineId:', fromLineId);
-          console.log('  lineId:', lineId);
-          console.log('  connectionData:', connectionData);
           
-          // Tier 1: Check if this is a "shared track" pair
           if (connectionData && 'sharedTrack' in connectionData) {
             return (
               <View style={styles.keyConnectionsCard}>
                 <View style={styles.keyConnectionsHeader}>
                   <Ionicons name="git-branch" size={24} color="#007AFF" />
-                  <Text style={styles.keyConnectionsTitle}>
-                    Key Connections with {fromLineName}
-                  </Text>
+                  <Text style={styles.keyConnectionsTitle}>Key Connections with {fromLineName}</Text>
                 </View>
-                <Text style={styles.sharedTrackMessage}>
-                  {connectionData.sharedTrack}
-                </Text>
+                <Text style={styles.sharedTrackMessage}>{connectionData.sharedTrack}</Text>
               </View>
             );
           }
           
-          // Tier 2: Check if we have specific interchange stations
           if (connectionData && Array.isArray(connectionData) && connectionData.length > 0) {
             return (
               <View style={styles.keyConnectionsCard}>
                 <View style={styles.keyConnectionsHeader}>
                   <Ionicons name="swap-horizontal" size={24} color="#007AFF" />
-                  <Text style={styles.keyConnectionsTitle}>
-                    Key Connections with {fromLineName}
-                  </Text>
+                  <Text style={styles.keyConnectionsTitle}>Key Connections with {fromLineName}</Text>
                 </View>
                 <Text style={styles.keyConnectionsSubtitle}>
                   Switch between these lines at the following stations:
                 </Text>
                 <View style={styles.connectionStationsList}>
-                  {connectionData.map((station, index) => {
-                    return (
-                      <TouchableOpacity 
-                        key={index} 
-                        style={styles.connectionStationItem}
-                        onPress={() => handleStationTap(station.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="locate" size={20} color="#007AFF" />
-                        <Text style={styles.connectionStationName}>{station.name}</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#999" />
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {connectionData.map((station, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.connectionStationItem}
+                      onPress={() => handleStationTap(station.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="locate" size={20} color="#007AFF" />
+                      <Text style={styles.connectionStationName}>{station.name}</Text>
+                      <Ionicons name="chevron-forward" size={20} color="#999" />
+                    </TouchableOpacity>
+                  ))}
                 </View>
                 <Text style={styles.keyConnectionsNote}>
                   💡 Tap a station in your "Stations" list for live departure times
@@ -572,40 +461,26 @@ export default function LineDetailScreen() {
             );
           }
           
-          // Tier 3: Fallback to Journey Planner button (no connection data or empty array)
-          console.log('🔵 TIER 3: Rendering Find Connections card with Journey Planner button');
           return (
             <View style={styles.keyConnectionsCard}>
               <View style={styles.keyConnectionsHeader}>
                 <Ionicons name="swap-horizontal" size={24} color="#007AFF" />
-                <Text style={styles.keyConnectionsTitle}>
-                  Find Connections with {fromLineName}
-                </Text>
+                <Text style={styles.keyConnectionsTitle}>Find Connections with {fromLineName}</Text>
               </View>
               <Text style={styles.keyConnectionsSubtitle}>
                 Use our Journey Planner to find the best interchange stations between these lines.
               </Text>
-              <View style={{ backgroundColor: 'yellow', padding: 20, marginTop: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'black' }}>
-                  TEST: CAN YOU SEE THIS YELLOW BOX?
-                </Text>
-              </View>
               <TouchableOpacity 
-                style={{ backgroundColor: 'red', padding: 20, marginTop: 16, borderRadius: 10 }}
-                onPress={() => {
-                  console.log('🚀 Journey Planner button pressed!');
-                  router.push('/journeyPlanner');
-                }}
+                style={styles.journeyPlannerButton}
+                onPress={() => router.push('/journeyPlanner')}
               >
-                <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
-                  OPEN JOURNEY PLANNER
-                </Text>
+                <Text style={styles.journeyPlannerButtonText}>Open Journey Planner</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
           );
         })()}
 
-        {/* Journey Planner Card - Show BELOW Key Connections card when fromLineId exists */}
         {fromLineId && fromLineName && (
           <View style={styles.journeyPlannerCard}>
             <Text style={styles.journeyPlannerTitle}>Need to plan another route?</Text>
@@ -619,7 +494,6 @@ export default function LineDetailScreen() {
           </View>
         )}
 
-        {/* Alternatives List - Only show if disrupted */}
         {lineData.status_severity > 2 && alternatives.length > 0 && (
           <View style={styles.alternativesCard}>
             <Text style={styles.alternativesTitle}>✨ Try These Alternatives</Text>
@@ -628,8 +502,6 @@ export default function LineDetailScreen() {
                 key={altLine.id}
                 style={styles.alternativeItem}
                 onPress={() => {
-                  // ✅ REVERT: Use router.push() since navigation.push() doesn't work with Expo Router
-                  console.log(`📍 Navigating from ${lineData.name} to ${altLine.name}`);
                   router.push({
                     pathname: '/lineDetail',
                     params: {
@@ -656,7 +528,6 @@ export default function LineDetailScreen() {
             ))}
           </View>
         )}
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -665,14 +536,13 @@ export default function LineDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F9', // Clean neutral background
+    backgroundColor: '#F4F6F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 0, // Sharp corners for header
   },
   backButton: {
     padding: 8,
@@ -686,23 +556,15 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  // Status Card with Left Border Accent
   statusCard: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 24, // 24px vertical spacing
-    borderRadius: 12, // Rounded corners
+    marginTop: 24,
+    borderRadius: 12,
     padding: 20,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 5,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10 },
+      android: { elevation: 5 },
     }),
   },
   statusTitle: {
@@ -722,7 +584,6 @@ const styles = StyleSheet.create({
     color: '#999',
     fontStyle: 'italic',
   },
-  // ✅ Key Connections Card Styles
   keyConnectionsCard: {
     backgroundColor: '#E3F2FD',
     marginHorizontal: 16,
@@ -732,15 +593,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#007AFF',
     ...Platform.select({
-      ios: {
-        shadowColor: '#007AFF',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
+      ios: { shadowColor: '#007AFF', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
+      android: { elevation: 4 },
     }),
   },
   keyConnectionsHeader: {
@@ -771,15 +625,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 2,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
+      android: { elevation: 2 },
     }),
   },
   connectionStationName: {
@@ -817,23 +664,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Alternatives Card
   alternativesCard: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 24, // 24px vertical spacing
+    marginTop: 24,
     borderRadius: 12,
     padding: 20,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 5,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10 },
+      android: { elevation: 5 },
     }),
   },
   alternativesTitle: {
@@ -874,24 +713,16 @@ const styles = StyleSheet.create({
     color: '#00B04F',
     fontWeight: '500',
   },
-  // Journey Planner Card - Always Visible
   journeyPlannerCard: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 24, // 24px vertical spacing
-    marginBottom: 24, // Bottom margin for last card
+    marginTop: 24,
+    marginBottom: 24,
     borderRadius: 12,
     padding: 20,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 5,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10 },
+      android: { elevation: 5 },
     }),
   },
   journeyPlannerTitle: {
@@ -915,7 +746,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  // Loading & Error States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

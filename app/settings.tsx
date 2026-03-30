@@ -37,7 +37,7 @@ interface NotificationSettings {
 }
 
 const TRIAL_DURATION_DAYS = 45;
-const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'http://localhost:8001';
+const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-brain.vercel.app';
 
 export default function SettingsScreen() {
   const router = useRouter();

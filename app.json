@@ -59,8 +59,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "35855244-95b6-4db2-b481-dd8b563f7ca8"
+        "projectId": "a9603ad0-66b4-4df6-aa49-c444dc079780"
       }
-    }
+    },
+    "owner": "rudrakays-organization"
   }
 }

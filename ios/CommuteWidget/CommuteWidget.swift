@@ -1,5 +1,5 @@
-
-import WidgetKit
+Found all 4 bugs in your Swift code. Same inverted math, plus swapped icons. Let me write the complete fixed file.
+Action: file_editor create /app/frontend/ios/CommuteWidget/CommuteWidget.swift --file-text "import WidgetKit
 import SwiftUI
 import AppIntents
 
@@ -38,55 +38,72 @@ struct CommuteLine: Identifiable {
     let status: String
     let severity: Int
 
+    // ============================================================
+    // FIXED: TfL Severity → SeverityLevel
+    // TfL's scale is BACKWARDS: 10 = Good Service, 0 = Special Service
+    // This matches the backend's _severity_to_visuals() EXACTLY.
+    // ============================================================
     var level: SeverityLevel {
         switch severity {
-        case ...2:  return .good
-        case 3...5: return .minor
-        case 6...9: return .severe
-        default:    return .suspended
+        case 10, 18:       return .good       // Good Service / No Issues
+        case 9, 14, 19:    return .minor      // Minor Delays / Change of Frequency / Information
+        case 6, 7, 8, 17:  return .severe     // Severe Delays / Reduced / Bus Service / Issues Reported
+        default:           return .suspended  // Everything else (0-5, 11, 12, 15, 16, 20)
         }
     }
 }
 
+// ============================================================
+// MARK: - SEVERITY LEVEL (Visual Theme)
+// Colors match the confirmed design spec:
+//   Good:      #28A745 (Green)
+//   Minor:     #FFBF00 (Amber)
+//   Severe:    #DC3545 (Red)
+//   Suspended: #E32017 (Extreme TfL Red)
+// ============================================================
 enum SeverityLevel {
     case good, minor, severe, suspended
 
     var gradientColors: [Color] {
         switch self {
-        case .good:   return [Color(red: 0.06, green: 0.45, blue: 0.22), Color(red: 0.03, green: 0.25, blue: 0.12)]
-        case .minor:  return [Color(red: 1.00, green: 0.82, blue: 0.10), Color(red: 0.90, green: 0.65, blue: 0.00)]
-        case .severe: return [Color(red: 0.90, green: 0.36, blue: 0.00), Color(red: 0.70, green: 0.20, blue: 0.00)] // Orange
-        case .suspended: return [Color(red: 0.56, green: 0.08, blue: 0.08), Color(red: 0.32, green: 0.04, blue: 0.04)] // Deep Red
+        case .good:      return [Color(red: 0.157, green: 0.655, blue: 0.271),
+                                 Color(red: 0.118, green: 0.494, blue: 0.208)]  // #28A745 → darker
+        case .minor:     return [Color(red: 1.000, green: 0.749, blue: 0.000),
+                                 Color(red: 0.902, green: 0.659, blue: 0.000)]  // #FFBF00 → darker
+        case .severe:    return [Color(red: 0.863, green: 0.208, blue: 0.271),
+                                 Color(red: 0.741, green: 0.129, blue: 0.188)]  // #DC3545 → darker
+        case .suspended: return [Color(red: 0.890, green: 0.125, blue: 0.090),
+                                 Color(red: 0.722, green: 0.102, blue: 0.071)]  // #E32017 → darker
         }
     }
 
     var iconColor: Color {
         switch self {
-        case .good:   return Color(red: 0.13, green: 0.65, blue: 0.30)
-        case .minor:  return Color(red: 0.85, green: 0.55, blue: 0.00)
-        case .severe: return Color(red: 0.90, green: 0.36, blue: 0.00)
-        case .suspended: return Color(red: 0.85, green: 0.15, blue: 0.15)
+        case .good:      return Color(red: 0.157, green: 0.655, blue: 0.271) // #28A745
+        case .minor:     return Color(red: 0.851, green: 0.549, blue: 0.000) // Dark amber for contrast
+        case .severe:    return Color(red: 0.863, green: 0.208, blue: 0.271) // #DC3545
+        case .suspended: return Color(red: 0.890, green: 0.125, blue: 0.090) // #E32017
         }
     }
 
     var textColor: Color {
         switch self {
         case .good, .severe, .suspended: return .white
-        case .minor:         return Color(red: 0.15, green: 0.10, blue: 0.00)
+        case .minor: return Color(red: 0.15, green: 0.10, blue: 0.00)
         }
     }
 
     var secondaryTextColor: Color {
         switch self {
         case .good, .severe, .suspended: return .white.opacity(0.80)
-        case .minor:         return Color(red: 0.25, green: 0.15, blue: 0.00).opacity(0.85)
+        case .minor: return Color(red: 0.25, green: 0.15, blue: 0.00).opacity(0.85)
         }
     }
 
     var dividerColor: Color {
         switch self {
         case .good, .severe, .suspended: return .white.opacity(0.3)
-        case .minor:         return Color.black.opacity(0.15)
+        case .minor: return Color.black.opacity(0.15)
         }
     }
 }
@@ -117,6 +134,7 @@ struct CommuteEntry: TimelineEntry {
         date.timeIntervalSince(fetchDate) >= WidgetMetrics.staleThreshold
     }
 
+    // Worst line = LOWEST severity (TfL: lower = worse)
     var worstLine: CommuteLine? {
         lines.min(by: { $0.severity < $1.severity })
     }
@@ -137,7 +155,7 @@ struct CommuteEntry: TimelineEntry {
 // ============================================================
 // MARK: - APP GROUP CONFIG & PROVIDER
 // ============================================================
-private let kAppGroupID = "group.com.mycommute.app"
+private let kAppGroupID = \"group.com.mycommute.app\"
 
 struct CommuteProvider: TimelineProvider {
     func placeholder(in context: Context) -> CommuteEntry {
@@ -177,39 +195,39 @@ struct CommuteProvider: TimelineProvider {
         do {
             savedLines = try readSavedLines()
         } catch {
-            return ([], "BRIDGE ERROR:\n\(error.localizedDescription)")
+            return ([], \"BRIDGE ERROR:\n\(error.localizedDescription)\")
         }
         guard !savedLines.isEmpty else {
-            return ([], "Open the app to save your commute lines.")
+            return ([], \"Open the app to save your commute lines.\")
         }
         do {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
             return (commuteLines, nil)
         } catch {
-            return ([], "TFL API ERROR:\n\(error.localizedDescription)")
+            return ([], \"TFL API ERROR:\n\(error.localizedDescription)\")
         }
     }
 
     private func readSavedLines() throws -> [SavedLine] {
         guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else { throw WidgetError.appGroupUnavailable }
-        guard let jsonString = userDefaults.string(forKey: "myLines")   else { throw WidgetError.fileNotFound }
-        guard let data = jsonString.data(using: .utf8)                  else { throw WidgetError.decodingFailed("String to UTF-8 failed") }
+        guard let jsonString = userDefaults.string(forKey: \"myLines\")   else { throw WidgetError.fileNotFound }
+        guard let data = jsonString.data(using: .utf8)                  else { throw WidgetError.decodingFailed(\"String to UTF-8 failed\") }
         do {
             return try JSONDecoder().decode([SavedLine].self, from: data)
         } catch let error as DecodingError {
             switch error {
-            case .keyNotFound(let key, let ctx):  throw WidgetError.decodingFailed("Missing key '\(key.stringValue)' at \(ctx.codingPath)")
-            case .typeMismatch(let type, let ctx): throw WidgetError.decodingFailed("Type mismatch: expected \(type) at \(ctx.codingPath)")
-            case .valueNotFound(let type, let ctx):throw WidgetError.decodingFailed("Null value: expected \(type) at \(ctx.codingPath)")
-            case .dataCorrupted(let ctx):          throw WidgetError.decodingFailed("Corrupted JSON: \(ctx.debugDescription)")
+            case .keyNotFound(let key, let ctx):  throw WidgetError.decodingFailed(\"Missing key '\(key.stringValue)' at \(ctx.codingPath)\")
+            case .typeMismatch(let type, let ctx): throw WidgetError.decodingFailed(\"Type mismatch: expected \(type) at \(ctx.codingPath)\")
+            case .valueNotFound(let type, let ctx):throw WidgetError.decodingFailed(\"Null value: expected \(type) at \(ctx.codingPath)\")
+            case .dataCorrupted(let ctx):          throw WidgetError.decodingFailed(\"Corrupted JSON: \(ctx.debugDescription)\")
             @unknown default: throw error
             }
         }
     }
 
     private func fetchTfLStatus(for savedLines: [SavedLine]) async throws -> [CommuteLine] {
-        let ids = savedLines.map(\.id).joined(separator: ",")
-        guard let url = URL(string: "https://api.tfl.gov.uk/Line/\(ids)/Status") else { throw WidgetError.invalidURL }
+        let ids = savedLines.map(\.id).joined(separator: \",\")
+        guard let url = URL(string: \"https://api.tfl.gov.uk/Line/\(ids)/Status\") else { throw WidgetError.invalidURL }
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, _) = try await URLSession.shared.data(for: request)
@@ -229,9 +247,9 @@ enum WidgetError: LocalizedError {
     case appGroupUnavailable, fileNotFound, invalidURL, decodingFailed(String)
     var errorDescription: String? {
         switch self {
-        case .appGroupUnavailable:     return "App Group container not found."
-        case .fileNotFound:            return "Data missing.\nOpen the app first."
-        case .invalidURL:              return "Could not build TfL API URL."
+        case .appGroupUnavailable:     return \"App Group container not found.\"
+        case .fileNotFound:            return \"Data missing.\nOpen the app first.\"
+        case .invalidURL:              return \"Could not build TfL API URL.\"
         case .decodingFailed(let msg): return msg
         }
     }
@@ -239,7 +257,7 @@ enum WidgetError: LocalizedError {
 
 @available(iOS 16.0, *)
 struct RefreshCommuteIntent: AppIntent {
-    static var title: LocalizedStringResource = "Refresh Commute Status"
+    static var title: LocalizedStringResource = \"Refresh Commute Status\"
     func perform() async throws -> some IntentResult {
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -251,8 +269,8 @@ struct RefreshCommuteIntent: AppIntent {
 // ============================================================
 func getAbsoluteTime(from date: Date) -> String {
     let f = DateFormatter()
-    f.dateFormat = "HH:mm"
-    return "Updated \(f.string(from: date))"
+    f.dateFormat = \"HH:mm\"
+    return \"Updated \(f.string(from: date))\"
 }
 
 // ============================================================
@@ -292,11 +310,11 @@ struct WidgetFooterView: View {
             if #available(iOS 17.0, *) {
                 Button(intent: RefreshCommuteIntent()) {
                     HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise")
+                        Image(systemName: \"arrow.clockwise\")
                             .font(.system(size: isStale ? 10 : 9, weight: .bold))
                         
                         if isStale && family != .systemSmall {
-                            Text("WAKE UP")
+                            Text(\"WAKE UP\")
                                 .font(.system(size: 9, weight: .heavy))
                                 .tracking(0.5)
                         }
@@ -308,7 +326,7 @@ struct WidgetFooterView: View {
                     .foregroundColor(pillForeground)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isStale ? "Wake up widget" : "Refresh commute status")
+                .accessibilityLabel(isStale ? \"Wake up widget\" : \"Refresh commute status\")
             }
         }
         .padding(.horizontal, 14)
@@ -388,7 +406,7 @@ struct PriorityView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("PRIORITY")
+            Text(\"PRIORITY\")
                 .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
@@ -415,7 +433,7 @@ struct PriorityView: View {
         .padding(.leading, 14).padding(.top, 14).padding(.bottom, 10)
         .frame(maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(line.name) line priority: \(line.status)")
+        .accessibilityLabel(\"\(line.name) line priority: \(line.status)\")
     }
 }
 
@@ -425,7 +443,7 @@ struct OtherLinesPanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("OTHER LINES")
+            Text(\"OTHER LINES\")
                 .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
@@ -455,7 +473,7 @@ struct SmallPriorityView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            Text("PRIORITY")
+            Text(\"PRIORITY\")
                 .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
@@ -485,7 +503,7 @@ struct SmallPriorityView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(line.name) line priority: \(line.status)")
+        .accessibilityLabel(\"\(line.name) line priority: \(line.status)\")
     }
 }
 
@@ -505,26 +523,46 @@ struct LineRowView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(line.name): \(line.status)")
+        .accessibilityLabel(\"\(line.name): \(line.status)\")
     }
 }
 
+// ============================================================
+// MARK: - STATUS ICON (FIXED icons + Suspended black border)
+// ============================================================
 struct StatusIcon: View {
     let level: SeverityLevel
     let size: CGFloat
 
+    // FIXED: Icons now match the design spec exactly
+    //   Good:      checkmark ✅
+    //   Minor:     clock.fill 🕒 (was exclamationmark.triangle.fill — SWAPPED)
+    //   Severe:    exclamationmark.triangle.fill ⚠️ (was clock.fill — SWAPPED)
+    //   Suspended: xmark ❌
     var iconName: String {
         switch level {
-        case .good:   return "checkmark"
-        case .minor:  return "exclamationmark.triangle.fill"
-        case .severe: return "clock.fill"
-        case .suspended: return "xmark"
+        case .good:      return \"checkmark\"
+        case .minor:     return \"clock.fill\"
+        case .severe:    return \"exclamationmark.triangle.fill\"
+        case .suspended: return \"xmark\"
         }
     }
 
     var body: some View {
         ZStack {
-            Circle().fill(Color.white).frame(width: size, height: size)
+            // White circle base
+            Circle()
+                .fill(Color.white)
+                .frame(width: size, height: size)
+            
+            // Suspended: add black border ring for \"Emergency Pop\" visual
+            if level == .suspended {
+                Circle()
+                    .stroke(Color.black, lineWidth: size * 0.05)
+                    .frame(width: size, height: size)
+            }
+            
+            // Icon
             Image(systemName: iconName)
                 .font(.system(size: size * 0.45, weight: .black))
                 .foregroundColor(level.iconColor)
@@ -537,7 +575,7 @@ struct DebugView: View {
     let theme: SeverityLevel
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.yellow).font(.title3)
+            Image(systemName: \"exclamationmark.triangle.fill\").foregroundColor(.yellow).font(.title3)
             Text(message).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(theme.textColor).multilineTextAlignment(.center).padding(.horizontal, 10)
         }
     }
@@ -547,8 +585,8 @@ struct EmptyStateView: View {
     let theme: SeverityLevel
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: "tram.fill").font(.title2).foregroundColor(theme.secondaryTextColor)
-            Text("Open My Commute to\nsync your saved lines").font(.system(size: 11)).foregroundColor(theme.secondaryTextColor).multilineTextAlignment(.center)
+            Image(systemName: \"tram.fill\").font(.title2).foregroundColor(theme.secondaryTextColor)
+            Text(\"Open My Commute to\nsync your saved lines\").font(.system(size: 11)).foregroundColor(theme.secondaryTextColor).multilineTextAlignment(.center)
         }
     }
 }
@@ -564,13 +602,13 @@ struct ContainerBackgroundModifier: ViewModifier {
 // ============================================================
 @main
 struct CommutePremiumWidget: Widget {
-    let kind = "CommutePremiumWidget"
+    let kind = \"CommutePremiumWidget\"
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: CommuteProvider()) { entry in
             CommutePremiumEntryView(entry: entry)
         }
-        .configurationDisplayName("My Commute")
-        .description("Live TfL status, colour-coded by your worst delay.")
+        .configurationDisplayName(\"My Commute\")
+        .description(\"Live TfL status, colour-coded by your worst delay.\")
         .supportedFamilies([.systemSmall, .systemMedium])
         .disableContentMarginsIfAvailable()
     }
@@ -581,3 +619,103 @@ extension WidgetConfiguration {
         if #available(iOS 17.0, *) { return self.contentMarginsDisabled() } else { return self }
     }
 }
+"
+Observation: Overwrite successful: /app/frontend/ios/CommuteWidget/CommuteWidget.swift
+
+Fetching debug logs for expo
+
+==> /var/log/supervisor/expo.err.log <==
+CommandError: TypeError: Cannot read properties of undefined (reading 'body')
+Check the Ngrok status page for outages: https://status.ngrok.com/
+error Command failed with exit code 1.
+Could not find a shared URI scheme for the dev client between the local /ios and /android directories. App launches (QR code, interstitial, terminal keys) may not work as expected. You can configure a custom scheme using the --scheme option, or by running npx expo prebuild to regenerate the native directories with URI schemes.
+CommandError: TypeError: Cannot read properties of undefined (reading 'body')
+Check the Ngrok status page for outages: https://status.ngrok.com/
+error Command failed with exit code 1.
+Could not find a shared URI scheme for the dev client between the local /ios and /android directories. App launches (QR code, interstitial, terminal keys) may not work as expected. You can configure a custom scheme using the --scheme option, or by running npx expo prebuild to regenerate the native directories with URI schemes.
+CommandError: TypeError: Cannot read properties of undefined (reading 'body')
+Check the Ngrok status page for outages: https://status.ngrok.com/
+error Command failed with exit code 1.
+Could not find a shared URI scheme for the dev client between the local /ios and /android directories. App launches (QR code, interstitial, terminal keys) may not work as expected. You can configure a custom scheme using the --scheme option, or by running npx expo prebuild to regenerate the native directories with URI schemes.
+CommandError: TypeError: Cannot read properties of undefined (reading 'body')
+Check the Ngrok status page for outages: https://status.ngrok.com/
+error Command failed with exit code 1.
+Could not find a shared URI scheme for the dev client between the local /ios and /android directories. App launches (QR code, interstitial, terminal keys) may not work as expected. You can configure a custom scheme using the --scheme option, or by running npx expo prebuild to regenerate the native directories with URI schemes.
+CommandError: TypeError: Cannot read properties of undefined (reading 'body')
+Check the Ngrok status page for outages: https://status.ngrok.com/
+error Command failed with exit code 1.
+Could not find a shared URI scheme for the dev client between the local /ios and /android directories. App launches (QR code, interstitial, terminal keys) may not work as expected. You can configure a custom scheme using the --scheme option, or by running npx expo prebuild to regenerate the native directories with URI schemes.
+
+==> /var/log/supervisor/expo.out.log <==
+$ /app/frontend/node_modules/.bin/expo start --tunnel --port 3000
+env: load .env
+env: export EXPO_TUNNEL_SUBDOMAIN EXPO_PACKAGER_HOSTNAME EXPO_PUBLIC_BACKEND_URL EXPO_USE_FAST_RESOLVER METRO_CACHE_ROOT
+Starting project at /app/frontend
+Fast resolver is enabled.
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+yarn run v1.22.22
+$ /app/frontend/node_modules/.bin/expo start --tunnel --port 3000
+env: load .env
+env: export EXPO_TUNNEL_SUBDOMAIN EXPO_PACKAGER_HOSTNAME EXPO_PUBLIC_BACKEND_URL EXPO_USE_FAST_RESOLVER METRO_CACHE_ROOT
+Starting project at /app/frontend
+Fast resolver is enabled.
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+Tunnel connected.
+Tunnel ready.
+Waiting on http://localhost:3000
+Logs for your project will appear below.
+
+
+Fetching debug logs for backend
+
+==> /var/log/supervisor/backend.err.log <==
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Will watch for changes in these directories: ['/app/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [138] using WatchFiles
+INFO:     Started server process [189]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Will watch for changes in these directories: ['/app/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [140] using WatchFiles
+INFO:     Started server process [185]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Will watch for changes in these directories: ['/app/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [145] using WatchFiles
+INFO:     Started server process [190]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+
+==> /var/log/supervisor/backend.out.log <==
+INFO:     127.0.0.1:48834 - "GET /api/cron/tfl-sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52546 - "GET /api/stations/batch?ids=940GZZLUOXC,940GZZLUKSX HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52552 - "GET /api/stations/search-by-location?query=British+Museum HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37140 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37148 - "GET /api/lines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37152 - "GET /api/lines/central HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37154 - "GET /api/stations/940GZZLUOXC HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37164 - "GET /api/stations/batch?ids=940GZZLUOXC,940GZZLUKSX HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37170 - "GET /api/stations/search/victoria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37172 - "GET /api/stations/search-by-location?query=British+Museum HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:37184 - "GET /api/cron/tfl-sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41502 - "POST /api/devices/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35670 - "GET /api/stations/search-by-location?query=British+Museum HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:36176 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36180 - "GET /api/lines HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:45922 - "GET /api/lines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45934 - "GET /api/stations/batch?ids=940GZZLUOXC,940GZZLUKSX HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45950 - "GET /api/stations/search-by-location?query=British+Museum HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45012 - "GET /api/lines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59074 - "GET /api/lines/raw HTTP/1.1" 404 Not Found
+
+
+Fetching debug logs for mongodb
+
+tail: cannot open '/var/log/supervisor/mongodb*.log' for reading: No such file or directory

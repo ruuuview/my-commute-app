@@ -108,22 +108,65 @@ export default function MyCommuteDashboard() {
     } catch (error) { console.error(error); }
   };
 
+  // NEW: Properly handle the pull-to-refresh spinner
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData(undefined, true);
+    setRefreshing(false);
+  };
+
   const fetchDashboardData = async (prefsOverride?: UserPreferences, forceRefresh = false) => {
     const activePrefs = prefsOverride || userPrefs;
+    setErrorMsg(null);
+
+    // --- LINES: Fetch independently (failure here does NOT block stations) ---
     try {
+      // Show cached data immediately while fresh data loads
+      const cachedLines = Object.values(useLineDataStore.getState().lines);
+      if (cachedLines.length > 0) {
+        const activeCachedLines = cachedLines.filter((line: LineStatus) => 
+          activePrefs.saved_lines.includes(line.id)
+        );
+        setLineStatuses(activeCachedLines);
+      }
+
       await fetchAllLines(forceRefresh);
+
       const allLinesArray = Object.values(useLineDataStore.getState().lines);
       const filteredLines = allLinesArray.filter((line: LineStatus) => 
         activePrefs.saved_lines.includes(line.id)
       );
-      setLineStatuses(filteredLines); 
+      setLineStatuses(filteredLines);
+    } catch (err: any) {
+      console.warn("Lines fetch error:", err.message);
+      // Do NOT abort — continue to fetch stations
+    }
 
-      if (activePrefs.saved_stations.length > 0) {
-        const response = await fetch(`${BACKEND_URL}/api/stations/batch?ids=${activePrefs.saved_stations.join(',')}`);
-        const batchData = await response.json();
-        setStationData(batchData.stations || {}); 
+    // --- STATIONS: Fetch independently (failure here keeps old data on screen) ---
+    if (activePrefs.saved_stations.length > 0) {
+      try {
+        const stationIds = activePrefs.saved_stations.join(',');
+        const response = await fetch(
+          BACKEND_URL + "/api/stations/batch?ids=" + encodeURIComponent(stationIds)
+        );
+
+        if (response.ok) {
+          const batchData = await response.json();
+          // Only update if backend actually returned station data
+          if (batchData.stations && Object.keys(batchData.stations).length > 0) {
+            // MERGE: Keep old station data, overlay with fresh data
+            // This prevents flashing empty if only some stations refresh
+            setStationData(prev => ({ ...prev, ...batchData.stations }));
+          }
+          // If batchData.stations is empty/missing, we keep whatever was on screen
+        } else {
+          console.warn("Stations backend error " + response.status + ", keeping existing data");
+        }
+      } catch (err: any) {
+        console.warn("Stations fetch error:", err.message);
+        // Keep existing station data on screen — never wipe
       }
-    } catch (err: any) { setErrorMsg(err.message); }
+    }
   };
 
   const sortedSavedLines = useMemo(() => {
@@ -208,18 +251,33 @@ export default function MyCommuteDashboard() {
           <Ionicons name="add-circle" size={32} color="white" />
         </TouchableOpacity>
       </SafeAreaView>
-      <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchDashboardData(undefined, true)} tintColor="white" />}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor="white" 
+          />
+        }
+      >
         <Text style={styles.sectionTitle}>My Lines</Text>
         {sortedSavedLines.map(renderLineItem)}
         <Text style={styles.sectionTitle}>My Stations</Text>
         {userPrefs.saved_stations.map(renderStationItem)}
       </ScrollView>
-      <AddManageModal visible={showAddManageModal} onClose={() => setShowAddManageModal(false)} savedLines={userPrefs.saved_lines} savedStations={userPrefs.saved_stations} onSave={async (l, s) => {
+      <AddManageModal 
+        visible={showAddManageModal} 
+        onClose={() => setShowAddManageModal(false)} 
+        savedLines={userPrefs.saved_lines} 
+        savedStations={userPrefs.saved_stations} 
+        onSave={async (l, s) => {
           const p = { ...userPrefs, saved_lines: l, saved_stations: s };
           setUserPrefs(p);
           await AsyncStorage.setItem('user_preferences', JSON.stringify(p));
           fetchDashboardData(p, true);
-      }} />
+        }} 
+      />
     </LinearGradient>
   );
 }

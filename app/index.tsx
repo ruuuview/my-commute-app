@@ -4,12 +4,9 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   RefreshControl,
   Animated,
-  StatusBar,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +20,15 @@ import { useLines, useLineDataStore } from '../store/lineDataStore';
 import AddManageModal from './AddManageModal';
 import { useWidgetSync } from '../hooks/useWidgetSync';
 
+// --- NEW PREMIUM COMPONENTS ---
+import BouncyButton from '../components/BouncyButton';
+import TrafficLightLoader from '../components/TrafficLightLoader';
+import LivingDot from '../components/LivingDot';
+import StatusDot from '../components/StatusDot';
+import ErrorToast from '../components/ErrorToast';
+import { DashboardSkeleton } from '../components/DashboardSkeleton';
+import { useDataFreshness } from '../hooks/useDataFreshness';
+
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 
 interface LineStatus {
@@ -31,8 +37,8 @@ interface LineStatus {
   color: string;
   status: string;
   status_severity: number;
-  status_color?: string; // NEW: Single Source of Truth
-  status_icon?: string;  // NEW: Single Source of Truth
+  status_color?: string; 
+  status_icon?: string;  
   is_disrupted?: boolean;
 }
 
@@ -69,13 +75,15 @@ export default function MyCommuteDashboard() {
   const [stationData, setStationData] = useState<{ [key: string]: StationData }>({});
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [showAddManageModal, setShowAddManageModal] = useState(false);
-  const jiggleAnim = useRef(new Animated.Value(0)).current;
   
   const allLinesFromStore = useLines();
   const { fetchAllLines } = useLineData();
   const [lineStatuses, setLineStatuses] = useState<LineStatus[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Data Freshness Hook
+  const { tier, ageText, setLastFetch } = useDataFreshness();
 
   const fetchWidgetData = useCallback(async () => {
     try {
@@ -101,14 +109,17 @@ export default function MyCommuteDashboard() {
       if (savedPrefs) {
         const parsed = JSON.parse(savedPrefs);
         setUserPrefs(parsed);
-        fetchDashboardData(parsed, true);
+        await fetchDashboardData(parsed, true);
       } else {
-        fetchDashboardData(userPrefs, true);
+        await fetchDashboardData(userPrefs, true);
       }
-    } catch (error) { console.error(error); }
+    } catch (error) { 
+      console.error(error); 
+    } finally {
+      setInitialLoading(false);
+    }
   };
 
-  // NEW: Properly handle the pull-to-refresh spinner
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchDashboardData(undefined, true);
@@ -118,10 +129,9 @@ export default function MyCommuteDashboard() {
   const fetchDashboardData = async (prefsOverride?: UserPreferences, forceRefresh = false) => {
     const activePrefs = prefsOverride || userPrefs;
     setErrorMsg(null);
+    let fetchSuccess = true;
 
-    // --- LINES: Fetch independently (failure here does NOT block stations) ---
     try {
-      // Show cached data immediately while fresh data loads
       const cachedLines = Object.values(useLineDataStore.getState().lines);
       if (cachedLines.length > 0) {
         const activeCachedLines = cachedLines.filter((line: LineStatus) => 
@@ -139,10 +149,10 @@ export default function MyCommuteDashboard() {
       setLineStatuses(filteredLines);
     } catch (err: any) {
       console.warn("Lines fetch error:", err.message);
-      // Do NOT abort — continue to fetch stations
+      setErrorMsg("Trouble connecting to TfL. Some data may be outdated.");
+      fetchSuccess = false;
     }
 
-    // --- STATIONS: Fetch independently (failure here keeps old data on screen) ---
     if (activePrefs.saved_stations.length > 0) {
       try {
         const stationIds = activePrefs.saved_stations.join(',');
@@ -152,20 +162,22 @@ export default function MyCommuteDashboard() {
 
         if (response.ok) {
           const batchData = await response.json();
-          // Only update if backend actually returned station data
           if (batchData.stations && Object.keys(batchData.stations).length > 0) {
-            // MERGE: Keep old station data, overlay with fresh data
-            // This prevents flashing empty if only some stations refresh
             setStationData(prev => ({ ...prev, ...batchData.stations }));
           }
-          // If batchData.stations is empty/missing, we keep whatever was on screen
         } else {
-          console.warn("Stations backend error " + response.status + ", keeping existing data");
+          console.warn("Stations backend error " + response.status);
+          fetchSuccess = false;
         }
       } catch (err: any) {
         console.warn("Stations fetch error:", err.message);
-        // Keep existing station data on screen — never wipe
+        setErrorMsg("Unable to refresh live departures.");
+        fetchSuccess = false;
       }
+    }
+
+    if (fetchSuccess) {
+      setLastFetch(Date.now());
     }
   };
 
@@ -182,8 +194,6 @@ export default function MyCommuteDashboard() {
                  { id: lineId, name: lineId, color: '#ccc', status: 'Loading...', status_severity: 10 };
 
     const theme = getSeverityTheme(line.status_severity);
-    
-    // 🎨 UI LOBOTOMY: Trust Backend or Fallback to Corrected Scale
     const cardBg = line.status_color || theme.gradientStart;
     
     let iconName: any = theme.iconName;
@@ -194,33 +204,39 @@ export default function MyCommuteDashboard() {
       else if (line.status_icon === 'checkmark') iconName = 'checkmark';
     }
 
-    // Special styling for Suspended (Extreme Red)
     const isSuspended = cardBg === '#E32017' || line.status_severity <= 5;
+    const isGoodService = line.status_severity === 10;
 
     return (
-      <Animated.View key={lineId}>
-        <TouchableOpacity 
-          style={[styles.card, { backgroundColor: cardBg }]}
-          onPress={() => router.push({ pathname: '/lineDetail', params: { lineId: line.id }})}
-        >
-          <View style={styles.cardContent}>
-            <View>
-              <Text style={[styles.lineName, { color: '#FFFFFF' }]}>{line.name}</Text>
-              <View style={styles.statusRow}>
-                <View style={[
-                    styles.iconCircle, 
-                    isSuspended && { borderColor: '#000000', borderWidth: 1.5 }
-                ]}>
-                  <Ionicons name={iconName} size={14} color={cardBg} />
-                </View>
-                <Text style={[styles.statusText, { color: 'rgba(255,255,255,0.9)' }]}>
-                  {line.status}
-                </Text>
-              </View>
-            </View>
+      <BouncyButton
+        key={lineId}
+        scaleDown={0.96}
+        haptic="light"
+        onPress={() => router.push({ pathname: '/lineDetail', params: { lineId: line.id }})}
+        style={[styles.card, { backgroundColor: cardBg }]}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.lineName, { color: '#FFFFFF' }]}>{line.name}</Text>
+            {isGoodService ? (
+              <LivingDot color="#FFFFFF" size={8} />
+            ) : (
+              <StatusDot severity={line.status_severity} pulse={isSuspended} size={10} />
+            )}
           </View>
-        </TouchableOpacity>
-      </Animated.View>
+          <View style={styles.statusRow}>
+            <View style={[
+                styles.iconCircle, 
+                isSuspended && { borderColor: '#000000', borderWidth: 1.5 }
+            ]}>
+              <Ionicons name={iconName} size={14} color={cardBg} />
+            </View>
+            <Text style={[styles.statusText, { color: 'rgba(255,255,255,0.95)' }]}>
+              {line.status}
+            </Text>
+          </View>
+        </View>
+      </BouncyButton>
     );
   };
 
@@ -228,44 +244,84 @@ export default function MyCommuteDashboard() {
     const station = stationData[stationId];
     if (!station) return null;
     return (
-      <TouchableOpacity key={stationId} style={styles.card} onPress={() => {}}>
+      <BouncyButton 
+        key={stationId} 
+        scaleDown={0.96}
+        haptic="light"
+        onPress={() => {}} 
+        style={[styles.card, styles.stationCard]}
+      >
         <View style={styles.stationContent}>
           <Text style={styles.stationName}>{station.name}</Text>
           {station.departures.slice(0, 2).map((dep, idx) => (
             <View key={idx} style={styles.departureRow}>
               <Text style={styles.depLine}>{dep.line}</Text>
-              <Text style={styles.depDest}>{dep.destination}</Text>
-              <Text style={styles.depTime}>{dep.minutes_away} min</Text>
+              <View style={styles.depRight}>
+                <Text style={styles.depDest} numberOfLines={1}>{dep.destination}</Text>
+                <Text style={[styles.depTime, dep.minutes_away < 2 && styles.depTimeUrgent]}>
+                  {dep.minutes_away} min
+                </Text>
+              </View>
             </View>
           ))}
         </View>
-      </TouchableOpacity>
+      </BouncyButton>
     );
   };
 
-  return (
-    <LinearGradient colors={['#007AFF', '#f5f5f7']} style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <Text style={styles.headerTitle}>MY COMMUTE</Text>
-        <TouchableOpacity onPress={() => setShowAddManageModal(true)}>
-          <Ionicons name="add-circle" size={32} color="white" />
-        </TouchableOpacity>
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+         <DashboardSkeleton />
       </SafeAreaView>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <ErrorToast 
+        visible={!!errorMsg} 
+        message={errorMsg || ''} 
+        onDismiss={() => setErrorMsg(null)} 
+      />
+      
+      <SafeAreaView edges={['top']} style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Commute</Text>
+          <Text style={styles.freshnessText}>
+            {refreshing ? 'Updating...' : `Updated ${ageText}`}
+          </Text>
+        </View>
+        <View style={styles.headerActions}>
+          {refreshing && <TrafficLightLoader size="small" horizontal />}
+          <BouncyButton haptic="medium" onPress={() => setShowAddManageModal(true)}>
+            <Ionicons name="add-circle" size={32} color="#1C1C1E" />
+          </BouncyButton>
+        </View>
+      </SafeAreaView>
+
       <ScrollView 
         contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh} 
-            tintColor="white" 
+            tintColor="#1C1C1E" 
           />
         }
       >
         <Text style={styles.sectionTitle}>My Lines</Text>
         {sortedSavedLines.map(renderLineItem)}
-        <Text style={styles.sectionTitle}>My Stations</Text>
-        {userPrefs.saved_stations.map(renderStationItem)}
+        
+        {userPrefs.saved_stations.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>My Stations</Text>
+            {userPrefs.saved_stations.map(renderStationItem)}
+          </>
+        )}
       </ScrollView>
+
       <AddManageModal 
         visible={showAddManageModal} 
         onClose={() => setShowAddManageModal(false)} 
@@ -278,26 +334,147 @@ export default function MyCommuteDashboard() {
           fetchDashboardData(p, true);
         }} 
       />
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: 'white' },
-  scrollContent: { padding: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#333', marginTop: 20, marginBottom: 10 },
-  card: { borderRadius: 16, padding: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center' },
+  container: { 
+    flex: 1,
+    backgroundColor: '#F2F2F7', // Premium Apple Light Mode background
+  },
+  header: { 
+    paddingHorizontal: 20, 
+    paddingTop: 10,
+    paddingBottom: 15,
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'flex-end' 
+  },
+  headerTitle: { 
+    fontSize: 34, 
+    fontWeight: '800', 
+    color: '#1C1C1E',
+    letterSpacing: -1.2, // Space Grotesk premium tracking
+  },
+  freshnessText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  scrollContent: { 
+    padding: 20,
+    paddingTop: 0,
+  },
+  sectionTitle: { 
+    fontSize: 22, 
+    fontWeight: '800', 
+    color: '#1C1C1E', 
+    marginTop: 24, 
+    marginBottom: 12,
+    letterSpacing: -0.8,
+  },
+  card: { 
+    borderRadius: 20, // Rounded HIG corners
+    padding: 18, 
+    marginBottom: 14, 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  stationCard: {
+    backgroundColor: '#FFFFFF',
+  },
   cardContent: { flex: 1 },
-  lineName: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconCircle: { backgroundColor: 'white', width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  statusText: { fontSize: 14, fontWeight: '600' },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  lineName: { 
+    fontSize: 20, 
+    fontWeight: '800', 
+    letterSpacing: -0.5,
+  },
+  statusRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.15)', // Premium pill background
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  iconCircle: { 
+    backgroundColor: 'white', 
+    width: 18, 
+    height: 18, 
+    borderRadius: 9, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  statusText: { 
+    fontSize: 13, 
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
   stationContent: { flex: 1 },
-  stationName: { fontSize: 16, fontWeight: '700', marginBottom: 8, color: '#333' },
-  departureRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  depLine: { fontSize: 12, color: '#666', width: 60 },
-  depDest: { fontSize: 12, color: '#333', flex: 1 },
-  depTime: { fontSize: 12, fontWeight: '700', color: '#007AFF' },
+  stationName: { 
+    fontSize: 18, 
+    fontWeight: '800', 
+    marginBottom: 12, 
+    color: '#1C1C1E',
+    letterSpacing: -0.5,
+  },
+  departureRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: '#F2F2F7',
+    padding: 10,
+    borderRadius: 12,
+  },
+  depLine: { 
+    fontSize: 13, 
+    fontWeight: '700',
+    color: '#8E8E93', 
+    width: 65,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  depRight: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  depDest: { 
+    fontSize: 15, 
+    fontWeight: '600',
+    color: '#1C1C1E', 
+    flex: 1,
+    marginRight: 10,
+  },
+  depTime: { 
+    fontSize: 15, 
+    fontWeight: '800', 
+    color: '#2A9D5C', // Emerald
+  },
+  depTimeUrgent: {
+    color: '#D93025', // Crimson for arriving soon
+  }
 });

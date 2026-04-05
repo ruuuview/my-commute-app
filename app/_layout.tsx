@@ -2,8 +2,22 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { registerBackgroundFetchAsync } from '../services/backgroundTask';
+import * as SplashScreen from 'expo-splash-screen';
+import { 
+  useFonts, 
+  SpaceGrotesk_400Regular, 
+  SpaceGrotesk_700Bold 
+} from '@expo-google-fonts/space-grotesk';
+
+// Keep the splash screen visible while fonts load
+SplashScreen.preventAutoHideAsync();
 
 export default function TabLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_700Bold,
+  });
+
   useEffect(() => {
     const initBackground = async () => {
       try {
@@ -14,6 +28,17 @@ export default function TabLayout() {
     };
     initBackground();
   }, []);
+
+  // Hide splash screen once fonts are ready
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <Tabs

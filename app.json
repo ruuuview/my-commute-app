@@ -2,7 +2,7 @@
   "expo": {
     "name": "My Commute",
     "slug": "my-commute",
-    "version": "1.0.4",
+    "version": "1.0.44",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycommute",
@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "buildNumber": "677",
+      "buildNumber": "678",
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
       "infoPlist": {

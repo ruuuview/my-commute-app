@@ -54,7 +54,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 // ─── MMKV Storage ───────────────────────────────────────────────────────────
-const storage = new MMKV();
+let _storage: MMKV | null = null;
+function getStorage(): MMKV {
+  if (!_storage) _storage = new MMKV();
+  return _storage;
+}
 const CACHE_KEY = 'tfl_dashboard_cache';
 const CACHE_TIMESTAMP_KEY = 'tfl_dashboard_timestamp';
 const STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
@@ -813,8 +817,8 @@ export default function MyCommuteDashboard() {
 
   const loadCachedData = useCallback(() => {
     try {
-      const cached = storage.getString(CACHE_KEY);
-      const ts     = storage.getNumber(CACHE_TIMESTAMP_KEY);
+      const cached = getStorage().getString(CACHE_KEY);
+      const ts     = getStorage().getNumber(CACHE_TIMESTAMP_KEY);
       if (cached) {
         const parsed = JSON.parse(cached) as DashboardData;
         setData(parsed);
@@ -834,8 +838,8 @@ export default function MyCommuteDashboard() {
       await new Promise(r => setTimeout(r, 1200));
       const fresh = MOCK_DATA;
 
-      storage.set(CACHE_KEY, JSON.stringify(fresh));
-      storage.set(CACHE_TIMESTAMP_KEY, Date.now());
+      getStorage().set(CACHE_KEY, JSON.stringify(fresh));
+      getStorage().set(CACHE_TIMESTAMP_KEY, Date.now());
 
       setData(fresh);
       setIsStale(false);
@@ -857,7 +861,7 @@ export default function MyCommuteDashboard() {
 
     // Stale check interval
     const interval = setInterval(() => {
-      const ts = storage.getNumber(CACHE_TIMESTAMP_KEY);
+      const ts = getStorage().getNumber(CACHE_TIMESTAMP_KEY);
       if (ts && Date.now() - ts > STALE_THRESHOLD_MS) {
         setIsStale(true);
         setBannerType('stale');

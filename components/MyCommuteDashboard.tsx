@@ -1,15 +1,3 @@
-/**
- * MY COMMUTE — Fractal Glass Dashboard
- * Production-ready React Native (Expo) component
- * Implements full spec from my_commute_fractal_glass_master_plan_2.html
- *
- * Dependencies:
- *   expo-blur, expo-linear-gradient, expo-font, expo-haptics
- *   react-native-reanimated, react-native-gesture-handler
- *   react-native-safe-area-context, @react-native-async-storage/async-storage
- *   react-native-mmkv
- */
-
 import React, {
   useCallback,
   useEffect,
@@ -101,10 +89,6 @@ const CARD_GAP = 12;
 const GRID_CARD_WIDTH = (SCREEN_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
-/**
- * Single source of truth for all status colours.
- * Never inline colour strings anywhere in the codebase.
- */
 function getStatusColor(severity: StatusSeverity): string {
   switch (severity) {
     case 'good':         return '#34C759';
@@ -114,11 +98,10 @@ function getStatusColor(severity: StatusSeverity): string {
     case 'suspended':    return '#FF3B30';
     case 'special':      return '#007AFF';
     case 'unknown':
-    default:             return '#8E8E93'; // NEVER default to green
+    default:             return '#8E8E93';
   }
 }
 
-/** Official TfL line colours for accent bar and arrival labels only. */
 function getLineColor(lineId: string): string {
   const colors: Record<string, string> = {
     bakerloo:        '#B36305',
@@ -139,7 +122,6 @@ function getLineColor(lineId: string): string {
   return colors[lineId] ?? '#8E8E93';
 }
 
-/** Strip redundant station suffixes from TfL API names. */
 function stripStationName(raw: string): string {
   return raw
     .replace(/ Underground Station$/i, '')
@@ -149,7 +131,6 @@ function stripStationName(raw: string): string {
     .trim();
 }
 
-/** Strip destination suffixes from arrival destinations. */
 function stripDestination(raw: string): string {
   return raw
     .replace(/ Underground Station$/i, '')
@@ -170,7 +151,7 @@ function getGradientColors(severity: StatusSeverity): [string, string] {
     case 'severe':       return ['rgba(255,59,48,0.92)',  'rgba(255,255,255,0.03)'];
     case 'minor':        return ['rgba(255,149,0,0.88)',  'rgba(255,255,255,0.03)'];
     case 'good':         return ['rgba(52,199,89,0.82)',  'rgba(255,255,255,0.03)'];
-    default:             return ['#1C1C2E',                '#0A0A0A'];
+    default:             return ['#1C1C2E',               '#0A0A0A'];
   }
 }
 
@@ -188,18 +169,9 @@ const MOCK_DATA: DashboardData = {
       id: 'oxford-circus',
       name: 'Oxford Circus Underground Station',
       arrivals: [
-        { lineId: 'central',  lineName: 'Central',  destination: 'Ealing Broadway Underground Station', minutesUntil: 0,  platform: '1' },
-        { lineId: 'victoria', lineName: 'Victoria', destination: 'Brixton Underground Station',          minutesUntil: 2,  platform: '3' },
-        { lineId: 'central',  lineName: 'Central',  destination: 'Hainault Underground Station',          minutesUntil: 5,  platform: '2' },
-      ],
-    },
-    {
-      id: 'kings-cross',
-      name: 'King\'s Cross St. Pancras Underground Station',
-      arrivals: [
-        { lineId: 'northern',   lineName: 'Northern',   destination: 'High Barnet Station', minutesUntil: 1, platform: '6' },
-        { lineId: 'piccadilly', lineName: 'Piccadilly', destination: 'Cockfosters Station', minutesUntil: 3, platform: '4' },
-        { lineId: 'victoria',   lineName: 'Victoria',   destination: 'Walthamstow Central Station', minutesUntil: 4, platform: '2' },
+        { lineId: 'central',  lineName: 'Central',  destination: 'Ealing Broadway', minutesUntil: 0,  platform: '1' },
+        { lineId: 'victoria', lineName: 'Victoria', destination: 'Brixton',         minutesUntil: 2,  platform: '3' },
+        { lineId: 'central',  lineName: 'Central',  destination: 'Hainault',        minutesUntil: 5,  platform: '2' },
       ],
     },
   ],
@@ -231,19 +203,9 @@ const FractalGlassBackground = memo(({ worstSeverity, isOffline }: FractalGlassB
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Layer A — previous gradient */}
-      <LinearGradient
-        colors={prevColors}
-        locations={[0, 0.55]}
-        style={StyleSheet.absoluteFill}
-      />
-      {/* Layer B — new gradient, fades in */}
+      <LinearGradient colors={prevColors} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />
       <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]}>
-        <LinearGradient
-          colors={colors}
-          locations={[0, 0.55]}
-          style={StyleSheet.absoluteFill}
-        />
+        <LinearGradient colors={colors} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />
       </Animated.View>
     </View>
   );
@@ -253,14 +215,12 @@ const FractalGlassBackground = memo(({ worstSeverity, isOffline }: FractalGlassB
 interface AppWordmarkProps {
   worstSeverity: StatusSeverity;
   onRefreshComplete?: boolean;
-  dodgeRate?: number;
 }
 
-const AppWordmark = memo(({ worstSeverity, onRefreshComplete, dodgeRate }: AppWordmarkProps) => {
+const AppWordmark = memo(({ worstSeverity, onRefreshComplete }: AppWordmarkProps) => {
   const scale = useSharedValue(1);
   const rotation = useSharedValue(0);
 
-  // Idle pulse
   useEffect(() => {
     scale.value = withRepeat(
       withSequence(
@@ -272,7 +232,6 @@ const AppWordmark = memo(({ worstSeverity, onRefreshComplete, dodgeRate }: AppWo
     );
   }, []);
 
-  // Refresh-complete rotation
   useEffect(() => {
     if (onRefreshComplete) {
       rotation.value = withTiming(360, { duration: 600, easing: Easing.inOut(Easing.ease) }, () => {
@@ -299,19 +258,11 @@ const AppWordmark = memo(({ worstSeverity, onRefreshComplete, dodgeRate }: AppWo
         </View>
       </View>
 
-      {/* ⦿ custom SVG equivalent using View composition */}
       <Animated.View style={[styles.markOuter, markStyle]}>
         <View style={[styles.markInner, { borderColor: statusColor }]}>
           <View style={[styles.markDot, { backgroundColor: statusColor }]} />
         </View>
       </Animated.View>
-
-      {/* Dodge Rate pill */}
-      {dodgeRate != null && (
-        <View style={styles.dodgeRatePill}>
-          <Text style={styles.dodgeRateText}>{dodgeRate}% DODGE RATE</Text>
-        </View>
-      )}
     </View>
   );
 });
@@ -380,8 +331,6 @@ const TrafficLightLoader = memo(({ visible, onComplete }: TrafficLightLoaderProp
     }
 
     containerOp.value = withTiming(1, { duration: 200 });
-
-    // Cycle: red 200ms → amber 200ms → green 200ms → green pulse → fade
     const startTime = Date.now();
     const MIN_DISPLAY = 800;
 
@@ -399,7 +348,6 @@ const TrafficLightLoader = memo(({ visible, onComplete }: TrafficLightLoaderProp
         amberOp.value = withTiming(0.15, { duration: 100 });
         greenOp.value = withTiming(1,    { duration: 100 });
 
-        // Green pulse then done
         setTimeout(() => {
           const elapsed = Date.now() - startTime;
           const remaining = Math.max(0, MIN_DISPLAY - elapsed);
@@ -422,10 +370,7 @@ const TrafficLightLoader = memo(({ visible, onComplete }: TrafficLightLoaderProp
 
   const rStyle = useAnimatedStyle(() => ({ opacity: redOp.value }));
   const aStyle = useAnimatedStyle(() => ({ opacity: amberOp.value }));
-  const gStyle = useAnimatedStyle(() => ({
-    opacity: greenOp.value,
-    transform: [{ scale: greenSc.value }],
-  }));
+  const gStyle = useAnimatedStyle(() => ({ opacity: greenOp.value, transform: [{ scale: greenSc.value }] }));
   const containerStyle = useAnimatedStyle(() => ({ opacity: containerOp.value }));
 
   return (
@@ -490,10 +435,7 @@ const StatusBanner = memo(({ type, lastUpdated, onDismiss }: StatusBannerProps) 
                          "Couldn't reach TfL · Showing last known data";
 
   return (
-    <Animated.View
-      style={[styles.bannerWrapper, bannerStyle]}
-      accessibilityLiveRegion="polite"
-    >
+    <Animated.View style={[styles.bannerWrapper, bannerStyle]} accessibilityLiveRegion="polite">
       <View style={[styles.bannerPill, { borderLeftColor: accentColor }]}>
         <View style={[styles.bannerAccent, { backgroundColor: accentColor }]} />
         <Text style={styles.bannerText}>{message}</Text>
@@ -514,12 +456,8 @@ const BouncyButton = ({ onPress, children, style, accessibilityLabel }: BouncyBu
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 150, mass: 0.8 });
-  };
-  const handlePressOut = () => {
-    scale.value = withSpring(1.0,  { damping: 15, stiffness: 150, mass: 0.8 });
-  };
+  const handlePressIn = () => scale.value = withSpring(0.97, { damping: 15, stiffness: 150, mass: 0.8 });
+  const handlePressOut = () => scale.value = withSpring(1.0,  { damping: 15, stiffness: 150, mass: 0.8 });
 
   return (
     <Animated.View style={animStyle}>
@@ -588,62 +526,24 @@ const LineCard = memo(({ line, isCompact, isStale }: LineCardProps) => {
 
   const cardWidth = isCompact ? GRID_CARD_WIDTH : '100%' as any;
 
-  const a11yLabel = `${line.name} line, ${line.statusText}${line.disruption ? '. ' + line.disruption : ''}`;
-
   return (
-    <BouncyButton
-      onPress={handlePress}
-      style={{ width: cardWidth }}
-      accessibilityLabel={a11yLabel}
-    >
+    <BouncyButton onPress={handlePress} style={{ width: cardWidth }}>
       <View style={[styles.lineCard, { width: cardWidth }]}>
-        {/* 4px TfL accent bar — only TfL colour surface on the card */}
         <View style={[styles.accentBar, { backgroundColor: getLineColor(line.id) }]} />
-
         <View style={styles.lineCardInner}>
           <View style={styles.lineCardLeft}>
-            <Text
-              style={styles.lineName}
-              allowFontScaling
-              maxFontSizeMultiplier={1.4}
-              numberOfLines={1}
-            >
-              {line.name}
-            </Text>
-            <Text
-              style={[styles.lineStatus, { color: getStatusColor(line.severity) }]}
-              allowFontScaling
-              maxFontSizeMultiplier={1.3}
-              numberOfLines={1}
-            >
-              {line.statusText}
-            </Text>
-
-            {/* 1-line disruption preview — full detail on expand */}
+            <Text style={styles.lineName} allowFontScaling maxFontSizeMultiplier={1.4} numberOfLines={1}>{line.name}</Text>
+            <Text style={[styles.lineStatus, { color: getStatusColor(line.severity) }]} allowFontScaling maxFontSizeMultiplier={1.3} numberOfLines={1}>{line.statusText}</Text>
             {line.disruption && !expanded && (
-              <Text
-                style={styles.disruptionPreview}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                allowFontScaling
-              >
-                {line.disruption}
-              </Text>
+              <Text style={styles.disruptionPreview} numberOfLines={1} ellipsizeMode="tail" allowFontScaling>{line.disruption}</Text>
             )}
-
-            {/* Expanded disruption detail */}
             {expanded && line.disruption && (
-              <Text style={styles.disruptionFull} allowFontScaling>
-                {line.disruption}
-              </Text>
+              <Text style={styles.disruptionFull} allowFontScaling>{line.disruption}</Text>
             )}
           </View>
-
           <View style={styles.lineCardRight}>
             <LivingDot severity={line.severity} isStale={isStale} />
-            {line.disruption && (
-              <Animated.Text style={[styles.chevron, chevronStyle]}>›</Animated.Text>
-            )}
+            {line.disruption && <Animated.Text style={[styles.chevron, chevronStyle]}>›</Animated.Text>}
           </View>
         </View>
       </View>
@@ -660,36 +560,19 @@ const StationCard = memo(({ station }: StationCardProps) => {
   const cleanName = stripStationName(station.name);
   const arrivals  = station.arrivals.slice(0, 3);
 
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
-
-  const buildA11y = () => {
-    if (!arrivals.length) return `${cleanName} station. No arrivals.`;
-    const first = arrivals[0];
-    const timeStr = first.minutesUntil === 0 ? 'now' : `in ${first.minutesUntil} minutes`;
-    return `${cleanName} station. Next train to ${stripDestination(first.destination)} ${timeStr} on ${first.lineName} line${first.platform ? ', Platform ' + first.platform : ''}.`;
-  };
+  const handlePress = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
   return (
-    <BouncyButton
-      onPress={handlePress}
-      style={styles.stationCardWrapper}
-      accessibilityLabel={buildA11y()}
-    >
+    <BouncyButton onPress={handlePress} style={styles.stationCardWrapper}>
       <View style={styles.stationCard}>
-        {/* Custom train icon (simplified SVG representation) */}
         <View style={styles.stationHeader}>
           <View style={styles.trainIcon}>
             <View style={styles.trainBody} />
             <View style={styles.trainWindow} />
           </View>
-          <Text style={styles.stationName} allowFontScaling maxFontSizeMultiplier={1.4} numberOfLines={1}>
-            {cleanName}
-          </Text>
+          <Text style={styles.stationName} allowFontScaling maxFontSizeMultiplier={1.4} numberOfLines={1}>{cleanName}</Text>
         </View>
 
-        {/* 3-column arrivals grid */}
         {arrivals.map((arrival, idx) => {
           const isNow    = arrival.minutesUntil === 0;
           const isUrgent = arrival.minutesUntil > 0 && arrival.minutesUntil <= 2;
@@ -698,42 +581,20 @@ const StationCard = memo(({ station }: StationCardProps) => {
 
           return (
             <View key={idx} style={styles.arrivalRow}>
-              {/* Col 1 — fixed 56px line label */}
-              <Text
-                style={[styles.arrivalLine, { color: getLineColor(arrival.lineId) }]}
-                numberOfLines={1}
-                allowFontScaling
-                maxFontSizeMultiplier={1.2}
-              >
+              <Text style={[styles.arrivalLine, { color: getLineColor(arrival.lineId) }]} numberOfLines={1} allowFontScaling maxFontSizeMultiplier={1.2}>
                 {arrival.lineName.toUpperCase()}
               </Text>
-
-              {/* Col 2 — flex destination */}
-              <Text
-                style={styles.arrivalDest}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                allowFontScaling
-                maxFontSizeMultiplier={1.2}
-              >
+              <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail" allowFontScaling maxFontSizeMultiplier={1.2}>
                 {stripDestination(arrival.destination)}
               </Text>
-
-              {/* Col 3 — fixed 52px time */}
-              <Text
-                style={[styles.arrivalTime, { color: timeColor }]}
-                allowFontScaling
-                maxFontSizeMultiplier={1.3}
-              >
+              <Text style={[styles.arrivalTime, { color: timeColor }]} allowFontScaling maxFontSizeMultiplier={1.3}>
                 {timeText}
               </Text>
             </View>
           );
         })}
 
-        {arrivals.length === 0 && (
-          <Text style={styles.noArrivals}>No arrivals found</Text>
-        )}
+        {arrivals.length === 0 && <Text style={styles.noArrivals}>No arrivals found</Text>}
       </View>
     </BouncyButton>
   );
@@ -746,19 +607,11 @@ interface StatusHeroProps {
 
 const StatusHero = memo(({ lines }: StatusHeroProps) => {
   const disrupted = lines.filter(l => l.severity !== 'good' && l.severity !== 'unknown');
-  const summaryText = disrupted.length === 0
-    ? 'All clear'
-    : disrupted.length === 1
-      ? '1 line disrupted'
-      : `${disrupted.length} lines disrupted`;
-
+  const summaryText = disrupted.length === 0 ? 'All clear' : disrupted.length === 1 ? '1 line disrupted' : `${disrupted.length} lines disrupted`;
   const subText = disrupted.map(l => l.name).join(' · ');
 
   return (
-    <View
-      style={styles.statusHero}
-      accessibilityLabel={`Commute status: ${summaryText}${subText ? '. ' + subText + ' affected.' : ''}`}
-    >
+    <View style={styles.statusHero}>
       <Text style={styles.heroEyebrow} allowFontScaling maxFontSizeMultiplier={1.2}>STATUS</Text>
       <Text style={styles.heroSummary}  allowFontScaling maxFontSizeMultiplier={1.4}>{summaryText}</Text>
       {subText ? <Text style={styles.heroSub} allowFontScaling maxFontSizeMultiplier={1.3}>{subText}</Text> : null}
@@ -777,13 +630,10 @@ const EmptyState = ({ hasLines, onAddLines, onAddStation }: EmptyStateProps) => 
   if (!hasLines) {
     return (
       <View style={styles.emptyFull}>
-        {/* TfL roundel placeholder */}
-        <View style={styles.roundel}>
-          <View style={styles.roundelBar} />
-        </View>
+        <View style={styles.roundel}><View style={styles.roundelBar} /></View>
         <Text style={styles.emptyTitle}>Your commute starts here</Text>
         <Text style={styles.emptySub}>Add your lines and stations to see live status and arrivals.</Text>
-        <BouncyButton onPress={onAddLines} style={styles.emptyButton} accessibilityLabel="Add lines and stations">
+        <BouncyButton onPress={onAddLines} style={styles.emptyButton}>
           <Text style={styles.emptyButtonText}>+ Add Lines & Stations</Text>
         </BouncyButton>
       </View>
@@ -795,7 +645,7 @@ const EmptyState = ({ hasLines, onAddLines, onAddStation }: EmptyStateProps) => 
       <View style={styles.stationIcon} />
       <Text style={styles.emptyTitle}>Add a station</Text>
       <Text style={styles.emptySub}>See live departures for your regular stops.</Text>
-      <BouncyButton onPress={onAddStation} style={styles.emptyButton} accessibilityLabel="Add station">
+      <BouncyButton onPress={onAddStation} style={styles.emptyButton}>
         <Text style={styles.emptyButtonText}>+ Add Station</Text>
       </BouncyButton>
     </View>
@@ -834,13 +684,11 @@ export default function MyCommuteDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Replace with real TfL API call
+      // TODO: Replace with real TfL API call later
       await new Promise(r => setTimeout(r, 1200));
-      const fresh = MOCK_DATA;
+      const fresh = MOCK_DATA; // Temporary for UI testing
 
-      getStorage().set(CACHE_KEY, JSON.stringify(fresh));
-      getStorage().set(CACHE_TIMESTAMP_KEY, Date.now());
-
+      // 1. SET STATE FIRST (Fixes the black screen!)
       setData(fresh);
       setIsStale(false);
       setIsOffline(false);
@@ -849,9 +697,17 @@ export default function MyCommuteDashboard() {
       setRefreshComplete(true);
       setTimeout(() => setRefreshComplete(false), 800);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // 2. DO STORAGE LAST
+      getStorage().set(CACHE_KEY, JSON.stringify(fresh));
+      getStorage().set(CACHE_TIMESTAMP_KEY, Date.now());
     } catch (_) {
+      // 3. NO MORE LIES. If MMKV/Network fails, show the error state.
       setIsOffline(true);
       setBannerType(isStale ? 'error' : 'offline');
+      
+      // Failsafe: ensure `data` is an empty object, NOT null, so the UI doesn't black-screen
+      setData(prev => prev || { lines: [], stations: [] }); 
     }
   }, [isStale]);
 
@@ -859,7 +715,6 @@ export default function MyCommuteDashboard() {
     loadCachedData();
     fetchData().finally(() => setLoading(false));
 
-    // Stale check interval
     const interval = setInterval(() => {
       const ts = getStorage().getNumber(CACHE_TIMESTAMP_KEY);
       if (ts && Date.now() - ts > STALE_THRESHOLD_MS) {
@@ -869,7 +724,7 @@ export default function MyCommuteDashboard() {
     }, 30_000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadCachedData, fetchData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -887,10 +742,8 @@ export default function MyCommuteDashboard() {
     <GestureHandlerRootView style={styles.root}>
       <StatusBar barStyle="light-content" />
 
-      {/* Global Fractal Glass background */}
       <FractalGlassBackground worstSeverity={worstSeverity} isOffline={isOffline} />
 
-      {/* Status Banner */}
       <StatusBanner
         type={bannerType}
         lastUpdated={lastUpdated}
@@ -913,17 +766,14 @@ export default function MyCommuteDashboard() {
           />
         }
       >
-        {/* Header */}
         <View style={styles.header}>
           <AppWordmark
             worstSeverity={worstSeverity}
             onRefreshComplete={refreshComplete}
-            dodgeRate={82}
           />
           <TrafficLightLoader visible={loading || refreshing} />
         </View>
 
-        {/* Loading skeletons */}
         {loading && !data && (
           <>
             <SkeletonCard />
@@ -933,17 +783,14 @@ export default function MyCommuteDashboard() {
           </>
         )}
 
-        {/* Dashboard content */}
         {data && (
           <>
-            <StatusHero lines={data.lines} />
+            {data.lines.length > 0 && <StatusHero lines={data.lines} />}
 
-            {/* MY LINES section */}
             {data.lines.length > 0 && (
               <>
                 <Text style={styles.sectionHeader}>MY LINES</Text>
 
-                {/* Disrupted lines — full width, worst first */}
                 {[...disruptedLines]
                   .sort((a, b) => {
                     const order: Record<StatusSeverity, number> = {
@@ -956,12 +803,10 @@ export default function MyCommuteDashboard() {
                   ))
                 }
 
-                {/* Good service sub-header — conditional */}
                 {disruptedLines.length > 0 && goodLines.length > 0 && (
                   <Text style={styles.sectionHeader}>GOOD SERVICE</Text>
                 )}
 
-                {/* Good lines — 2-column grid */}
                 {goodLines.length > 0 && (
                   <View style={styles.goodGrid}>
                     {goodLines.map((line, i) => {
@@ -979,8 +824,7 @@ export default function MyCommuteDashboard() {
                   </View>
                 )}
 
-                {/* + Add Line button */}
-                <BouncyButton onPress={() => {}} style={styles.addButton} accessibilityLabel="Add line">
+                <BouncyButton onPress={() => {}} style={styles.addButton}>
                   <BlurView intensity={20} tint="dark" style={styles.addButtonBlur}>
                     <Text style={styles.addButtonText}>+ Add Line</Text>
                   </BlurView>
@@ -988,33 +832,32 @@ export default function MyCommuteDashboard() {
               </>
             )}
 
-            {/* MY STATIONS section */}
-            <Text style={styles.sectionHeader}>MY STATIONS</Text>
+            {data.stations.length > 0 || data.lines.length > 0 ? (
+              <Text style={styles.sectionHeader}>MY STATIONS</Text>
+            ) : null}
 
-            {data.stations.length === 0 ? (
+            {data.stations.length === 0 && data.lines.length > 0 ? (
               <EmptyState
-                hasLines={data.lines.length > 0}
+                hasLines={true}
                 onAddLines={() => {}}
                 onAddStation={() => {}}
               />
-            ) : (
+            ) : data.stations.length > 0 ? (
               <>
                 {data.stations.map(station => (
                   <StationCard key={station.id} station={station} />
                 ))}
 
-                {/* + Add Station button */}
-                <BouncyButton onPress={() => {}} style={styles.addButton} accessibilityLabel="Add station">
+                <BouncyButton onPress={() => {}} style={styles.addButton}>
                   <BlurView intensity={20} tint="dark" style={styles.addButtonBlur}>
                     <Text style={styles.addButtonText}>+ Add Station</Text>
                   </BlurView>
                 </BouncyButton>
               </>
-            )}
+            ) : null}
           </>
         )}
 
-        {/* Full empty state */}
         {!loading && data && data.lines.length === 0 && data.stations.length === 0 && (
           <EmptyState
             hasLines={false}
@@ -1029,438 +872,81 @@ export default function MyCommuteDashboard() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: H_PAD,
-  },
+  root: { flex: 1, backgroundColor: '#0A0A0A' },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: H_PAD },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  wordmarkRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  wordmarkMy: {
-    fontFamily: 'SpaceGrotesk-Regular',
-    fontSize: 13,
-    letterSpacing: 3,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 14,
-  },
-  wordmarkCommRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  wordmarkCommute: {
-    fontFamily: 'SpaceGrotesk-Bold',
-    fontSize: 22,
-    letterSpacing: 1,
-    color: '#FFFFFF',
-    lineHeight: 26,
-  },
-  proPill: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  proPillText: {
-    fontFamily: 'SpaceGrotesk-SemiBold',
-    fontSize: 10,
-    color: '#FFFFFF',
-  },
-  dodgeRatePill: {
-    backgroundColor: 'rgba(48,209,88,0.15)',
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderWidth: 0.5,
-    borderColor: 'rgba(48,209,88,0.40)',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  dodgeRateText: {
-    fontSize: 10,
-    fontFamily: 'SpaceGrotesk-Bold',
-    letterSpacing: 0.6,
-    color: '#30D158',
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  wordmarkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  wordmarkMy: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 13, letterSpacing: 3, color: 'rgba(255,255,255,0.85)', lineHeight: 14 },
+  wordmarkCommRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  wordmarkCommute: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 22, letterSpacing: 1, color: '#FFFFFF', lineHeight: 26 },
+  proPill: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  proPillText: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 10, color: '#FFFFFF' },
 
-  // ⦿ mark
-  markOuter: {
-    width: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  markInner: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-  },
+  markOuter: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  markInner: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  markDot: { width: 5, height: 5, borderRadius: 2.5 },
 
-  // Traffic light loader
-  trafficContainer: {
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    borderRadius: 22,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    alignItems: 'center',
-    gap: 6,
-    height: 52,
-    justifyContent: 'center',
-  },
-  trafficDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
+  trafficContainer: { backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 22, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center', gap: 6, height: 52, justifyContent: 'center' },
+  trafficDot: { width: 10, height: 10, borderRadius: 5 },
 
-  // Status Banner
-  bannerWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: H_PAD,
-  },
-  bannerPill: {
-    backgroundColor: 'rgba(0,0,0,0.60)',
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    maxWidth: '85%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderLeftWidth: 4,
-    gap: 10,
-  },
-  bannerAccent: {
-    width: 0,
-    height: 0,
-  },
-  bannerText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
+  bannerWrapper: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100, alignItems: 'center', paddingTop: 60, paddingHorizontal: H_PAD },
+  bannerPill: { backgroundColor: 'rgba(0,0,0,0.60)', borderRadius: 22, paddingHorizontal: 20, paddingVertical: 10, maxWidth: '85%', flexDirection: 'row', alignItems: 'center', borderLeftWidth: 4, gap: 10 },
+  bannerAccent: { width: 0, height: 0 },
+  bannerText: { fontSize: 13, color: '#FFFFFF', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
 
-  // Status hero
-  statusHero: {
-    paddingVertical: 8,
-    marginBottom: 4,
-  },
-  heroEyebrow: {
-    fontSize: 10,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.45)',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  heroSummary: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  heroSub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-  },
+  statusHero: { paddingVertical: 8, marginBottom: 4 },
+  heroEyebrow: { fontSize: 10, letterSpacing: 2, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', marginBottom: 4 },
+  heroSummary: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', marginBottom: 2 },
+  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.6)' },
 
-  // Section headers
-  sectionHeader: {
-    fontFamily: 'SpaceGrotesk-Bold',
-    fontSize: 12,
-    letterSpacing: 3,
-    color: 'rgba(255,255,255,0.5)',
-    textTransform: 'uppercase',
-    marginTop: 28,
-    marginBottom: 10,
-  },
+  sectionHeader: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 12, letterSpacing: 3, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', marginTop: 28, marginBottom: 10 },
 
-  // Line card
-  lineCard: {
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    borderRadius: 16,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: CARD_GAP,
-    minHeight: 72,
-    overflow: 'hidden',
-    // iOS compositing optimisation
-    ...Platform.select({ ios: { shouldRasterizeIOS: true } as any }),
-  },
-  accentBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    borderRadius: 0,
-  },
-  lineCardInner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingLeft: 20,
-    paddingRight: 16,
-    paddingVertical: 14,
-  },
-  lineCardLeft: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  lineCardRight: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  lineName: {
-    fontFamily: 'SpaceGrotesk-SemiBold',
-    fontSize: 17,
-    letterSpacing: -0.3,
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  lineStatus: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  disruptionPreview: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 2,
-  },
-  disruptionFull: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  chevron: {
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 2,
-  },
+  lineCard: { backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)', marginBottom: CARD_GAP, minHeight: 72, overflow: 'hidden', ...Platform.select({ ios: { shouldRasterizeIOS: true } as any }) },
+  accentBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, borderRadius: 0 },
+  lineCardInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 20, paddingRight: 16, paddingVertical: 14 },
+  lineCardLeft: { flex: 1, paddingRight: 12 },
+  lineCardRight: { alignItems: 'center', gap: 6 },
+  lineName: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 17, letterSpacing: -0.3, color: '#FFFFFF', marginBottom: 2 },
+  lineStatus: { fontSize: 14, color: '#FFFFFF', marginBottom: 2 },
+  disruptionPreview: { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  disruptionFull: { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4, lineHeight: 18 },
+  chevron: { fontSize: 18, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
 
-  // Living dot
-  livingDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
+  livingDot: { width: 12, height: 12, borderRadius: 6 },
 
-  // Good service grid
-  goodGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: CARD_GAP,
-  },
+  goodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP },
 
-  // Station card
-  stationCardWrapper: {
-    width: '100%',
-    marginBottom: CARD_GAP,
-  },
-  stationCard: {
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    borderRadius: 16,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  stationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  trainIcon: {
-    width: 14,
-    height: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trainBody: {
-    width: 14,
-    height: 10,
-    backgroundColor: '#007AFF',
-    borderRadius: 2,
-  },
-  trainWindow: {
-    position: 'absolute',
-    top: 2,
-    left: 3,
-    width: 4,
-    height: 4,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 1,
-  },
-  stationName: {
-    fontFamily: 'SpaceGrotesk-SemiBold',
-    fontSize: 17,
-    color: '#FFFFFF',
-    flex: 1,
-  },
+  stationCardWrapper: { width: '100%', marginBottom: CARD_GAP },
+  stationCard: { backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 16, paddingVertical: 14 },
+  stationHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  trainIcon: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
+  trainBody: { width: 14, height: 10, backgroundColor: '#007AFF', borderRadius: 2 },
+  trainWindow: { position: 'absolute', top: 2, left: 3, width: 4, height: 4, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 1 },
+  stationName: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 17, color: '#FFFFFF', flex: 1 },
 
-  // Arrivals grid
-  arrivalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.07)',
-    paddingVertical: 10,
-  },
-  arrivalLine: {
-    width: 56,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  arrivalDest: {
-    flex: 1,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.82)',
-    paddingHorizontal: 4,
-  },
-  arrivalTime: {
-    width: 52,
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk-Bold',
-    textAlign: 'right',
-  },
-  noArrivals: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
-    paddingTop: 8,
-  },
+  arrivalRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.07)', paddingVertical: 10 },
+  arrivalLine: { width: 56, fontSize: 11, fontWeight: '600' },
+  arrivalDest: { flex: 1, fontSize: 14, color: 'rgba(255,255,255,0.82)', paddingHorizontal: 4 },
+  arrivalTime: { width: 52, fontSize: 15, fontFamily: 'SpaceGrotesk-Bold', textAlign: 'right' },
+  noArrivals: { fontSize: 13, color: 'rgba(255,255,255,0.4)', paddingTop: 8 },
 
-  // Add buttons
-  addButton: {
-    marginBottom: CARD_GAP,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  addButtonBlur: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  addButtonText: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.75)',
-    fontWeight: '500',
-  },
+  addButton: { marginBottom: CARD_GAP, borderRadius: 14, overflow: 'hidden' },
+  addButtonBlur: { paddingVertical: 14, alignItems: 'center', borderRadius: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)' },
+  addButtonText: { fontSize: 15, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
 
-  // Skeleton
-  skeletonCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    height: 80,
-    marginBottom: CARD_GAP,
-    overflow: 'hidden',
-    padding: 16,
-    justifyContent: 'center',
-  },
-  skeletonShimmer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  skeletonBar: {
-    height: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 6,
-    width: '40%',
-    marginBottom: 4,
-  },
+  skeletonCard: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, height: 80, marginBottom: CARD_GAP, overflow: 'hidden', padding: 16, justifyContent: 'center' },
+  skeletonShimmer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.10)' },
+  skeletonBar: { height: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 6, width: '40%', marginBottom: 4 },
 
-  // Empty states
-  emptyFull: {
-    alignItems: 'center',
-    paddingTop: 60,
-    gap: 12,
-  },
-  emptyPartial: {
-    alignItems: 'center',
-    paddingTop: 32,
-    gap: 10,
-  },
-  roundel: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 5,
-    borderColor: '#E32017',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  roundelBar: {
-    width: 48,
-    height: 8,
-    backgroundColor: '#003688',
-    position: 'absolute',
-  },
-  stationIcon: {
-    width: 32,
-    height: 32,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  emptySub: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-    lineHeight: 21,
-  },
-  emptyButton: {
-    backgroundColor: '#000000',
-    borderRadius: 14,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    marginTop: 8,
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  emptyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
+  emptyFull: { alignItems: 'center', paddingTop: 60, gap: 12 },
+  emptyPartial: { alignItems: 'center', paddingTop: 32, gap: 10 },
+  roundel: { width: 48, height: 48, borderRadius: 24, borderWidth: 5, borderColor: '#E32017', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  roundelBar: { width: 48, height: 8, backgroundColor: '#003688', position: 'absolute' },
+  stationIcon: { width: 32, height: 32, backgroundColor: '#007AFF', borderRadius: 8, marginBottom: 4 },
+  emptyTitle: { fontSize: 22, fontWeight: '600', color: '#FFFFFF', textAlign: 'center' },
+  emptySub: { fontSize: 15, color: 'rgba(255,255,255,0.6)', textAlign: 'center', paddingHorizontal: 24, lineHeight: 21 },
+  emptyButton: { backgroundColor: '#000000', borderRadius: 14, paddingHorizontal: 24, paddingVertical: 14, marginTop: 8, minWidth: 200, alignItems: 'center' },
+  emptyButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
 });

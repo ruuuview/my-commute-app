@@ -7,6 +7,10 @@
       "ios": {
         "image": "latest"
       }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
     }
   },
   "submit": {

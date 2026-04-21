@@ -43,8 +43,15 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 // ─── MMKV Storage ───────────────────────────────────────────────────────────
 let _storage: MMKV | null = null;
-function getStorage(): MMKV {
-  if (!_storage) _storage = new MMKV();
+function getStorage(): MMKV | null {
+  if (!_storage) {
+    try {
+      _storage = new MMKV();
+    } catch (e) {
+      console.warn('MMKV not ready:', e);
+      return null;
+    }
+  }
   return _storage;
 }
 const CACHE_KEY = 'tfl_dashboard_cache';
@@ -667,8 +674,10 @@ export default function MyCommuteDashboard() {
 
   const loadCachedData = useCallback(() => {
     try {
-      const cached = getStorage().getString(CACHE_KEY);
-      const ts     = getStorage().getNumber(CACHE_TIMESTAMP_KEY);
+      const storage = getStorage();
+      if (!storage) return; // Guard
+      const cached = storage.getString(CACHE_KEY);
+      const ts     = storage.getNumber(CACHE_TIMESTAMP_KEY);
       if (cached) {
         const parsed = JSON.parse(cached) as DashboardData;
         setData(parsed);
@@ -699,8 +708,11 @@ export default function MyCommuteDashboard() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // 2. DO STORAGE LAST
-      getStorage().set(CACHE_KEY, JSON.stringify(fresh));
-      getStorage().set(CACHE_TIMESTAMP_KEY, Date.now());
+      const storage = getStorage();
+      if (storage) { // Guard
+        storage.set(CACHE_KEY, JSON.stringify(fresh));
+        storage.set(CACHE_TIMESTAMP_KEY, Date.now());
+      }
     } catch (_) {
       // 3. NO MORE LIES. If MMKV/Network fails, show the error state.
       setIsOffline(true);
@@ -716,7 +728,9 @@ export default function MyCommuteDashboard() {
     fetchData().finally(() => setLoading(false));
 
     const interval = setInterval(() => {
-      const ts = getStorage().getNumber(CACHE_TIMESTAMP_KEY);
+      const storage = getStorage();
+      if (!storage) return; // Guard
+      const ts = storage.getNumber(CACHE_TIMESTAMP_KEY);
       if (ts && Date.now() - ts > STALE_THRESHOLD_MS) {
         setIsStale(true);
         setBannerType('stale');

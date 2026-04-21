@@ -58,11 +58,7 @@
     "extra": {
       "router": {
         "origin": false
-      },
-      "eas": {
-        "projectId": "a9603ad0-66b4-4df6-aa49-c444dc079780"
       }
-    },
-    "owner": "rudrakays-organization"
+     }
+    }
   }
-}

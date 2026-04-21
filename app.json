@@ -58,7 +58,11 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "7954d279-b45c-4012-b92a-a8f474506d4c"
       }
-     }
-    }
+    },
+    "owner": "ruuuview"
   }
+}

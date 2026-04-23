@@ -50,8 +50,7 @@
           }
         }
       ],
-      "expo-font",
-      "./withFirebasePostInstall.js"
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

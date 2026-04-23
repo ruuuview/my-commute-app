@@ -21,9 +21,12 @@ export default function TabLayout() {
   useEffect(() => {
     const initBackground = async () => {
       try {
-        await registerBackgroundFetchAsync();
+        // Background fetch only works in standalone/production builds
+        if (!__DEV__) {
+          await registerBackgroundFetchAsync();
+        }
       } catch (err) {
-        console.error("Register Failed:", err);
+        console.warn("Register Failed:", err); // warn not error
       }
     };
     initBackground();

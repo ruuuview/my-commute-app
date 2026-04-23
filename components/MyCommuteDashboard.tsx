@@ -109,22 +109,39 @@ function getStatusColor(severity: StatusSeverity): string {
   }
 }
 
+// ✅ Official TfL Severity Codes — matches Python backend _severity_to_visuals()
+// TfL scale: 10/18 = Good, 9/14/19 = Minor, 6/7/8/17 = Severe, everything else = Suspended
+function mapSeverity(severity: number): StatusSeverity {
+  if (severity === 10 || severity === 18) return 'good';
+  if (severity === 9 || severity === 14 || severity === 19) return 'minor';
+  if (severity === 6 || severity === 7 || severity === 8 || severity === 17) return 'severe';
+  return 'suspended'; // 0-5, 11, 12, 15, 16, 20 — all closed/suspended
+}
+
+// ✅ All TfL lines including new Overground names
 function getLineColor(lineId: string): string {
   const colors: Record<string, string> = {
-    bakerloo:        '#B36305',
-    central:         '#E32017',
-    circle:          '#FFD300',
-    district:        '#00782A',
+    bakerloo:           '#B36305',
+    central:            '#E32017',
+    circle:             '#FFD300',
+    district:           '#00782A',
     'hammersmith-city': '#F3A9BB',
-    jubilee:         '#A0A5A9',
-    metropolitan:    '#9B0056',
-    northern:        '#000000',
-    piccadilly:      '#003688',
-    victoria:        '#0098D4',
-    'waterloo-city': '#95CDBA',
-    elizabeth:       '#6950A1',
-    dlr:             '#00A4A7',
-    overground:      '#EE7C0E',
+    jubilee:            '#A0A5A9',
+    metropolitan:       '#9B0056',
+    northern:           '#000000',
+    piccadilly:         '#003688',
+    victoria:           '#0098D4',
+    'waterloo-city':    '#95CDBA',
+    elizabeth:          '#6950A1',
+    dlr:                '#00A4A7',
+    overground:         '#EE7C0E',
+    // New Overground line names
+    liberty:            '#A0A5A9',
+    lioness:            '#FFD300',
+    mildmay:            '#0098D4',
+    suffragette:        '#6950A1',
+    weaver:             '#B36305',
+    windrush:           '#EE7C0E',
   };
   return colors[lineId] ?? '#8E8E93';
 }
@@ -161,28 +178,6 @@ function getGradientColors(severity: StatusSeverity): [string, string] {
     default:             return ['#1C1C2E',               '#0A0A0A'];
   }
 }
-
-// ─── Mock data (replace with real TfL API fetch) ────────────────────────────
-const MOCK_DATA: DashboardData = {
-  lines: [
-    { id: 'jubilee',   name: 'Jubilee',   severity: 'severe', statusText: 'Severe delays', disruption: 'Signal failure at London Bridge causing major disruption.' },
-    { id: 'district',  name: 'District',  severity: 'minor',  statusText: 'Minor delays',  disruption: 'Congestion between Victoria and Sloane Square.' },
-    { id: 'central',   name: 'Central',   severity: 'good',   statusText: 'Good service' },
-    { id: 'victoria',  name: 'Victoria',  severity: 'good',   statusText: 'Good service' },
-    { id: 'northern',  name: 'Northern',  severity: 'good',   statusText: 'Good service' },
-  ],
-  stations: [
-    {
-      id: 'oxford-circus',
-      name: 'Oxford Circus Underground Station',
-      arrivals: [
-        { lineId: 'central',  lineName: 'Central',  destination: 'Ealing Broadway', minutesUntil: 0,  platform: '1' },
-        { lineId: 'victoria', lineName: 'Victoria', destination: 'Brixton',         minutesUntil: 2,  platform: '3' },
-        { lineId: 'central',  lineName: 'Central',  destination: 'Hainault',        minutesUntil: 5,  platform: '2' },
-      ],
-    },
-  ],
-};
 
 // ─── FractalGlassBackground ──────────────────────────────────────────────────
 interface FractalGlassBackgroundProps {
@@ -675,7 +670,7 @@ export default function MyCommuteDashboard() {
   const loadCachedData = useCallback(() => {
     try {
       const storage = getStorage();
-      if (!storage) return; // Guard
+      if (!storage) return;
       const cached = storage.getString(CACHE_KEY);
       const ts     = storage.getNumber(CACHE_TIMESTAMP_KEY);
       if (cached) {
@@ -691,13 +686,25 @@ export default function MyCommuteDashboard() {
     } catch (_) {}
   }, []);
 
+  // ✅ Live Vercel fetch — replaces MOCK_DATA
   const fetchData = useCallback(async () => {
     try {
-      // TODO: Replace with real TfL API call later
-      await new Promise(r => setTimeout(r, 1200));
-      const fresh = MOCK_DATA; // Temporary for UI testing
+      const response = await fetch('https://my-commute-backend.vercel.app/api/lines');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      // 1. SET STATE FIRST (Fixes the black screen!)
+      const raw = await response.json();
+
+      const fresh: DashboardData = {
+        lines: raw.map((item: any) => ({
+          id:         item.id,
+          name:       item.name,
+          severity:   mapSeverity(item.status_severity),
+          statusText: item.status,
+          disruption: item.reason?.trim() || undefined,
+        })),
+        stations: data?.stations ?? [], // preserve existing station state
+      };
+
       setData(fresh);
       setIsStale(false);
       setIsOffline(false);
@@ -707,21 +714,19 @@ export default function MyCommuteDashboard() {
       setTimeout(() => setRefreshComplete(false), 800);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // 2. DO STORAGE LAST
       const storage = getStorage();
-      if (storage) { // Guard
+      if (storage) {
         storage.set(CACHE_KEY, JSON.stringify(fresh));
         storage.set(CACHE_TIMESTAMP_KEY, Date.now());
       }
-    } catch (_) {
-      // 3. NO MORE LIES. If MMKV/Network fails, show the error state.
+    } catch (err) {
+      console.error('Vercel Sync Error:', err);
+      loadCachedData();
       setIsOffline(true);
       setBannerType(isStale ? 'error' : 'offline');
-      
-      // Failsafe: ensure `data` is an empty object, NOT null, so the UI doesn't black-screen
-      setData(prev => prev || { lines: [], stations: [] }); 
+      setData(prev => prev || { lines: [], stations: [] });
     }
-  }, [isStale]);
+  }, [isStale, data, loadCachedData]);
 
   useEffect(() => {
     loadCachedData();
@@ -729,7 +734,7 @@ export default function MyCommuteDashboard() {
 
     const interval = setInterval(() => {
       const storage = getStorage();
-      if (!storage) return; // Guard
+      if (!storage) return;
       const ts = storage.getNumber(CACHE_TIMESTAMP_KEY);
       if (ts && Date.now() - ts > STALE_THRESHOLD_MS) {
         setIsStale(true);
@@ -821,20 +826,26 @@ export default function MyCommuteDashboard() {
                   <Text style={styles.sectionHeader}>GOOD SERVICE</Text>
                 )}
 
+                {/* ✅ Orphan fix: render paired cards in grid, orphan as full-width below */}
                 {goodLines.length > 0 && (
                   <View style={styles.goodGrid}>
                     {goodLines.map((line, i) => {
                       const isLast = i === goodLines.length - 1;
                       const isOrphan = isLast && hasOddGoodLine;
-                      return (
-                        <LineCard
-                          key={line.id}
-                          line={line}
-                          isCompact={!isOrphan}
-                          isStale={isStale}
-                        />
+                      return isOrphan ? null : (
+                        <LineCard key={line.id} line={line} isCompact={true} isStale={isStale} />
                       );
                     })}
+                  </View>
+                )}
+
+                {hasOddGoodLine && goodLines.length > 0 && (
+                  <View style={{ marginTop: CARD_GAP }}>
+                    <LineCard
+                      line={goodLines[goodLines.length - 1]}
+                      isCompact={false}
+                      isStale={isStale}
+                    />
                   </View>
                 )}
 

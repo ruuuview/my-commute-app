@@ -13,9 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "buildNumber": "713",
+      "buildNumber": "714",
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",

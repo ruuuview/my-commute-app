@@ -59,5 +59,14 @@ target 'MyCommute' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Fix: allow React Native Firebase headers in static framework modules
+    installer.pods_project.targets.each do |target|
+      if target.name.start_with?('RNFB')
+        target.build_configurations.each do |build_config|
+          build_config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        end
+      end
+    end
   end
 end

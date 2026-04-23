@@ -60,11 +60,14 @@ target 'MyCommute' do
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
 
-    # Fix: allow React Native Firebase headers in static framework modules
-    # Applied to all targets to resolve RCTPromiseRejectBlock and related type errors
+    # Fix for React Native Firebase 23.x + React Native 0.81+ + static frameworks
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|
         build_config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        if target.name.start_with?('RNFB')
+          build_config.build_settings['DEFINES_MODULE'] = 'YES'
+          build_config.build_settings['SWIFT_INSTALL_OBJC_HEADER'] = 'NO'
+        end
       end
     end
   end

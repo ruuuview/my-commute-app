@@ -1,57 +1,30 @@
-import { useEffect, useRef } from 'react';
-import { AppState, Platform } from 'react-native';
+import { useEffect } from 'react';
 import { syncToWidget } from '../utils/widgetSync';
 
-export function useWidgetSync(fetchWidgetData: () => Promise<any>) {
-  const appState = useRef(AppState.currentState);
-
+export const useWidgetSync = (rawData: any) => {
   useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-
-    const pushData = async () => {
+    const performSync = async () => {
       try {
-        const rawData = await fetchWidgetData();
-        
-        let parsed: any[] = [];
-        if (Array.isArray(rawData)) parsed = rawData;
-        else if (rawData?.myLines) parsed = rawData.myLines;
-        else if (rawData?.lines) parsed = rawData.lines;
-        else if (rawData?.data) parsed = rawData.data; // Added common fallback
-        else if (rawData?.data?.lines) parsed = rawData.data.lines;
+        // Only attempt sync if we actually have data
+        if (!rawData) return;
 
-        let payload: any[] = [];
-        if (parsed && parsed.length > 0) {
-            payload = parsed.map((line: any) => ({
-              id: String(line.id || '').toLowerCase(),
-              name: String(line.name || 'Unknown Line'),
-            })).filter(line => line.id !== '');
-        }
+        await syncToWidget(rawData);
+      } catch (error) {
+        // PROTECT: Never use '+' with JSON.stringify on large objects
+        // This prevents the 'stack buffer overflow' seen in Build 718 logs
+        console.error("Widget Hook Error:", error);
 
-        // 🚨 IF IT FAILS TO PARSE, DO NOT SILENTLY RETURN.
-        // Force an error payload across the bridge so we can see it on the widget.
-        if (payload.length === 0) {
-            let errorString = JSON.stringify(rawData) || "Unknown Data Shape";
-            payload = [{ 
-                id: "bakerloo", // Fake ID so TfL API doesn't crash
-                name: "Parse Error: " + errorString.substring(0, 20) 
-            }];
-        }
+        const errorPayload = [{
+          id: "error",
+          name: "Sync Error",
+          status: "Failed",
+          color: "#FF3B30"
+        }];
 
-        await syncToWidget(payload);
-      } catch (error: any) {
-        await syncToWidget([{ id: "bakerloo", name: "JS Crash: " + String(error.message).substring(0,20) }]);
+        await syncToWidget(errorPayload);
       }
     };
 
-    pushData();
-
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-         pushData();
-      }
-      appState.current = nextAppState;
-    });
-
-    return () => subscription.remove();
-  }, [fetchWidgetData]);
-}
+    performSync();
+  }, [rawData]);
+};

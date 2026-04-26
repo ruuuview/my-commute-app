@@ -2,19 +2,21 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import MyCommuteDashboard from '../components/MyCommuteDashboard';
 import { FractalGlassTabBar, MY_COMMUTE_TABS } from '../components/FractalGlassTabBar';
+import { useRouter } from 'expo-router';
 
 export default function Home() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       {/* The Main UI */}
-      <MyCommuteDashboard />
+      <MyCommuteDashboard onOpenAddModal={() => router.push('/AddManageModal')} />
       
       {/* The Bottom Glass Navigation */}
       <FractalGlassTabBar 
         tabs={MY_COMMUTE_TABS} 
         activeKey="dashboard" 
         onPress={(key) => {
-          // This will handle switching tabs later
           console.log("Tab pressed:", key);
         }} 
       />

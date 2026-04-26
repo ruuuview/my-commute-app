@@ -134,7 +134,7 @@ export default function StationDetailScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#E74C3C" />
           <Text style={styles.errorText}>Failed to load departures</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchStationDetail}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => fetchStationDetail()} accessibilityLabel="Retry loading departures" accessibilityRole="button">
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -167,9 +167,9 @@ export default function StationDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: headerBackgroundColor }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button"><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></TouchableOpacity>
         <View style={styles.headerContent}><Text style={styles.stationTitle}>{(stationData?.name || stationName).toUpperCase()}</Text></View>
-        <TouchableOpacity style={styles.refreshButton} onPress={() => fetchStationDetail()}><Ionicons name="refresh" size={24} color="#FFFFFF" /></TouchableOpacity>
+        <TouchableOpacity style={styles.refreshButton} onPress={() => fetchStationDetail()} accessibilityLabel="Refresh departures" accessibilityRole="button"><Ionicons name="refresh" size={24} color="#FFFFFF" /></TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

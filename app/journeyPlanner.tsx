@@ -361,7 +361,7 @@ export default function JourneyPlannerV2() {
               { backgroundColor: leg.line_color || (isWalking ? '#999' : isCycling ? '#FF9500' : '#007AFF') },
             ]}
           >
-            <Ionicons name={getModeIcon(leg.mode)} size={16} color="#fff" />
+            <Ionicons name={getModeIcon(leg.mode) as any} size={16} color="#fff" />
           </View>
           {index < totalLegs - 1 && <View style={styles.legConnector} />}
         </View>
@@ -554,7 +554,7 @@ export default function JourneyPlannerV2() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="arrow-back" size={28} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Journey Planner</Text>
@@ -590,6 +590,8 @@ export default function JourneyPlannerV2() {
               style={styles.swapButtonCompact}
               onPress={swapStations}
               disabled={!fromStation && !toStation}
+              accessibilityLabel="Swap departure and destination"
+              accessibilityRole="button"
             >
               <Ionicons name="swap-vertical" size={20} color="#007AFF" />
             </TouchableOpacity>

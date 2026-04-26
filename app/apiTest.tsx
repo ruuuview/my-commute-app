@@ -57,7 +57,7 @@ export default function ApiTestScreen() {
     try {
       if (Platform.OS !== 'ios') throw new Error("App Groups are iOS only");
       
-      const containerURL = FileSystem.documentDirectory;
+      const containerURL = (FileSystem as any).documentDirectory;
       setResponse({ 
         status: "Container Accessible", 
         path: containerURL,
@@ -86,7 +86,7 @@ export default function ApiTestScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Diagnostics</Text>

@@ -8,12 +8,10 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Platform,
-  Linking,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useLine, useLines, useLineLoading, useLineError } from '../../store/lineDataStore';
@@ -382,7 +380,7 @@ export default function LineDetailScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#E74C3C" />
           <Text style={styles.errorText}>Failed to load line details</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => fetchAllLines(true)}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => fetchAllLines(true)} accessibilityLabel="Retry loading line details" accessibilityRole="button">
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -393,7 +391,7 @@ export default function LineDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: lineData.color }]}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.lineTitle}>{lineData.name}</Text>
@@ -404,14 +402,14 @@ export default function LineDetailScreen() {
           styles.statusCard,
           {
             borderLeftColor: lineData.status_severity >= 7 ? '#D32F2F' : 
-                            lineData.status_severity >= 3 ? '#FFA000' : '#388E3C',
+                             lineData.status_severity >= 3 ? '#FFA000' : '#388E3C',
             borderLeftWidth: 6,
           }
         ]}>
           <Text style={styles.statusTitle}>{lineData.status}</Text>
           {lineData.reason && <Text style={styles.statusDescription}>{lineData.reason}</Text>}
           <Text style={styles.statusTimestamp}>
-            Updated: {new Date(lineData.updated_at).toLocaleTimeString()}
+            Updated: {new Date((lineData as any).updated_at).toLocaleTimeString()}
           </Text>
         </View>
 

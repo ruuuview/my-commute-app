@@ -19,7 +19,7 @@ export function useWidgetSync(fetchWidgetData: () => Promise<any>) {
         else if (rawData?.data) parsed = rawData.data; // Added common fallback
         else if (rawData?.data?.lines) parsed = rawData.data.lines;
 
-        let payload = [];
+        let payload: any[] = [];
         if (parsed && parsed.length > 0) {
             payload = parsed.map((line: any) => ({
               id: String(line.id || '').toLowerCase(),

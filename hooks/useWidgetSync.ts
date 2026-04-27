@@ -5,13 +5,12 @@ export const useWidgetSync = (rawData: any) => {
   useEffect(() => {
     const performSync = async () => {
       try {
-        // Only attempt sync if we actually have data
         if (!rawData) return;
 
         await syncToWidget(rawData);
       } catch (error) {
-        // PROTECT: Never use '+' with JSON.stringify on large objects
-        // This prevents the 'stack buffer overflow' seen in Build 718 logs
+        // PROTECT: Never concatenate JSON.stringify with large strings.
+        // This prevents the stack buffer overflow crash seen in libsystem_c.dylib.
         console.error("Widget Hook Error:", error);
 
         const errorPayload = [{

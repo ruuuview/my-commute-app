@@ -4,7 +4,7 @@ const APP_GROUP_ID = 'group.com.mycommute.app';
 
 export const syncToWidget = async (data: any) => {
   try {
-    // PROTECT: Ensure we have an array to prevent Hermes HiddenClass segfaults
+    // PROTECT: Validate data shape to prevent Hermes HiddenClass memory faults (EXC_BAD_ACCESS)
     const linesArray: any[] = Array.isArray(data) 
       ? data 
       : data?.myLines ?? data?.lines ?? [];
@@ -25,7 +25,7 @@ export const syncToWidget = async (data: any) => {
       APP_GROUP_ID
     );
 
-    // SAFE LOG: Use commas, not '+' to prevent stack overflows
+    // SAFE LOG: Use commas, NOT '+', to avoid stack overflows in libsystem_c
     console.log('✅ Widget Sync Success:', widgetData.items.length);
   } catch (error) {
     console.error('❌ Widget Sync Failed:', error);

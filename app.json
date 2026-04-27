@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "buildNumber": "719",
+      "buildNumber": "720",
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -21,7 +21,8 @@
         "UIBackgroundModes": [
           "fetch",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.security.application-groups": [

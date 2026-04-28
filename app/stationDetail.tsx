@@ -24,7 +24,7 @@ const getLineColor = (lineName: string): string => {
     'Hammersmith & City': '#F3A9BB', 'Jubilee': '#A0A5A9', 'Metropolitan': '#9B0056', 'Northern': '#000000',
     'Piccadilly': '#003688', 'Victoria': '#0098D4', 'Waterloo & City': '#95CDBA', 'Elizabeth': '#6950a1', 'DLR': '#00AFAD',
   };
-  const normalizedName = lineName.replace(' Line', '').trim();
+  const normalizedName = String(lineName ?? '').replace(' Line', '').trim();
   return colors[normalizedName] || colors[lineName] || '#666666';
 };
 
@@ -157,7 +157,7 @@ export default function StationDetailScreen() {
         </View>
         <View style={styles.departureDetails}>
           <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
-          <Text style={styles.destination} numberOfLines={1}>{departure.destination.replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
+          <Text style={styles.destination} numberOfLines={1}>{String(departure.destination ?? '').replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
         </View>
         <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
       </View>

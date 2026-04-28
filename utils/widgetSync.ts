@@ -1,10 +1,13 @@
-import SharedGroupPreferences from 'react-native-shared-group-preferences';
+import { MMKV } from 'react-native-mmkv';
 
-const APP_GROUP_ID = 'group.com.mycommute.app';
+// Initialize MMKV specifically for your App Group
+const widgetStorage = new MMKV({
+  id: 'widget-storage',
+  appGroup: 'group.com.mycommute.app',
+});
 
-export const syncToWidget = async (data: any) => {
+export const syncToWidget = (data: any) => {
   try {
-    // Array Guard: Prevents Hermes HiddenClass EXC_BAD_ACCESS
     const linesArray: any[] = Array.isArray(data) 
       ? data 
       : data?.myLines ?? data?.lines ?? [];
@@ -19,14 +22,10 @@ export const syncToWidget = async (data: any) => {
       })),
     };
 
-    await SharedGroupPreferences.setItem(
-      'widgetKey',
-      widgetData,
-      APP_GROUP_ID
-    );
+    // Synchronous write. No bridge errors, no memory crashes.
+    widgetStorage.set('widgetKey', JSON.stringify(widgetData));
 
-    // Memory Safe Log: Using commas instead of string concatenation
-    console.log('✅ Widget Sync Success:', widgetData.items.length);
+    console.log('✅ Widget Sync Success (MMKV):', widgetData.items.length);
   } catch (error) {
     console.error('❌ Widget Sync Failed:', error);
   }

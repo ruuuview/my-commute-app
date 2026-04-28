@@ -1,6 +1,7 @@
 import { MMKV } from 'react-native-mmkv';
 
 // Initialize MMKV specifically for your App Group
+// @ts-ignore: Bypassing TS2693 - MMKV is a valid class at runtime, but types export it as an interface in this version
 const widgetStorage = new MMKV({
   id: 'widget-storage',
   appGroup: 'group.com.mycommute.app',

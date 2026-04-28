@@ -1,14 +1,16 @@
 import { MMKV } from 'react-native-mmkv';
 
-// Initialize MMKV specifically for your App Group
-// @ts-ignore: Bypassing TS2693 - MMKV is a valid class at runtime, but types export it as an interface in this version
-const widgetStorage = new MMKV({
-  id: 'widget-storage',
-  appGroup: 'group.com.mycommute.app',
-});
+let widgetStorage: MMKV | null = null;
 
 export const syncToWidget = (data: any) => {
   try {
+    if (!widgetStorage) {
+      widgetStorage = new MMKV({
+        id: 'widget-storage',
+        appGroup: 'group.com.mycommute.app',
+      });
+    }
+
     const linesArray: any[] = Array.isArray(data) 
       ? data 
       : data?.myLines ?? data?.lines ?? [];
@@ -23,11 +25,10 @@ export const syncToWidget = (data: any) => {
       })),
     };
 
-    // Synchronous write. No bridge errors, no memory crashes.
     widgetStorage.set('widgetKey', JSON.stringify(widgetData));
-
     console.log('✅ Widget Sync Success (MMKV):', widgetData.items.length);
+
   } catch (error) {
-    console.error('❌ Widget Sync Failed:', error);
+    console.error('❌ Widget Sync Failed (Likely App Group Provisioning):', error);
   }
 };

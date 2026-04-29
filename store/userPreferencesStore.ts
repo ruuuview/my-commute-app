@@ -1,14 +1,22 @@
-import { MMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 
-// @ts-ignore
-const storage = new MMKV({ id: 'user-preferences' });
+import type { MMKV } from 'react-native-mmkv';
+
+let storage: MMKV | null = null;
+const getStorage = (): MMKV => {
+  if (storage) return storage;
+  // Lazy-load to avoid JSI/TurboModule init at module import time
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { MMKV } = require('react-native-mmkv') as typeof import('react-native-mmkv');
+  storage = new MMKV({ id: 'user-preferences' });
+  return storage;
+};
 
 const mmkvStorage: StateStorage = {
-  getItem: (key) => storage.getString(key) ?? null,
-  setItem: (key, value) => storage.set(key, value),
-  removeItem: (key) => storage.delete(key),
+  getItem: (key) => getStorage().getString(key) ?? null,
+  setItem: (key, value) => getStorage().set(key, value),
+  removeItem: (key) => getStorage().delete(key),
 };
 
 export interface UserPreferencesState {

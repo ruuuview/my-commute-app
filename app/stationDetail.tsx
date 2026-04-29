@@ -18,19 +18,21 @@ const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 interface Departure { destination: string; line: string; platform: string; minutes_away: number; expected_arrival: string; status?: string; }
 interface StationDetailData { id: string; name: string; departures: Departure[]; updated_at: string; }
 
-const getLineColor = (lineName: string): string => {
+const getLineColor = (lineName: string | null | undefined): string => {
   const colors: { [key: string]: string } = {
     'Bakerloo': '#B36305', 'Central': '#E32017', 'Circle': '#FFD300', 'District': '#00782A',
     'Hammersmith & City': '#F3A9BB', 'Jubilee': '#A0A5A9', 'Metropolitan': '#9B0056', 'Northern': '#000000',
     'Piccadilly': '#003688', 'Victoria': '#0098D4', 'Waterloo & City': '#95CDBA', 'Elizabeth': '#6950a1', 'DLR': '#00AFAD',
   };
-  const normalizedName = String(lineName ?? '').replace(' Line', '').trim();
-  return colors[normalizedName] || colors[lineName] || '#666666';
+  const lineNameStr = String(lineName ?? '');
+  const normalizedName = lineNameStr.replace(' Line', '').trim();
+  return colors[normalizedName] || colors[lineNameStr] || '#666666';
 };
 
-const extractPlatformNumber = (platform: string): string => {
-  const match = platform.match(/Platform (\d+)/);
-  return match ? match[1] : platform.split(' ').pop() || '?';
+const extractPlatformNumber = (platform: string | null | undefined): string => {
+  const platformStr = String(platform ?? '');
+  const match = platformStr.match(/Platform (\d+)/);
+  return match ? match[1] : platformStr.split(' ').pop() || '?';
 };
 
 const getPlatformTextColor = (backgroundColor: string): string => {
@@ -44,8 +46,8 @@ const formatDueTime = (minutes: number): string => {
   return `${minutes} MINS`;
 };
 
-const getStatusSeverity = (status: string): number => {
-  const statusLower = status.toLowerCase();
+const getStatusSeverity = (status: string | null | undefined): number => {
+  const statusLower = String(status ?? '').toLowerCase();
   if (statusLower.includes('severe') || statusLower.includes('suspended') || statusLower.includes('closure')) return 3; 
   if (statusLower.includes('minor') || statusLower.includes('delay') || statusLower.includes('disruption')) return 2; 
   if (statusLower.includes('good') || statusLower.includes('service')) return 1; 
@@ -66,7 +68,7 @@ const groupDeparturesByDirection = (departures: Departure[]) => {
   const northbound: Departure[] = [];
   const southbound: Departure[] = [];
   departures.forEach(d => {
-    const platform = d.platform.toLowerCase();
+    const platform = String(d.platform ?? '').toLowerCase();
     if (platform.includes('northbound') || platform.includes('eastbound')) northbound.push(d);
     else if (platform.includes('southbound') || platform.includes('westbound')) southbound.push(d);
     else northbound.push(d);
@@ -156,7 +158,7 @@ export default function StationDetailScreen() {
           <Text style={[styles.platformNumber, { color: platformTextColor }]}>{platformNumber}</Text>
         </View>
         <View style={styles.departureDetails}>
-          <Text style={[styles.lineName, { color: lineColor }]}>{departure.line}</Text>
+          <Text style={[styles.lineName, { color: lineColor }]}>{String(departure.line ?? '')}</Text>
           <Text style={styles.destination} numberOfLines={1}>{String(departure.destination ?? '').replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
         </View>
         <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
@@ -168,7 +170,7 @@ export default function StationDetailScreen() {
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: headerBackgroundColor }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button"><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></TouchableOpacity>
-        <View style={styles.headerContent}><Text style={styles.stationTitle}>{(stationData?.name || stationName).toUpperCase()}</Text></View>
+        <View style={styles.headerContent}><Text style={styles.stationTitle}>{String(stationData?.name ?? stationName ?? '').toUpperCase()}</Text></View>
         <TouchableOpacity style={styles.refreshButton} onPress={() => fetchStationDetail()} accessibilityLabel="Refresh departures" accessibilityRole="button"><Ionicons name="refresh" size={24} color="#FFFFFF" /></TouchableOpacity>
       </View>
 

@@ -1,11 +1,13 @@
-import { MMKV } from 'react-native-mmkv';
+import type { MMKV } from 'react-native-mmkv';
 
 let widgetStorage: MMKV | null = null;
 
 export const syncToWidget = (data: any) => {
   try {
     if (!widgetStorage) {
-      // @ts-ignore: Bypassing TS2693 - MMKV is a valid class at runtime
+      // Lazy-load MMKV on-demand (avoid TurboModule init at startup)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { MMKV } = require('react-native-mmkv') as typeof import('react-native-mmkv');
       widgetStorage = new MMKV({
         id: 'widget-storage',
         appGroup: 'group.com.mycommute.app',
@@ -26,8 +28,8 @@ export const syncToWidget = (data: any) => {
       })),
     };
 
-    // Added optional chaining (?) to fix TS18047
-    widgetStorage?.set('widgetKey', JSON.stringify(widgetData));
+    // TEMP: bypass App Group writes (crash mitigation)
+    // widgetStorage?.set('widgetKey', JSON.stringify(widgetData));
     console.log('✅ Widget Sync Success (MMKV):', widgetData.items.length);
 
   } catch (error) {

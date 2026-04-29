@@ -32,7 +32,7 @@ export const useWidgetSync = (rawData: any) => {
     }, 2000);
 
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      if (String(appState.current ?? '').match(/inactive|background/) && nextAppState === 'active') {
         performSync();
       }
       appState.current = nextAppState;

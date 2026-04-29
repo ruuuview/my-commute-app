@@ -216,7 +216,7 @@ export default function JourneyPlannerV2() {
 
   // Get mode icon
   const getModeIcon = (mode: string): string => {
-    const modeLower = mode.toLowerCase();
+    const modeLower = String(mode ?? '').toLowerCase();
     if (modeLower.includes('tube') || modeLower.includes('underground')) return 'train';
     if (modeLower.includes('bus')) return 'bus';
     if (modeLower.includes('walk')) return 'walk';
@@ -347,8 +347,9 @@ export default function JourneyPlannerV2() {
 
   // Render journey leg with enhanced details
   const renderJourneyLeg = (leg: JourneyLeg, index: number, totalLegs: number, isFirst: boolean) => {
-    const isWalking = leg.mode.toLowerCase().includes('walk');
-    const isCycling = leg.mode.toLowerCase().includes('cycle');
+    const legMode = String(leg.mode ?? '');
+    const isWalking = legMode.toLowerCase().includes('walk');
+    const isCycling = legMode.toLowerCase().includes('cycle');
     const walkDuration = leg.duration;
     const shouldShowMapButton = (isWalking || isCycling) && walkDuration >= 3 && isFirst;
     
@@ -375,7 +376,7 @@ export default function JourneyPlannerV2() {
                 ? 'Walk' 
                 : isCycling 
                   ? 'Cycle' 
-                  : leg.mode.toLowerCase() === 'bus' && leg.line_name
+                  : legMode.toLowerCase() === 'bus' && leg.line_name
                     ? `Take Bus ${leg.line_name}`
                     : leg.line_name 
                       ? `Take ${leg.line_name}` 

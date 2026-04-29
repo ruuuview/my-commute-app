@@ -60,7 +60,7 @@ interface DashboardData {
 
 // ─── Severity mapping ─────────────────────────────────────────────
 function parseSeverity(statusText: string): Severity {
-  const text = statusText.toLowerCase();
+  const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
   if (text.includes('minor')) return 'minor';
   if (text.includes('severe') || text.includes('closure') || text.includes('suspended') || text.includes('delay')) return 'severe';
@@ -209,14 +209,14 @@ const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete
     <RNAnimated.View style={[stCard.container, { transform: [{ rotate: shakeAnim.interpolate({ inputRange: [-2, 0, 2], outputRange: ['-2deg', '0deg', '2deg'] }) }] }]}>
       <View style={stCard.header}>
         <View style={stCard.uBadge}><Text style={stCard.uText}>U</Text></View>
-        <Text style={stCard.stationName} numberOfLines={1}>{station.name.replace(/ Underground Station$/i, '')}</Text>
+        <Text style={stCard.stationName} numberOfLines={1}>{String(station.name ?? '').replace(/ Underground Station$/i, '')}</Text>
         {isEditing && (
           <Pressable style={card.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(station.id); }}>
             <Text style={card.deleteIcon}>−</Text>
           </Pressable>
         )}
       </View>
-      {station.arrivals.length > 0 && (
+      {Array.isArray(station.arrivals) && station.arrivals.length > 0 && (
         <View style={stCard.arrivals}>
           {station.arrivals.slice(0, 3).map((a, i) => (
             <View key={i} style={stCard.arrivalRow}>
@@ -281,10 +281,10 @@ export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ 
       
       const fresh: DashboardData = {
         lines: raw.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          color: TFL_COLORS[item.id] || '#888',
-          status: item.status,
+          id: String(item?.id ?? ''),
+          name: String(item?.name ?? ''),
+          color: TFL_COLORS[String(item?.id ?? '')] || '#888',
+          status: String(item?.status ?? ''),
         })),
         stations: data.stations || [], 
       };

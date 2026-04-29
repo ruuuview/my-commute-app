@@ -24,7 +24,7 @@ export const useLineData = () => {
 
       // 🚨 PATCH: Fix Sorting Logic (Safe Numbers)
       lines.forEach((line: any) => {
-        const s = (line.status || '').toLowerCase();
+        const s = String(line?.status ?? '').toLowerCase();
         
         if (s.includes('part closure') || s.includes('suspended') || s.includes('closure')) {
            line.status_severity = 20; // RED (Highest Priority)

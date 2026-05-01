@@ -22,7 +22,10 @@ export default function AddManageModal({ visible, onClose, savedLines, savedStat
     else setLocalLines([...localLines, id]);
   };
 
-  const handleSave = () => { onSave(localLines, savedStations); onClose(); };
+  const handleSave = () => { 
+    if (typeof onSave === 'function') onSave(localLines, savedStations); 
+    if (typeof onClose === 'function') onClose(); 
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">

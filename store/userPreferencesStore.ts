@@ -1,29 +1,16 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import { MMKV } from 'react-native-mmkv';
 
-let storage: any = null;
-const getStorage = () => {
-  if (storage) return storage;
-  // Lazy-load to avoid JSI/TurboModule init at module import time
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { MMKV } = require('react-native-mmkv');
-  storage = new MMKV({ id: 'user-preferences' });
-  return storage;
-};
+// 1. Top-level initialization. NO require() hacks.
+// 2. We use 'v2' to force a total memory wipe so you get sent straight to Onboarding.
+// @ts-ignore: MMKV exports a value at runtime, TS is just confused.
+const storage = new MMKV({ id: 'user-preferences-v2' });
 
 const mmkvStorage: StateStorage = {
-  getItem: (key) => {
-    const storage = getStorage();
-    return storage.getString(key) ?? null;
-  },
-  setItem: (key, value) => {
-    const storage = getStorage();
-    storage.set(key, value);
-  },
-  removeItem: (key) => {
-    const storage = getStorage();
-    storage.delete(key);
-  },
+  getItem: (key) => storage.getString(key) ?? null,
+  setItem: (key, value) => storage.set(key, value),
+  removeItem: (key) => storage.delete(key),
 };
 
 export interface PinnedStation {
@@ -62,7 +49,7 @@ export const useUserPreferences = create<UserPreferencesState>()(
     (set, get) => ({
       selectedLineIds: [],
       selectedStationIds: [],
-      hasCompletedOnboarding: false,
+      hasCompletedOnboarding: false, // Default is false, triggering the Void
       onboardingStep: 0,
       pinnedStations: [],
 
@@ -108,7 +95,13 @@ export const useUserPreferences = create<UserPreferencesState>()(
           return { selectedStationIds: arr };
         }),
 
-      clearAll: () => set({ selectedLineIds: [], selectedStationIds: [], pinnedStations: [] }),
+      clearAll: () => set({ 
+        selectedLineIds: [], 
+        selectedStationIds: [], 
+        pinnedStations: [],
+        hasCompletedOnboarding: false,
+        onboardingStep: 0
+      }),
       
       completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 3 }),
       
@@ -136,7 +129,7 @@ export const useUserPreferences = create<UserPreferencesState>()(
       clearPinnedStations: () => set({ pinnedStations: [] }),
     }),
     {
-      name: 'user-preferences', 
+      name: 'user-preferences-v2', // Matches the exact v2 database name
       storage: createJSONStorage(() => mmkvStorage),
       partialize: (s) => ({
         selectedLineIds: s.selectedLineIds,

@@ -1,27 +1,44 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 
-import type { MMKV } from 'react-native-mmkv';
-
-let storage: MMKV | null = null;
-const getStorage = (): MMKV => {
+let storage: any = null;
+const getStorage = () => {
   if (storage) return storage;
   // Lazy-load to avoid JSI/TurboModule init at module import time
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { MMKV } = require('react-native-mmkv') as typeof import('react-native-mmkv');
+  const { MMKV } = require('react-native-mmkv');
   storage = new MMKV({ id: 'user-preferences' });
   return storage;
 };
 
 const mmkvStorage: StateStorage = {
-  getItem: (key) => getStorage().getString(key) ?? null,
-  setItem: (key, value) => getStorage().set(key, value),
-  removeItem: (key) => getStorage().delete(key),
+  getItem: (key) => {
+    const storage = getStorage();
+    return storage.getString(key) ?? null;
+  },
+  setItem: (key, value) => {
+    const storage = getStorage();
+    storage.set(key, value);
+  },
+  removeItem: (key) => {
+    const storage = getStorage();
+    storage.delete(key);
+  },
 };
+
+export interface PinnedStation {
+  id: string;
+  name: string;
+  lines: string[];
+  role: 'home' | 'work' | 'other';
+}
 
 export interface UserPreferencesState {
   selectedLineIds: string[];
   selectedStationIds: string[];
+  hasCompletedOnboarding: boolean;
+  onboardingStep: number;
+  pinnedStations: PinnedStation[];
   addLine: (id: string) => void;
   removeLine: (id: string) => void;
   toggleLine: (id: string) => void;
@@ -33,6 +50,11 @@ export interface UserPreferencesState {
   reorderLines: (from: number, to: number) => void;
   reorderStations: (from: number, to: number) => void;
   clearAll: () => void;
+  completeOnboarding: () => void;
+  setOnboardingStep: (step: number) => void;
+  pinStation: (station: PinnedStation) => void;
+  removePinnedStation: (id: string) => void;
+  clearPinnedStations: () => void;
 }
 
 export const useUserPreferences = create<UserPreferencesState>()(
@@ -40,6 +62,9 @@ export const useUserPreferences = create<UserPreferencesState>()(
     (set, get) => ({
       selectedLineIds: [],
       selectedStationIds: [],
+      hasCompletedOnboarding: false,
+      onboardingStep: 0,
+      pinnedStations: [],
 
       addLine: (id) =>
         set((s) => s.selectedLineIds.includes(id) ? s : { selectedLineIds: [...s.selectedLineIds, id] }),
@@ -83,7 +108,32 @@ export const useUserPreferences = create<UserPreferencesState>()(
           return { selectedStationIds: arr };
         }),
 
-      clearAll: () => set({ selectedLineIds: [], selectedStationIds: [] }),
+      clearAll: () => set({ selectedLineIds: [], selectedStationIds: [], pinnedStations: [] }),
+      
+      completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 3 }),
+      
+      setOnboardingStep: (step) => set({ onboardingStep: step }),
+      
+      pinStation: (station) =>
+        set((s) => {
+          if (s.pinnedStations.length >= 4) {
+            return s;
+          }
+          const existingIndex = s.pinnedStations.findIndex((s) => s.id === station.id);
+          if (existingIndex >= 0) {
+            const updated = [...s.pinnedStations];
+            updated[existingIndex] = station;
+            return { pinnedStations: updated };
+          }
+          return { pinnedStations: [...s.pinnedStations, station] };
+        }),
+      
+      removePinnedStation: (id) =>
+        set((s) => ({
+          pinnedStations: s.pinnedStations.filter((station) => station.id !== id),
+        })),
+      
+      clearPinnedStations: () => set({ pinnedStations: [] }),
     }),
     {
       name: 'user-preferences', 
@@ -91,6 +141,9 @@ export const useUserPreferences = create<UserPreferencesState>()(
       partialize: (s) => ({
         selectedLineIds: s.selectedLineIds,
         selectedStationIds: s.selectedStationIds,
+        hasCompletedOnboarding: s.hasCompletedOnboarding,
+        onboardingStep: s.onboardingStep,
+        pinnedStations: s.pinnedStations,
       }),
     }
   )

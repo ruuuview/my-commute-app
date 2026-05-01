@@ -22,7 +22,23 @@ export default function AddManageModal({ visible, onClose, savedLines, savedStat
     else setLocalLines([...localLines, id]);
   };
 
-  const handleSave = () => { onSave(localLines, savedStations); onClose(); };
+  const handleSave = () => {
+    try {
+      if (typeof onSave === 'function') {
+        onSave(localLines, savedStations);
+      } else {
+        console.error('AddManageModal: onSave is not a function', { onSave });
+      }
+      
+      if (typeof onClose === 'function') {
+        onClose();
+      } else {
+        console.error('AddManageModal: onClose is not a function', { onClose });
+      }
+    } catch (error) {
+      console.error('AddManageModal: Error in handleSave:', error);
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">

@@ -1,13 +1,11 @@
-import type { MMKV } from 'react-native-mmkv';
-
-let widgetStorage: MMKV | null = null;
+let widgetStorage: any = null;
 
 export const syncToWidget = (data: any) => {
   try {
     if (!widgetStorage) {
       // Lazy-load MMKV on-demand (avoid TurboModule init at startup)
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { MMKV } = require('react-native-mmkv') as typeof import('react-native-mmkv');
+      const { MMKV } = require('react-native-mmkv');
       widgetStorage = new MMKV({
         id: 'widget-storage',
         appGroup: 'group.com.mycommute.app',

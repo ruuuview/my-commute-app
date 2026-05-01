@@ -21,7 +21,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferences } from '../store/userPreferencesStore';
@@ -273,29 +272,6 @@ export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ 
   const removeLine = useUserPreferences((s) => s.removeLine);
   const removeStation = useUserPreferences((s) => s.removeStation);
   
-  // ✅ Debug reset functionality for onboarding state
-  const clearAll = useUserPreferences((s) => s.clearAll);
-  const setOnboardingStep = useUserPreferences((s) => s.setOnboardingStep);
-  const router = useRouter();
-  
-  const handleDebugResetOnboarding = useCallback(() => {
-    console.log('DEBUG: Resetting onboarding state');
-    try {
-      // Clear all persisted state
-      clearAll();
-      
-      // Reset onboarding step to beginning
-      setOnboardingStep(0);
-      
-      // Force navigation to onboarding start
-      router.replace('/onboarding/lines');
-      
-      console.log('DEBUG: Onboarding reset completed successfully');
-    } catch (error) {
-      console.error('DEBUG: Error resetting onboarding:', error);
-    }
-  }, [clearAll, setOnboardingStep, router]);
-  
   const [isEditing, setIsEditing] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -339,15 +315,6 @@ export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ 
 
   return (
     <View style={[dash.root, { paddingTop: insets.top }]}>
-      {/* ── Debug Reset Button (Top Fixed Position) ── */}
-      <Pressable 
-        style={dash.debugButton}
-        onPress={handleDebugResetOnboarding}
-        accessibilityLabel="Debug reset onboarding"
-        accessibilityRole="button"
-      >
-        <Text style={dash.debugButtonText}>DEBUG: Reset Onboarding</Text>
-      </Pressable>
       {/* ── Global header ── */}
       <View style={dash.header}>
         <View style={dash.titleRow}>
@@ -423,27 +390,6 @@ const dash = StyleSheet.create({
   emptyState: { marginTop: 60, alignItems: 'center', paddingHorizontal: 32, gap: 10 },
   emptyTitle: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 18, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
   emptyBody: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 20 },
-  debugButton: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    zIndex: 1000,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-  },
-  debugButtonText: {
-    fontFamily: 'SpaceGrotesk-Bold',
-    fontSize: 12,
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
 });
 
 export default MyCommuteDashboard;

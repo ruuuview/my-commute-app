@@ -1,11 +1,13 @@
-let widgetStorage: any = null;
+import type { MMKV as MMKVType } from 'react-native-mmkv';
+const { MMKV } = require('react-native-mmkv');
+
+// We use the Type here for safety
+let widgetStorage: MMKVType | null = null;
 
 export const syncToWidget = (data: any) => {
   try {
     if (!widgetStorage) {
-      // Lazy-load MMKV on-demand (avoid TurboModule init at startup)
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { MMKV } = require('react-native-mmkv');
+      // We use the Value here to actually build the car
       widgetStorage = new MMKV({
         id: 'widget-storage',
         appGroup: 'group.com.mycommute.app',

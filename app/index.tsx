@@ -9,8 +9,8 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
-      {/* The Main UI */}
-      <MyCommuteDashboard onOpenAddModal={() => router.push('/AddManageModal')} />
+      {/* The Main UI — modal is now self-contained inside MyCommuteDashboard */}
+      <MyCommuteDashboard />
       
       {/* The Bottom Glass Navigation */}
       <FractalGlassTabBar 

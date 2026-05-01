@@ -1,17 +1,32 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
-import { MMKV } from 'react-native-mmkv';
 
-// 1. Top-level initialization. NO require() hacks.
-// 2. We use 'v2' to force a total memory wipe so you get sent straight to Onboarding.
-// @ts-ignore: MMKV exports a value at runtime, TS is just confused.
-const storage = new MMKV({ id: 'user-preferences-v2' });
+// ─── Storage: MMKV with AsyncStorage fallback ─────────────────────
+// MMKV requires a native dev build. In Expo Go it crashes on import.
+// We lazy-require it inside a try/catch so Expo Go falls back to
+// AsyncStorage automatically — no code change needed when you switch builds.
+function buildStorage(): StateStorage {
+  try {
+    const { MMKV } = require('react-native-mmkv');
+    const mmkv = new MMKV({ id: 'user-preferences-v2' });
+    console.log('[Storage] Using MMKV ✅');
+    return {
+      getItem: (key) => mmkv.getString(key) ?? null,
+      setItem: (key, value) => mmkv.set(key, value),
+      removeItem: (key) => mmkv.delete(key),
+    };
+  } catch {
+    console.log('[Storage] MMKV unavailable — falling back to AsyncStorage');
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return {
+      getItem: (key) => AsyncStorage.getItem(key),
+      setItem: (key, value) => AsyncStorage.setItem(key, value),
+      removeItem: (key) => AsyncStorage.removeItem(key),
+    };
+  }
+}
 
-const mmkvStorage: StateStorage = {
-  getItem: (key) => storage.getString(key) ?? null,
-  setItem: (key, value) => storage.set(key, value),
-  removeItem: (key) => storage.delete(key),
-};
+const storage = buildStorage();
 
 export interface PinnedStation {
   id: string;
@@ -49,7 +64,7 @@ export const useUserPreferences = create<UserPreferencesState>()(
     (set, get) => ({
       selectedLineIds: [],
       selectedStationIds: [],
-      hasCompletedOnboarding: false, // Default is false, triggering the Void
+      hasCompletedOnboarding: false,
       onboardingStep: 0,
       pinnedStations: [],
 
@@ -95,24 +110,22 @@ export const useUserPreferences = create<UserPreferencesState>()(
           return { selectedStationIds: arr };
         }),
 
-      clearAll: () => set({ 
-        selectedLineIds: [], 
-        selectedStationIds: [], 
+      clearAll: () => set({
+        selectedLineIds: [],
+        selectedStationIds: [],
         pinnedStations: [],
         hasCompletedOnboarding: false,
-        onboardingStep: 0
+        onboardingStep: 0,
       }),
-      
+
       completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 3 }),
-      
+
       setOnboardingStep: (step) => set({ onboardingStep: step }),
-      
+
       pinStation: (station) =>
         set((s) => {
-          if (s.pinnedStations.length >= 4) {
-            return s;
-          }
-          const existingIndex = s.pinnedStations.findIndex((s) => s.id === station.id);
+          if (s.pinnedStations.length >= 4) return s;
+          const existingIndex = s.pinnedStations.findIndex((p) => p.id === station.id);
           if (existingIndex >= 0) {
             const updated = [...s.pinnedStations];
             updated[existingIndex] = station;
@@ -120,17 +133,17 @@ export const useUserPreferences = create<UserPreferencesState>()(
           }
           return { pinnedStations: [...s.pinnedStations, station] };
         }),
-      
+
       removePinnedStation: (id) =>
         set((s) => ({
           pinnedStations: s.pinnedStations.filter((station) => station.id !== id),
         })),
-      
+
       clearPinnedStations: () => set({ pinnedStations: [] }),
     }),
     {
-      name: 'user-preferences-v2', // Matches the exact v2 database name
-      storage: createJSONStorage(() => mmkvStorage),
+      name: 'user-preferences-v2',
+      storage: createJSONStorage(() => storage),
       partialize: (s) => ({
         selectedLineIds: s.selectedLineIds,
         selectedStationIds: s.selectedStationIds,

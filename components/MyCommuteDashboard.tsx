@@ -24,6 +24,8 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSeq
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferences } from '../store/userPreferencesStore';
+// ✅ Modal now managed HERE, not upstream (Ensure this path is correct based on where your file is! It might be '../app/AddManageModal' if it's in the app folder)
+import AddManageModal from '../app/AddManageModal';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -259,18 +261,22 @@ const section = StyleSheet.create({
 });
 
 // ─── Main Dashboard ───────────────────────────────────────────────
-export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ onOpenAddModal }) => {
+export const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
+
+  // ✅ Modal state lives HERE now
+  const [modalVisible, setModalVisible] = useState(false);
 
   // ✅ Live Data Hook
   const [data, setData] = useState<DashboardData>({ lines: [], stations: [] });
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ Fixed Zustand Selectors (Component won't unnecessarily re-render)
+  // ✅ Zustand selectors
   const selectedLines = useUserPreferences((s) => s.selectedLineIds);
   const selectedStations = useUserPreferences((s) => s.selectedStationIds);
   const removeLine = useUserPreferences((s) => s.removeLine);
   const removeStation = useUserPreferences((s) => s.removeStation);
+  const setLines = useUserPreferences((s) => s.setLines);
   
   const [isEditing, setIsEditing] = useState(false);
 
@@ -307,7 +313,12 @@ export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ 
     setIsEditing((v) => !v);
   }, []);
 
-  // Filter global data to only show what the user selected in MMKV
+  // ✅ The exact fix for the "onSave is undefined" bug
+  const handleModalSave = useCallback((lines: string[], _stations: string[]) => {
+    setLines(lines);
+    setModalVisible(false);
+  }, [setLines]);
+
   const myLines = data.lines.filter(l => selectedLines.includes(l.id));
   const myStations = data.stations.filter(s => selectedStations.includes(s.id));
   const hasContent = myLines.length > 0 || myStations.length > 0;
@@ -329,7 +340,8 @@ export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ 
                 <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
               </Pressable>
             )}
-            <Pressable onPress={onOpenAddModal} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
+            {/* ✅ + Button opens modal directly */}
+            <Pressable onPress={() => setModalVisible(true)} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
               <Text style={dash.addBtnText}>+</Text>
             </Pressable>
           </View>
@@ -368,6 +380,15 @@ export const MyCommuteDashboard: React.FC<{ onOpenAddModal: () => void; }> = ({ 
           </View>
         )}
       </ScrollView>
+
+      {/* ✅ Modal rendered HERE with all props correctly wired */}
+      <AddManageModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        savedLines={selectedLines}
+        savedStations={selectedStations}
+        onSave={handleModalSave}
+      />
     </View>
   );
 };

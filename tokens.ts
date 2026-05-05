@@ -21,15 +21,10 @@ export const colors = {
 };
 
 export const typography = {
-  display: 'SF Pro Display',
-  title1: 'SF Pro Text',
-  title2: 'SF Pro Text',
-  headline: 'SF Pro Text',
-  body: 'SF Pro Text',
-  callout: 'SF Pro Text',
-  subhead: 'SF Pro Text',
-  caption1: 'SF Pro Text',
-  caption2: 'SF Pro Text'
+  display: 'SpaceGrotesk-Bold',
+  title1: 'SpaceGrotesk-Regular',
+  headline: 'SpaceGrotesk-Regular',
+  body: 'SpaceGrotesk-Regular'
 };
 
 export const dimensions = {

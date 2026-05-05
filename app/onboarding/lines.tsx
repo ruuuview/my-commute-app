@@ -1,3 +1,4 @@
+// app/onboarding/lines.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import Animated, { 

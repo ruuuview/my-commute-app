@@ -1,177 +1,155 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { useUserPreferences } from '@/store/userPreferencesStore';
-import VoidBackground from '@/components/VoidBackground';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSequence, 
+  withSpring, 
+  withTiming 
+} from 'react-native-reanimated';
+import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 
-const TfL_LINES = [
-  { id: 'bakerloo', name: 'Bakerloo', color: '#B36305', abbreviation: 'BAK' },
-  { id: 'central', name: 'Central', color: '#E32017', abbreviation: 'CEN' },
-  { id: 'circle', name: 'Circle', color: '#FFD300', abbreviation: 'CIR' },
-  { id: 'district', name: 'District', color: '#00782A', abbreviation: 'DIS' },
-  { id: 'hammersmith-city', name: 'Hammersmith & City', color: '#F3A9BB', abbreviation: 'HAM' },
-  { id: 'jubilee', name: 'Jubilee', color: '#A0A5A9', abbreviation: 'JUB' },
-  { id: 'metropolitan', name: 'Metropolitan', color: '#9B0056', abbreviation: 'MET' },
-  { id: 'northern', name: 'Northern', color: '#000000', abbreviation: 'NOR' },
-  { id: 'piccadilly', name: 'Piccadilly', color: '#003688', abbreviation: 'PIC' },
-  { id: 'victoria', name: 'Victoria', color: '#0098D4', abbreviation: 'VIC' },
-  { id: 'waterloo-city', name: 'Waterloo & City', color: '#95CDBA', abbreviation: 'WAT' },
-  { id: 'dlr', name: 'DLR', color: '#00A4A7', abbreviation: 'DLR' },
-  { id: 'london-overground', name: 'London Overground', color: '#EE7C0E', abbreviation: 'OVG' },
-  { id: 'elizabeth', name: 'Elizabeth', color: '#6950A1', abbreviation: 'ELZ' },
+// 1. Official TfL Colors mapped out
+const TFL_LINES = [
+  { id: 'bakerloo', name: 'Bakerloo', color: '#B26300' },
+  { id: 'central', name: 'Central', color: '#DC241F' },
+  { id: 'circle', name: 'Circle', color: '#FFD329', textColor: '#000' },
+  { id: 'district', name: 'District', color: '#007D32' },
+  { id: 'jubilee', name: 'Jubilee', color: '#A1A5A7', textColor: '#000' },
+  { id: 'northern', name: 'Northern', color: '#000000', border: '#333333' }, // Northern line needs a border on #050505
+  { id: 'piccadilly', name: 'Piccadilly', color: '#0019A8' },
+  { id: 'victoria', name: 'Victoria', color: '#0098D4' },
+  { id: 'waterloo', name: 'Waterloo & City', color: '#93CEBA', textColor: '#000' },
 ];
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+// 2. The Jiggling Pill Component (Reanimated Physics)
+const LinePill = ({ line, isSelected, onToggle }) => {
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
 
-export default function LinesScreen() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const { selectedLineIds, toggleLine } = useUserPreferences();
+  const handlePress = () => {
+    // The Jiggle Physics
+    scale.value = withSequence(
+      withTiming(0.9, { duration: 50 }),
+      withSpring(1.05, { damping: 5, stiffness: 200 }),
+      withSpring(1)
+    );
+    
+    rotation.value = withSequence(
+      withTiming(-2, { duration: 50 }),
+      withSpring(2, { damping: 2, stiffness: 400 }),
+      withSpring(0)
+    );
 
-  const handleLinePress = (lineId: string) => {
-    const isSelected = selectedLineIds.includes(lineId);
-    
-    if (isSelected) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    }
-    
-    toggleLine(lineId);
+    onToggle(line.id);
   };
 
-  const isNextEnabled = selectedLineIds.length > 0;
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { rotate: `${rotation.value}deg` }
+    ],
+    opacity: isSelected ? 1 : 0.4, // Cinematic dimming for unselected
+  }));
 
   return (
-    <VoidBackground>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Choose Your Lines</Text>
-          
-          <View style={styles.grid}>
-            {TfL_LINES.map((line, index) => {
-              const isSelected = selectedLineIds.includes(line.id);
-              
-              return (
-                <AnimatedTouchable
-                  key={line.id}
-                  style={[
-                    styles.linePill,
-                    { backgroundColor: line.color },
-                    isSelected && styles.linePillSelected,
-                  ]}
-                  entering={FadeInDown.delay(index * 35)}
-                  onPress={() => handleLinePress(line.id)}
-                  accessibilityLabel={`${line.name} line`}
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityRole="button"
-                >
-                  <Text 
-                    style={[
-                      styles.lineAbbreviation,
-                      isSelected && styles.lineAbbreviationSelected,
-                    ]}
-                    allowFontScaling={false}
-                  >
-                    {line.abbreviation}
-                  </Text>
-                </AnimatedTouchable>
-              );
-            })}
-          </View>
-        </View>
+    <Animated.View style={[animatedStyle, styles.pillWrapper]}>
+      <Pressable 
+        onPress={handlePress}
+        style={[
+          styles.pill,
+          { 
+            backgroundColor: line.color,
+            borderColor: line.border || line.color,
+            borderWidth: line.border ? 1.5 : 0,
+          }
+        ]}
+      >
+        <Text style={[
+          styles.pillText, 
+          { color: line.textColor || '#FFFFFF' }
+        ]}>
+          {line.name}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              isNextEnabled && styles.nextButtonEnabled,
-            ]}
-            onPress={() => router.push('/onboarding/stations' as any)}
-            disabled={!isNextEnabled}
-            accessibilityLabel="Continue to station selection"
-            accessibilityRole="button"
-          >
-            <Text style={[
-              styles.nextButtonText,
-              isNextEnabled && styles.nextButtonTextEnabled,
-            ]}>
-              Next
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </VoidBackground>
+// 3. The Main Screen Grid
+export default function LinesScreen() {
+  // 4. Zustand Integration
+  const selectedLines = useUserPreferencesStore((state) => state.selectedLines);
+  const toggleLine = useUserPreferencesStore((state) => state.toggleLine);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Your Routes</Text>
+        <Text style={styles.subtitle}>Tap the lines you commute on.</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.grid}>
+        {TFL_LINES.map((line) => (
+          <LinePill 
+            key={line.id}
+            line={line}
+            isSelected={selectedLines.includes(line.id)}
+            onToggle={toggleLine}
+          />
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#050505', // Your exact architecture background
+    paddingTop: 60,
   },
-  content: {
-    flex: 1,
-    padding: 20,
+  header: {
+    paddingHorizontal: 24,
+    marginBottom: 30,
   },
   title: {
-    fontFamily: 'SpaceGrotesk-Bold',
     fontSize: 32,
-    letterSpacing: -0.5,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 32,
-    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#A1A1AA',
+    marginTop: 8,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    paddingHorizontal: 20,
     gap: 12,
+    paddingBottom: 100,
   },
-  linePill: {
-    minWidth: 72,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
+  pillWrapper: {
+    marginBottom: 4,
+  },
+  pill: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    minWidth: 100,
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
   },
-  linePillSelected: {
-    opacity: 0.8,
-    transform: [{ scale: 0.96 }],
-  },
-  lineAbbreviation: {
-    fontFamily: 'SpaceGrotesk-Bold',
+  pillText: {
     fontSize: 16,
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  lineAbbreviationSelected: {
-    opacity: 0.9,
-  },
-  footer: {
-    padding: 20,
-    paddingTop: 16,
-  },
-  nextButton: {
-    backgroundColor: '#333333',
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButtonEnabled: {
-    backgroundColor: '#FFFFFF',
-  },
-  nextButtonText: {
-    fontFamily: 'SpaceGrotesk-Bold',
-    fontSize: 18,
-    color: '#999999',
-    letterSpacing: -0.5,
-  },
-  nextButtonTextEnabled: {
-    color: '#000000',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

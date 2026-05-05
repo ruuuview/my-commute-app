@@ -1,86 +1,68 @@
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
-import { registerBackgroundFetchAsync } from '../services/backgroundTask';
-import * as SplashScreen from 'expo-splash-screen';
-import { 
-  useFonts, 
-  SpaceGrotesk_400Regular, 
-  SpaceGrotesk_700Bold 
-} from '@expo-google-fonts/space-grotesk';
+// app/_layout.tsx
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import Audio from 'expo-av';
 
-// Keep the splash screen visible while fonts load
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    SpaceGrotesk_400Regular,
-    SpaceGrotesk_700Bold,
-  });
+const GrandRevealOverlay = () => {
+  const fadeAnim = useSharedValue(1);
 
   useEffect(() => {
-    const initBackground = async () => {
+    const startGrandReveal = async () => {
       try {
-        // Background fetch only works in standalone/production builds
-        if (!__DEV__) {
-          await registerBackgroundFetchAsync();
-        }
-      } catch (err) {
-        console.warn("Register Failed:", err); // warn not error
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Audio.loadAsync(require('../assets/audio/reveal.aac'));
+        setAudioModeAsync({ playsInSilentModeIOS: false });
+        setVolumeAsync(0.6);
+        playAsync();
+        fadeAnim.value = withTiming(0, { duration: 400 });
+      } catch (error) {
+        console.error('Failed to start grand reveal:', error);
       }
     };
-    initBackground();
+
+    const unsubscribe = useUserPreferencesStore.subscribe((state) => state.hasCompletedOnboarding, (hasCompletedOnboarding) => {
+      if (hasCompletedOnboarding) {
+        startGrandReveal();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  // Hide splash screen once fonts are ready
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  return (
+    <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+      {/* Black overlay */}
+    </Animated.View>
+  );
+};
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+const RootLayout = ({ children }) => {
+  const hasCompletedOnboarding = useUserPreferencesStore((state) => state.hasCompletedOnboarding);
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#999',
-        tabBarStyle: {
-          display: 'none',
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen name="(lineStack)" options={{ href: null }} />
-      <Tabs.Screen name="stationDetail" options={{ href: null }} />
-      <Tabs.Screen name="AddManageModal" options={{ href: null }} />
-      <Tabs.Screen name="apiTest" options={{ href: null }} />
-      <Tabs.Screen name="journeyPlanner" options={{ href: null }} />
-    </Tabs>
+    <View style={styles.container}>
+      {hasCompletedOnboarding && <GrandRevealOverlay />}
+      {children}
+    </View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'black',
+  },
+});
+
+export default RootLayout;

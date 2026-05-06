@@ -1,32 +1,29 @@
 // app/(tabs)/index.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated, { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import LivingDot from '../components/LivingDot';
-
-const ZeroState = () => {
-  return (
-    <View style={styles.zeroState}>
-      <LivingDot />
-      <Text style={styles.title}>Your commute is a blank slate.</Text>
-      <TouchableOpacity style={styles.ctaButton} onPress={() => {}}>
-        <Text style={styles.ctaButtonText}>Add Your First Line</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
+import LineCard from '../components/LineCard';
 
 const Dashboard = () => {
   const selectedLines = useUserPreferencesStore((state) => state.selectedLines);
-  const pinnedStations = useUserPreferencesStore((state) => state.pinnedStations);
+  const { data, status } = useTflApi();
 
   return (
     <ScrollView style={styles.container}>
-      {selectedLines.length === 0 && pinnedStations.length === 0 ? (
-        <ZeroState />
+      {selectedLines.length === 0 ? (
+        <View style={styles.zeroState}>
+          <Text style={styles.title}>Your commute is a blank slate.</Text>
+          <TouchableOpacity style={styles.ctaButton} onPress={() => {}}>
+            <Text style={styles.ctaButtonText}>Add Your First Line</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <Text>Cards go here</Text>
+        <>
+          {selectedLines.map((lineId) => (
+            <LineCard key={lineId} lineId={lineId} />
+          ))}
+        </>
       )}
     </ScrollView>
   );

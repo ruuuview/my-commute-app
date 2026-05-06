@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import FractalGlassTabBar from '../components/FractalGlassTabBar';
+import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
 const tabs = [
   { key: 'dashboard', icon: 'home', label: 'Dashboard' },

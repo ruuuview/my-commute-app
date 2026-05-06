@@ -77,7 +77,7 @@ const LinePill = ({ line, isSelected, onToggle }) => {
   );
 };
 
-// 3. The Main Screen Grid
+// The Main Screen Grid
 export default function LinesScreen() {
   // 4. Zustand Integration
   const selectedLines = useUserPreferencesStore((state) => state.selectedLines);

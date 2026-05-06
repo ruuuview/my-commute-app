@@ -6,14 +6,14 @@ export const colors = {
   lineColors: {
     bakerloo: '#B36305',
     central: '#E32017',
-    circle: '#FFD300',
+    circle: '#FFD329',
     district: '#00782A',
     elizabeth: '#6950A1',
     hammersmith: '#F3A9BB',
-    jubilee: '#A0A5A9',
+    jubilee: '#A1A5A9',
     metropolitan: '#9B0056',
     northern: '#000000',
-    piccadilly: '#003688',
+    piccadilly: '#0019A8',
     victoria: '#0098D4',
     waterlooAndCity: '#95CDBA',
     overground: '#EE7C0E'

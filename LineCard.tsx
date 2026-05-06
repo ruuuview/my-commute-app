@@ -1,13 +1,10 @@
 // components/LineCard.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTflApi } from '../hooks/useTflApi';
+import { TouchableOpacity, Text, StyleSheet, LayoutAnimation } from 'react-native';
+import { BlurView } from '@react-native-community/blur';
 
-const LineCard = ({ lineId }) => {
-  const { data, status } = useTflApi();
+const LineCard: React.FC<{ lineId: string }> = ({ lineId }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const insets = useSafeAreaInsets();
 
   const handlePress = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
@@ -15,27 +12,11 @@ const LineCard = ({ lineId }) => {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 16 }]}>
-      <TouchableOpacity onPress={handlePress} style={styles.card}>
-        <View style={styles.lineColorBar} />
+    <TouchableOpacity onPress={handlePress} style={styles.container}>
+      <BlurView tint="dark" intensity={20} style={styles.blurView}>
         <Text style={styles.lineName}>{lineId}</Text>
-        <StatusDot severity={data[lineId]?.status_severity || 0} />
-        {isExpanded && (
-          <View style={styles.departuresContainer}>
-            {Array.from({ length: 3 }, (_, i) => (
-              <Text key={i} style={styles.departure}>{monospacedDigit(data[lineId]?.minutes_away - i)}</Text>
-            ))}
-          </View>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-const monospacedDigit = (digit) => {
-  const digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-  return (
-    <Text style={styles.monospaced}>{digits[digit]}</Text>
+      </BlurView>
+    </TouchableOpacity>
   );
 };
 
@@ -48,52 +29,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  blurView: {
+    flex: 1,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: '#050505',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#388E3C',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  lineColorBar: {
-    width: 6,
-    height: '100%',
-    backgroundColor: '#388E3C',
   },
   lineName: {
-    flex: 1,
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
     marginLeft: 12,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#388E3C',
-    marginLeft: 12,
-  },
-  departuresContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  departure: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  monospaced: {
-    fontFamily: 'monospace',
   },
 });
 

@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated, { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import LineCard from '../components/LineCard';
+import LineCard from '../../components/LineCard';
 
 const Dashboard = () => {
   const selectedLines = useUserPreferencesStore((state) => state.selectedLines);

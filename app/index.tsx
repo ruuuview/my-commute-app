@@ -1,32 +1,14 @@
+// app/index.tsx
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import MyCommuteDashboard from '../components/MyCommuteDashboard';
-import { FractalGlassTabBar, MY_COMMUTE_TABS } from '../components/FractalGlassTabBar';
-import { useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
+import useUserPreferencesStore from '../store/userPreferencesStore';
 
-export default function Home() {
-  const router = useRouter();
+const Home = () => {
+  const hasCompletedOnboarding = useUserPreferencesStore((state) => state.hasCompletedOnboarding);
 
   return (
-    <View style={styles.container}>
-      {/* The Main UI — modal is now self-contained inside MyCommuteDashboard */}
-      <MyCommuteDashboard />
-      
-      {/* The Bottom Glass Navigation */}
-      <FractalGlassTabBar 
-        tabs={MY_COMMUTE_TABS} 
-        activeKey="dashboard" 
-        onPress={(key) => {
-          console.log("Tab pressed:", key);
-        }} 
-      />
-    </View>
+    <>{hasCompletedOnboarding ? <Redirect href="/(tabs)" /> : <Redirect href="/splash" />}</>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-});
+export default Home;

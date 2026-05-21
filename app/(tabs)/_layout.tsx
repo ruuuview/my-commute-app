@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { Slot } from 'expo-router';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
@@ -11,8 +12,9 @@ const tabs = [
   { key: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
-const TabsLayout = ({ children }) => {
-  const activeKey = useUserPreferencesStore((state) => state.onboardingStep);
+const TabsLayout = () => {
+  // Hardcoded activeKey to 'dashboard' for now since we're on the dashboard index
+  const activeKey = 'dashboard';
 
   // Dismiss native splash now that the dashboard has fully painted
   useEffect(() => {
@@ -21,8 +23,12 @@ const TabsLayout = ({ children }) => {
 
   return (
     <View style={styles.container}>
-      <FractalGlassTabBar tabs={tabs} activeKey={activeKey} onPress={(key) => {}} />
-      {children}
+      <View style={{ flex: 1 }}>
+        <Slot />
+      </View>
+      <View style={styles.tabBarContainer}>
+        <FractalGlassTabBar tabs={tabs} activeKey={activeKey} onPress={(key) => {}} />
+      </View>
     </View>
   );
 };
@@ -30,7 +36,14 @@ const TabsLayout = ({ children }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0A0A0F',
   },
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  }
 });
 
 export default TabsLayout;

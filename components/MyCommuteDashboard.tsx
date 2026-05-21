@@ -24,8 +24,12 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSeq
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferences } from '../store/userPreferencesStore';
-// ✅ Modal now managed HERE, not upstream (Ensure this path is correct based on where your file is! It might be '../app/AddManageModal' if it's in the app folder)
+// ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
+import GradientBackground from './GradientBackground';
+import DashboardSkeleton from './DashboardSkeleton';
+import LivingDot from './LivingDot';
+import BouncyButton from './BouncyButton';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -265,6 +269,8 @@ export const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // ✅ Modal state lives HERE now
+  const resetOnboarding = useUserPreferences((state) => state.resetOnboarding);
+
   const [modalVisible, setModalVisible] = useState(false);
 
   // ✅ Live Data Hook
@@ -325,7 +331,9 @@ export const MyCommuteDashboard: React.FC = () => {
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   return (
-    <View style={[dash.root, { paddingTop: insets.top }]}>
+    <View style={dash.root}>
+      <GradientBackground lines={selectedLines} />
+      <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]}>
       {/* ── Global header ── */}
       <View style={dash.header}>
         <View style={dash.titleRow}>
@@ -356,9 +364,22 @@ export const MyCommuteDashboard: React.FC = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
       >
         {!hasContent && (
-          <View style={dash.emptyState}>
-            <Text style={dash.emptyTitle}>No commute set up yet</Text>
-            <Text style={dash.emptyBody}>Tap + to add lines and stations you travel on daily.</Text>
+          <View style={dash.premiumEmptyState}>
+            <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
+              <DashboardSkeleton />
+            </View>
+            <View style={dash.emptyVisual}>
+              <LivingDot color="rgba(255,255,255,0.8)" size={48} />
+            </View>
+            <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
+            
+            <BouncyButton onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
+              <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
+            </BouncyButton>
+            
+            <BouncyButton onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
+              <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
+            </BouncyButton>
           </View>
         )}
 
@@ -389,6 +410,7 @@ export const MyCommuteDashboard: React.FC = () => {
         savedStations={selectedStations}
         onSave={handleModalSave}
       />
+      </View>
     </View>
   );
 };
@@ -408,9 +430,13 @@ const dash = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },
   section: { marginBottom: 24 },
-  emptyState: { marginTop: 60, alignItems: 'center', paddingHorizontal: 32, gap: 10 },
-  emptyTitle: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 18, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
-  emptyBody: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 20 },
+  premiumEmptyState: { marginTop: 60, alignItems: 'center', paddingHorizontal: 16 },
+  emptyVisual: { marginBottom: 32 },
+  emptyTitle: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 18, color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginBottom: 32 },
+  primaryBtn: { height: 56, width: '100%', borderRadius: 16, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  primaryBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk-Bold', color: '#0A0A0F' },
+  ghostBtn: { height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' },
+  ghostBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk-SemiBold', color: 'rgba(255,255,255,0.6)' },
 });
 
 export default MyCommuteDashboard;

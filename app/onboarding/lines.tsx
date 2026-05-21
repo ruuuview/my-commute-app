@@ -74,9 +74,11 @@ const Pill = React.memo(function Pill({
 
   const disabled = !isSelected && isAtLimit;
 
-  // Fix 1 — pill background IS the line colour at 15% (unselected) or 30% (selected)
-  const bgColor     = isSelected ? withAlpha(line.color, '4D') : withAlpha(line.color, '26');
-  const borderColor = isSelected ? withAlpha(line.color, 'CC') : withAlpha(line.color, '66');
+  // Colour on OUTER wrapper — BlurView refracts it through the frost.
+  // Putting it inside BlurView as absoluteFill rendered on top of the blur,
+  // not behind it — producing near-invisible colour on the frosted surface.
+  const bgColor     = isSelected ? `${line.color}4D` : `${line.color}26`;  // 30% / 15%
+  const borderColor = isSelected ? `${line.color}CC` : `${line.color}66`;  // 80% / 40%
   const borderWidth = isSelected ? 1.5 : 1;
 
   return (
@@ -90,16 +92,17 @@ const Pill = React.memo(function Pill({
         accessibilityRole="checkbox"
         accessibilityState={{ checked: isSelected }}
         accessibilityLabel={`${line.name} line`}
-        style={{ borderRadius: 16, overflow: 'hidden', marginBottom: GAP }}
+        style={{
+          borderRadius: 16,
+          overflow: 'hidden',
+          marginBottom: GAP,
+          backgroundColor: bgColor,      // ← colour BEHIND BlurView
+          borderWidth,
+          borderColor,
+        }}
       >
-        {/* BlurView refracts the VoidBackground gradient — glass over colour */}
-        <BlurView tint="light" intensity={25} style={styles.pillBlur}>
-          {/* Fix 1 — tinted colour overlay on top of blur */}
-          <View style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: bgColor, borderRadius: 16, borderWidth, borderColor },
-          ]} />
-
+        {/* BlurView over the coloured wrapper — frosted glass over colour+gradient */}
+        <BlurView tint="light" intensity={20} style={styles.pillBlur}>
           <Text
             style={styles.pillText}
             numberOfLines={1}

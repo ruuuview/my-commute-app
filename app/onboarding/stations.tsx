@@ -1,320 +1,474 @@
-// app/onboarding/stations.tsx
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal, TouchableOpacity } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSequence, 
-  withSpring, 
-  withTiming 
-} from 'react-native-reanimated';
+// app/onboarding/stations.tsx — Screen 2: Station Search (v4.1 §4.3 + §17.5)
+
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, TextInput, FlatList,
+  Modal, Pressable, useWindowDimensions, KeyboardAvoidingView, Platform,
+} from 'react-native';
+import Animated, { FadeInDown, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
+import * as Haptics from 'expo-haptics';
+import {
+  useFonts, SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Stack, useRouter } from 'expo-router';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
+import { TFL_STATIONS, POPULAR_STATIONS, TfLStation } from '../../data/tflStations';
+import VoidBackground from '../../components/VoidBackground';
+import BouncyPressable from '../../components/BouncyPressable';
+import ProgressDots from '../../components/ProgressDots';
 
-// Mock data for popular stations
-const POPULAR_STATIONS = [
-  { id: 'waterloo', name: 'Waterloo' },
-  { id: 'londonBridge', name: 'London Bridge' },
-  { id: 'victoria', name: 'Victoria' },
-  // Add more popular stations as needed
-];
-
-// Fuse.js configuration for fuzzy searching
-const fuse = new Fuse(POPULAR_STATIONS, {
-  keys: ['name'],
-  threshold: 0.2,
-});
-
-// The Jiggling Pill Component (Reanimated Physics)
-const StationPill = ({ station, isSelected, onToggle }) => {
-  const scale = useSharedValue(1);
-  const rotation = useSharedValue(0);
-
-  const handlePress = () => {
-    // The Jiggle Physics
-    scale.value = withSequence(
-      withTiming(0.9, { duration: 50 }),
-      withSpring(1.05, { damping: 5, stiffness: 200 }),
-      withSpring(1)
-    );
-    
-    rotation.value = withSequence(
-      withTiming(-2, { duration: 50 }),
-      withSpring(2, { damping: 2, stiffness: 400 }),
-      withSpring(0)
-    );
-
-    onToggle(station.id);
-  };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { rotate: `${rotation.value}deg` }
-    ],
-    opacity: isSelected ? 1 : 0.4, // Cinematic dimming for unselected
-  }));
-
-  return (
-    <Animated.View style={[animatedStyle, styles.pillWrapper]}>
-      <Pressable 
-        onPress={handlePress}
-        style={[
-          styles.pill,
-          { 
-            backgroundColor: '#388E3C',
-            borderColor: '#388E3C',
-            borderWidth: 1.5,
-          }
-        ]}
-      >
-        <Text style={styles.pillText}>
-          {station.name}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
+// ─── Line colour map for dots in search results ───────────────────────────────
+const LINE_COLORS: Record<string, string> = {
+  bakerloo: '#B36305', central: '#E32017', circle: '#FFD300',
+  district: '#00782A', dlr: '#00AFAD', elizabeth: '#6950A1',
+  'hammersmith-city': '#F3A9BB', jubilee: '#A0A5A9', metropolitan: '#9B0056',
+  northern: '#3A3A3C', overground: '#EE7C0E', piccadilly: '#003688',
+  victoria: '#0098D4', 'waterloo-city': '#95CDBA',
 };
 
-// The Bottom Sheet Component
-const StationBottomSheet = ({ visible, onClose, onPin }) => {
-  const [selectedRole, setSelectedRole] = useState(null);
+const MAX_PINS = 5;
+const ROW_HEIGHT = 64;
 
+// ─── Line dots row ────────────────────────────────────────────────────────────
+function LineDots({ lines }: { lines: string[] }) {
+  const shown = lines.slice(0, 4);
+  const extra = lines.length - 4;
   return (
-    <Modal 
-      animationType="slide" 
-      transparent={true} 
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.bottomSheetContainer}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.sheetTitle}>How do you use {selectedRole ? selectedRole : 'Station'}?</Text>
-        <View style={styles.roleButtonsContainer}>
-          <Pressable 
-            onPress={() => setSelectedRole('home')}
-            style={[
-              styles.roleButton,
-              selectedRole === 'home' && styles.selectedRoleButton
-            ]}
-          >
-            <Text style={styles.roleButtonText}>Home</Text>
-          </Pressable>
-          <Pressable 
-            onPress={() => setSelectedRole('work')}
-            style={[
-              styles.roleButton,
-              selectedRole === 'work' && styles.selectedRoleButton
-            ]}
-          >
-            <Text style={styles.roleButtonText}>Work</Text>
-          </Pressable>
-          <Pressable 
-            onPress={() => setSelectedRole('other')}
-            style={[
-              styles.roleButton,
-              selectedRole === 'other' && styles.selectedRoleButton
-            ]}
-          >
-            <Text style={styles.roleButtonText}>Other</Text>
-          </Pressable>
-        </View>
-        <TouchableOpacity 
-          onPress={() => {
-            if (selectedRole) {
-              onPin({ id: selectedRole, name: selectedRole }, selectedRole);
-              onClose();
-            }
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      {shown.map(l => (
+        <View
+          key={l}
+          style={{
+            width: 10, height: 10, borderRadius: 5,
+            backgroundColor: LINE_COLORS[l] ?? '#888',
+            borderWidth: l === 'northern' || l === 'circle' ? 0.5 : 0,
+            borderColor: 'rgba(255,255,255,0.4)',
           }}
-          style={styles.confirmButton}
-        >
-          <Text style={styles.confirmButtonText}>Confirm</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-};
-
-// The Main Screen Grid
-export default function StationsScreen() {
-  // Zustand Integration
-  const selectedLines = useUserPreferencesStore((state) => state.selectedLines);
-  const toggleLine = useUserPreferencesStore((state) => state.toggleLine);
-  const pinStation = useUserPreferencesStore((state) => state.pinStation);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredStations, setFilteredStations] = useState([]);
-  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
-  const [selectedStation, setSelectedStation] = useState(null);
-
-  React.useEffect(() => {
-    if (searchQuery) {
-      const results = fuse.search(searchQuery);
-      setFilteredStations(results.map(result => result.item));
-    } else {
-      setFilteredStations(POPULAR_STATIONS);
-    }
-  }, [searchQuery]);
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Your Stations</Text>
-        <Text style={styles.subtitle}>Add stations you frequently use.</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.grid}>
-        {filteredStations.map((station) => (
-          <StationPill 
-            key={station.id}
-            station={station}
-            isSelected={selectedLines.includes(station.id)}
-            onToggle={toggleLine}
-          />
-        ))}
-      </ScrollView>
-
-      <TouchableOpacity 
-        onPress={() => setIsBottomSheetVisible(true)}
-        style={styles.addButton}
-      >
-        <Text style={styles.addButtonText}>Add Station</Text>
-      </TouchableOpacity>
-
-      <StationBottomSheet 
-        visible={isBottomSheetVisible} 
-        onClose={() => setIsBottomSheetVisible(false)} 
-        onPin={(station, role) => {
-          pinStation(station, role);
-          setIsBottomSheetVisible(false);
-        }}
-      />
+        />
+      ))}
+      {extra > 0 && (
+        <Text style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' }}>
+          +{extra}
+        </Text>
+      )}
     </View>
   );
 }
 
+// ─── Search result row — fixed 64pt height for FlatList performance ───────────
+const StationRow = React.memo(function StationRow({
+  station,
+  isPinned,
+  onTap,
+}: {
+  station: TfLStation;
+  isPinned: boolean;
+  onTap: (s: TfLStation) => void;
+}) {
+  return (
+    <BouncyPressable
+      onPress={() => onTap(station)}
+      disabled={isPinned}
+      style={[styles.row, isPinned && { opacity: 0.45 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${station.name}, Zone ${station.zone}${isPinned ? ', already added' : ''}`}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowName} numberOfLines={1}>{station.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 }}>
+          <Text style={styles.rowZone}>Zone {station.zone}</Text>
+          <LineDots lines={station.lines} />
+        </View>
+      </View>
+      {isPinned
+        ? <Ionicons name="checkmark-circle" size={20} color="rgba(255,255,255,0.60)" />
+        : <Ionicons name="add-circle-outline" size={20} color="rgba(255,255,255,0.40)" />
+      }
+    </BouncyPressable>
+  );
+});
+
+// ─── Role selection bottom sheet ──────────────────────────────────────────────
+type Role = 'home' | 'work' | 'other';
+
+function RoleSheet({
+  station,
+  visible,
+  onConfirm,
+  onDismiss,
+}: {
+  station: TfLStation | null;
+  visible: boolean;
+  onConfirm: (role: Role) => void;
+  onDismiss: () => void;
+}) {
+  const [role, setRole] = useState<Role | null>(null);
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => { if (!visible) setRole(null); }, [visible]);
+
+  const ROLES: { id: Role; label: string; icon: string }[] = [
+    { id: 'home',  label: 'Home',  icon: 'home-outline' },
+    { id: 'work',  label: 'Work',  icon: 'briefcase-outline' },
+    { id: 'other', label: 'Other', icon: 'location-outline' },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss} accessibilityViewIsModal>
+      <Pressable style={styles.sheetScrim} onPress={onDismiss} />
+      <Animated.View entering={SlideInDown} style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+        {/* Drag handle */}
+        <View style={styles.sheetHandle} />
+
+        <Text style={styles.sheetTitle}>
+          How do you use{'\n'}
+          <Text style={{ color: 'rgba(255,255,255,0.95)' }}>{station?.name}?</Text>
+        </Text>
+
+        <View style={styles.roleRow}>
+          {ROLES.map(r => (
+            <BouncyPressable
+              key={r.id}
+              onPress={async () => {
+                await Haptics.selectionAsync();
+                setRole(r.id);
+              }}
+              style={[styles.roleBtn, role === r.id && styles.roleBtnSelected]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: role === r.id }}
+              accessibilityLabel={r.label}
+            >
+              <Ionicons name={r.icon as any} size={22} color="rgba(255,255,255,0.90)" />
+              <Text style={styles.roleBtnText}>{r.label}</Text>
+            </BouncyPressable>
+          ))}
+        </View>
+
+        <BouncyPressable
+          onPress={async () => {
+            if (!role) return;
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            onConfirm(role);
+          }}
+          disabled={!role}
+          style={[styles.sheetCta, !role && { opacity: 0.35 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Confirm station"
+        >
+          <Text style={styles.sheetCtaText}>Add {station?.name}</Text>
+        </BouncyPressable>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+// Fuse instance is created once at module level — not on every render
+const fuse = new Fuse(TFL_STATIONS, {
+  keys: ['name'],
+  threshold: 0.35,
+  includeScore: true,
+});
+
+export default function StationsScreen() {
+  const router       = useRouter();
+  const insets       = useSafeAreaInsets();
+  const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
+  const pinStation     = useUserPreferencesStore(s => s.pinStation);
+
+  const [query, setQuery]             = useState('');
+  const [sheetStation, setSheetStation] = useState<TfLStation | null>(null);
+  const inputRef = useRef<TextInput>(null);
+
+  const [fontsLoaded] = useFonts({
+    SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
+  });
+
+  const isAtLimit = pinnedStations.length >= MAX_PINS;
+  const canContinue = pinnedStations.length > 0;
+
+  // Search results — memoised, zero debounce (local data)
+  const results = useMemo<TfLStation[]>(() => {
+    if (!query.trim()) return POPULAR_STATIONS;
+    return fuse.search(query).map(r => r.item);
+  }, [query]);
+
+  const handleRowTap = useCallback((station: TfLStation) => {
+    const alreadyPinned = pinnedStations.some(p => p.id === station.id);
+    if (alreadyPinned || isAtLimit) return;
+    Haptics.selectionAsync();
+    setSheetStation(station);
+  }, [pinnedStations, isAtLimit]);
+
+  const handleConfirm = useCallback((role: Role) => {
+    if (!sheetStation) return;
+    pinStation(sheetStation, role);
+    setSheetStation(null);
+  }, [sheetStation, pinStation]);
+
+  const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
+
+  const renderItem = useCallback(({ item }: { item: TfLStation }) => (
+    <StationRow
+      station={item}
+      isPinned={pinnedIds.has(item.id)}
+      onTap={handleRowTap}
+    />
+  ), [pinnedIds, handleRowTap]);
+
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index,
+  }), []);
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.root, { backgroundColor: '#1A1A2E' }]}>
+        <VoidBackground />
+        <Stack.Screen options={{ headerShown: false }} />
+
+        {/* Progress dots */}
+        <ProgressDots currentStep={1} totalSteps={3} style={{ paddingTop: insets.top + 16 }} />
+
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title} numberOfLines={2} allowFontScaling maxFontSizeMultiplier={1.3}>
+            {'Which stations\ndo you use?'}
+          </Text>
+        </View>
+
+        {pinnedStations.length > 0 && (
+          <Animated.View entering={FadeInDown} style={styles.pillStrip}>
+            {pinnedStations.map((s, index) => (
+              <View key={`${s.id}-${index}`} style={styles.selectedPill}>
+                <Text style={styles.selectedPillText} numberOfLines={1}>{s.name}</Text>
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* Search bar */}
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.50)" style={{ marginLeft: 14 }} />
+          <TextInput
+            ref={inputRef}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search 90+ London stations"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            autoFocus
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            style={styles.searchInput}
+            accessibilityLabel="Search London stations"
+            accessibilityRole="search"
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.50)" style={{ marginRight: 12 }} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Section label */}
+        <Text style={styles.sectionLabel}>
+          {query ? `${results.length} result${results.length !== 1 ? 's' : ''}` : 'Popular stations'}
+        </Text>
+
+        {/* Results list — fixed row height for performance */}
+        <FlatList
+          data={results}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          getItemLayout={getItemLayout}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={28} color="rgba(255,255,255,0.25)" />
+              <Text style={styles.emptyText}>No stations found for "{query}"</Text>
+              <Text style={styles.emptyHint}>Try a different spelling or nearby station</Text>
+            </View>
+          }
+        />
+
+        {/* Sticky Continue CTA */}
+        <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
+          <BouncyPressable
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/onboarding/permissions');
+            }}
+            disabled={!canContinue}
+            accessibilityRole="button"
+            accessibilityLabel={canContinue ? 'Continue' : 'Add at least one station to continue'}
+            accessibilityState={{ disabled: !canContinue }}
+            style={[styles.cta, { backgroundColor: canContinue ? '#FFFFFF' : 'rgba(255,255,255,0.12)' }]}
+          >
+            <Text style={[styles.ctaText, { color: canContinue ? '#0A0A0F' : 'rgba(255,255,255,0.35)' }]}>
+              Continue
+            </Text>
+          </BouncyPressable>
+        </View>
+
+        {/* Role selection bottom sheet */}
+        <RoleSheet
+          station={sheetStation}
+          visible={!!sheetStation}
+          onConfirm={handleConfirm}
+          onDismiss={() => setSheetStation(null)}
+        />
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050505',
-    paddingTop: 60,
-  },
-  header: {
-    paddingHorizontal: 24,
-    marginBottom: 30,
-  },
+  root: { flex: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 12 },
   title: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255,255,255,0.95)',
     letterSpacing: -0.5,
+    lineHeight: 38,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#A1A1AA',
-    marginTop: 8,
-  },
-  grid: {
+
+  // Selected pill strip
+  pillStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 12,
-    paddingBottom: 100,
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 12,
   },
-  pillWrapper: {
-    marginBottom: 4,
+  selectedPill: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.40)',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
   },
-  pill: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 30,
-    minWidth: 100,
+  selectedPillText: {
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255,255,255,0.90)',
+  },
+
+  // Search bar — glass-bg-input per §1.1
+  searchWrap: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+    borderRadius: 14,
+    height: 48,
   },
-  pillText: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    right: 24,
-    backgroundColor: '#388E3C',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  bottomSheetContainer: {
+  searchInput: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 24,
+    fontSize: 15,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10,
+    height: '100%',
   },
-  closeButton: {
-    alignItems: 'flex-end',
-    marginBottom: 16,
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255,255,255,0.40)',
+    paddingHorizontal: 16,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  closeButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+
+  // Result row — fixed 64pt
+  row: {
+    height: ROW_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  rowName: {
+    fontSize: 15,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255,255,255,0.95)',
+  },
+  rowZone: {
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255,255,255,0.50)',
+  },
+
+  // Empty state
+  emptyState: { alignItems: 'center', paddingTop: 48, gap: 8 },
+  emptyText: { fontSize: 15, fontFamily: 'SpaceGrotesk_500Medium', color: 'rgba(255,255,255,0.50)', textAlign: 'center' },
+  emptyHint: { fontSize: 13, fontFamily: 'SpaceGrotesk_400Regular', color: 'rgba(255,255,255,0.30)', textAlign: 'center' },
+
+  // Sticky CTA
+  ctaWrap: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 16, paddingTop: 12,
+    backgroundColor: 'rgba(13,11,23,0.92)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  cta: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  ctaText: { fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  // Role sheet
+  sheetScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet: {
+    backgroundColor: '#16162A',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   sheetTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255,255,255,0.60)',
     marginBottom: 24,
   },
-  roleButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
+  roleRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  roleBtn: {
+    flex: 1, height: 72, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  roleButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#388E3C',
-    alignItems: 'center',
-    justifyContent: 'center',
+  roleBtnSelected: {
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    borderColor: 'rgba(255,255,255,0.70)',
   },
-  selectedRoleButton: {
-    backgroundColor: '#388E3C',
-    borderColor: '#388E3C',
+  roleBtnText: {
+    fontSize: 13, fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255,255,255,0.90)',
   },
-  roleButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  sheetCta: {
+    height: 56, borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
   },
-  confirmButton: {
-    backgroundColor: '#388E3C',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  sheetCtaText: {
+    fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', color: '#0A0A0F',
   },
 });

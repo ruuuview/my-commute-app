@@ -23,6 +23,26 @@
 
 
 
+## POST-BUILD DECISIONS (v4.1 → v4.2 patch — applied in-place)
+
+The following decisions were made during active development and override any earlier spec where conflicts exist:
+
+| # | Decision | Detail |
+|---|----------|--------|
+| 1 | expo-blur IS permitted in onboarding | VoidBackground now has a live gradient behind it. BlurView `tint="light"` intensity 20–25 on pills in onboarding. The v3 prohibition ("NO expo-blur in onboarding") is superseded. |
+| 2 | Pill colour = full tinted glass surface | Line colour floods the pill as `lineColor + '26'` (15% opacity bg) + `lineColor + '66'` (40% border). No left-bar, no dot. Selected: `lineColor + '4D'` (30%) + `lineColor + 'CC'` (80% border) + checkmark. |
+| 3 | BouncyPressable is the universal tap component | Every tappable element in the app uses `BouncyPressable`. `damping:15/stiffness:400` press-in, `damping:12/stiffness:300` press-out. No raw `TouchableOpacity` or `Pressable` without spring physics. File: `components/BouncyPressable.tsx`. |
+| 4 | 14 lines confirmed | Bakerloo, Central, Circle, District, DLR, Elizabeth, H&C, Jubilee, Metropolitan, Northern, Overground, Piccadilly, Victoria, Waterloo & City. DLR added. Overground stays as single pill for v1.0, splits to 6 named lines in v1.1. |
+| 5 | Continue button style | White fill `#FFFFFF` when enabled (selectedLines.length > 0), `rgba(255,255,255,0.15)` bg + `rgba(255,255,255,0.40)` text when disabled. Never change opacity — change backgroundColor. Height 56pt. |
+| 6 | Severity patch values | `useLineData.ts` remaps TfL raw values before storing: `{20: suspended, 9: severe, 5: minor, 1: good}`. `useWorstStatus` is built against these patched values NOT raw TfL API codes. These two files are coupled — if `useLineData.ts` is ever refactored, `useWorstStatus.ts` MUST be updated simultaneously. ⚠️ |
+| 7 | Freemium model | Free tier: full departure data visible in-app (all slots), zero ecosystem surfaces. Pro: all data + Dynamic Island + Live Activities + Lock Screen widget + push alerts. Paywall = passive intelligence delivery, not the data. |
+| 8 | Pricing | Monthly £4.99 / Annual £34.99 primary CTA ("save 42%") / Founding Member £19.99/yr first 500 only with badge / Student £4.99/yr via UNiDAYS. No 3-year plans. No lifetime deals. |
+| 9 | Trial | 10 qualifying commutes. Qualifying = app foregrounded or Live Activity active within 90 min of pinned station departure AND calendar event within 60 min. UI: "Trial — 7 commutes left." Counter in Zustand + backend webhook. |
+| 10 | Screen 1 subtitle | "Select your lines." |
+| 11 | Amber confirmed | Minor delays = amber family (`#7C3A00 → #FFF8E8`). Never yellow. Traffic light model is universal and non-negotiable. |
+
+---
+
 The following conflicts between the base plan and the onboarding plan have been resolved:
 
 | # | Conflict | Resolution |
@@ -301,15 +321,6 @@ This is the core of the Ambient Status Refraction system. One hook. One componen
 3. Return the **worst** status across all lines — `suspended` > `severe` > `minor` > `good` > `unknown`
 
 **Severity ranking (ascending):** `unknown < good < minor < severe < suspended`
-
-> **⚠️ CODEBASE-SPECIFIC — READ BEFORE TOUCHING SEVERITY LOGIC:**
-> `useLineData.ts` remaps TfL's raw `status_severity` strings **before** storing them.
-> The values in `lineDataStore` are `{20: suspended, 9: severe, 5: minor, 1: good}` —
-> **NOT** TfL's canonical `{10: Good, 6: Severe, 5: Part Closure, 4: Planned Closure}` scale.
-> `useWorstStatus.ts` is built against the **patched** values, not the TfL docs.
-> **These two files are coupled. If `useLineData.ts` is ever refactored to store raw TfL
-> severity values, `useWorstStatus.ts` must be updated simultaneously or the severity
-> mapping will silently misclassify every line.**
 
 **Critical rule:** This hook is the ONLY place in the codebase that determines status severity. No component derives its own status logic. No gradient, no badge, no notification computes severity independently. They all call `useWorstStatus`.
 
@@ -1017,6 +1028,42 @@ All subscription and trial state derives from **RevenueCat** `CustomerInfo`. Do 
 - `trialStartDate` in Zustand is local convenience only; source of truth for active entitlement is RevenueCat
 - Restore purchases CTA must call `Purchases.restorePurchases()` — never skip this
 - If entitlement sync fails: show last-known state and surface a banner: `"Could not verify subscription — tap to retry"`
+
+### 11.0.1 Freemium Model — Locked
+
+**The paywall is the passive intelligence delivery, not the data.**
+
+| Tier | What they get |
+|------|--------------|
+| **Free (forever)** | Full departure data visible in-app (all slots, all lines). Can open app and see everything. Zero ecosystem surfaces. |
+| **Pro** | Everything in Free + Dynamic Island Live Activity + Lock Screen widget + Home Screen widget + Push alerts + all departures in widget |
+
+**Why this model:** Free users can verify the data is accurate and the app works. They cannot use it passively — no widget, no Dynamic Island, no push. The entire product promise ("you don't need to open the app") is behind the paywall. This is the correct paywall because it gates the differentiator, not the commodity.
+
+### 11.0.2 Trial — 10 Qualifying Commutes
+
+- Trial unlocks full Pro features for 10 qualifying commutes
+- **Qualifying commute definition:** app foregrounded OR Live Activity active within 90 minutes of a pinned station departure AND a calendar event exists within 60 minutes of that departure. Passive opens without a calendar anchor do not count.
+- Counter lives in Zustand (`trialCommutesUsed: number`), incremented by backend webhook on qualifying event
+- Trial UI: `"Trial — 7 commutes left"` (counting down)
+- After 10 commutes: Pro features gate. Free tier (unlimited data in-app) remains active forever.
+- **Win-back:** RevenueCat lapse webhook → day 7 push: `"Your commute misses you. 5 bonus commutes on us."` One offer per user lifetime.
+
+### 11.0.3 Locked Pricing
+
+| Plan | Price | Net after Apple 30% | Role |
+|------|-------|---------------------|------|
+| Monthly | £4.99/mo | £3.49/mo | Fallback for annual hesitators |
+| **Annual** | **£34.99/yr** | **£24.49/yr** | **Primary CTA — always lead** |
+| Founding Member | £19.99/yr | £13.99/yr | First 500 subscribers only. Badge in app. |
+| Student (UNiDAYS) | £4.99/yr | £3.49/yr | Acquisition wedge. Gate via UNiDAYS only. |
+
+**Annual is always the primary CTA.** Subscription sheet leads with annual. Monthly is shown smaller below as "or £4.99/month." Save percentage displayed prominently: "Save 42%."
+
+**No 3-year plans** — Apple App Store does not natively support this duration.
+**No lifetime deals** — at £29.99 lifetime vs £34.99 annual, you lose money on your best customers from day 1.
+
+**Founding Member:** First 500 annual subscribers at launch get £19.99/yr + a "Founding Member" badge rendered in their dashboard. When 500 cap is reached, offer expires automatically. Creates launch urgency without a lifetime trap.
 
 ### 11.1 Trial Model
 
@@ -1797,7 +1844,20 @@ ZERO STATE (no saved lines or stations):
 - Primary CTA: "Add Your First Line" (white-fill, bouncy spring press)
 - Secondary CTA: "Explore without saving" (ghost button → opens Status tab)
 
-CARDS (Fractal Glass):
+===== INTERACTION PHYSICS =====
+EVERY tappable element uses BouncyPressable (components/BouncyPressable.tsx):
+- pressIn: withSpring(0.94, { damping: 15, stiffness: 400 })
+- pressOut: withSpring(1.0, { damping: 12, stiffness: 300 })
+- No raw TouchableOpacity. No raw Pressable without spring physics. No exceptions.
+
+===== LINE PILL COLOUR SYSTEM =====
+Pill surface = TfL line colour as tinted glass. NOT a left bar, NOT a dot.
+- Unselected: backgroundColor lineColor+'26' (15%), borderColor lineColor+'66' (40%), borderWidth 1
+- Selected: backgroundColor lineColor+'4D' (30%), borderColor lineColor+'CC' (80%), borderWidth 1.5, checkmark icon right-aligned
+- BlurView tint="light" intensity 25 behind the tinted surface
+- borderRadius 16, minHeight 52pt
+
+
 - expo-blur (tint="light", intensity 20) + rgba(255,255,255,0.15) bg + rgba(255,255,255,0.40) border + radius-16
 - tint MUST be "light" — dark tint absorbs the ambient gradient. Light tint refracts it.
 - Left accent: 3pt × full height bar in TfL line color (rendered as a subtle glow/tint, NOT a solid saturated bar)

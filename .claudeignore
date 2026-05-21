@@ -1,0 +1,9 @@
+node_modules/
+ios/Pods/
+ios/build/
+android/app/build/
+android/.gradle/
+.expo/
+*.log
+.env
+.env.*

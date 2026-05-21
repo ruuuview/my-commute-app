@@ -23,12 +23,16 @@ interface LineDataState {
   isLoading: boolean;
   error: string | null;
   lastFetchTime: number;
-  
+  // Community report counts per lineId (used by useWorstStatus for signal upgrade)
+  communityReports: Record<string, number>;
+
   // Actions
   setLines: (lines: LineStatus[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearStore: () => void;
+  incrementCommunityReport: (lineId: string) => void;
+  clearCommunityReports: (lineId: string) => void;
 }
 
 // Initial state
@@ -37,6 +41,7 @@ const initialState = {
   isLoading: false,
   error: null,
   lastFetchTime: 0,
+  communityReports: {} as Record<string, number>,
 };
 
 /**
@@ -90,6 +95,32 @@ export const useLineDataStore = create<LineDataState>((set, get) => ({
   clearStore: () => {
     set(initialState);
     console.log('🧹 STORE: Cleared');
+  },
+
+  /**
+   * Increment the community report count for a line.
+   * useWorstStatus upgrades TfL 'good' → 'minor' at ≥3 reports,
+   * and 'minor' → 'severe' at ≥5 reports.
+   */
+  incrementCommunityReport: (lineId: string) => {
+    set(state => ({
+      communityReports: {
+        ...state.communityReports,
+        [lineId]: (state.communityReports[lineId] ?? 0) + 1,
+      },
+    }));
+  },
+
+  /**
+   * Reset community reports for a specific line.
+   * Call after the signal has been acted on or a time window expires.
+   */
+  clearCommunityReports: (lineId: string) => {
+    set(state => {
+      const updated = { ...state.communityReports };
+      delete updated[lineId];
+      return { communityReports: updated };
+    });
   },
 }));
 

@@ -46,3 +46,8 @@ android/
 !/ios/Podfile.properties.json
 # --- END EAS BUILD OVERRIDE ---
 .vercel
+.aider*
+.env
+.env
+.env
+.env

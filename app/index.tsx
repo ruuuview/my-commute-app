@@ -1,12 +1,15 @@
 // app/index.tsx
-import { View, Text } from 'react-native';
+import { Redirect } from 'expo-router';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
-const Index = () => {
-  return (
-    <View style={{ flex:1, backgroundColor:'red', justifyContent:'center', alignItems:'center' }}>
-      <Text style={{ fontSize:40, color:'white', fontWeight:'bold' }}>ROUTER ALIVE</Text>
-    </View>
+export default function Index() {
+  const hasCompletedOnboarding = useUserPreferencesStore(
+    (state) => state.hasCompletedOnboarding
   );
-};
 
-export default Index;
+  if (!hasCompletedOnboarding) {
+    return <Redirect href="/onboarding/lines" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
+}

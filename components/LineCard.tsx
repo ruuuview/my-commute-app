@@ -1,7 +1,7 @@
 // components/LineCard.tsx
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, LayoutAnimation } from 'react-native';
-import { BlurView } from '@react-native-community/blur';
+import { BlurView } from 'expo-blur';
 
 const LineCard: React.FC<{ lineId: string }> = ({ lineId }) => {
   const [isExpanded, setIsExpanded] = useState(false);

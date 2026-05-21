@@ -1,0 +1,46 @@
+{
+  "initialized": true,
+  "topology": "hierarchical-mesh",
+  "workers": [
+    "hive-worker-1777897160335-75xy",
+    "hive-worker-1777897884727-oc9h",
+    "hive-worker-1777897884727-deji",
+    "hive-worker-1777897884727-c8cj",
+    "hive-worker-1777897884727-i4gw",
+    "hive-worker-1777897884727-o9io",
+    "hive-worker-1777897884727-ry8x",
+    "hive-worker-1777897884727-v2lf",
+    "hive-worker-1777898471698-n4ug",
+    "hive-worker-1777898471698-1kqc",
+    "hive-worker-1777898471698-n0wn",
+    "hive-worker-1777898471698-2lwr",
+    "hive-worker-1777898471698-xdfe",
+    "hive-worker-1777898471698-7um0",
+    "hive-worker-1777898471698-ugxc",
+    "hive-worker-1777898471698-uwj4",
+    "hive-worker-1777898471698-kmk7",
+    "hive-worker-1777898471698-usty",
+    "hive-worker-1777898471698-a8ts",
+    "hive-worker-1777898471698-t2oc",
+    "hive-worker-1777898471698-jht7",
+    "hive-worker-1777898471698-6k0y",
+    "hive-worker-1777898471698-zg6r",
+    "hive-worker-1777908657595-nlvs",
+    "hive-worker-1777912559271-fs0l",
+    "hive-worker-1777914135803-3kvs",
+    "hive-worker-1777919245905-ej6i"
+  ],
+  "consensus": {
+    "pending": [],
+    "history": []
+  },
+  "sharedMemory": {},
+  "createdAt": "2026-05-04T12:18:54.824Z",
+  "updatedAt": "2026-05-04T18:27:25.906Z",
+  "consensusStrategy": "byzantine",
+  "queen": {
+    "agentId": "queen-1777897134824",
+    "electedAt": "2026-05-04T12:18:54.824Z",
+    "term": 1
+  }
+}

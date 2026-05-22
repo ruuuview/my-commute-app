@@ -9,8 +9,17 @@
  * - Layer 2: Ring wave 2 (same, staggered by half-cycle)
  * - Creates continuous overlapping ripple field effect
  */
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Easing } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 
 interface LivingDotProps {
   color: string;
@@ -21,88 +30,81 @@ const CYCLE_DURATION = 1800; // ms for one full ripple expansion
 const MAX_RING_SCALE = 2.8;  // How far rings expand (relative to dot)
 
 const LivingDot: React.FC<LivingDotProps> = ({ color, size = 10 }) => {
-  // Core dot breathing
-  const dotScale = useRef(new Animated.Value(1)).current;
-
-  // Ring wave 1
-  const ring1Scale = useRef(new Animated.Value(1)).current;
-  const ring1Opacity = useRef(new Animated.Value(0.45)).current;
-
-  // Ring wave 2 (staggered)
-  const ring2Scale = useRef(new Animated.Value(1)).current;
-  const ring2Opacity = useRef(new Animated.Value(0.45)).current;
+  const dotScale = useSharedValue(1);
+  const ring1Scale = useSharedValue(1);
+  const ring1Opacity = useSharedValue(0.45);
+  const ring2Scale = useSharedValue(1);
+  const ring2Opacity = useSharedValue(0);
 
   useEffect(() => {
     // === CORE DOT: gentle breathing ===
-    const dotBreathing = Animated.loop(
-      Animated.sequence([
-        Animated.timing(dotScale, {
-          toValue: 1.15,
-          duration: CYCLE_DURATION / 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(dotScale, {
-          toValue: 0.95,
-          duration: CYCLE_DURATION / 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
+    dotScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: CYCLE_DURATION / 2, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.95, { duration: CYCLE_DURATION / 2, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true // reverse
     );
 
-    // === RING WAVE: expand outward + fade ===
-    const createRingAnimation = (
-      scale: Animated.Value,
-      opacity: Animated.Value
-    ) =>
-      Animated.loop(
-        Animated.sequence([
-          // Reset to center
-          Animated.parallel([
-            Animated.timing(scale, {
-              toValue: 1,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0.45,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-          // Expand outward while fading
-          Animated.parallel([
-            Animated.timing(scale, {
-              toValue: MAX_RING_SCALE,
-              duration: CYCLE_DURATION,
-              easing: Easing.out(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: CYCLE_DURATION,
-              easing: Easing.in(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ]),
-        ])
-      );
+    // === RING WAVE 1 ===
+    ring1Scale.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 0 }),
+        withTiming(MAX_RING_SCALE, { duration: CYCLE_DURATION, easing: Easing.out(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+    
+    ring1Opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.45, { duration: 0 }),
+        withTiming(0, { duration: CYCLE_DURATION, easing: Easing.in(Easing.ease) })
+      ),
+      -1,
+      false
+    );
 
-    // Start animations
-    dotBreathing.start();
-    createRingAnimation(ring1Scale, ring1Opacity).start();
+    // === RING WAVE 2 (staggered) ===
+    ring2Scale.value = withDelay(
+      CYCLE_DURATION / 2,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 0 }),
+          withTiming(MAX_RING_SCALE, { duration: CYCLE_DURATION, easing: Easing.out(Easing.ease) })
+        ),
+        -1,
+        false
+      )
+    );
 
-    // Stagger ring 2 by half cycle
-    const staggerTimer = setTimeout(() => {
-      createRingAnimation(ring2Scale, ring2Opacity).start();
-    }, CYCLE_DURATION / 2);
-
-    return () => {
-      dotBreathing.stop();
-      clearTimeout(staggerTimer);
-    };
+    ring2Opacity.value = withDelay(
+      CYCLE_DURATION / 2,
+      withRepeat(
+        withSequence(
+          withTiming(0.45, { duration: 0 }),
+          withTiming(0, { duration: CYCLE_DURATION, easing: Easing.in(Easing.ease) })
+        ),
+        -1,
+        false
+      )
+    );
   }, []);
+
+  const ring1Style = useAnimatedStyle(() => ({
+    transform: [{ scale: ring1Scale.value }],
+    opacity: ring1Opacity.value,
+  }));
+
+  const ring2Style = useAnimatedStyle(() => ({
+    transform: [{ scale: ring2Scale.value }],
+    opacity: ring2Opacity.value,
+  }));
+
+  const dotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: dotScale.value }],
+  }));
 
   const ringSize = size * 3;
 
@@ -112,13 +114,12 @@ const LivingDot: React.FC<LivingDotProps> = ({ color, size = 10 }) => {
       <Animated.View
         style={[
           styles.ring,
+          ring2Style,
           {
             width: size,
             height: size,
             borderRadius: size / 2,
             borderColor: color,
-            transform: [{ scale: ring2Scale }],
-            opacity: ring2Opacity,
           },
         ]}
       />
@@ -127,28 +128,27 @@ const LivingDot: React.FC<LivingDotProps> = ({ color, size = 10 }) => {
       <Animated.View
         style={[
           styles.ring,
+          ring1Style,
           {
             width: size,
             height: size,
             borderRadius: size / 2,
             borderColor: color,
-            transform: [{ scale: ring1Scale }],
-            opacity: ring1Opacity,
           },
         ]}
       />
 
-      {/* Core dot - stays solid, gentle breathing */}
+      {/* Core dot */}
       <Animated.View
         style={[
           styles.coreDot,
+          dotStyle,
           {
             width: size,
             height: size,
             borderRadius: size / 2,
             backgroundColor: color,
-            transform: [{ scale: dotScale }],
-            shadowColor: color,
+            boxShadow: `0px 0px 4px ${color}`,
           },
         ]}
       />
@@ -167,10 +167,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   coreDot: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
-    elevation: 3,
   },
 });
 

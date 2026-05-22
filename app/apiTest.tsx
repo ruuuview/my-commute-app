@@ -4,10 +4,9 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
-  SafeAreaView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -18,7 +17,7 @@ import * as FileSystem from 'expo-file-system';
 const API_BASE_URL = APP_CONFIG.BACKEND_URL;
 
 export default function ApiTestScreen() {
-  const router = useRouter();
+  const { back } = useRouter();
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,38 +83,38 @@ export default function ApiTestScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
+        <Pressable onPress={() => back()} style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.headerTitle}>Diagnostics</Text>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentInsetAdjustmentBehavior="automatic">
         <View style={styles.testButtonsContainer}>
           <Text style={styles.sectionTitle}>Network Tests</Text>
           {tests.map((test, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.testButton, activeTest === test.name && styles.testButtonActive]}
+            <Pressable
+              key={test.name}
+              style={({ pressed }) => [[styles.testButton, activeTest === test.name && styles.testButtonActive], { opacity: pressed ? 0.7 : 1 }]}
               onPress={() => testEndpoint(test.name, test.endpoint)}
               disabled={loading}
             >
               <Text style={styles.testButtonTitle}>{test.name}</Text>
               <Text style={styles.testButtonDescription}>{test.description}</Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
 
           <Text style={styles.sectionTitle}>System Tests</Text>
-          <TouchableOpacity
-            style={[styles.testButton, activeTest === 'App Group Check' && styles.testButtonActive]}
+          <Pressable
+            style={({ pressed }) => [styles.testButton, activeTest === 'App Group Check' && styles.testButtonActive, { opacity: pressed ? 0.7 : 1 }]}
             onPress={testAppGroup}
             disabled={loading}
           >
             <Text style={styles.testButtonTitle}>Check App Group</Text>
             <Text style={styles.testButtonDescription}>Verify Widget Storage Access</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {loading && (
@@ -143,7 +142,7 @@ export default function ApiTestScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

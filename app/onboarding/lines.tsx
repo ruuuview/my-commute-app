@@ -4,7 +4,7 @@ import React, { useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, useWindowDimensions,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Haptics from 'expo-haptics';
@@ -81,10 +81,13 @@ const Pill = React.memo(function Pill({
   const borderColor = isSelected ? `${line.color}CC` : `${line.color}66`;  // 80% / 40%
   const borderWidth = isSelected ? 1.5 : 1;
 
+  const reducedMotion = useReducedMotion();
+
   return (
     <Animated.View
-      entering={FadeInDown.delay(delay).springify()}
+      entering={reducedMotion ? FadeIn.duration(80) : FadeInDown.delay(delay).springify()}
       style={{ width: pillWidth, opacity: disabled ? 0.35 : 1 }}
+      importantForAccessibility="yes"
     >
       <BouncyPressable
         onPress={onPress}
@@ -117,7 +120,7 @@ const Pill = React.memo(function Pill({
               name="checkmark-circle"
               size={18}
               color="rgba(255,255,255,0.95)"
-              style={{ marginRight: 14 }}
+              style={styles.checkmarkIcon}
             />
           )}
         </BlurView>
@@ -128,7 +131,7 @@ const Pill = React.memo(function Pill({
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function LinesScreen() {
-  const router        = useRouter();
+  const { push }      = useRouter();
   const insets        = useSafeAreaInsets();
   const { width }     = useWindowDimensions();
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);
@@ -167,7 +170,7 @@ export default function LinesScreen() {
 
       {/* Fix 3 — ScrollView content clears absolute CTA via paddingBottom */}
       <ScrollView
-        style={{ flex: 1 }}
+        style={styles.flex1}
         contentContainerStyle={[
           styles.grid,
           { paddingBottom: insets.bottom + 100 },
@@ -194,7 +197,7 @@ export default function LinesScreen() {
         <BouncyPressable
           onPress={async () => {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/onboarding/stations');
+            push('/onboarding/stations');
           }}
           disabled={!canContinue}
           accessibilityRole="button"
@@ -288,4 +291,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'SpaceGrotesk_700Bold',
   },
+  checkmarkIcon: { marginRight: 14 },
+  flex1: { flex: 1 },
 });

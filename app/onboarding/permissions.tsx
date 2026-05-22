@@ -38,7 +38,7 @@ const TFL_LINES = {
 };
 
 export default function PermissionsScreen() {
-  const router = useRouter();
+  const { replace } = useRouter();
   const insets = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
@@ -70,7 +70,7 @@ export default function PermissionsScreen() {
   const finish = async () => {
     completeOnboarding();
     // Replaced with router.replace to hit _layout guard, which handles Grand Reveal
-    router.replace('/');
+    replace('/');
   };
 
   const handleNotifications = async () => {

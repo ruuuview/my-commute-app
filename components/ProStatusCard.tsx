@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Define the props this component needs
@@ -50,9 +50,9 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
             </Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.button} onPress={onUpgrade}>
+        <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
           <Text style={styles.buttonText}>Upgrade for Life - £7.99</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -67,9 +67,9 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
           <Text style={styles.subtitle}>You are limited to 3 items. Upgrade for unlimited access.</Text>
         </View>
       </View>
-      <TouchableOpacity style={styles.button} onPress={onUpgrade}>
+      <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
         <Text style={styles.buttonText}>Upgrade for Life - £7.99</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 };
@@ -82,11 +82,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginHorizontal: 16,
     marginTop: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
   row: {
     flexDirection: 'row',

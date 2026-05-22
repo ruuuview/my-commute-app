@@ -3,8 +3,18 @@
  * Three stacked circles (red, amber, green) that illuminate in sequence.
  * Always completes on GREEN before dismissing.
  */
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Easing } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  withRepeat,
+  withDelay,
+  Easing,
+  withSpring
+} from 'react-native-reanimated';
 
 interface TrafficLightLoaderProps {
   size?: 'small' | 'medium' | 'large';
@@ -30,106 +40,104 @@ const TrafficLightLoader: React.FC<TrafficLightLoaderProps> = ({
   isComplete = false,
   horizontal = false,
 }) => {
-  const redOpacity = useRef(new Animated.Value(0.2)).current;
-  const amberOpacity = useRef(new Animated.Value(0.2)).current;
-  const greenOpacity = useRef(new Animated.Value(0.2)).current;
+  const redOpacity = useSharedValue(0.2);
+  const amberOpacity = useSharedValue(0.2);
+  const greenOpacity = useSharedValue(0.2);
 
-  const redScale = useRef(new Animated.Value(1)).current;
-  const amberScale = useRef(new Animated.Value(1)).current;
-  const greenScale = useRef(new Animated.Value(1)).current;
+  const redScale = useSharedValue(1);
+  const amberScale = useSharedValue(1);
+  const greenScale = useSharedValue(1);
 
   const dims = SIZES[size];
 
   useEffect(() => {
     if (isComplete) {
-      // Hold on green with a pulse
-      redOpacity.setValue(0.2);
-      amberOpacity.setValue(0.2);
-      Animated.sequence([
-        Animated.timing(greenOpacity, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.spring(greenScale, {
-          toValue: 1.4,
-          useNativeDriver: true,
-          tension: 200,
-          friction: 8,
-        }),
-        Animated.spring(greenScale, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 200,
-          friction: 8,
-        }),
-      ]).start();
+      redOpacity.value = 0.2;
+      amberOpacity.value = 0.2;
+      greenOpacity.value = withTiming(1, { duration: 150 });
+      greenScale.value = withSequence(
+        withSpring(1.4, { damping: 8, stiffness: 200 }),
+        withSpring(1, { damping: 8, stiffness: 200 })
+      );
       return;
     }
 
     const PHASE_DURATION = 250;
     const HOLD_DURATION = 50;
 
-    const lightUp = (opacity: Animated.Value, scale: Animated.Value) =>
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: PHASE_DURATION,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1.15,
-          duration: PHASE_DURATION,
-          useNativeDriver: true,
-        }),
-      ]);
+    // Red
+    redOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: PHASE_DURATION, easing: Easing.out(Easing.ease) }),
+        withDelay(HOLD_DURATION, withTiming(0.2, { duration: PHASE_DURATION, easing: Easing.in(Easing.ease) })),
+        withDelay(1100, withTiming(0.2, { duration: 0 }))
+      ),
+      -1
+    );
+    redScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: PHASE_DURATION }),
+        withDelay(HOLD_DURATION, withTiming(1, { duration: PHASE_DURATION })),
+        withDelay(1100, withTiming(1, { duration: 0 }))
+      ),
+      -1
+    );
 
-    const dimDown = (opacity: Animated.Value, scale: Animated.Value) =>
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0.2,
-          duration: PHASE_DURATION,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: PHASE_DURATION,
-          useNativeDriver: true,
-        }),
-      ]);
+    // Amber
+    amberOpacity.value = withRepeat(
+      withSequence(
+        withDelay(550, withTiming(1, { duration: PHASE_DURATION, easing: Easing.out(Easing.ease) })),
+        withDelay(HOLD_DURATION, withTiming(0.2, { duration: PHASE_DURATION, easing: Easing.in(Easing.ease) })),
+        withDelay(550, withTiming(0.2, { duration: 0 }))
+      ),
+      -1
+    );
+    amberScale.value = withRepeat(
+      withSequence(
+        withDelay(550, withTiming(1.15, { duration: PHASE_DURATION })),
+        withDelay(HOLD_DURATION, withTiming(1, { duration: PHASE_DURATION })),
+        withDelay(550, withTiming(1, { duration: 0 }))
+      ),
+      -1
+    );
 
-    const hold = Animated.delay(HOLD_DURATION);
+    // Green
+    greenOpacity.value = withRepeat(
+      withSequence(
+        withDelay(1100, withTiming(1, { duration: PHASE_DURATION, easing: Easing.out(Easing.ease) })),
+        withDelay(HOLD_DURATION, withTiming(0.2, { duration: PHASE_DURATION, easing: Easing.in(Easing.ease) }))
+      ),
+      -1
+    );
+    greenScale.value = withRepeat(
+      withSequence(
+        withDelay(1100, withTiming(1.15, { duration: PHASE_DURATION })),
+        withDelay(HOLD_DURATION, withTiming(1, { duration: PHASE_DURATION }))
+      ),
+      -1
+    );
 
-    const cycle = Animated.sequence([
-      // Red
-      lightUp(redOpacity, redScale),
-      hold,
-      dimDown(redOpacity, redScale),
-      // Amber
-      lightUp(amberOpacity, amberScale),
-      hold,
-      dimDown(amberOpacity, amberScale),
-      // Green
-      lightUp(greenOpacity, greenScale),
-      hold,
-      dimDown(greenOpacity, greenScale),
-    ]);
-
-    const loop = Animated.loop(cycle);
-    loop.start();
-
-    return () => loop.stop();
   }, [isComplete]);
 
   const containerStyle = horizontal
     ? [styles.containerH, { height: dims.dot + 8, borderRadius: (dims.dot + 8) / 2 }]
     : [styles.containerV, { width: dims.dot + 8, borderRadius: (dims.dot + 8) / 2 }];
 
+  const redStyle = useAnimatedStyle(() => ({
+    opacity: redOpacity.value,
+    transform: [{ scale: redScale.value }],
+  }));
+  const amberStyle = useAnimatedStyle(() => ({
+    opacity: amberOpacity.value,
+    transform: [{ scale: amberScale.value }],
+  }));
+  const greenStyle = useAnimatedStyle(() => ({
+    opacity: greenOpacity.value,
+    transform: [{ scale: greenScale.value }],
+  }));
+
   return (
     <View style={containerStyle}>
-      {/* Red */}
       <Animated.View
         style={[
           styles.dot,
@@ -138,14 +146,12 @@ const TrafficLightLoader: React.FC<TrafficLightLoaderProps> = ({
             height: dims.dot,
             borderRadius: dims.dot / 2,
             backgroundColor: COLORS.red,
-            opacity: redOpacity,
-            transform: [{ scale: redScale }],
             marginBottom: horizontal ? 0 : dims.gap,
             marginRight: horizontal ? dims.gap : 0,
           },
+          redStyle,
         ]}
       />
-      {/* Amber */}
       <Animated.View
         style={[
           styles.dot,
@@ -154,14 +160,12 @@ const TrafficLightLoader: React.FC<TrafficLightLoaderProps> = ({
             height: dims.dot,
             borderRadius: dims.dot / 2,
             backgroundColor: COLORS.amber,
-            opacity: amberOpacity,
-            transform: [{ scale: amberScale }],
             marginBottom: horizontal ? 0 : dims.gap,
             marginRight: horizontal ? dims.gap : 0,
           },
+          amberStyle,
         ]}
       />
-      {/* Green */}
       <Animated.View
         style={[
           styles.dot,
@@ -170,9 +174,8 @@ const TrafficLightLoader: React.FC<TrafficLightLoaderProps> = ({
             height: dims.dot,
             borderRadius: dims.dot / 2,
             backgroundColor: COLORS.green,
-            opacity: greenOpacity,
-            transform: [{ scale: greenScale }],
           },
+          greenStyle,
         ]}
       />
     </View>
@@ -194,10 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   dot: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    boxShadow: '0 0px 4px rgba(0,0,0,0.3)',
   },
 });
 

@@ -18,7 +18,7 @@ export default function ProgressDots({ currentStep, totalSteps, style }: Props) 
     >
       {Array.from({ length: totalSteps }, (_, i) => (
         <View
-          key={i}
+          key={`progress-dot-${i.toString()}`}
           accessibilityElementsHidden={true}
           importantForAccessibility="no-hide-descendants"
           style={{

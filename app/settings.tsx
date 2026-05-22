@@ -3,14 +3,14 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   Switch,
   Alert,
   Linking,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -40,7 +40,8 @@ const TRIAL_DURATION_DAYS = 45;
 const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-brain.vercel.app';
 
 export default function SettingsScreen() {
-  const router = useRouter();
+  const { back } = useRouter();
+  const insets = useSafeAreaInsets();
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     saved_lines: [],
     saved_stations: [],
@@ -158,12 +159,21 @@ export default function SettingsScreen() {
                        trialDaysRemaining > 0;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
+        <Pressable 
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]} 
+          onPress={() => back()}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Ionicons name="arrow-back" size={28} color="#000" />
+        </Pressable>
         <Text style={styles.headerTitle}>Settings</Text>
+        <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic">
         
         {/* Smart Pro Status Card */}
         <ProStatusCard 
@@ -176,21 +186,21 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>Notification Preferences</Text>
-            <TouchableOpacity onPress={showQuietHoursInfo}>
+            <Pressable onPress={showQuietHoursInfo}>
               <Ionicons name="information-circle-outline" size={20} color="#666" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
           
           {isLoadingSettings ? (
             <View style={styles.settingCard}>
-              <Text style={styles.loadingText}>Loading settings...</Text>
+              <Text style={styles.loadingText}>Loading settings…</Text>
             </View>
           ) : (
             <View style={styles.settingCard}>
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
                   <View style={styles.settingLabelRow}>
-                    <Ionicons name="notifications" size={20} color="#007AFF" style={{ marginRight: 8 }} />
+                    <Ionicons name="notifications" size={20} color="#007AFF" style={styles.iconMargin} />
                     <Text style={styles.settingLabel}>Enable Notifications</Text>
                   </View>
                   <Text style={styles.settingDescription}>
@@ -212,7 +222,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="alert-circle" size={18} color="#DC3545" style={{ marginRight: 8 }} />
+                        <Ionicons name="alert-circle" size={18} color="#DC3545" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Severe Delays</Text>
                       </View>
                       <Text style={styles.settingDescription}>
@@ -232,7 +242,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="warning" size={18} color="#FFA500" style={{ marginRight: 8 }} />
+                        <Ionicons name="warning" size={18} color="#FFA500" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Minor Delays</Text>
                       </View>
                       <Text style={styles.settingDescription}>
@@ -249,14 +259,13 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  <TouchableOpacity 
+                  <Pressable 
                     style={styles.settingRow} 
                     onPress={handleEditQuietHours}
-                    activeOpacity={0.7}
                   >
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="time" size={18} color="#666" style={{ marginRight: 8 }} />
+                        <Ionicons name="time" size={18} color="#666" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Notification Hours</Text>
                       </View>
                       <Text style={styles.settingDescription}>
@@ -264,14 +273,14 @@ export default function SettingsScreen() {
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-                  </TouchableOpacity>
+                  </Pressable>
 
                   <View style={styles.divider} />
 
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="phone-portrait" size={18} color="#666" style={{ marginRight: 8 }} />
+                        <Ionicons name="phone-portrait" size={18} color="#666" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Device Notifications</Text>
                       </View>
                       <Text style={[styles.settingDescription, { color: '#FFA500' }]}>
@@ -317,9 +326,9 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.spacer40} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -374,11 +383,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
   },
   settingRow: {
     flexDirection: 'row',
@@ -432,11 +437,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
   },
   statusRow: {
     flexDirection: 'row',
@@ -496,11 +497,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
   },
   aboutRow: {
     flexDirection: 'row',
@@ -521,4 +518,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
+  iconMargin: { marginRight: 8 },
+  spacer40: { height: 40 },
 });

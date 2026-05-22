@@ -6,8 +6,12 @@ export interface TfLStation {
   id: string;
   name: string;
   lines: string[];
-  zone: number;
+  zone?: number;
 }
+
+import fullStationsData from './tflStationsFull.json';
+
+export const FULL_STATIONS: TfLStation[] = fullStationsData as TfLStation[];
 
 export const TFL_STATIONS: TfLStation[] = [
   // Zone 1

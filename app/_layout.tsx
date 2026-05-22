@@ -22,7 +22,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 SplashScreen.preventAutoHideAsync();
 
 export default function Layout() {
-  const router = useRouter();
+  const { replace } = useRouter();
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
   const hasCompletedOnboarding = useUserPreferencesStore((state) => state.hasCompletedOnboarding);
   
@@ -42,11 +42,13 @@ export default function Layout() {
   const initialHydrationFinished = useRef(false);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
     if (_hasHydrated) {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         initialHydrationFinished.current = true;
       }, 500);
     }
+    return () => clearTimeout(timer);
   }, [_hasHydrated]);
 
   const playAudioCue = async () => {
@@ -71,7 +73,7 @@ export default function Layout() {
         if (finished) {
           // 2. Perform the route swap behind the black screen.
           // Wrapped in a small timeout to ensure the Root Layout is ready
-          runOnJS(setTimeout)(() => router.replace('/'), 50);
+          runOnJS(setTimeout)(() => replace('/'), 50);
           
           // 3. Fade Black out over 400ms, revealing the Dashboard.
           blackOpacity.value = withTiming(0, { duration: 400 }, (fadeFinished) => {
@@ -83,23 +85,28 @@ export default function Layout() {
       });
     }
     prevCompleted.current = hasCompletedOnboarding;
-  }, [hasCompletedOnboarding, router]);
+  }, [hasCompletedOnboarding, replace]);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: blackOpacity.value,
   }));
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0F' }}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         {isReady ? <Stack screenOptions={{ headerShown: false }} /> : null}
         
         {/* Grand Reveal Black Overlay */}
         <Animated.View 
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000000' }, overlayStyle]} 
+          style={[StyleSheet.absoluteFillObject, styles.overlay, overlayStyle]} 
           pointerEvents={isRevealing ? 'auto' : 'none'}
         />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#0A0A0F' },
+  overlay: { backgroundColor: '#000000' },
+});

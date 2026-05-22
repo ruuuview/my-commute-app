@@ -9,7 +9,7 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   LayoutAnimation,
   UIManager,
@@ -50,7 +50,7 @@ interface JiggleCardProps {
   onDragStart: (id: string) => void;
   onDragEnd: (id: string, newIndex: number) => void;
   totalItems: number;
-  renderContent: (item: EditableItem) => React.ReactNode;
+  ContentComponent: React.ComponentType<{ item: EditableItem }>;
 }
 
 // ─── JiggleCard ──────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export const JiggleCard = ({
   onDragStart,
   onDragEnd,
   totalItems,
-  renderContent,
+  ContentComponent,
 }: JiggleCardProps) => {
   const rotation  = useSharedValue(0);
   const scale     = useSharedValue(1);
@@ -72,12 +72,14 @@ export const JiggleCard = ({
 
   // Jiggle animation — each card gets a slightly different phase to look natural
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    
     if (isEditMode) {
       const phase = (index % 2 === 0) ? 0 : 0.5;
       // Slight delay before starting so they don't all sync
       const delay = index * 40;
 
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         rotation.value = withRepeat(
           withSequence(
             withTiming(-1.8, { duration: 100, easing: Easing.linear }),
@@ -90,6 +92,12 @@ export const JiggleCard = ({
     } else {
       rotation.value = withTiming(0, { duration: 150 });
     }
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [isEditMode, index]);
 
   // Drag gesture — modern Gesture.Pan() API (replaces deprecated useAnimatedGestureHandler)
@@ -166,19 +174,19 @@ export const JiggleCard = ({
       <Animated.View style={[styles.cardWrapper, cardStyle]}>
         {/* Red delete badge — top-left corner */}
         <Animated.View style={[styles.deleteBadgeContainer, deleteBadgeStyle]}>
-          <TouchableOpacity
+          <Pressable
+            style={({ pressed }) => [styles.deleteBadge, { opacity: pressed ? 0.7 : 1 }]}
             onPress={() => {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
               onDelete(item.id);
             }}
-            style={styles.deleteBadge}
             hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
-            accessibilityLabel={`Remove ${item.label}`}
+            accessibilityLabel={`Delete ${item.label}`}
             accessibilityRole="button"
           >
             <Text style={styles.deleteBadgeIcon}>−</Text>
-          </TouchableOpacity>
+          </Pressable>
         </Animated.View>
 
         {/* Drag handle — right side, visible in edit mode */}
@@ -192,7 +200,7 @@ export const JiggleCard = ({
 
         {/* Card content */}
         <View style={[styles.cardContent, isEditMode && { paddingRight: 40 }]}>
-          {renderContent(item)}
+          <ContentComponent item={item} />
         </View>
       </Animated.View>
     </GestureDetector>
@@ -204,7 +212,7 @@ interface EditableListProps {
   items: EditableItem[];
   onReorder: (newOrder: EditableItem[]) => void;
   onDelete: (id: string) => void;
-  renderContent: (item: EditableItem) => React.ReactNode;
+  ContentComponent: React.ComponentType<{ item: EditableItem }>;
   onAddPress: () => void;
   addLabel: string;
   listLabel: string;
@@ -214,19 +222,13 @@ export const EditableList = ({
   items,
   onReorder,
   onDelete,
-  renderContent,
+  ContentComponent,
   onAddPress,
   addLabel,
   listLabel,
 }: EditableListProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [localItems, setLocalItems] = useState(items);
-
-  useEffect(() => {
-    setLocalItems(items);
-  }, [items]);
-
-  const atLimit = localItems.length >= MAX_ITEMS;
+  const atLimit = items.length >= MAX_ITEMS;
 
   const toggleEditMode = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -234,49 +236,44 @@ export const EditableList = ({
   };
 
   const handleDelete = useCallback((id: string) => {
-    const next = localItems.filter(i => i.id !== id);
-    setLocalItems(next);
     onDelete(id);
-
-    // Exit edit mode if all items gone
-    if (next.length === 0) setIsEditMode(false);
-  }, [localItems, onDelete]);
+    if (items.length <= 1) setIsEditMode(false);
+  }, [items, onDelete]);
 
   const handleDragStart = useCallback((id: string) => {}, []);
 
   const handleDragEnd = useCallback((id: string, newIndex: number) => {
-    const currentIndex = localItems.findIndex(i => i.id === id);
+    const currentIndex = items.findIndex(i => i.id === id);
     if (currentIndex === newIndex) return;
 
-    const next = [...localItems];
+    const next = [...items];
     const [moved] = next.splice(currentIndex, 1);
     next.splice(newIndex, 0, moved);
 
-    setLocalItems(next);
     onReorder(next);
-  }, [localItems, onReorder]);
+  }, [items, onReorder]);
 
   return (
     <View>
       {/* Section header with Edit button */}
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionLabel}>{listLabel}</Text>
-        {localItems.length > 0 && (
-          <TouchableOpacity
+        {items.length > 0 && (
+          <Pressable
             onPress={toggleEditMode}
-            style={styles.editButton}
+            style={({ pressed }) => [styles.editButton, { opacity: pressed ? 0.7 : 1 }]}
             accessibilityLabel={isEditMode ? 'Done editing' : 'Edit list'}
             accessibilityRole="button"
           >
             <Text style={styles.editButtonText}>
               {isEditMode ? 'Done' : 'Edit'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
       {/* Item list */}
-      {localItems.map((item, index) => (
+      {items.map((item, index) => (
         <JiggleCard
           key={item.id}
           item={item}
@@ -285,24 +282,24 @@ export const EditableList = ({
           onDelete={handleDelete}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          totalItems={localItems.length}
-          renderContent={renderContent}
+          totalItems={items.length}
+          ContentComponent={ContentComponent}
         />
       ))}
 
       {/* + Add button — hidden at 5-item limit */}
       {!atLimit && (
-        <TouchableOpacity
+        <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onAddPress();
           }}
-          style={styles.addButton}
+          style={({ pressed }) => [styles.addButton, { opacity: pressed ? 0.7 : 1 }]}
           accessibilityLabel={addLabel}
           accessibilityRole="button"
         >
           <Text style={styles.addButtonText}>{addLabel}</Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
 
       {/* At-limit hint */}

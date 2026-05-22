@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Platform,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -278,12 +278,14 @@ interface UserPreferences {
 
 export default function LineDetailScreen() {
   const params = useLocalSearchParams();
-  const router = useRouter();
+  const { push, back, canGoBack } = useRouter();
   const lineId = params.lineId as string;
   const fromLineId = params.fromLineId as string | undefined;
   const fromLineName = params.fromLineName as string | undefined;
 
-  const [userPrefs, setUserPrefs] = useState<UserPreferences>({
+  const [formattedTime, setFormattedTime] = useState('');
+
+  const userPrefs = useRef<UserPreferences>({
     is_pro: false,
     trial_start_date: '',
     saved_stations: [],
@@ -295,7 +297,7 @@ export default function LineDetailScreen() {
       try {
         const prefsData = await AsyncStorage.getItem('user_preferences');
         if (prefsData) {
-          setUserPrefs(JSON.parse(prefsData));
+          userPrefs.current = JSON.parse(prefsData);
         }
       } catch (error) {
         console.error('Error loading user preferences:', error);
@@ -319,14 +321,24 @@ export default function LineDetailScreen() {
     loadData();
   }, [lineId]);
 
+  useEffect(() => {
+    if (lineData && (lineData as any).updated_at) {
+      setFormattedTime(new Date((lineData as any).updated_at).toLocaleTimeString());
+    }
+  }, [lineData]);
+
   const getAlternativeLines = () => {
     if (!lineData || lineData.status_severity <= 2) {
       return [];
     }
     const potentialAlternatives = LINE_ALTERNATIVES[lineId] || [];
-    return potentialAlternatives
-      .map(altLineId => allLinesMap[altLineId])
-      .filter(altLine => altLine && altLine.status_severity <= 2);
+    return potentialAlternatives.reduce((acc: any[], altLineId) => {
+      const altLine = allLinesMap[altLineId];
+      if (altLine && altLine.status_severity <= 2) {
+        acc.push(altLine);
+      }
+      return acc;
+    }, []);
   };
 
   const getConnectionData = (line1Id: string, line2Id: string): ConnectionData | null => {
@@ -345,9 +357,9 @@ export default function LineDetailScreen() {
   };
 
   const handleStationTap = (tappedStationId: string) => {
-    const trialDaysRemaining = getTrialDaysRemaining(userPrefs.trial_start_date);
-    if (hasProAccess(userPrefs.is_pro, trialDaysRemaining) || userPrefs.saved_stations.includes(tappedStationId)) {
-      router.push(`/stationDetail?stationId=${tappedStationId}`);
+    const trialDaysRemaining = getTrialDaysRemaining(userPrefs.current.trial_start_date);
+    if (hasProAccess(userPrefs.current.is_pro, trialDaysRemaining) || userPrefs.current.saved_stations.includes(tappedStationId)) {
+      push(`/stationDetail?stationId=${tappedStationId}`);
     } else {
       showUpgradeModal();
     }
@@ -356,10 +368,10 @@ export default function LineDetailScreen() {
   const alternatives = getAlternativeLines();
 
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
+    if (canGoBack()) {
+      back();
     } else {
-      router.push('/');
+      push('/');
     }
   };
 
@@ -368,7 +380,7 @@ export default function LineDetailScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading line details...</Text>
+          <Text style={styles.loadingText}>Loading line details…</Text>
         </View>
       </SafeAreaView>
     );
@@ -380,9 +392,9 @@ export default function LineDetailScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#E74C3C" />
           <Text style={styles.errorText}>Failed to load line details</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => fetchAllLines(true)} accessibilityLabel="Retry loading line details" accessibilityRole="button">
+          <Pressable style={styles.retryButton} onPress={() => fetchAllLines(true)} accessibilityLabel="Retry loading line details" accessibilityRole="button">
             <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -391,9 +403,9 @@ export default function LineDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: lineData.color }]}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack} accessibilityLabel="Go back" accessibilityRole="button">
+        <Pressable style={styles.backButton} onPress={handleBack} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.lineTitle}>{lineData.name}</Text>
       </View>
 
@@ -408,9 +420,11 @@ export default function LineDetailScreen() {
         ]}>
           <Text style={styles.statusTitle}>{lineData.status}</Text>
           {lineData.reason && <Text style={styles.statusDescription}>{lineData.reason}</Text>}
-          <Text style={styles.statusTimestamp}>
-            Updated: {new Date((lineData as any).updated_at).toLocaleTimeString()}
-          </Text>
+          {formattedTime ? (
+            <Text style={styles.statusTimestamp}>
+              Updated: {formattedTime}
+            </Text>
+          ) : null}
         </View>
 
         {fromLineId && fromLineName && (() => {
@@ -440,16 +454,15 @@ export default function LineDetailScreen() {
                 </Text>
                 <View style={styles.connectionStationsList}>
                   {connectionData.map((station, index) => (
-                    <TouchableOpacity 
-                      key={index} 
+                    <Pressable 
+                      key={station.id || station.name} 
                       style={styles.connectionStationItem}
                       onPress={() => handleStationTap(station.id)}
-                      activeOpacity={0.7}
                     >
                       <Ionicons name="locate" size={20} color="#007AFF" />
                       <Text style={styles.connectionStationName}>{station.name}</Text>
                       <Ionicons name="chevron-forward" size={20} color="#999" />
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
                 <Text style={styles.keyConnectionsNote}>
@@ -468,13 +481,13 @@ export default function LineDetailScreen() {
               <Text style={styles.keyConnectionsSubtitle}>
                 Use our Journey Planner to find the best interchange stations between these lines.
               </Text>
-              <TouchableOpacity 
+              <Pressable 
                 style={styles.journeyPlannerButton}
-                onPress={() => router.push('/journeyPlanner')}
+                onPress={() => push('/journeyPlanner')}
               >
                 <Text style={styles.journeyPlannerButtonText}>Open Journey Planner</Text>
                 <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           );
         })()}
@@ -482,13 +495,13 @@ export default function LineDetailScreen() {
         {fromLineId && fromLineName && (
           <View style={styles.journeyPlannerCard}>
             <Text style={styles.journeyPlannerTitle}>Need to plan another route?</Text>
-            <TouchableOpacity 
+            <Pressable 
               style={styles.planJourneyButton}
-              onPress={() => router.push('/journeyPlanner')}
+              onPress={() => push('/journeyPlanner')}
             >
               <Text style={styles.planJourneyButtonText}>Plan Journey</Text>
               <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
 
@@ -496,11 +509,11 @@ export default function LineDetailScreen() {
           <View style={styles.alternativesCard}>
             <Text style={styles.alternativesTitle}>✨ Try These Alternatives</Text>
             {alternatives.map((altLine) => (
-              <TouchableOpacity
+              <Pressable
                 key={altLine.id}
                 style={styles.alternativeItem}
                 onPress={() => {
-                  router.push({
+                  push({
                     pathname: '/lineDetail',
                     params: {
                       lineId: altLine.id,
@@ -522,7 +535,7 @@ export default function LineDetailScreen() {
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#999" />
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         )}
@@ -561,7 +574,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10 },
+      ios: { boxShadow: '0 3px 10px rgba(0,0,0,0.12)' },
       android: { elevation: 5 },
     }),
   },
@@ -591,7 +604,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#007AFF',
     ...Platform.select({
-      ios: { shadowColor: '#007AFF', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
+      ios: { boxShadow: '0 2px 8px rgba(0,122,255,0.15)' },
       android: { elevation: 4 },
     }),
   },
@@ -623,7 +636,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
+      ios: { boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
       android: { elevation: 2 },
     }),
   },
@@ -669,7 +682,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10 },
+      ios: { boxShadow: '0 3px 10px rgba(0,0,0,0.12)' },
       android: { elevation: 5 },
     }),
   },
@@ -719,7 +732,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10 },
+      ios: { boxShadow: '0 3px 10px rgba(0,0,0,0.12)' },
       android: { elevation: 5 },
     }),
   },

@@ -1,10 +1,10 @@
 import { APP_CONFIG } from '../config/app.config';
-import React, { useState } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ScrollView,
   ActivityIndicator,
@@ -60,28 +60,39 @@ interface JourneyOption {
 }
 
 export default function JourneyPlannerV2() {
-  const router = useRouter();
+  const { back } = useRouter();
   
-  // State
-  const [fromStation, setFromStation] = useState<StationSearchResult | null>(null);
-  const [toStation, setToStation] = useState<StationSearchResult | null>(null);
-  const [fromSearchText, setFromSearchText] = useState('');
-  const [toSearchText, setToSearchText] = useState('');
-  const [fromSearchResults, setFromSearchResults] = useState<StationSearchResult[]>([]);
-  const [toSearchResults, setToSearchResults] = useState<StationSearchResult[]>([]);
-  const [isSearchingFrom, setIsSearchingFrom] = useState(false);
-  const [isSearchingTo, setIsSearchingTo] = useState(false);
-  const [showFromModal, setShowFromModal] = useState(false);
-  const [showToModal, setShowToModal] = useState(false);
-  const [stepFreeOnly, setStepFreeOnly] = useState(false);
-  const [journeyResults, setJourneyResults] = useState<JourneyOption[]>([]);
-  const [isLoadingJourney, setIsLoadingJourney] = useState(false);
-  const [expandedJourney, setExpandedJourney] = useState<number | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
-  
-  // Time selection state
-  const [departureTime, setDepartureTime] = useState<Date | null>(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [{
+    fromStation, toStation, fromSearchText, toSearchText,
+    fromSearchResults, toSearchResults, isSearchingFrom, isSearchingTo,
+    showFromModal, showToModal, stepFreeOnly, journeyResults,
+    isLoadingJourney, expandedJourney, errorMessage,
+    departureTime, showTimePicker
+  }, dispatch] = useReducer((state: any, action: any) => ({ ...state, ...action }), {
+    fromStation: null, toStation: null, fromSearchText: '', toSearchText: '',
+    fromSearchResults: [], toSearchResults: [], isSearchingFrom: false, isSearchingTo: false,
+    showFromModal: false, showToModal: false, stepFreeOnly: false, journeyResults: [],
+    isLoadingJourney: false, expandedJourney: null, errorMessage: '',
+    departureTime: null, showTimePicker: false
+  });
+
+  const setFromStation = (v: any) => dispatch({ fromStation: typeof v === 'function' ? v(fromStation) : v });
+  const setToStation = (v: any) => dispatch({ toStation: typeof v === 'function' ? v(toStation) : v });
+  const setFromSearchText = (v: any) => dispatch({ fromSearchText: typeof v === 'function' ? v(fromSearchText) : v });
+  const setToSearchText = (v: any) => dispatch({ toSearchText: typeof v === 'function' ? v(toSearchText) : v });
+  const setFromSearchResults = (v: any) => dispatch({ fromSearchResults: typeof v === 'function' ? v(fromSearchResults) : v });
+  const setToSearchResults = (v: any) => dispatch({ toSearchResults: typeof v === 'function' ? v(toSearchResults) : v });
+  const setIsSearchingFrom = (v: any) => dispatch({ isSearchingFrom: typeof v === 'function' ? v(isSearchingFrom) : v });
+  const setIsSearchingTo = (v: any) => dispatch({ isSearchingTo: typeof v === 'function' ? v(isSearchingTo) : v });
+  const setShowFromModal = (v: any) => dispatch({ showFromModal: typeof v === 'function' ? v(showFromModal) : v });
+  const setShowToModal = (v: any) => dispatch({ showToModal: typeof v === 'function' ? v(showToModal) : v });
+  const setStepFreeOnly = (v: any) => dispatch({ stepFreeOnly: typeof v === 'function' ? v(stepFreeOnly) : v });
+  const setJourneyResults = (v: any) => dispatch({ journeyResults: typeof v === 'function' ? v(journeyResults) : v });
+  const setIsLoadingJourney = (v: any) => dispatch({ isLoadingJourney: typeof v === 'function' ? v(isLoadingJourney) : v });
+  const setExpandedJourney = (v: any) => dispatch({ expandedJourney: typeof v === 'function' ? v(expandedJourney) : v });
+  const setErrorMessage = (v: any) => dispatch({ errorMessage: typeof v === 'function' ? v(errorMessage) : v });
+  const setDepartureTime = (v: any) => dispatch({ departureTime: typeof v === 'function' ? v(departureTime) : v });
+  const setShowTimePicker = (v: any) => dispatch({ showTimePicker: typeof v === 'function' ? v(showTimePicker) : v });
   
   // Search stations
   const searchStations = async (query: string, isFrom: boolean) => {
@@ -253,97 +264,7 @@ export default function JourneyPlannerV2() {
     setDepartureTime(null);
   };
 
-  // Render station search modal
-  const renderSearchModal = (
-    visible: boolean,
-    onClose: () => void,
-    searchText: string,
-    setSearchText: (text: string) => void,
-    results: StationSearchResult[],
-    isSearching: boolean,
-    onSelect: (station: StationSearchResult) => void,
-    title: string
-  ) => (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-            <Ionicons name="close" size={28} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <View style={{ width: 28 }} />
-        </View>
-
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for a station..."
-            value={searchText}
-            onChangeText={(text) => {
-              setSearchText(text);
-              searchStations(text, title === 'From');
-            }}
-            autoFocus
-            autoCapitalize="words"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearchText('');
-                if (title === 'From') setFromSearchResults([]);
-                else setToSearchResults([]);
-              }}
-            >
-              <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {isSearching ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-          </View>
-        ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.searchResultItem}
-                onPress={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-              >
-                <Ionicons name="location" size={24} color="#007AFF" />
-                <Text style={styles.searchResultText}>{item.name}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              searchText.length >= 2 ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No stations found</Text>
-                  <Text style={styles.emptySubtext}>Try a different search term</Text>
-                </View>
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="search" size={48} color="#CCC" />
-                  <Text style={styles.emptyText}>Start typing to search</Text>
-                  <Text style={styles.emptySubtext}>Enter at least 2 characters</Text>
-                </View>
-              )
-            }
-          />
-        )}
-      </SafeAreaView>
-    </Modal>
-  );
+  // Search modal is now a separate component
 
   // Render journey leg with enhanced details
   const renderJourneyLeg = (leg: JourneyLeg, index: number, totalLegs: number, isFirst: boolean) => {
@@ -354,7 +275,7 @@ export default function JourneyPlannerV2() {
     const shouldShowMapButton = (isWalking || isCycling) && walkDuration >= 3 && isFirst;
     
     return (
-      <View key={index} style={styles.legContainer}>
+      <View key={`leg-${leg.mode}-${leg.from_station}-${leg.to_station}-${leg.duration}`} style={styles.legContainer}>
         <View style={styles.legIconContainer}>
           <View
             style={[
@@ -444,7 +365,7 @@ export default function JourneyPlannerV2() {
 
           {/* Walking/Cycling directions button */}
           {shouldShowMapButton && (
-            <TouchableOpacity
+            <Pressable
               style={styles.mapButton}
               onPress={() => openMapsForWalking(leg.to_station)}
             >
@@ -453,7 +374,7 @@ export default function JourneyPlannerV2() {
                 Get {isWalking ? 'Walking' : 'Cycling'} Directions to {leg.to_station.split(' ')[0]}
               </Text>
               <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-            </TouchableOpacity>
+            </Pressable>
           )}
 
           {/* Change instruction for non-last steps */}
@@ -473,8 +394,8 @@ export default function JourneyPlannerV2() {
     const isExpanded = expandedJourney === index;
 
     return (
-      <View key={index} style={styles.journeyCard}>
-        <TouchableOpacity
+      <View key={`journey-${journey.start_time}-${journey.end_time}-${journey.duration}`} style={styles.journeyCard}>
+        <Pressable
           style={styles.journeyHeader}
           onPress={() => setExpandedJourney(isExpanded ? null : index)}
         >
@@ -498,7 +419,7 @@ export default function JourneyPlannerV2() {
               color="#007AFF"
             />
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {isExpanded && (
           <View style={styles.journeyDetails}>
@@ -519,8 +440,8 @@ export default function JourneyPlannerV2() {
               <View style={styles.alternativeTimesContainer}>
                 <Text style={styles.alternativeTimesTitle}>Other departure times for this route:</Text>
                 <View style={styles.alternativeTimesList}>
-                  {journey.alternative_times.map((altTime, index) => (
-                    <View key={index} style={styles.alternativeTimeItem}>
+                  {journey.alternative_times.map((altTime, idx) => (
+                    <View key={`alt-${altTime.start_time}-${altTime.end_time}`} style={styles.alternativeTimeItem}>
                       <View style={styles.alternativeTimeRow}>
                         <Ionicons name="time-outline" size={16} color="#666" />
                         <Text style={styles.alternativeTimeText}>
@@ -550,23 +471,23 @@ export default function JourneyPlannerV2() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
+          <Pressable onPress={() => back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
             <Ionicons name="arrow-back" size={28} color="#000" />
-          </TouchableOpacity>
+          </Pressable>
           <Text style={styles.headerTitle}>Journey Planner</Text>
-          <View style={{ width: 28 }} />
+          <View style={styles.spacer28} />
         </View>
 
         <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled">
           {/* Input Section */}
           <View style={styles.inputSection}>
             {/* From Station */}
-            <TouchableOpacity
+            <Pressable
               style={styles.stationInputCompact}
               onPress={() => setShowFromModal(true)}
             >
@@ -584,10 +505,10 @@ export default function JourneyPlannerV2() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#999" />
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Swap Button */}
-            <TouchableOpacity
+            <Pressable
               style={styles.swapButtonCompact}
               onPress={swapStations}
               disabled={!fromStation && !toStation}
@@ -595,10 +516,10 @@ export default function JourneyPlannerV2() {
               accessibilityRole="button"
             >
               <Ionicons name="swap-vertical" size={20} color="#007AFF" />
-            </TouchableOpacity>
+            </Pressable>
 
             {/* To Station */}
-            <TouchableOpacity
+            <Pressable
               style={styles.stationInputCompact}
               onPress={() => setShowToModal(true)}
             >
@@ -616,12 +537,12 @@ export default function JourneyPlannerV2() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#999" />
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Options Row: Time + Accessibility */}
             <View style={styles.optionsRow}>
               {/* Time Control */}
-              <TouchableOpacity
+              <Pressable
                 style={styles.timeControlCompact}
                 onPress={() => setShowTimePicker(true)}
               >
@@ -636,7 +557,7 @@ export default function JourneyPlannerV2() {
                       {formatTime(departureTime.toISOString())}
                     </Text>
                     {departureTime && (
-                      <TouchableOpacity 
+                      <Pressable 
                         onPress={(e) => {
                           e.stopPropagation();
                           clearDepartureTime();
@@ -644,18 +565,18 @@ export default function JourneyPlannerV2() {
                         style={styles.clearTimeIconCompact}
                       >
                         <Ionicons name="close-circle" size={18} color="#999" />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 ) : (
                   <Text style={styles.timeNowTextCompact}>Departing Now</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
               {/* Accessibility Toggle */}
               <View style={styles.accessibilityCompact}>
                 <Ionicons name="accessibility" size={20} color="#007AFF" />
-                <TouchableOpacity
+                <Pressable
                   onPress={() => setStepFreeOnly(!stepFreeOnly)}
                   style={[
                     styles.toggleCompact,
@@ -668,12 +589,12 @@ export default function JourneyPlannerV2() {
                       stepFreeOnly && styles.toggleThumbActiveCompact,
                     ]}
                   />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 
             {/* Plan Journey Button */}
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.planButton,
                 (!fromStation || !toStation) && styles.planButtonDisabled,
@@ -689,7 +610,7 @@ export default function JourneyPlannerV2() {
                   <Ionicons name="arrow-forward" size={20} color="#fff" />
                 </>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Error Message */}
             {errorMessage && (
@@ -704,7 +625,7 @@ export default function JourneyPlannerV2() {
           {journeyResults.length > 0 && (
             <View style={styles.resultsSection}>
               <Text style={styles.resultsTitle}>Journey Options</Text>
-              {journeyResults.map((journey, index) => renderJourneyOption(journey, index))}
+              {journeyResults.map((journey: JourneyOption, index: number) => renderJourneyOption(journey, index))}
             </View>
           )}
 
@@ -730,11 +651,11 @@ export default function JourneyPlannerV2() {
             <View style={styles.timePickerModal}>
               <View style={styles.timePickerContainer}>
                 <View style={styles.timePickerHeader}>
-                  <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Pressable onPress={() => setShowTimePicker(false)}>
                     <Text style={styles.timePickerCancel}>Cancel</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                   <Text style={styles.timePickerTitle}>Choose Departure Time</Text>
-                  <TouchableOpacity
+                  <Pressable
                     onPress={() => {
                       if (!departureTime) {
                         setDepartureTime(new Date());
@@ -743,8 +664,9 @@ export default function JourneyPlannerV2() {
                     }}
                   >
                     <Text style={styles.timePickerDone}>Done</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
+              <View>
                 <DateTimePicker
                   value={departureTime || new Date()}
                   mode="time"
@@ -759,37 +681,47 @@ export default function JourneyPlannerV2() {
                 />
               </View>
             </View>
-          </Modal>
-        )}
-
+          </View>
+        </Modal>
+      )}
         {/* Search Modals */}
-        {renderSearchModal(
-          showFromModal,
-          () => setShowFromModal(false),
-          fromSearchText,
-          setFromSearchText,
-          fromSearchResults,
-          isSearchingFrom,
-          (station) => {
+        <SearchModal
+          visible={showFromModal}
+          onClose={() => setShowFromModal(false)}
+          searchText={fromSearchText}
+          setSearchText={setFromSearchText}
+          results={fromSearchResults}
+          isSearching={isSearchingFrom}
+          onSelect={(station) => {
             setFromStation(station);
             setFromSearchText(station.name);
-          },
-          'From'
-        )}
+          }}
+          title="From"
+          onSearch={searchStations}
+          onClearSearch={() => {
+            setFromSearchText('');
+            setFromSearchResults([]);
+          }}
+        />
 
-        {renderSearchModal(
-          showToModal,
-          () => setShowToModal(false),
-          toSearchText,
-          setToSearchText,
-          toSearchResults,
-          isSearchingTo,
-          (station) => {
+        <SearchModal
+          visible={showToModal}
+          onClose={() => setShowToModal(false)}
+          searchText={toSearchText}
+          setSearchText={setToSearchText}
+          results={toSearchResults}
+          isSearching={isSearchingTo}
+          onSelect={(station) => {
             setToStation(station);
             setToSearchText(station.name);
-          },
-          'To'
-        )}
+          }}
+          title="To"
+          onSearch={searchStations}
+          onClearSearch={() => {
+            setToSearchText('');
+            setToSearchResults([]);
+          }}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -800,6 +732,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F7',
   },
+  flex1: { flex: 1 },
+  spacer28: { width: 28 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -826,11 +760,7 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 16,
     padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   },
   stationInputCompact: {
     flexDirection: 'row',
@@ -920,11 +850,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-    elevation: 2,
+    boxShadow: '0 1px 1px rgba(0,0,0,0.2)',
   },
   toggleThumbActiveCompact: {
     alignSelf: 'flex-end',
@@ -979,11 +905,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   },
   journeyHeader: {
     flexDirection: 'row',
@@ -1223,6 +1145,11 @@ const styles = StyleSheet.create({
   modalCloseButton: {
     padding: 4,
   },
+  modalCloseText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -1236,11 +1163,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
   },
   searchIcon: {
     marginRight: 8,
@@ -1265,11 +1188,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 12,
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
   searchResultText: {
     flex: 1,
@@ -1367,3 +1286,99 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
 });
+
+interface SearchModalProps {
+  visible: boolean;
+  onClose: () => void;
+  searchText: string;
+  setSearchText: (text: string) => void;
+  onSearch: (text: string, isFrom: boolean) => void;
+  onClearSearch: () => void;
+  results: StationSearchResult[];
+  isSearching: boolean;
+  onSelect: (station: StationSearchResult) => void;
+  title: string;
+}
+
+const SearchModal = React.memo(({
+  visible,
+  onClose,
+  searchText,
+  setSearchText,
+  onSearch,
+  onClearSearch,
+  results,
+  isSearching,
+  onSelect,
+  title
+}: SearchModalProps) => (
+  <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <SafeAreaView style={styles.modalContainer}>
+      <View style={styles.modalHeader}>
+        <Pressable onPress={onClose} style={styles.modalCloseButton}>
+          <Text style={styles.modalCloseText}>Done</Text>
+        </Pressable>
+        <Text style={styles.modalTitle}>{title}</Text>
+        <View style={styles.spacer28} />
+      </View>
+
+      <View style={styles.searchInputContainer}>
+        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for a station..."
+          value={searchText}
+          onChangeText={(text) => {
+            setSearchText(text);
+            onSearch(text, title === 'From');
+          }}
+          autoFocus
+          autoCapitalize="words"
+        />
+        {searchText.length > 0 && (
+          <Pressable onPress={onClearSearch}>
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </Pressable>
+        )}
+      </View>
+
+      {isSearching ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <Pressable
+              style={styles.searchResultItem}
+              onPress={() => {
+                onSelect(item);
+                onClose();
+              }}
+            >
+              <Ionicons name="location" size={24} color="#007AFF" />
+              <Text style={styles.searchResultText}>{item.name}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            searchText.length >= 2 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No stations found</Text>
+                <Text style={styles.emptySubtext}>Try a different search term</Text>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="search" size={48} color="#CCC" />
+                <Text style={styles.emptyText}>Start typing to search</Text>
+                <Text style={styles.emptySubtext}>Enter at least 2 characters</Text>
+              </View>
+            )
+          }
+        />
+      )}
+    </SafeAreaView>
+  </Modal>
+));

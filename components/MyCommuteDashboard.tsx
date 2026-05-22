@@ -23,7 +23,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
-import { useUserPreferences } from '../store/userPreferencesStore';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 // ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
 import GradientBackground from './GradientBackground';
@@ -225,7 +225,7 @@ const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete
       {Array.isArray(station.arrivals) && station.arrivals.length > 0 && (
         <View style={stCard.arrivals}>
           {station.arrivals.slice(0, 3).map((a, i) => (
-            <View key={i} style={stCard.arrivalRow}>
+            <View key={`arrival-${a.lineId}-${a.destination}-${a.minutesAway}-${(a as any).expectedArrival || 'fallback'}`} style={stCard.arrivalRow}>
               <View style={[stCard.arrivalDot, { backgroundColor: a.lineColor }]} />
               <Text style={stCard.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">{a.lineName}</Text>
               <Text style={stCard.arrivalDest} numberOfLines={1}>{a.destination}</Text>
@@ -269,7 +269,7 @@ export const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // ✅ Modal state lives HERE now
-  const resetOnboarding = useUserPreferences((state) => state.resetOnboarding);
+  const resetOnboarding = useUserPreferencesStore((state: any) => state.resetOnboarding);
 
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -278,11 +278,11 @@ export const MyCommuteDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // ✅ Zustand selectors
-  const selectedLines = useUserPreferences((s) => s.selectedLineIds);
-  const selectedStations = useUserPreferences((s) => s.selectedStationIds);
-  const removeLine = useUserPreferences((s) => s.removeLine);
-  const removeStation = useUserPreferences((s) => s.removeStation);
-  const setLines = useUserPreferences((s) => s.setLines);
+  const selectedLines = useUserPreferencesStore((s: any) => s.selectedLineIds);
+  const selectedStations = useUserPreferencesStore((s: any) => s.selectedStationIds);
+  const removeLine = useUserPreferencesStore((s: any) => s.removeLine);
+  const removeStation = useUserPreferencesStore((s: any) => s.removeStation);
+  const setLines = useUserPreferencesStore((s: any) => s.setLines);
   
   const [isEditing, setIsEditing] = useState(false);
 

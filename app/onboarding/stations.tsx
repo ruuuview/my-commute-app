@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, FlatList,
+  View, Text, StyleSheet, TextInput,
   Modal, Pressable, useWindowDimensions, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
@@ -15,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import { TFL_STATIONS, POPULAR_STATIONS, TfLStation } from '../../data/tflStations';
+import { POPULAR_STATIONS, TfLStation, FULL_STATIONS } from '../../data/tflStations';
 import VoidBackground from '../../components/VoidBackground';
 import BouncyPressable from '../../components/BouncyPressable';
 import ProgressDots from '../../components/ProgressDots';
@@ -37,7 +38,7 @@ function LineDots({ lines }: { lines: string[] }) {
   const shown = lines.slice(0, 4);
   const extra = lines.length - 4;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+    <View style={styles.lineDotsContainer}>
       {shown.map(l => (
         <View
           key={l}
@@ -50,7 +51,7 @@ function LineDots({ lines }: { lines: string[] }) {
         />
       ))}
       {extra > 0 && (
-        <Text style={{ color: 'rgba(255,255,255,0.50)', fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' }}>
+        <Text style={styles.lineDotsExtra}>
           +{extra}
         </Text>
       )}
@@ -76,10 +77,10 @@ const StationRow = React.memo(function StationRow({
       accessibilityRole="button"
       accessibilityLabel={`${station.name}, Zone ${station.zone}${isPinned ? ', already added' : ''}`}
     >
-      <View style={{ flex: 1 }}>
+      <View style={styles.flex1}>
         <Text style={styles.rowName} numberOfLines={1}>{station.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 }}>
-          <Text style={styles.rowZone}>Zone {station.zone}</Text>
+        <View style={styles.stationRowZoneContainer}>
+          {station.zone !== undefined && <Text style={styles.rowZone}>Zone {station.zone}</Text>}
           <LineDots lines={station.lines} />
         </View>
       </View>
@@ -125,7 +126,7 @@ function RoleSheet({
 
         <Text style={styles.sheetTitle}>
           How do you use{'\n'}
-          <Text style={{ color: 'rgba(255,255,255,0.95)' }}>{station?.name}?</Text>
+          <Text style={styles.sheetStationName}>{station?.name}?</Text>
         </Text>
 
         <View style={styles.roleRow}>
@@ -166,15 +167,9 @@ function RoleSheet({
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
-// Fuse instance is created once at module level — not on every render
-const fuse = new Fuse(TFL_STATIONS, {
-  keys: ['name'],
-  threshold: 0.35,
-  includeScore: true,
-});
 
 export default function StationsScreen() {
-  const router       = useRouter();
+  const { push }     = useRouter();
   const insets       = useSafeAreaInsets();
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation     = useUserPreferencesStore(s => s.pinStation);
@@ -190,9 +185,20 @@ export default function StationsScreen() {
   const isAtLimit = pinnedStations.length >= MAX_PINS;
   const canContinue = pinnedStations.length > 0;
 
-  // Search results — memoised, zero debounce (local data)
+  // Search results — memoised with dynamic threshold formula
   const results = useMemo<TfLStation[]>(() => {
     if (!query.trim()) return POPULAR_STATIONS;
+    
+    // Adaptive threshold: Math.max(0.2, 0.5 - query.length * 0.05)
+    // Ensures long words like "Paddington" require strict matching
+    const dynamicThreshold = Math.max(0.2, 0.5 - query.length * 0.05);
+    
+    const fuse = new Fuse(FULL_STATIONS, {
+      keys: ['name'],
+      threshold: dynamicThreshold,
+      includeScore: true,
+    });
+    
     return fuse.search(query).map(r => r.item);
   }, [query]);
 
@@ -224,7 +230,7 @@ export default function StationsScreen() {
   }), []);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.root, { backgroundColor: '#1A1A2E' }]}>
         <VoidBackground />
         <Stack.Screen options={{ headerShown: false }} />
@@ -242,7 +248,7 @@ export default function StationsScreen() {
         {pinnedStations.length > 0 && (
           <Animated.View entering={FadeInDown} style={styles.pillStrip}>
             {pinnedStations.map((s, index) => (
-              <View key={`${s.id}-${index}`} style={styles.selectedPill}>
+              <View key={s.id} style={styles.selectedPill}>
                 <Text style={styles.selectedPillText} numberOfLines={1}>{s.name}</Text>
               </View>
             ))}
@@ -251,7 +257,7 @@ export default function StationsScreen() {
 
         {/* Search bar */}
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.50)" style={{ marginLeft: 14 }} />
+          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.50)" style={styles.searchIcon} />
           <TextInput
             ref={inputRef}
             value={query}
@@ -268,7 +274,7 @@ export default function StationsScreen() {
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.50)" style={{ marginRight: 12 }} />
+              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.50)" style={styles.clearIcon} />
             </Pressable>
           )}
         </View>
@@ -278,30 +284,32 @@ export default function StationsScreen() {
           {query ? `${results.length} result${results.length !== 1 ? 's' : ''}` : 'Popular stations'}
         </Text>
 
-        {/* Results list — fixed row height for performance */}
-        <FlatList
-          data={results}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          getItemLayout={getItemLayout}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={28} color="rgba(255,255,255,0.25)" />
-              <Text style={styles.emptyText}>No stations found for "{query}"</Text>
-              <Text style={styles.emptyHint}>Try a different spelling or nearby station</Text>
-            </View>
-          }
-        />
+        {/* Results list — utilizing FlashList for 60fps 471-item performance */}
+        <View style={{ flex: 1, width: '100%' }}>
+          <FlashList
+            data={results}
+            keyExtractor={item => item.id}
+            renderItem={renderItem}
+            estimatedItemSize={ROW_HEIGHT}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={28} color="rgba(255,255,255,0.25)" />
+                <Text style={styles.emptyText}>No stations found for "{query}"</Text>
+                <Text style={styles.emptyHint}>Try a different spelling or nearby station</Text>
+              </View>
+            }
+          />
+        </View>
 
         {/* Sticky Continue CTA */}
         <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
           <BouncyPressable
             onPress={async () => {
               await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/onboarding/permissions');
+              push('/onboarding/permissions');
             }}
             disabled={!canContinue}
             accessibilityRole="button"
@@ -338,6 +346,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight: 38,
   },
+  lineDotsContainer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lineDotsExtra: { color: 'rgba(255,255,255,0.50)', fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
+  flex1: { flex: 1 },
+  stationRowZoneContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
+  sheetStationName: { color: 'rgba(255,255,255,0.95)' },
+  searchIcon: { marginLeft: 14 },
+  clearIcon: { marginRight: 12 },
 
   // Selected pill strip
   pillStrip: {

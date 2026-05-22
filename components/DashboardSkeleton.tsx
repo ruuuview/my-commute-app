@@ -3,56 +3,37 @@
  * Renders ghost cards that match the exact layout of real content.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Dimensions } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH - 40; // 20px padding each side
-const HALF_CARD = (CARD_WIDTH - 12) / 2;
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 
 const ShimmerBar: React.FC<{ width: number | string; height: number; style?: any }> = ({ width: w, height: h, style }) => {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const shimmerAnim = useSharedValue(-200);
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(shimmerAnim, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: true,
-      })
+    shimmerAnim.value = withRepeat(
+      withTiming(200, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      false
     );
-    animation.start();
-    return () => animation.stop();
   }, []);
 
-  const translateX = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 200],
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerAnim.value }],
+  }));
 
   return (
     <View style={[{ width: w as any, height: h, borderRadius: 6, backgroundColor: '#E8E8ED', overflow: 'hidden' }, style]}>
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(255,255,255,0.4)',
-          transform: [{ translateX }],
-          width: 100,
-        }}
-      />
+      <Animated.View style={[styles.shimmerBase, { width: 100 }, animatedStyle]} />
     </View>
   );
 };
 
-const SkeletonLineCard: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-  <View style={[styles.card, compact && { width: HALF_CARD }]}>
+const SkeletonLineCard: React.FC<{ compact?: boolean; cardWidth: number }> = ({ compact = false, cardWidth }) => (
+  <View style={[styles.card, compact && { width: (cardWidth - 12) / 2 }]}>
     <View style={styles.accentBar} />
     <View style={styles.cardContent}>
       <ShimmerBar width={compact ? 80 : 120} height={16} />
-      <ShimmerBar width={compact ? 60 : 100} height={12} style={{ marginTop: 8 }} />
+      <ShimmerBar width={compact ? 60 : 100} height={12} style={styles.mt8} />
     </View>
   </View>
 );
@@ -60,49 +41,48 @@ const SkeletonLineCard: React.FC<{ compact?: boolean }> = ({ compact = false }) 
 const SkeletonStationCard: React.FC = () => (
   <View style={styles.stationCard}>
     <View style={styles.stationHeader}>
-      <ShimmerBar width={24} height={24} style={{ borderRadius: 12 }} />
-      <ShimmerBar width={140} height={16} style={{ marginLeft: 8 }} />
+      <ShimmerBar width={24} height={24} style={styles.br12} />
+      <ShimmerBar width={140} height={16} style={styles.ml8} />
     </View>
     <View style={styles.nextTrainSkeleton}>
       <ShimmerBar width={100} height={14} />
       <ShimmerBar width={50} height={28} />
     </View>
-    <ShimmerBar width={"80%"} height={12} style={{ marginTop: 8 }} />
-    <ShimmerBar width={"65%"} height={12} style={{ marginTop: 6 }} />
+    <ShimmerBar width={"80%"} height={12} style={styles.mt8} />
+    <ShimmerBar width={"65%"} height={12} style={styles.mt6} />
   </View>
 );
 
 const SkeletonHeroCard: React.FC = () => (
   <View style={styles.heroSkeleton}>
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <ShimmerBar width={20} height={20} style={{ borderRadius: 10 }} />
-      <ShimmerBar width={140} height={20} style={{ marginLeft: 12 }} />
+    <View style={styles.rowCenter}>
+      <ShimmerBar width={20} height={20} style={styles.br10} />
+      <ShimmerBar width={140} height={20} style={styles.ml12} />
     </View>
-    <ShimmerBar width={200} height={14} style={{ marginTop: 10 }} />
+    <ShimmerBar width={200} height={14} style={styles.mt10} />
   </View>
 );
 
-export const DashboardSkeleton: React.FC = () => (
-  <View style={styles.container}>
-    {/* Hero card skeleton */}
-    <SkeletonHeroCard />
+export const DashboardSkeleton: React.FC = () => {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const CARD_WIDTH = SCREEN_WIDTH - 40;
 
-    {/* Section title */}
-    <ShimmerBar width={100} height={20} style={{ marginTop: 28, marginBottom: 16 }} />
+  return (
+    <View style={styles.container}>
+      <ShimmerBar width={120} height={20} style={styles.sectionTitle} />
+      <SkeletonStationCard />
+      <SkeletonStationCard />
 
-    {/* Line cards - 2 compact */}
-    <View style={styles.compactRow}>
-      <SkeletonLineCard compact />
-      <SkeletonLineCard compact />
+      <ShimmerBar width={100} height={20} style={[styles.sectionTitle, { marginTop: 24 }]} />
+      
+      <View style={styles.compactRow}>
+        <SkeletonLineCard compact cardWidth={CARD_WIDTH} />
+        <SkeletonLineCard compact cardWidth={CARD_WIDTH} />
+        <SkeletonLineCard compact cardWidth={CARD_WIDTH} />
+      </View>
     </View>
-
-    {/* Section title */}
-    <ShimmerBar width={130} height={20} style={{ marginTop: 28, marginBottom: 16 }} />
-
-    {/* Station card */}
-    <SkeletonStationCard />
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -115,11 +95,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
   accentBar: {
     width: 4,
@@ -140,11 +116,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
   stationHeader: {
     flexDirection: 'row',
@@ -163,12 +135,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.97)',
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
+  shimmerBase: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  mt8: { marginTop: 8 },
+  mt6: { marginTop: 6 },
+  mt10: { marginTop: 10 },
+  br12: { borderRadius: 12 },
+  br10: { borderRadius: 10 },
+  ml8: { marginLeft: 8 },
+  ml12: { marginLeft: 12 },
+  rowCenter: { flexDirection: 'row', alignItems: 'center' },
+  sectionTitle: { marginTop: 28, marginBottom: 16 },
 });
 
 export default DashboardSkeleton;

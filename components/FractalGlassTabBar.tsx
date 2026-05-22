@@ -1,17 +1,23 @@
 // components/FractalGlassTabBar.tsx
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, dimensions } from '../tokens';
 
-const FractalGlassTabBar: React.FC = ({ tabs, activeKey, onPress }) => {
+interface TabBarProps {
+  tabs: Array<{ key: string; icon: keyof typeof Ionicons.glyphMap; label: string }>;
+  activeKey: string;
+  onPress: (key: string) => void;
+}
+
+const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress }) => {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + dimensions.tabBarHeight + 16 }]}>
       <View style={styles.tabs}>
         {tabs.map(tab => (
-          <TouchableOpacity
+          <Pressable
             key={tab.key}
             onPress={() => onPress(tab.key)}
             style={[
@@ -21,7 +27,7 @@ const FractalGlassTabBar: React.FC = ({ tabs, activeKey, onPress }) => {
           >
             <Ionicons name={tab.icon} size={dimensions.iconSize} color="white" />
             <Text style={styles.tabLabel}>{tab.label}</Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
     </View>

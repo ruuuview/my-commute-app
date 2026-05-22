@@ -5,7 +5,7 @@
  */
 import React, { useRef, useCallback } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Animated,
   ViewStyle,
   StyleProp,
@@ -75,8 +75,7 @@ const BouncyButton: React.FC<BouncyButtonProps> = ({
   }, [disabled, haptic, onPress]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={1}
+    <Pressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
@@ -92,7 +91,7 @@ const BouncyButton: React.FC<BouncyButtonProps> = ({
       >
         {children}
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

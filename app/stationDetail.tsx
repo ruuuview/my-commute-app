@@ -1,14 +1,14 @@
 import { APP_CONFIG } from '../config/app.config';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useReducer } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
+  Pressable, 
   ScrollView, 
-  TouchableOpacity, 
   ActivityIndicator, 
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { stationDataCache } from '../utils/stationCache'; // ✅ Fixed Circular Dependency
@@ -80,16 +80,18 @@ const groupDeparturesByDirection = (departures: Departure[]) => {
 
 export default function StationDetailScreen() {
   const params = useLocalSearchParams();
-  const router = useRouter();
+  const { back } = useRouter();
   const stationId = params.stationId as string;
   const stationName = params.stationName as string;
+  const insets = useSafeAreaInsets();
 
-  const [stationData, setStationData] = useState<StationDetailData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [{ stationData, loading, error }, dispatch] = useReducer(
+    (state: { stationData: StationDetailData | null, loading: boolean, error: string | null }, action: Partial<{ stationData: StationDetailData | null, loading: boolean, error: string | null }>) => ({ ...state, ...action }),
+    { stationData: null, loading: true, error: null }
+  );
 
   useEffect(() => {
-    setStationData(null); setError(null);
+    dispatch({ stationData: null, error: null, loading: true });
     fetchStationDetail();
     const interval = setInterval(() => fetchStationDetail(false), 30000); 
     return () => clearInterval(interval);
@@ -97,13 +99,12 @@ export default function StationDetailScreen() {
 
   const fetchStationDetail = async (useCache: boolean = true) => {
     try {
-      setLoading(true); setError(null);
+      dispatch({ loading: true, error: null });
       if (useCache && stationDataCache.has(stationId)) {
         try {
           const data = await stationDataCache.get(stationId);
-          setStationData(data);
+          dispatch({ stationData: data, loading: false });
           stationDataCache.delete(stationId);
-          setLoading(false);
           return;
         } catch (cacheError) { stationDataCache.delete(stationId); }
       }
@@ -111,36 +112,36 @@ export default function StationDetailScreen() {
       const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`);
       if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
       const data = await response.json();
-      setStationData(data);
+      dispatch({ stationData: data });
     } catch (err: any) {
-      setError(err.message || 'Failed to load station details');
+      dispatch({ error: err.message || 'Failed to load station details' });
     } finally {
-      setLoading(false);
+      dispatch({ loading: false });
     }
   };
 
   if (loading && !stationData) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading departures...</Text>
+          <Text style={styles.loadingText}>Loading departures…</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error && !stationData) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#E74C3C" />
           <Text style={styles.errorText}>Failed to load departures</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => fetchStationDetail()} accessibilityLabel="Retry loading departures" accessibilityRole="button">
+          <Pressable style={styles.retryButton} onPress={() => fetchStationDetail()} accessibilityLabel="Retry loading departures" accessibilityRole="button">
             <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -152,7 +153,7 @@ export default function StationDetailScreen() {
     const platformNumber = extractPlatformNumber(departure.platform);
     const platformTextColor = getPlatformTextColor(lineColor);
     return (
-      <View key={`${prefix}-${index}`} style={[styles.departureCard, { borderColor: lineColor }]}>
+      <View key={`${prefix}-${departure.line}-${departure.destination}-${departure.minutes_away}-${departure.expected_arrival || 'fallback'}`} style={[styles.departureCard, { borderColor: lineColor }]}>
         <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
           <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
           <Text style={[styles.platformNumber, { color: platformTextColor }]}>{platformNumber}</Text>
@@ -167,14 +168,14 @@ export default function StationDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.header, { backgroundColor: headerBackgroundColor }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button"><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></TouchableOpacity>
+        <Pressable style={styles.backButton} onPress={() => back()} accessibilityLabel="Go back" accessibilityRole="button"><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></Pressable>
         <View style={styles.headerContent}><Text style={styles.stationTitle}>{String(stationData?.name ?? stationName ?? '').toUpperCase()}</Text></View>
-        <TouchableOpacity style={styles.refreshButton} onPress={() => fetchStationDetail()} accessibilityLabel="Refresh departures" accessibilityRole="button"><Ionicons name="refresh" size={24} color="#FFFFFF" /></TouchableOpacity>
+        <Pressable style={styles.refreshButton} onPress={() => fetchStationDetail()} accessibilityLabel="Refresh departures" accessibilityRole="button"><Ionicons name="refresh" size={24} color="#FFFFFF" /></Pressable>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic">
         {northbound.length > 0 && (
           <View style={styles.directionSection}>
             <Text style={styles.directionTitle}>↑ NORTHBOUND</Text>
@@ -188,7 +189,7 @@ export default function StationDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
   retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   directionSection: { marginTop: 20 },
   directionTitle: { fontSize: 15, fontWeight: '600', color: '#666666', marginBottom: 12, marginHorizontal: 16, letterSpacing: 0.5 },
-  departureCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginVertical: 6, paddingHorizontal: 16, paddingVertical: 18, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  departureCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginVertical: 6, paddingHorizontal: 16, paddingVertical: 18, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 3, boxShadow: '0 2px 4px rgba(0,0,0,0.08)' },
   platformCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   platformLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   platformNumber: { fontSize: 16, fontWeight: '700', marginTop: -2 },

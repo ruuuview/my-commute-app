@@ -4,7 +4,7 @@
  * Auto-dismisses after 5 seconds or on tap.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ErrorToastProps {
@@ -65,13 +65,13 @@ const ErrorToast: React.FC<ErrorToastProps> = ({
         <Ionicons name="cloud-offline-outline" size={18} color="#636366" style={styles.icon} />
         <Text style={styles.message} numberOfLines={2}>{message}</Text>
         {onRetry && (
-          <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
+          <Pressable onPress={onRetry} style={styles.retryButton}>
             <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
-        <TouchableOpacity onPress={dismissToast} style={styles.closeButton}>
-          <Ionicons name="close" size={16} color="#8E8E93" />
-        </TouchableOpacity>
+        <Pressable onPress={dismissToast} style={styles.closeButton}>
+          <Ionicons name="close" size={20} color="#666" />
+        </Pressable>
       </View>
     </Animated.View>
   );
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 20,
     right: 20,
-    zIndex: 100,
+    zIndex: 30,
   },
   content: {
     flexDirection: 'row',

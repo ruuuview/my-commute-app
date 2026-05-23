@@ -54,6 +54,12 @@
           }
         }
       ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "We read departure times alongside your calendar — all on your device. Nothing leaves your phone."
+        }
+      ],
       "expo-font",
       "expo-audio",
       "expo-asset",

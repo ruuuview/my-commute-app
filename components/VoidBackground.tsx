@@ -3,7 +3,7 @@
 // instead of flat black — gradient always has visible depth, even before lines selected.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, AccessibilityInfo } from 'react-native';
+import { StyleSheet, View, AccessibilityInfo, Image } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -76,6 +76,11 @@ export default function VoidBackground() {
           start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
         />
       </Animated.View>
+      <Image
+        source={require('../assets/images/grain.png')}
+        style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
+        resizeMode="repeat"
+      />
     </View>
   );
 }

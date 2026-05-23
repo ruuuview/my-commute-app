@@ -112,8 +112,8 @@ function RoleSheet({
   useEffect(() => { if (!visible) setRole(null); }, [visible]);
 
   const ROLES: { id: Role; label: string; icon: string }[] = [
-    { id: 'home',  label: 'Home',  icon: 'home-outline' },
-    { id: 'work',  label: 'Work',  icon: 'briefcase-outline' },
+    { id: 'home', label: 'Home', icon: 'home-outline' },
+    { id: 'work', label: 'Work', icon: 'briefcase-outline' },
     { id: 'other', label: 'Other', icon: 'location-outline' },
   ];
 
@@ -169,12 +169,12 @@ function RoleSheet({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function StationsScreen() {
-  const { push }     = useRouter();
-  const insets       = useSafeAreaInsets();
+  const { push } = useRouter();
+  const insets = useSafeAreaInsets();
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
-  const pinStation     = useUserPreferencesStore(s => s.pinStation);
+  const pinStation = useUserPreferencesStore(s => s.pinStation);
 
-  const [query, setQuery]             = useState('');
+  const [query, setQuery] = useState('');
   const [sheetStation, setSheetStation] = useState<TfLStation | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -188,17 +188,17 @@ export default function StationsScreen() {
   // Search results — memoised with dynamic threshold formula
   const results = useMemo<TfLStation[]>(() => {
     if (!query.trim()) return POPULAR_STATIONS;
-    
+
     // Adaptive threshold: Math.max(0.2, 0.5 - query.length * 0.05)
     // Ensures long words like "Paddington" require strict matching
     const dynamicThreshold = Math.max(0.2, 0.5 - query.length * 0.05);
-    
+
     const fuse = new Fuse(FULL_STATIONS, {
       keys: ['name'],
       threshold: dynamicThreshold,
       includeScore: true,
     });
-    
+
     return fuse.search(query).map(r => r.item);
   }, [query]);
 
@@ -233,7 +233,7 @@ export default function StationsScreen() {
     <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.root, { backgroundColor: '#1A1A2E' }]}>
         <VoidBackground />
-        <Stack.Screen options={{ headerShown: false }} />
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
         {/* Progress dots */}
         <ProgressDots currentStep={1} totalSteps={3} style={{ paddingTop: insets.top + 16 }} />
@@ -244,6 +244,20 @@ export default function StationsScreen() {
             {'Which stations\ndo you use?'}
           </Text>
         </View>
+
+        {/* Header Micro-confirmation: Selected Lines */}
+        {selectedLines.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(100)} style={styles.selectedLinesStrip}>
+            {selectedLines.map((lineId) => {
+              const name = lineId.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              return (
+                <View key={lineId} style={[styles.microLinePill, { backgroundColor: LINE_COLORS[lineId] || '#888' }]}>
+                  <Text style={styles.microLineText}>{name}</Text>
+                </View>
+              );
+            })}
+          </Animated.View>
+        )}
 
         {pinnedStations.length > 0 && (
           <Animated.View entering={FadeInDown} style={styles.pillStrip}>
@@ -482,7 +496,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
   },
-  sheetCtaText: {
-    fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', color: '#0A0A0F',
-  },
+  sheetCtaText: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 16, color: '#0A0A0F' },
+  
+  selectedLinesStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 20, marginBottom: 12 },
+  microLinePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  microLineText: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 12, color: '#FFF' },
 });
+
+export default StationsScreen;

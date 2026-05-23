@@ -31,6 +31,12 @@ export default function RootLayout() {
   });
 
   const isReady = _hasHydrated && fontsLoaded;
+
+  useEffect(() => {
+    if (isReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isReady]);
   
   const overlayOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();

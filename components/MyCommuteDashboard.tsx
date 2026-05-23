@@ -84,9 +84,9 @@ function worstSeverity(lines: LineData[]): Severity {
 // ─── Smart Heartbeat Dot ─────────────────────────────────────────
 const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
   const opacity = useSharedValue(0.3);
-  
+
   const color = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#FF9500' : '#34C759';
-  
+
   useEffect(() => {
     const duration = severity === 'severe' ? 600 : severity === 'minor' ? 1200 : 2400;
     opacity.value = withRepeat(
@@ -105,10 +105,10 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 
 // ─── Status pill config ───────────────────────────────────────────
 const PILL_CONFIG: Record<Severity, { bg: string; text: string; dot: string; label: (s: string) => string }> = {
-  severe:  { bg: 'rgba(255,59,48,0.15)',  text: '#FF3B30', dot: '#FF3B30', label: (s) => s },
-  minor:   { bg: 'rgba(255,149,0,0.15)',  text: '#FF9500', dot: '#FF9500', label: (s) => s },
-  good:    { bg: 'rgba(52,199,89,0.15)',  text: '#34C759', dot: '#34C759', label: () => 'Good Service' },
-  offline: { bg: 'rgba(99,99,102,0.15)',  text: '#636366', dot: '#636366', label: () => 'No Data' },
+  severe: { bg: 'rgba(255,59,48,0.15)', text: '#FF3B30', dot: '#FF3B30', label: (s) => s },
+  minor: { bg: 'rgba(255,149,0,0.15)', text: '#FF9500', dot: '#FF9500', label: (s) => s },
+  good: { bg: 'rgba(52,199,89,0.15)', text: '#34C759', dot: '#34C759', label: () => 'Good Service' },
+  offline: { bg: 'rgba(99,99,102,0.15)', text: '#636366', dot: '#636366', label: () => 'No Data' },
 };
 
 const TFL_COLORS: Record<string, string> = {
@@ -144,7 +144,7 @@ const iconStyles = StyleSheet.create({
 
 // ─── StatusPill ───────────────────────────────────────────────────
 const StatusPill: React.FC<{ status: string }> = ({ status }) => {
-  const sev    = parseSeverity(status);
+  const sev = parseSeverity(status);
   const config = PILL_CONFIG[sev];
   return (
     <View style={[pill.container, { backgroundColor: config.bg }]}>
@@ -278,19 +278,19 @@ export const MyCommuteDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // ✅ Zustand selectors
-  const selectedLines = useUserPreferencesStore((s: any) => s.selectedLineIds);
-  const selectedStations = useUserPreferencesStore((s: any) => s.selectedStationIds);
-  const removeLine = useUserPreferencesStore((s: any) => s.removeLine);
-  const removeStation = useUserPreferencesStore((s: any) => s.removeStation);
-  const setLines = useUserPreferencesStore((s: any) => s.setLines);
-  
+  const selectedLines = useUserPreferencesStore((s: any) => s.selectedLines || []);
+  const selectedStations = useUserPreferencesStore((s: any) => s.pinnedStations || []);
+  const removeLine = useUserPreferencesStore((s: any) => s.toggleLine);
+  const removeStation = useUserPreferencesStore((s: any) => s.unpinStation);
+  const setLines = useUserPreferencesStore((s: any) => s.reorderLines);
+
   const [isEditing, setIsEditing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       const response = await fetch('https://my-commute-backend.vercel.app/api/lines');
       const raw = await response.json();
-      
+
       const fresh: DashboardData = {
         lines: raw.map((item: any) => ({
           id: String(item?.id ?? ''),
@@ -298,7 +298,7 @@ export const MyCommuteDashboard: React.FC = () => {
           color: TFL_COLORS[String(item?.id ?? '')] || '#888',
           status: String(item?.status ?? ''),
         })),
-        stations: data.stations || [], 
+        stations: data.stations || [],
       };
       setData(fresh);
     } catch (err) { console.log('Fetch error'); }
@@ -334,82 +334,82 @@ export const MyCommuteDashboard: React.FC = () => {
     <View style={dash.root}>
       <GradientBackground lines={selectedLines} />
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]}>
-      {/* ── Global header ── */}
-      <View style={dash.header}>
-        <View style={dash.titleRow}>
-          <NetworkHealthDot severity={networkSeverity} />
-          <Text style={dash.titleMain}>MY</Text>
-        </View>
-        <View style={dash.titleSecondRow}>
-          <Text style={dash.titleSub}>COMMUTE</Text>
-          <View style={dash.headerActions}>
-            {hasContent && (
-              <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
-                <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+        {/* ── Global header ── */}
+        <View style={dash.header}>
+          <View style={dash.titleRow}>
+            <NetworkHealthDot severity={networkSeverity} />
+            <Text style={dash.titleMain}>MY</Text>
+          </View>
+          <View style={dash.titleSecondRow}>
+            <Text style={dash.titleSub}>COMMUTE</Text>
+            <View style={dash.headerActions}>
+              {hasContent && (
+                <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
+                  <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+                </Pressable>
+              )}
+              {/* ✅ + Button opens modal directly */}
+              <Pressable onPress={() => setModalVisible(true)} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
+                <Text style={dash.addBtnText}>+</Text>
               </Pressable>
-            )}
-            {/* ✅ + Button opens modal directly */}
-            <Pressable onPress={() => setModalVisible(true)} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
-              <Text style={dash.addBtnText}>+</Text>
-            </Pressable>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* ── Content ── */}
-      <ScrollView
-        style={dash.scroll}
-        contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
-      >
-        {!hasContent && (
-          <View style={dash.premiumEmptyState}>
-            <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
-              <DashboardSkeleton />
+        {/* ── Content ── */}
+        <ScrollView
+          style={dash.scroll}
+          contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
+        >
+          {!hasContent && (
+            <View style={dash.premiumEmptyState}>
+              <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
+                <DashboardSkeleton />
+              </View>
+              <View style={dash.emptyVisual}>
+                <LivingDot color="rgba(255,255,255,0.8)" size={48} />
+              </View>
+              <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
+
+              <BouncyButton onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
+                <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
+              </BouncyButton>
+
+              <BouncyButton onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
+                <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
+              </BouncyButton>
             </View>
-            <View style={dash.emptyVisual}>
-              <LivingDot color="rgba(255,255,255,0.8)" size={48} />
+          )}
+
+          {myLines.length > 0 && (
+            <View style={dash.section}>
+              <SectionHeader title="Lines" icon={<RoundElIcon />} />
+              {myLines.map((line) => (
+                <LineCard key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} />
+              ))}
             </View>
-            <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
-            
-            <BouncyButton onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
-              <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
-            </BouncyButton>
-            
-            <BouncyButton onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
-              <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
-            </BouncyButton>
-          </View>
-        )}
+          )}
 
-        {myLines.length > 0 && (
-          <View style={dash.section}>
-            <SectionHeader title="Lines" icon={<RoundElIcon />} />
-            {myLines.map((line) => (
-              <LineCard key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} />
-            ))}
-          </View>
-        )}
+          {myStations.length > 0 && (
+            <View style={dash.section}>
+              <SectionHeader title="Stations" icon={<PinIcon />} />
+              {myStations.map((station) => (
+                <StationCard key={station.id} station={station} isEditing={isEditing} onDelete={removeStation} />
+              ))}
+            </View>
+          )}
+        </ScrollView>
 
-        {myStations.length > 0 && (
-          <View style={dash.section}>
-            <SectionHeader title="Stations" icon={<PinIcon />} />
-            {myStations.map((station) => (
-              <StationCard key={station.id} station={station} isEditing={isEditing} onDelete={removeStation} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* ✅ Modal rendered HERE with all props correctly wired */}
-      <AddManageModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        savedLines={selectedLines}
-        savedStations={selectedStations}
-        onSave={handleModalSave}
-      />
+        {/* ✅ Modal rendered HERE with all props correctly wired */}
+        <AddManageModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          savedLines={selectedLines}
+          savedStations={selectedStations}
+          onSave={handleModalSave}
+        />
       </View>
     </View>
   );

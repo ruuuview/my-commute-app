@@ -6,7 +6,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import * as Calendar from 'expo-calendar';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -113,6 +113,7 @@ export default function PermissionsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: VOID_ROOT_COLOR }]}>
       <VoidBackground />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
       <ProgressDots currentStep={2} totalSteps={3} style={{ paddingTop: insets.top + 16 }} />
 
       <View style={styles.content}>

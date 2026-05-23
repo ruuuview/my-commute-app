@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import * as Calendar from 'expo-calendar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +49,7 @@ export default function PermissionsScreen() {
 
   const {
     selectedLines,
+    pinnedStations,
     setCalendarGranted,
     setNotificationsGranted,
     completeOnboarding
@@ -55,11 +57,14 @@ export default function PermissionsScreen() {
 
   const handleCalendar = async () => {
     try {
-      // MOCKED FOR JS BUNDLER: expo-calendar requires a new native build
-      // We simulate a successful permission grant to unblock UI testing
-      await new Promise(resolve => setTimeout(resolve, 500));
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCalendarGranted(true);
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status === 'granted') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setCalendarGranted(true);
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setCalendarGranted(false);
+      }
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setCalendarGranted(false);
@@ -103,6 +108,7 @@ export default function PermissionsScreen() {
 
   const mockLineId = selectedLines.length > 0 ? selectedLines[0] : 'jubilee';
   const mockLineName = TFL_LINES[mockLineId as keyof typeof TFL_LINES] || 'Jubilee';
+  const mockStationName = pinnedStations.length > 0 ? pinnedStations[0].name : 'your station';
 
   return (
     <View style={[styles.root, { backgroundColor: VOID_ROOT_COLOR }]}>
@@ -117,10 +123,7 @@ export default function PermissionsScreen() {
             </View>
             <Text style={styles.title}>Sync your schedule</Text>
             <Text style={styles.body}>
-              My Commute needs calendar access to know when you travel. This allows us to check for disruptions *before* you need to leave.
-            </Text>
-            <Text style={styles.legalBody}>
-              Data stays strictly on-device. No cloud sync.
+              We read departure times alongside your calendar — all on your device. Nothing leaves your phone.
             </Text>
           </Animated.View>
         )}
@@ -142,7 +145,7 @@ export default function PermissionsScreen() {
                 </View>
                 <Text style={styles.mockTitle}>Severe Delays on {mockLineName}</Text>
                 <Text style={styles.mockBody}>
-                  Affects your route to upcoming event. Tap to see alternatives.
+                  Affects your route through {mockStationName} to upcoming event. Tap to see alternatives.
                 </Text>
               </BlurView>
             </View>
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
     color: '#0A0A0F',
   },
   secondaryBtn: {
-    height: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

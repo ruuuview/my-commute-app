@@ -1,5 +1,6 @@
 {
   "expo": {
+    "_comment_doctor": "ios/ folder is intentional — contains App Groups entitlements, GoogleService-Info.plist, and background modes required for Live Activity. CNG warning is expected and safe to ignore.",
     "name": "My Commute",
     "slug": "my-commute",
     "version": "1.0.45",

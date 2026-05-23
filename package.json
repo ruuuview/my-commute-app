@@ -10,6 +10,11 @@
     "web": "expo start --web",
     "lint": "expo lint"
   },
+  "expo": {
+    "install": {
+      "exclude": ["expo-doctor-cng-check"]
+    }
+  },
   "dependencies": {
     "@bacons/apple-targets": "^4.0.6",
     "@expo-google-fonts/space-grotesk": "^0.4.1",

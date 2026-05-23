@@ -290,7 +290,6 @@ export default function StationsScreen() {
             data={results}
             keyExtractor={item => item.id}
             renderItem={renderItem}
-            estimatedItemSize={ROW_HEIGHT}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}

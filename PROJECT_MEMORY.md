@@ -39,6 +39,9 @@ Vibe: Dark mode, minimalist, high-end letter spacing (-0.5 SpaceGrotesk-Bold), a
 [COMPLETED] Step 3: Building app/onboarding/lines.tsx — an interactive grid for selecting favorite tube lines with staggered fade-in animations and accessible pills.
 [COMPLETED] Step 4: The Refinement (Station Pinning with Fuse.js) — app/onboarding/stations.tsx using a dynamically fetched dataset of 801 stations and FlashList.
 
-[CURRENT TASK] Step 5: The Superpowers (Permissions & Personalization) — app/onboarding/permissions.tsx.
+[COMPLETED] Step 5: The Superpowers (Permissions & Personalization) — app/onboarding/permissions.tsx.
+[COMPLETED] Step 6: The Grand Reveal (Cinematic Transition & Routing) — app/_layout.tsx handles the fade to black cinematic swap.
 
-Logic: Present the calendar disclosure and then the notifications step, enforcing the correct order before finalizing the transition to the dashboard.
+[CURRENT TASK] Step 7: The Premium Zero State (Safety Net) & Dashboard.
+
+Logic: Implement the loading skeletons, offline/stale-data branches, and prepare the core MyCommuteDashboard UI.

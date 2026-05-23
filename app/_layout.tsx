@@ -1,12 +1,12 @@
-// app/_layout.tsx
-
-import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, useReducedMotion } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   useFonts,
   SpaceGrotesk_400Regular,
@@ -14,18 +14,15 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
-// Use expo-audio per v4.2 spec (stubbed until asset is provided)
-// import { useAudioPlayer } from 'expo-audio';
+// import { useAudioPlayer } from 'expo-audio'; 
 
-// Prevent native splash from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
-export default function Layout() {
-  const { replace } = useRouter();
+export default function RootLayout() {
+  const router = useRouter();
+  const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
-  const hasCompletedOnboarding = useUserPreferencesStore((state) => state.hasCompletedOnboarding);
-  
+
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
@@ -35,72 +32,71 @@ export default function Layout() {
 
   const isReady = _hasHydrated && fontsLoaded;
   
-  // Grand Reveal Transition State
-  const [isRevealing, setIsRevealing] = useState(false);
-  const prevCompleted = useRef(hasCompletedOnboarding);
-  const blackOpacity = useSharedValue(0);
-  const initialHydrationFinished = useRef(false);
+  const overlayOpacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+  
+  // Guard: Initialize with current state to prevent cold-start animations
+  const hasAnimatedReveal = useRef(hasCompletedOnboarding);
+
+  const navigateToDashboard = useCallback(() => {
+    // Navigate to the index screen (dashboard) as we don't have a (app) folder group setup yet, 
+    // or we can just replace('/') which goes to the dashboard.
+    router.replace('/');
+  }, [router]);
+
+  const playHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    AccessibilityInfo.announceForAccessibility("Welcome to your dashboard");
+  }, []);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (_hasHydrated) {
-      timer = setTimeout(() => {
-        initialHydrationFinished.current = true;
-      }, 500);
-    }
-    return () => clearTimeout(timer);
-  }, [_hasHydrated]);
+    // Only fire if they just completed it in this session
+    if (hasCompletedOnboarding && !hasAnimatedReveal.current && _hasHydrated) {
+      hasAnimatedReveal.current = true;
 
-  const playAudioCue = async () => {
-    try {
-      // expo-audio implementation goes here once asset is available
-      // e.g. player.play();
-      console.log('Grand Reveal Audio Cue: *THUD*');
-    } catch (e) {
-      console.warn('Audio cue failed, continuing transition safely', e);
-    }
-  };
+      if (reducedMotion) {
+        // Accessibility App Store Requirement: Instant swap
+        playHaptic();
+        navigateToDashboard();
+        return;
+      }
 
-  useEffect(() => {
-    // Only trigger the Grand Reveal if hydration finished a while ago.
-    // This prevents the transition from triggering on every cold app launch.
-    if (!prevCompleted.current && hasCompletedOnboarding && initialHydrationFinished.current) {
-      setIsRevealing(true);
-      playAudioCue();
-      
-      // 1. Fade whole screen to pure Black (#000000) for 100ms.
-      blackOpacity.value = withTiming(1, { duration: 100 }, (finished) => {
+      // 1. Fade to Black (100ms)
+      overlayOpacity.value = withTiming(1, { duration: 100 }, (finished) => {
         if (finished) {
-          // 2. Perform the route swap behind the black screen.
-          // Wrapped in a small timeout to ensure the Root Layout is ready
-          runOnJS(setTimeout)(() => replace('/'), 50);
+          // 2. The Route Swap (Hidden behind black)
+          runOnJS(navigateToDashboard)();
           
-          // 3. Fade Black out over 400ms, revealing the Dashboard.
-          blackOpacity.value = withTiming(0, { duration: 400 }, (fadeFinished) => {
-            if (fadeFinished) {
-              runOnJS(setIsRevealing)(false);
-            }
-          });
+          // 3. The Physical "Thud"
+          runOnJS(playHaptic)();
+          
+          /* AUDIO MOCKED FOR NOW TO PREVENT BUNDLER CRASH
+          try {
+            const player = useAudioPlayer(require('../assets/audio/thud.wav'));
+            player.volume = 0.6;
+            player.play();
+          } catch (e) {
+            console.log("Audio skipped");
+          }
+          */
+
+          // 4. Fade Black Out to reveal Dashboard (400ms)
+          overlayOpacity.value = withTiming(0, { duration: 400 });
         }
       });
     }
-    prevCompleted.current = hasCompletedOnboarding;
-  }, [hasCompletedOnboarding, replace]);
+  }, [hasCompletedOnboarding, overlayOpacity, reducedMotion, navigateToDashboard, playHaptic, _hasHydrated]);
 
   const overlayStyle = useAnimatedStyle(() => ({
-    opacity: blackOpacity.value,
+    opacity: overlayOpacity.value,
+    zIndex: overlayOpacity.value > 0 ? 999 : -1,
   }));
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         {isReady ? <Stack screenOptions={{ headerShown: false }} /> : null}
-        
-        {/* Grand Reveal Black Overlay */}
-        <Animated.View 
-          style={[StyleSheet.absoluteFillObject, styles.overlay, overlayStyle]} 
-          pointerEvents={isRevealing ? 'auto' : 'none'}
-        />
+        <Animated.View style={[StyleSheet.absoluteFillObject, styles.blackOverlay, overlayStyle]} pointerEvents="none" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -108,5 +104,5 @@ export default function Layout() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
-  overlay: { backgroundColor: '#000000' },
+  blackOverlay: { backgroundColor: '#000000' },
 });

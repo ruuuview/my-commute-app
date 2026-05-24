@@ -19,11 +19,26 @@ import {
   RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
+  Easing,
+  runOnJS,
+  useReducedMotion,
+  cancelAnimation,
+  withSpring
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import { useAudioPlayer } from 'expo-audio';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useTflPoller } from '../hooks/useTflPoller';
+import type { StatusLevel } from '../hooks/useWorstStatus';
+import { Ionicons } from '@expo/vector-icons';
 // ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
 import GradientBackground from './GradientBackground';
@@ -36,7 +51,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 // ─── Types ────────────────────────────────────────────────────────
-export type Severity = 'severe' | 'minor' | 'good' | 'offline';
+export type Severity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'unknown';
 
 interface LineData {
   id: string;
@@ -69,15 +84,18 @@ function parseSeverity(statusText: string): Severity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
   if (text.includes('minor')) return 'minor';
-  if (text.includes('severe') || text.includes('closure') || text.includes('suspended') || text.includes('delay')) return 'severe';
+  if (text.includes('suspended') || text.includes('closure')) return 'suspended';
+  if (text.includes('severe') || text.includes('delay')) return 'severe';
   return 'good';
 }
 
 function worstSeverity(lines: LineData[]): Severity {
-  if (!lines.length) return 'good';
+  if (!lines.length) return 'unknown';
   const severities = lines.map((l) => parseSeverity(l.status));
+  if (severities.includes('suspended')) return 'suspended';
   if (severities.includes('severe')) return 'severe';
   if (severities.includes('minor')) return 'minor';
+  if (severities.includes('offline')) return 'offline';
   return 'good';
 }
 
@@ -103,13 +121,7 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
   return <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }, animStyle]} />;
 });
 
-// ─── Status pill config ───────────────────────────────────────────
-const PILL_CONFIG: Record<Severity, { bg: string; text: string; dot: string; label: (s: string) => string }> = {
-  severe: { bg: 'rgba(255,59,48,0.15)', text: '#FF3B30', dot: '#FF3B30', label: (s) => s },
-  minor: { bg: 'rgba(255,149,0,0.15)', text: '#FF9500', dot: '#FF9500', label: (s) => s },
-  good: { bg: 'rgba(52,199,89,0.15)', text: '#34C759', dot: '#34C759', label: () => 'Good Service' },
-  offline: { bg: 'rgba(99,99,102,0.15)', text: '#636366', dot: '#636366', label: () => 'No Data' },
-};
+// ─── Status configuration removed in favor of direct styling in LinePill
 
 const TFL_COLORS: Record<string, string> = {
   bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
@@ -142,99 +154,140 @@ const iconStyles = StyleSheet.create({
   pinTail: { width: 2, height: 5, backgroundColor: 'rgba(255,255,255,0.6)', borderBottomLeftRadius: 1, borderBottomRightRadius: 1 },
 });
 
-// ─── StatusPill ───────────────────────────────────────────────────
-const StatusPill: React.FC<{ status: string }> = ({ status }) => {
-  const sev = parseSeverity(status);
-  const config = PILL_CONFIG[sev];
+// ─── Jiggle Hook (Sinusoidal) ─────────────────────────
+const useJiggle = (isEditing: boolean) => {
+  const rotation = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  React.useEffect(() => {
+    if (isEditing && !reducedMotion) {
+      rotation.value = withRepeat(
+        withTiming(1.5, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true
+      );
+    } else {
+      cancelAnimation(rotation);
+      rotation.value = withTiming(0, { duration: 150 });
+    }
+  }, [isEditing, reducedMotion]);
+
+  return useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }]
+  }));
+};
+
+// ─── Press Spring Hook ─────────────────────────
+const usePressSpring = () => {
+  const scale = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
+  const player = useAudioPlayer(require('../assets/audio/tap.wav'));
+
+  const onPressIn = React.useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!reducedMotion) {
+      scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+      try {
+        if (player) {
+          player.volume = 0.5;
+          player.play();
+        }
+      } catch (e) {}
+    }
+  }, [reducedMotion, scale, player]);
+
+  const onPressOut = React.useCallback(() => {
+    if (!reducedMotion) {
+      scale.value = withSpring(1.0, { damping: 12, stiffness: 200 });
+    }
+  }, [reducedMotion, scale]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  return { animStyle, onPressIn, onPressOut };
+};
+
+// ─── LinePill ───────────────────────────────────────────────────
+const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; }> = ({ line, isEditing, onDelete }) => {
+  const jiggleStyle = useJiggle(isEditing);
+  const { animStyle, onPressIn, onPressOut } = usePressSpring();
+  const severity = parseSeverity(line.status);
+  const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#FF9500' : severity === 'suspended' ? '#FF3B30' : '#34C759';
+
   return (
-    <View style={[pill.container, { backgroundColor: config.bg }]}>
-      <View style={[pill.dot, { backgroundColor: config.dot }]} />
-      <Text style={[pill.label, { color: config.text }]} numberOfLines={1}>{config.label(status)}</Text>
-    </View>
+    <Animated.View style={[jiggleStyle, animStyle]}>
+      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} style={pill.container}>
+        <View style={[pill.colorBar, { backgroundColor: line.color }]} />
+        <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
+        <View style={pill.spacer} />
+        <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
+        <View style={[pill.dot, { backgroundColor: statusColor }]} />
+        <Text style={pill.chevron}>›</Text>
+        {isEditing && (
+          <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
+            <Text style={pill.deleteIcon}>−</Text>
+          </Pressable>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const pill = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 5, maxWidth: 160 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  label: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 11, letterSpacing: 0.2 },
-});
-
-// ─── LineCard (56px) ──────────────────────────────────────────────
-const LineCard: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; }> = ({ line, isEditing, onDelete }) => {
-  const shakeAnim = React.useRef(new RNAnimated.Value(0)).current;
-
-  React.useEffect(() => {
-    if (!isEditing) { shakeAnim.setValue(0); return; }
-    const jiggle = RNAnimated.loop(RNAnimated.sequence([
-      RNAnimated.timing(shakeAnim, { toValue: 1.5, duration: 80, useNativeDriver: true }), RNAnimated.timing(shakeAnim, { toValue: -1.5, duration: 80, useNativeDriver: true }),
-      RNAnimated.timing(shakeAnim, { toValue: 1, duration: 80, useNativeDriver: true }), RNAnimated.timing(shakeAnim, { toValue: -1, duration: 80, useNativeDriver: true }),
-      RNAnimated.timing(shakeAnim, { toValue: 0, duration: 80, useNativeDriver: true }), RNAnimated.delay(400),
-    ]));
-    jiggle.start();
-    return () => jiggle.stop();
-  }, [isEditing]);
-
-  return (
-    <RNAnimated.View style={[card.container, { transform: [{ rotate: shakeAnim.interpolate({ inputRange: [-2, 0, 2], outputRange: ['-2deg', '0deg', '2deg'] }) }] }]}>
-      <View style={[card.accent, { backgroundColor: line.color }]} />
-      <Text style={card.name} numberOfLines={1}>{line.name}</Text>
-      <StatusPill status={line.status} />
-      {isEditing && (
-        <Pressable style={card.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
-          <Text style={card.deleteIcon}>−</Text>
-        </Pressable>
-      )}
-    </RNAnimated.View>
-  );
-};
-
-const card = StyleSheet.create({
-  container: { height: 56, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8, overflow: 'hidden' },
-  accent: { width: 4, height: '100%' },
-  name: { flex: 1, marginLeft: 14, fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 15, color: '#FFFFFF', letterSpacing: 0.1 },
-  deleteBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', marginRight: 14, marginLeft: 8 },
-  deleteIcon: { color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 20 },
+  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8, overflow: 'hidden' },
+  colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
+  name: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: '#FFFFFF' },
+  spacer: { flex: 1 },
+  statusText: { fontFamily: 'SpaceGrotesk-Medium', fontSize: 12, marginRight: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  chevron: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
+  deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
+  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
 
 // ─── StationCard ──────────────────────────────────────────────────
-const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete: (id: string) => void; }> = ({ station, isEditing, onDelete }) => {
-  const shakeAnim = React.useRef(new RNAnimated.Value(0)).current;
+const getDepTimeStyle = (minutes: number | 'now') => {
+  if (minutes === 'now') return { color: '#FFFFFF', fontWeight: '700' as const };
+  if (minutes <= 3) return { color: '#FF9500', fontWeight: '600' as const };
+  return { color: 'rgba(255,255,255,0.75)', fontWeight: '400' as const };
+};
 
-  React.useEffect(() => {
-    if (!isEditing) { shakeAnim.setValue(0); return; }
-    const jiggle = RNAnimated.loop(RNAnimated.sequence([
-      RNAnimated.timing(shakeAnim, { toValue: 1.5, duration: 80, useNativeDriver: true }), RNAnimated.timing(shakeAnim, { toValue: -1.5, duration: 80, useNativeDriver: true }),
-      RNAnimated.timing(shakeAnim, { toValue: 0, duration: 80, useNativeDriver: true }), RNAnimated.delay(500),
-    ]));
-    jiggle.start();
-    return () => jiggle.stop();
-  }, [isEditing]);
+const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete: (id: string) => void; }> = ({ station, isEditing, onDelete }) => {
+  const jiggleStyle = useJiggle(isEditing);
+  const { animStyle, onPressIn, onPressOut } = usePressSpring();
 
   return (
-    <RNAnimated.View style={[stCard.container, { transform: [{ rotate: shakeAnim.interpolate({ inputRange: [-2, 0, 2], outputRange: ['-2deg', '0deg', '2deg'] }) }] }]}>
-      <View style={stCard.header}>
-        <View style={stCard.uBadge}><Text style={stCard.uText}>U</Text></View>
-        <Text style={stCard.stationName} numberOfLines={1}>{String(station.name ?? '').replace(/ Underground Station$/i, '')}</Text>
-        {isEditing && (
-          <Pressable style={card.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(station.id); }}>
-            <Text style={card.deleteIcon}>−</Text>
-          </Pressable>
-        )}
-      </View>
-      {Array.isArray(station.arrivals) && station.arrivals.length > 0 && (
-        <View style={stCard.arrivals}>
-          {station.arrivals.slice(0, 3).map((a, i) => (
-            <View key={`arrival-${a.lineId}-${a.destination}-${a.minutesAway}-${(a as any).expectedArrival || 'fallback'}`} style={stCard.arrivalRow}>
-              <View style={[stCard.arrivalDot, { backgroundColor: a.lineColor }]} />
-              <Text style={stCard.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">{a.lineName}</Text>
-              <Text style={stCard.arrivalDest} numberOfLines={1}>{a.destination}</Text>
-              <Text style={stCard.arrivalTime}>{a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`}</Text>
-            </View>
-          ))}
+    <Animated.View style={[jiggleStyle, animStyle, { marginBottom: 8 }]}>
+      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} style={[stCard.container, { marginBottom: 0 }]}>
+        <View style={stCard.header}>
+          <View style={stCard.uBadge}><Text style={stCard.uText}>U</Text></View>
+          <Text style={stCard.stationName} numberOfLines={1}>{String(station.name ?? '').replace(/ Underground Station$/i, '')}</Text>
+          {isEditing && (
+            <Pressable style={stCard.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(station.id); }}>
+              <Text style={stCard.deleteIcon}>−</Text>
+            </Pressable>
+          )}
         </View>
-      )}
-    </RNAnimated.View>
+        {Array.isArray(station.arrivals) && station.arrivals.length > 0 && (
+          <View style={stCard.arrivals}>
+            {station.arrivals.slice(0, 3).map((a, i) => {
+              const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
+              const depStyle = getDepTimeStyle(depVal);
+              return (
+                <View key={`arrival-${a.lineId}-${a.destination}-${a.minutesAway}-${(a as any).expectedArrival || 'fallback'}`} style={stCard.arrivalRow}>
+                  <View style={[stCard.arrivalDot, { backgroundColor: a.lineColor }]} />
+                  <Text style={stCard.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">{a.lineName}</Text>
+                  <Text style={stCard.arrivalDest} numberOfLines={1}>{a.destination}</Text>
+                  <Text style={[stCard.arrivalTime, depStyle]}>{depVal === 'now' ? 'Due' : `${depVal} min`}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -250,6 +303,8 @@ const stCard = StyleSheet.create({
   arrivalLineName: { width: 72, fontFamily: 'SpaceGrotesk-Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   arrivalDest: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.9)' },
   arrivalTime: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 13, color: '#FFFFFF', textAlign: 'right' },
+  deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
+  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
 
 // ─── Section header ───────────────────────────────────────────────
@@ -260,58 +315,111 @@ const SectionHeader: React.FC<{ title: string; icon: React.ReactNode }> = ({ tit
   </View>
 );
 const section = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10, marginTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
+  title: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 11, letterSpacing: 0.1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' },
 });
+
+// ─── Stale Status Text ──────────────────────────────────────────────
+const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: number }> = ({ staleState, staleMinutes }) => {
+  const opacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+  const [displayText, setDisplayText] = useState('');
+
+  useEffect(() => {
+    if (staleState === 'offline') setDisplayText(`Offline · Data is ${staleMinutes}m old`);
+    else if (staleState === 'tfl-error') setDisplayText(`TfL unavailable · Last updated ${staleMinutes}m ago`);
+    else if (staleState === 'tfl-delayed') setDisplayText(`TfL data delayed · Last updated ${staleMinutes}m ago`);
+  }, [staleState, staleMinutes]);
+
+  useEffect(() => {
+    if (staleState !== null) {
+      if (reducedMotion) {
+        opacity.value = 0.7;
+      } else {
+        opacity.value = 0.4;
+        opacity.value = withRepeat(
+          withTiming(0.9, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+          -1,
+          true
+        );
+      }
+    } else {
+      cancelAnimation(opacity);
+      opacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [staleState, reducedMotion, opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  if (!displayText) return null;
+
+  return (
+    <Animated.Text style={[dash.staleText, animStyle]}>
+      {displayText}
+    </Animated.Text>
+  );
+};
 
 // ─── Main Dashboard ───────────────────────────────────────────────
 export const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
 
-  // ✅ Modal state lives HERE now
-  const resetOnboarding = useUserPreferencesStore((state: any) => state.resetOnboarding);
+  // ✅ Store bindings
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, lastKnownStatus, setLastKnown } = useUserPreferencesStore((s: any) => ({
+    resetOnboarding: s.resetOnboarding,
+    selectedLines: s.selectedLines || [],
+    selectedStations: s.pinnedStations || [],
+    removeLine: s.toggleLine,
+    removeStation: s.unpinStation,
+    setLines: s.reorderLines,
+    lastKnownData: s.lastKnownData || [],
+    lastKnownStatus: s.lastKnownStatus || 'unknown',
+    setLastKnown: s.setLastKnown,
+  }));
 
   const [modalVisible, setModalVisible] = useState(false);
-
-  // ✅ Live Data Hook
-  const [data, setData] = useState<DashboardData>({ lines: [], stations: [] });
-  const [refreshing, setRefreshing] = useState(false);
-
-  // ✅ Zustand selectors
-  const selectedLines = useUserPreferencesStore((s: any) => s.selectedLines || []);
-  const selectedStations = useUserPreferencesStore((s: any) => s.pinnedStations || []);
-  const removeLine = useUserPreferencesStore((s: any) => s.toggleLine);
-  const removeStation = useUserPreferencesStore((s: any) => s.unpinStation);
-  const setLines = useUserPreferencesStore((s: any) => s.reorderLines);
-
+  const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch('https://my-commute-backend.vercel.app/api/lines');
+      const response = await fetch('https://my-commute-backend.vercel.app/api/lines', { signal });
+      if (!response.ok) {
+        return { status: response.status };
+      }
+
       const raw = await response.json();
 
+      const freshLines = raw.map((item: any) => ({
+        id: String(item?.id ?? ''),
+        name: String(item?.name ?? ''),
+        color: TFL_COLORS[String(item?.id ?? '')] || '#888',
+        status: String(item?.status ?? ''),
+      }));
+
       const fresh: DashboardData = {
-        lines: raw.map((item: any) => ({
-          id: String(item?.id ?? ''),
-          name: String(item?.name ?? ''),
-          color: TFL_COLORS[String(item?.id ?? '')] || '#888',
-          status: String(item?.status ?? ''),
-        })),
+        lines: freshLines,
         stations: data.stations || [],
       };
       setData(fresh);
-    } catch (err) { console.log('Fetch error'); }
-  }, [data.stations]);
 
-  useEffect(() => { fetchData(); }, []);
+      const myFreshLines = freshLines.filter((l: any) => selectedLines.includes(l.id));
+      const worst = worstSeverity(myFreshLines);
+      setLastKnown(worst as StatusLevel, freshLines);
+
+      return { status: response.status, lastUpdated: raw[0]?.updated_at };
+    } catch (err: any) {
+      console.log('Fetch error');
+      throw err;
+    }
+  }, [data.stations, selectedLines, setLastKnown]);
+
+  const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await fetchData();
-    setRefreshing(false);
-  }, [fetchData]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await forceRefresh();
+  }, [forceRefresh]);
 
   const handleEdit = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -330,9 +438,16 @@ export const MyCommuteDashboard: React.FC = () => {
   const hasContent = myLines.length > 0 || myStations.length > 0;
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
+  const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
+  const sortedLines = [...myLines].sort((a, b) => {
+    const sevA = parseSeverity(a.status);
+    const sevB = parseSeverity(b.status);
+    return (SEVERITY_ORDER[sevA] ?? 4) - (SEVERITY_ORDER[sevB] ?? 4);
+  });
+
   return (
     <View style={dash.root}>
-      <GradientBackground lines={selectedLines} />
+      <GradientBackground lines={selectedLines} status={networkSeverity as StatusLevel} />
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]}>
         {/* ── Global header ── */}
         <View style={dash.header}>
@@ -354,6 +469,14 @@ export const MyCommuteDashboard: React.FC = () => {
               </Pressable>
             </View>
           </View>
+          <View style={dash.subheadingArea}>
+            {networkSeverity !== 'good' && networkSeverity !== 'unknown' && (
+              <Text style={dash.disruptedLinesText}>
+                {sortedLines.filter(l => parseSeverity(l.status) !== 'good').map(l => l.name).join(', ')}
+              </Text>
+            )}
+            <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
+          </View>
         </View>
 
         {/* ── Content ── */}
@@ -361,7 +484,7 @@ export const MyCommuteDashboard: React.FC = () => {
           style={dash.scroll}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
           {!hasContent && (
             <View style={dash.premiumEmptyState}>
@@ -383,18 +506,18 @@ export const MyCommuteDashboard: React.FC = () => {
             </View>
           )}
 
-          {myLines.length > 0 && (
+          {sortedLines.length > 0 && (
             <View style={dash.section}>
-              <SectionHeader title="Lines" icon={<RoundElIcon />} />
-              {myLines.map((line) => (
-                <LineCard key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} />
+              <SectionHeader title="MY LINES" icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} />
+              {sortedLines.map((line) => (
+                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} />
               ))}
             </View>
           )}
 
           {myStations.length > 0 && (
             <View style={dash.section}>
-              <SectionHeader title="Stations" icon={<PinIcon />} />
+              <SectionHeader title="MY STATIONS" icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} />
               {myStations.map((station) => (
                 <StationCard key={station.id} station={station} isEditing={isEditing} onDelete={removeStation} />
               ))}
@@ -427,6 +550,9 @@ const dash = StyleSheet.create({
   headerBtnText: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: '#FFFFFF' },
   addBtn: { width: 32, paddingHorizontal: 0, backgroundColor: '#0098D4' },
   addBtnText: { fontFamily: 'SpaceGrotesk-Light', fontSize: 22, color: '#FFFFFF', lineHeight: 28 },
+  subheadingArea: { marginTop: 4 },
+  disruptedLinesText: { fontFamily: 'SpaceGrotesk-Medium', fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
+  staleText: { fontFamily: 'SpaceGrotesk-Medium', fontSize: 12, color: '#64B5F6' },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },
   section: { marginBottom: 24 },

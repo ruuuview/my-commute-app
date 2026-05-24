@@ -11,12 +11,13 @@
 // Status information is ALSO conveyed by text + icons on cards — never colour alone.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, AccessibilityInfo } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   runOnJS,
+  useReducedMotion,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWorstStatus, StatusLevel } from '../hooks/useWorstStatus';
@@ -25,24 +26,27 @@ import { useWorstStatus, StatusLevel } from '../hooks/useWorstStatus';
 // Top colour shifts with traffic-light status.
 // Bottom colour provides the refractive ice base for glass cards.
 const STATUS_GRADIENTS: Record<StatusLevel, readonly [string, string]> = {
-  good:      ['#0A2E1A', '#F0FFF4'],  // Deep Forest  → Pale Mint
-  minor:     ['#7C3A00', '#FFF8E8'],  // Deep Amber   → Warm Cream
-  severe:    ['#5C0A0A', '#FFF0F0'],  // Deep Ember   → Pale Rose
-  suspended: ['#3D0000', '#FFE8E8'],  // Void Crimson → Blush
-  unknown:   ['#1A1A2E', '#F0F4FF'],  // Deep Void    → Pale Ice (default / offline)
+  good:      ['#1A6B3A', '#0A3D20'],
+  minor:     ['#D4820A', '#7A4A00'],
+  severe:    ['#C0392B', '#7B1A1A'],
+  suspended: ['#8B0000', '#3A0000'],
+  unknown:   ['#1A1A3E', '#0A0A1F'],
 } as const;
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   /** TfL line IDs to evaluate — pass selectedLines from Zustand */
-  lines: string[];
+  lines?: string[];
+  status?: StatusLevel;
   children?: React.ReactNode;
 }
 
-export function GradientBackground({ lines, children }: Props) {
-  const status = useWorstStatus(lines);
+export function GradientBackground({ lines = [], status: overrideStatus, children }: Props) {
+  const computedStatus = useWorstStatus(lines);
+  const status = overrideStatus ?? computedStatus;
   const prevStatusRef = useRef<StatusLevel>('unknown');
   const crossfadeOpacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
 
   // [bottom layer (outgoing), top layer (incoming)]
   const [layers, setLayers] = useState<[StatusLevel, StatusLevel]>(['unknown', 'unknown']);
@@ -50,30 +54,27 @@ export function GradientBackground({ lines, children }: Props) {
   useEffect(() => {
     if (status === prevStatusRef.current) return;
 
-    // Respect system Reduce Motion setting — snap instead of animate
-    AccessibilityInfo.isReduceMotionEnabled().then(reduceMotion => {
-      const newLayers: [StatusLevel, StatusLevel] = [prevStatusRef.current, status];
-      setLayers(newLayers);
-      crossfadeOpacity.value = 0;
+    const newLayers: [StatusLevel, StatusLevel] = [prevStatusRef.current, status];
+    setLayers(newLayers);
+    crossfadeOpacity.value = 0;
 
-      if (reduceMotion) {
-        // Instant snap — still communicates the state change, just without motion
-        crossfadeOpacity.value = 1;
-        runOnJS(setLayers)([status, status]);
-        crossfadeOpacity.value = 0;
-        prevStatusRef.current = status;
-      } else {
-        // 800ms cross-fade per spec
-        crossfadeOpacity.value = withTiming(1, { duration: 800 }, (finished) => {
-          if (finished) {
-            runOnJS(setLayers)([status, status]);
-            crossfadeOpacity.value = 0;
-            prevStatusRef.current = status;
-          }
-        });
-      }
-    });
-  }, [status]);
+    if (reducedMotion) {
+      // Instant snap — still communicates the state change, just without motion
+      crossfadeOpacity.value = 1;
+      runOnJS(setLayers)([status, status]);
+      crossfadeOpacity.value = 0;
+      prevStatusRef.current = status;
+    } else {
+      // 800ms cross-fade per spec
+      crossfadeOpacity.value = withTiming(1, { duration: 800 }, (finished) => {
+        if (finished) {
+          runOnJS(setLayers)([status, status]);
+          crossfadeOpacity.value = 0;
+          prevStatusRef.current = status;
+        }
+      });
+    }
+  }, [status, reducedMotion]);
 
   const topLayerStyle = useAnimatedStyle(() => ({
     opacity: crossfadeOpacity.value,

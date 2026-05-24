@@ -173,6 +173,7 @@ export default function StationsScreen() {
   const insets = useSafeAreaInsets();
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation = useUserPreferencesStore(s => s.pinStation);
+  const selectedLines = useUserPreferencesStore((s: any) => s.selectedLines || []);
 
   const [query, setQuery] = useState('');
   const [sheetStation, setSheetStation] = useState<TfLStation | null>(null);
@@ -248,7 +249,7 @@ export default function StationsScreen() {
         {/* Header Micro-confirmation: Selected Lines */}
         {selectedLines.length > 0 && (
           <Animated.View entering={FadeInDown.delay(100)} style={styles.selectedLinesStrip}>
-            {selectedLines.map((lineId) => {
+            {selectedLines.map((lineId: string) => {
               const name = lineId.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
               return (
                 <View key={lineId} style={[styles.microLinePill, { backgroundColor: LINE_COLORS[lineId] || '#888' }]}>
@@ -502,5 +503,3 @@ const styles = StyleSheet.create({
   microLinePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   microLineText: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 12, color: '#FFF' },
 });
-
-export default StationsScreen;

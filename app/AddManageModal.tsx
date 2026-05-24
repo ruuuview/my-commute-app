@@ -34,28 +34,30 @@ export default function AddManageModal({ visible, onClose, savedLines, savedStat
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Manage Commute</Text>
-          <Pressable onPress={onClose}><Ionicons name="close" size={28} color="#333" /></Pressable>
+      {visible && (
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Manage Commute</Text>
+            <Pressable onPress={onClose}><Ionicons name="close" size={28} color="#333" /></Pressable>
+          </View>
+          <FlatList
+            contentContainerStyle={styles.content}
+            ListHeaderComponent={<Text style={styles.sectionHeader}>Select Lines</Text>}
+            data={Object.values(allLines) as any[]}
+            keyExtractor={(item: any) => item.id}
+            renderItem={({ item: line }) => (
+              <Pressable style={styles.row} onPress={() => toggleLine(line.id)}>
+                <View style={styles.rowContent}>
+                  <View style={[styles.dot, { backgroundColor: line.color }]} />
+                  <Text style={styles.lineName}>{line.name}</Text>
+                </View>
+                {localLines.includes(line.id) && <Ionicons name="checkmark-circle" size={24} color="#007AFF" />}
+              </Pressable>
+            )}
+          />
+          <Pressable style={styles.saveBtn} onPress={handleSave}><Text style={styles.saveText}>Save Changes</Text></Pressable>
         </View>
-        <FlatList
-          contentContainerStyle={styles.content}
-          ListHeaderComponent={<Text style={styles.sectionHeader}>Select Lines</Text>}
-          data={Object.values(allLines) as any[]}
-          keyExtractor={(item: any) => item.id}
-          renderItem={({ item: line }) => (
-            <Pressable style={styles.row} onPress={() => toggleLine(line.id)}>
-              <View style={styles.rowContent}>
-                <View style={[styles.dot, { backgroundColor: line.color }]} />
-                <Text style={styles.lineName}>{line.name}</Text>
-              </View>
-              {localLines.includes(line.id) && <Ionicons name="checkmark-circle" size={24} color="#007AFF" />}
-            </Pressable>
-          )}
-        />
-        <Pressable style={styles.saveBtn} onPress={handleSave}><Text style={styles.saveText}>Save Changes</Text></Pressable>
-      </View>
+      )}
     </Modal>
   );
 }

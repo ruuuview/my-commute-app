@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
+import type { StatusLevel } from '../hooks/useWorstStatus';
 
 const storage = createMMKV();
 
@@ -28,6 +29,8 @@ interface UserPreferencesState {
   calendarGranted: boolean;
   entitlementActive: boolean;
   trialStartDate: string | null;
+  lastKnownStatus: StatusLevel;
+  lastKnownData: any[];
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
@@ -40,9 +43,10 @@ interface UserPreferencesState {
   reorderLines: (order: string[]) => void;
   reorderStations: (order: { id: string; name: string; lines: string[]; role: 'home' | 'work' | 'other' }[]) => void;
   resetOnboarding: () => void;
+  setLastKnown: (status: StatusLevel, data: any[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown'> = {
   schemaVersion: 1,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -52,6 +56,8 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   calendarGranted: false,
   entitlementActive: false,
   trialStartDate: null,
+  lastKnownStatus: 'unknown',
+  lastKnownData: [],
   _hasHydrated: false,
 };
 
@@ -59,6 +65,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
   persist(
     (set) => ({
       ...initialState,
+      setLastKnown: (status, data) => set({ lastKnownStatus: status, lastKnownData: data }),
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       setCalendarGranted: (granted) => set({ calendarGranted: granted }),
       setNotificationsGranted: (granted) => set({ notificationsGranted: granted }),

@@ -40,7 +40,7 @@
 This app is a premium, native iOS transport companion built on a single core thesis: **passive intelligence.**
 
 **Two visual environments, one product:**
-- **"The Foyer" (Onboarding):** Solid `#0A0A0F` + film grain. SpaceGrotesk. High-contrast, cinematic.
+- **"The Foyer" (Onboarding):** Option C linear gradient (`['#070714', '#0A1128', '#001040', '#000810']` at `[0, 0.38, 0.65, 1]`) + film grain overlay. SpaceGrotesk. High-contrast, cinematic (no frosted glass/BlurView elements).
 - **"Fractal Glass" (App interior):** `GradientBackground` component (dynamic traffic-light gradient) + `expo-blur` glass cards (`tint="light"`). SF Pro.
 
 The Grand Reveal transition is the deliberate handoff between these two worlds.

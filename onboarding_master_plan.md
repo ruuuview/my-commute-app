@@ -1,8 +1,7 @@
 # MY COMMUTE — ONBOARDING ARCHITECTURE & EXECUTION PLAN
 
-## 1. PROJECT PHILOSOPHY (Rules for the AI)
-- **High Contrast Onboarding ("The Foyer"):** No fractal glass or complex gradients in the onboarding flow. Use pure solid colors on a deep black background (`#0A0A0F`).
-- **The Void:** All background screens must use `#0A0A0F` overlaid with a real 200×200 PNG of photographic film grain tiled at 2-3% opacity (do NOT use Base64 SVG noise) to prevent OLED black smearing and add physical depth.
+- **High Contrast Onboarding ("The Foyer"):** No fractal glass in the onboarding flow. All onboarding screens utilize the locked **Option C** gradient backdrop (`['#070714', '#0A1128', '#001040', '#000810']` at `[0, 0.38, 0.65, 1]`) with high-contrast, pure solid color pills/elements to give the foyer visual depth and atmosphere.
+- **The Void:** All background screens must use the tiled `VoidBackground` (photographic film grain tiled at 2-3% opacity over `#0A0A0F` or the Option C gradient container) to prevent OLED black smearing and add physical depth.
 - **Typography:** Headlines use `SpaceGrotesk-Bold` (or ExtraBold/800), size 32-34, `letterSpacing: -0.5`. Headlines must use `allowFontScaling={true}` but clip gracefully at a maximum of 2 lines. 
 - **Accessibility & UX:** Every touch target must be at least 44×44pt. Every screen must be wrapped in `SafeAreaView edges={['top','bottom']}`. Sticky bottom bars must use `paddingBottom: insets.bottom + 16` to clear the home indicator.
 - **Navigation:** Back swipe gestures must be explicitly enabled on Screens 2 and 3, preserving state via Zustand without resetting.

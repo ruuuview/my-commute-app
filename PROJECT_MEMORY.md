@@ -37,7 +37,7 @@ Vibe: Dark mode, minimalist, high-end letter spacing (-0.5 SpaceGrotesk-Bold), a
 [COMPLETED] Step 2: The Global "Void" Background (components/VoidBackground.tsx) with dynamic ambient gradients.
 
 [COMPLETED] Step 3: Building app/onboarding/lines.tsx — an interactive grid for selecting favorite tube lines with staggered fade-in animations and accessible pills.
-[COMPLETED] Step 4: The Refinement (Station Pinning with Fuse.js) — app/onboarding/stations.tsx using a dynamically fetched dataset of 801 stations and FlashList.
+[COMPLETED] Step 4: The Refinement (Station Pinning with Fuse.js) — app/onboarding/stations.tsx using deduplicated local 471 stations list, horizontal chips scroll strip, dynamic counting footer, and Option C gradient.
 
 [COMPLETED] Step 5: The Superpowers (Permissions & Personalization) — app/onboarding/permissions.tsx.
 [COMPLETED] Step 6: The Grand Reveal (Cinematic Transition & Routing) — app/_layout.tsx handles the fade to black cinematic swap.

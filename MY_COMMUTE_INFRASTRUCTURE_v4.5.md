@@ -1,6 +1,6 @@
 # INFRASTRUCTURE & SERVICES
 ## My Commute — Stack, Free Tiers, Upgrade Triggers & Cost Tracking
-### v4.4 — Fully Audited, Patched & Strategically Bridged
+### v4.5 — Fully Audited, Patched & Strategically Bridged
 
 ---
 
@@ -9,8 +9,8 @@
 >
 > **Linked Documents:**
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.4+)
-> - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.4+)
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.5+)
+> - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.5+)
 >
 > **Sync Protocol:** Update this file every time you upgrade a plan, add a service, or hit a quota ceiling. Any new service added here must also be added to the locked stack in `MY_COMMUTE_MASTER_PLAN.md §2` before it is considered ratified.
 
@@ -28,8 +28,6 @@
 ---
 
 ## RULING ON STRIPE VS REVENUECAT
-
-This question will come up again. The answer is fixed.
 
 **Stripe is not an alternative to RevenueCat for this app.**
 
@@ -66,7 +64,7 @@ The app is entirely dependent on the TfL Unified API. TfL goes down regularly.
 **Action:** Implement an in-memory TTL cache (or Vercel KV/Redis) on your Vercel backend using a `stale-while-revalidate` pattern. Never let the app break just because TfL rate-limits you.
 
 > **↑ Strategy Reference — Master Plan: "Offline & Stale-Data Architecture"**
-> This backend cache is the server-side complement to the client-side stale-data UI rules in the Master Plan. The amber warning dot and "Updated 4 min ago" timestamp specified in **UX Plan Section 2 / Ghost States** are the user-facing expression of this layer. Both must exist. One without the other is incomplete.
+> This backend cache is the server-side complement to the client-side stale-data UI rules in the Master Plan. The stale-data detection in client-side hook (`useTflPoller`) monitors fetch timeout (8000ms), network availability, and HTTP errors to show accurate status messages in real-time. When the cache is stale, `useWorstStatus` must propagate a `stale: true` flag upstream to trigger the warning state and stale UI.
 
 ---
 
@@ -210,7 +208,7 @@ Why this is required: Expo bare workflow apps cannot be reliably signed for Appl
 
 ---
 
-## OPEN ACTION ITEMS (Post v4.4)
+## OPEN ACTION ITEMS (Post v4.5)
 
 | # | Item | Risk | Blocks |
 |---|---|---|---|

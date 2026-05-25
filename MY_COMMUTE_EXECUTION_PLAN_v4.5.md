@@ -1,6 +1,6 @@
 # ARCHITECTURE & EXECUTION PLAN
 ## My Commute — Onboarding Architecture & Execution Plan
-### v4.4 — Fully Audited, Patched & Strategically Bridged
+### v4.5 — Fully Audited, Patched & Strategically Bridged
 
 ---
 
@@ -9,8 +9,8 @@
 >
 > **Linked Documents (full suite):**
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
-> - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.4+)
-> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.4+)
+> - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.5+)
+> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.5+)
 >
 > **Sync Protocol:** Before closing any step as complete, verify the corresponding Master Plan section has not been updated. Each step's reference callout below identifies the owning document and section.
 
@@ -26,7 +26,7 @@
 
 **Accessibility & UX:** Every touch target must be at least 44×44pt. Every screen must be wrapped in `SafeAreaView edges={['top','bottom']}`. Sticky bottom bars must use `paddingBottom: insets.bottom + 16` to clear the home indicator.
 
-**Reduced Motion Guard:** All Reanimated sequences must be wrapped in a `useReducedMotion()` check. If `true`, replace spring animations with instant 80ms opacity fades.
+**Reduced Motion Guard:** All Reanimated sequences must be wrapped in a synchronous `useReducedMotion()` hook. If `true`, replace spring animations with instant opacity fades or static states.
 
 **Navigation:** Back swipe gestures must be explicitly enabled on Screens 2 and 3, preserving state via Zustand without resetting.
 
@@ -45,7 +45,7 @@ Ensure the following are installed before beginning:
 - `react-native-reanimated`
 - `zustand` & `react-native-mmkv`
 - `@shopify/flash-list` *(or standard FlatList for list virtualization)*
-- `expo-audio` *(for the lightweight audio cue transition)*
+- `expo-audio` *(for light sound effects)*
 - `react-native-purchases` *(RevenueCat — subscription and entitlement layer)*
 - `expo-calendar` *(for calendar permission request on Screen 3)*
 
@@ -179,13 +179,10 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 - Copy: *"Ready when you are. Add your first line."*
 
 > **↑ Strategy Reference — Master Plan: "Offline & Stale-Data Architecture"**
-> The zero state (`hasContent === false`) is distinct from the stale-data state (content exists but is outdated). This step currently implements zero state only. The stale-data state — amber warning dot, "Updated 4 min ago" timestamp — must be added as a parallel branch within this component. Mark stale-data handling as an open action item on the dashboard until implemented.
+> The zero state (`hasContent === false`) is distinct from the stale-data state (content exists but is outdated). This step currently implements zero state only. The stale-data state — amber warning dot, "Updated 4 min ago" timestamp — is handled in Step 9.
 >
 > **↑ UX Reference — UX Plan: "Section 5.3 — Ghost States"**
-> The canonical three-state table (zero / loading / stale) is in UX Plan §5.3. This step currently implements only the zero state row. Loading state (100% opacity shimmer) and stale state (amber dot + timestamp) are open action items in the UX Plan and must be added to this step's scope.
->
-> **↑ Infrastructure Reference — Infrastructure Doc: "Section 2 — TfL API Resiliency"**
-> The stale state is fed by a `stale: true` flag from `useWorstStatus`, which itself consumes the `stale-while-revalidate` backend cache. The UI here cannot display stale state correctly until the backend caching layer is deployed.
+> The canonical three-state table (zero / loading / stale) is in UX Plan §5.3. This step implements only the zero state row. Loading state is an open action item. Stale state is implemented in Step 9.
 
 ---
 
@@ -201,7 +198,40 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 
 ---
 
-## 4. OPEN ACTION ITEMS (Post v4.4)
+### STEP 9: Premium UI/UX Polish & TfL Stale State Detection (v4.5 Update)
+**Files:** `components/MyCommuteDashboard.tsx`, `hooks/useTflPoller.ts`
+
+**Action 1: GradientBackground Wiring**
+- Positioned as absolute fill under the root dashboard view.
+- Crossfades between status gradients over 800ms using Reanimated `withTiming`.
+- Instant snap when `useReducedMotion()` is active.
+
+**Action 2: Slim Line Pills**
+- Rewrite all line pill components to single-row layouts.
+- Left edge starts with a 3px color bar (height 20, border radius 2).
+- Line name rendered in 14px SpaceGrotesk SemiBold.
+- A flexible spacer (`flex: 1`) separates the name from the status.
+- Status text rendered in 12px SpaceGrotesk Medium, adjacent to an 8px traffic status dot.
+- A subtle chevron indicator (`›`) completes the row on the right.
+
+**Action 3: Premium Sinusoidal Float & Spring Scaling**
+- `useJiggle`: The edit mode floating motion uses Reanimated `withTiming` over 900ms, swinging between `0` and `1.5deg` in a soft sine curve to avoid hyperactive jitter.
+- `usePressSpring`: Bouncy scale spring (scales down to 0.96 with damping 15/stiffness 300) when tap begins.
+- Plays lightweight tap feedback sound (`assets/audio/tap.wav`) via `expo-audio` + triggers `expo-haptics` light impact feedback.
+- Zustand store selectors wrapped in `useShallow` to prevent excessive re-renders during state mutations.
+
+**Action 4: TfL Stale State Detection & Subheading Alerts**
+- Upgraded the poller hook `useTflPoller` to measure network availability via NetInfo, catch HTTP errors (status >= 500), and track fetch timeouts (8000ms).
+- If `Date.now() - lastSuccessfulFetch > 180000` (3 minutes), set `staleState` to:
+  - `'offline'` if there is no internet connection.
+  - `'tfl-error'` if TfL returns HTTP error or timeout.
+  - `'tfl-delayed'` if data is loaded successfully but the server's update timestamp age is greater than 10 minutes.
+- Exposed `staleState` and `staleMinutes` to `MyCommuteDashboard.tsx`.
+- Render `StaleStatusText` below the list of disrupted lines inside the status area (never replace the disrupted list). Pulse opacity (`0.4` to `0.9` at 3000ms duration) for active warning states, or static 0.7 when `useReducedMotion()` is `true`.
+
+---
+
+## 4. OPEN ACTION ITEMS (Post v4.5)
 
 | # | Item | Owner | Blocks | Source |
 |---|---|---|---|---|
@@ -209,9 +239,8 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 | 2 | Source `assets/audio/thud.wav` | Founder | Step 6 | Execution Step 6 |
 | 3 | Host Privacy Policy + ToS at `getmycommute.app/legal` | Founder | Step 8 / TestFlight | Master Plan Compliance |
 | 4 | Add loading state skeleton (100% opacity + shimmer) to `MyCommuteDashboard.tsx` | Engineering | Step 7 | UX Plan §5.3 |
-| 5 | Add stale-data UI branch (amber dot + timestamp) to `MyCommuteDashboard.tsx` | Engineering | Step 7 | Master Plan Offline + UX Plan §5.3 |
-| 6 | Add Live Activity (Dynamic Island) as Execution Step 9 | PM | Post-launch | Master Plan Zero-Open Lifecycle |
-| 7 | Calibrate Fuse.js threshold formula against full 471-station list | Engineering | Step 4 | Execution Step 4 |
-| 8 | Run `eas build:configure` | Founder | Every signed build | Infra Doc §5 |
-| 9 | Upgrade Vercel to Pro before first TestFlight invite | Founder | TestFlight | Infra Doc §2 |
-| 10 | Set Sentry `tracesSampleRate: 0` + daily cap ~160/day | Engineering | Quota burn | Infra Doc §4 |
+| 5 | Add Live Activity (Dynamic Island) as Execution Step 10 | PM | Post-launch | Master Plan Zero-Open Lifecycle |
+| 6 | Calibrate Fuse.js threshold formula against full 471-station list | Engineering | Step 4 | Execution Step 4 |
+| 7 | Run `eas build:configure` | Founder | Every signed build | Infra Doc §5 |
+| 8 | Upgrade Vercel to Pro before first TestFlight invite | Founder | TestFlight | Infra Doc §2 |
+| 9 | Set Sentry `tracesSampleRate: 0` + daily cap ~160/day | Engineering | Quota burn | Infra Doc §4 |

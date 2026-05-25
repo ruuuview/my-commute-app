@@ -92,8 +92,8 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
       <LinearGradient
         colors={STATUS_GRADIENTS[layers[0]]}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
       />
 
       {/* Top layer — incoming gradient, cross-fades in over 800ms */}
@@ -101,8 +101,8 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
         <LinearGradient
           colors={STATUS_GRADIENTS[layers[1]]}
           style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
         />
       </Animated.View>
 

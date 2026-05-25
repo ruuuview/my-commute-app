@@ -36,6 +36,7 @@ import { useAudioPlayer } from 'expo-audio';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
@@ -161,8 +162,9 @@ const useJiggle = (isEditing: boolean) => {
 
   React.useEffect(() => {
     if (isEditing && !reducedMotion) {
+      rotation.value = -1.5;
       rotation.value = withRepeat(
-        withTiming(1.5, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1.5, { duration: 140, easing: Easing.inOut(Easing.sin) }),
         -1,
         true
       );
@@ -210,7 +212,7 @@ const usePressSpring = () => {
 };
 
 // ─── LinePill ───────────────────────────────────────────────────
-const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; }> = ({ line, isEditing, onDelete }) => {
+const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ line, isEditing, onDelete, onLongPress }) => {
   const jiggleStyle = useJiggle(isEditing);
   const { animStyle, onPressIn, onPressOut } = usePressSpring();
   const severity = parseSeverity(line.status);
@@ -218,7 +220,7 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
 
   return (
     <Animated.View style={[jiggleStyle, animStyle]}>
-      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} style={pill.container}>
+      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
@@ -236,7 +238,7 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
 };
 
 const pill = StyleSheet.create({
-  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8, overflow: 'hidden' },
+  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8 },
   colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
   name: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: '#FFFFFF' },
   spacer: { flex: 1 },
@@ -254,13 +256,13 @@ const getDepTimeStyle = (minutes: number | 'now') => {
   return { color: 'rgba(255,255,255,0.75)', fontWeight: '400' as const };
 };
 
-const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete: (id: string) => void; }> = ({ station, isEditing, onDelete }) => {
+const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ station, isEditing, onDelete, onLongPress }) => {
   const jiggleStyle = useJiggle(isEditing);
   const { animStyle, onPressIn, onPressOut } = usePressSpring();
 
   return (
     <Animated.View style={[jiggleStyle, animStyle, { marginBottom: 8 }]}>
-      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} style={[stCard.container, { marginBottom: 0 }]}>
+      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={[stCard.container, { marginBottom: 0 }]}>
         <View style={stCard.header}>
           <View style={stCard.uBadge}><Text style={stCard.uText}>U</Text></View>
           <Text style={stCard.stationName} numberOfLines={1}>{String(station.name ?? '').replace(/ Underground Station$/i, '')}</Text>
@@ -292,7 +294,7 @@ const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete
 };
 
 const stCard = StyleSheet.create({
-  container: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 12, overflow: 'hidden' },
+  container: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 12, overflow: 'visible' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   uBadge: { width: 20, height: 20, borderRadius: 3, backgroundColor: '#003688', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   uText: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 11, color: '#FFF' },
@@ -365,7 +367,7 @@ export const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // ✅ Store bindings
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, lastKnownStatus, setLastKnown } = useUserPreferencesStore((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, lastKnownStatus, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -375,7 +377,7 @@ export const MyCommuteDashboard: React.FC = () => {
     lastKnownData: s.lastKnownData || [],
     lastKnownStatus: s.lastKnownStatus || 'unknown',
     setLastKnown: s.setLastKnown,
-  }));
+  })));
 
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
@@ -383,6 +385,7 @@ export const MyCommuteDashboard: React.FC = () => {
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
+      // 1. Fetch lines
       const response = await fetch('https://my-commute-backend.vercel.app/api/lines', { signal });
       if (!response.ok) {
         return { status: response.status };
@@ -397,9 +400,42 @@ export const MyCommuteDashboard: React.FC = () => {
         status: String(item?.status ?? ''),
       }));
 
+      // 2. Fetch live arrivals for each pinned station in parallel
+      let freshStations: StationData[] = [];
+      if (Array.isArray(selectedStations) && selectedStations.length > 0) {
+        const stationPromises = selectedStations.map(async (st: any) => {
+          try {
+            const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${st.id}`, { signal });
+            if (!res.ok) return null;
+            const sData = await res.json();
+            
+            // Map arrivals
+            const arrivals = (sData.departures || []).map((dep: any) => ({
+              lineId: String(dep.line || '').toLowerCase().replace(' line', '').trim(),
+              lineName: dep.line,
+              lineColor: TFL_COLORS[String(dep.line || '').toLowerCase().replace(' line', '').replace(' & ', '-').replace(' ', '-').trim()] || '#888',
+              minutesAway: dep.minutes_away,
+              destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
+              expectedArrival: dep.expected_arrival
+            }));
+
+            return {
+              id: st.id,
+              name: st.name,
+              arrivals: arrivals
+            };
+          } catch (e) {
+            console.log('Error fetching station arrivals for', st.id, e);
+            return null;
+          }
+        });
+        const resolved = await Promise.all(stationPromises);
+        freshStations = resolved.filter(Boolean) as StationData[];
+      }
+
       const fresh: DashboardData = {
         lines: freshLines,
-        stations: data.stations || [],
+        stations: freshStations,
       };
       setData(fresh);
 
@@ -412,7 +448,7 @@ export const MyCommuteDashboard: React.FC = () => {
       console.log('Fetch error');
       throw err;
     }
-  }, [data.stations, selectedLines, setLastKnown]);
+  }, [selectedStations, selectedLines, setLastKnown]);
 
   const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData);
 
@@ -434,7 +470,7 @@ export const MyCommuteDashboard: React.FC = () => {
   }, [setLines]);
 
   const myLines = data.lines.filter(l => selectedLines.includes(l.id));
-  const myStations = data.stations.filter(s => selectedStations.includes(s.id));
+  const myStations = data.stations.filter(s => selectedStations.some((st: any) => st.id === s.id));
   const hasContent = myLines.length > 0 || myStations.length > 0;
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
@@ -510,7 +546,7 @@ export const MyCommuteDashboard: React.FC = () => {
             <View style={dash.section}>
               <SectionHeader title="MY LINES" icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} />
               {sortedLines.map((line) => (
-                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} />
+                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} />
               ))}
             </View>
           )}
@@ -519,7 +555,7 @@ export const MyCommuteDashboard: React.FC = () => {
             <View style={dash.section}>
               <SectionHeader title="MY STATIONS" icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} />
               {myStations.map((station) => (
-                <StationCard key={station.id} station={station} isEditing={isEditing} onDelete={removeStation} />
+                <StationCard key={station.id} station={station} isEditing={isEditing} onDelete={removeStation} onLongPress={handleEdit} />
               ))}
             </View>
           )}

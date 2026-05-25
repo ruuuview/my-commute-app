@@ -22,7 +22,7 @@ export default function ProgressDots({ currentStep, totalSteps, style }: Props) 
           accessibilityElementsHidden={true}
           importantForAccessibility="no-hide-descendants"
           style={{
-            width: i === currentStep ? 20 : 8,
+            width: i === currentStep ? 24 : 8,
             height: 8,
             borderRadius: 4,
             backgroundColor: i === currentStep

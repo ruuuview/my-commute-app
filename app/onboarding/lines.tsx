@@ -2,9 +2,9 @@
 
 import React, { useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, useWindowDimensions,
+  View, Text, StyleSheet, ScrollView, useWindowDimensions, Platform,
 } from 'react-native';
-import Animated, { FadeInDown, FadeIn, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, useReducedMotion, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,8 @@ import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import VoidBackground, { VOID_ROOT_COLOR } from '../../components/VoidBackground';
 import BouncyPressable from '../../components/BouncyPressable';
 import ProgressDots from '../../components/ProgressDots';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAudioPlayer } from 'expo-audio';
 
 // ─── 14 TfL lines (§1.3 + DLR) ──────────────────────────────────────────────
 const TFL_LINES = [
@@ -41,10 +43,6 @@ const MAX     = 5;
 const H_PAD   = 16;
 const GAP     = 10;
 
-// ─── Hex → rgba opacity helpers ──────────────────────────────────────────────
-// Appends 2-char hex alpha to a 6-char hex colour string
-const withAlpha = (hex: string, alpha: string) => `${hex}${alpha}`;
-
 // ─── Single Pill ─────────────────────────────────────────────────────────────
 const Pill = React.memo(function Pill({
   line,
@@ -61,6 +59,8 @@ const Pill = React.memo(function Pill({
   pillWidth: number;
   delay: number;
 }) {
+  const player = useAudioPlayer(require('../../assets/audio/tap.wav'));
+
   const onPress = useCallback(async () => {
     if (!isSelected && isAtLimit) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -69,24 +69,49 @@ const Pill = React.memo(function Pill({
     isSelected
       ? await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       : await Haptics.selectionAsync();
+
+    try {
+      if (player) {
+        player.volume = 0.4;
+        player.play();
+      }
+    } catch (e) {}
+
     onToggle(line.id);
-  }, [isSelected, isAtLimit, line.id, onToggle]);
+  }, [isSelected, isAtLimit, line.id, onToggle, player]);
 
   const disabled = !isSelected && isAtLimit;
 
   // Colour on OUTER wrapper — BlurView refracts it through the frost.
-  // Putting it inside BlurView as absoluteFill rendered on top of the blur,
-  // not behind it — producing near-invisible colour on the frosted surface.
   const bgColor     = isSelected ? `${line.color}4D` : `${line.color}26`;  // 30% / 15%
   const borderColor = isSelected ? `${line.color}CC` : `${line.color}66`;  // 80% / 40%
-  const borderWidth = isSelected ? 1.5 : 1;
+  const borderWidth = isSelected ? 2 : 1;
 
   const reducedMotion = useReducedMotion();
 
+  // Dynamic Scale Spring
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSpring(isSelected ? 1.03 : 1, { damping: 15, stiffness: 300 });
+  }, [isSelected]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  // Selected Box Shadow Glow for iOS Contrast Signal
+  const selectedShadowStyle = isSelected ? {
+    shadowColor: line.color,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
+  } : {};
+
   return (
     <Animated.View
-      entering={reducedMotion ? FadeIn.duration(80) : FadeInDown.delay(delay).springify()}
-      style={{ width: pillWidth, opacity: disabled ? 0.35 : 1 }}
+      entering={reducedMotion ? FadeIn.duration(80) : FadeInDown.delay(delay).springify().damping(15).stiffness(150)}
+      style={[{ width: pillWidth, opacity: disabled ? 0.35 : 1 }, animStyle, selectedShadowStyle]}
       importantForAccessibility="yes"
     >
       <BouncyPressable
@@ -97,20 +122,28 @@ const Pill = React.memo(function Pill({
         accessibilityLabel={`${line.name} line`}
         style={{
           borderRadius: 16,
-          overflow: 'hidden',
-          marginBottom: GAP,
-          backgroundColor: bgColor,      // ← colour BEHIND BlurView
-          borderWidth,
-          borderColor,
+          overflow: 'visible', // Ensure shadow is visible
         }}
       >
-        {/* BlurView over the coloured wrapper — frosted glass over colour+gradient */}
-        <BlurView tint="light" intensity={20} style={styles.pillBlur}>
+        <BlurView
+          intensity={30}
+          tint="dark"
+          style={[
+            styles.pillBlur,
+            {
+              backgroundColor: bgColor,
+              borderColor: borderColor,
+              borderWidth: borderWidth,
+            },
+          ]}
+        >
           <Text
             style={styles.pillText}
             numberOfLines={1}
             allowFontScaling
             maxFontSizeMultiplier={1.3}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.85}
           >
             {line.name}
           </Text>
@@ -148,9 +181,18 @@ export default function LinesScreen() {
 
   const pillWidth = (width - H_PAD * 2 - GAP) / 2;
 
+  // Dynamic Subtitle Selection Counter
+  const subtitleText = selectedLines.length > 0
+    ? `Select your lines (${selectedLines.length} of ${MAX} selected)`
+    : 'Select your lines';
+
   return (
-    // Fix 2 — root color matches gradient start: zero black bleed-through
-    <View style={[styles.root, { backgroundColor: VOID_ROOT_COLOR }]}>
+    <LinearGradient
+      colors={['#0D0B1A', '#1A0D2E', '#0A1A2A']}
+      start={{ x: 0.1, y: 0 }}
+      end={{ x: 0.9, y: 1 }}
+      style={styles.root}
+    >
       <VoidBackground />
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
@@ -162,18 +204,17 @@ export default function LinesScreen() {
         <Text style={styles.title} numberOfLines={2} allowFontScaling maxFontSizeMultiplier={1.3}>
           {'Which lines\ndo you travel?'}
         </Text>
-        {/* Fix 4 (subtitle) — "Select your lines." */}
         <Text style={styles.subtitle} allowFontScaling maxFontSizeMultiplier={1.4}>
-          Select your lines.
+          {subtitleText}
         </Text>
       </View>
 
-      {/* Fix 3 — ScrollView content clears absolute CTA via paddingBottom */}
+      {/* Grid ScrollView */}
       <ScrollView
         style={styles.flex1}
         contentContainerStyle={[
           styles.grid,
-          { paddingBottom: insets.bottom + 100 },
+          { paddingBottom: insets.bottom + 130 }, // spacious clearance to clear footer
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -192,7 +233,7 @@ export default function LinesScreen() {
         </View>
       </ScrollView>
 
-      {/* Fix 3 — absolute CTA: pills never obscured by footer */}
+      {/* Footer Continue CTA - standardized height & arrow badge */}
       <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
         <BouncyPressable
           onPress={async () => {
@@ -212,15 +253,22 @@ export default function LinesScreen() {
             },
           ]}
         >
-          <Text style={[
-            styles.ctaText,
-            { color: canContinue ? '#0A0A0F' : 'rgba(255,255,255,0.35)' },
-          ]}>
-            Continue
-          </Text>
+          <View style={styles.ctaContent}>
+            <Text style={[
+              styles.ctaText,
+              { color: canContinue ? '#0A0A0F' : 'rgba(255,255,255,0.35)' },
+            ]}>
+              Continue
+            </Text>
+            {canContinue && (
+              <View style={styles.arrowBadge}>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
         </BouncyPressable>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -270,8 +318,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.95)',
     marginRight: 6,
   },
-
-  // Fix 3 — absolute footer scrim
   ctaWrap: {
     position: 'absolute',
     bottom: 0,
@@ -282,8 +328,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(13,11,23,0.88)',
   },
   cta: {
-    height: 56,
-    borderRadius: 16,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  arrowBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#0A0A0F',
     alignItems: 'center',
     justifyContent: 'center',
   },

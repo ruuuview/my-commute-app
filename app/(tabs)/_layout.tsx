@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { Slot } from 'expo-router';
+import { Slot, useRouter } from 'expo-router';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
@@ -15,6 +15,7 @@ const tabs: Array<{ key: string; icon: keyof typeof Ionicons.glyphMap; label: st
 ];
 
 const TabsLayout = () => {
+  const router = useRouter();
   // Hardcoded activeKey to 'dashboard' for now since we're on the dashboard index
   const activeKey = 'dashboard';
 
@@ -29,7 +30,17 @@ const TabsLayout = () => {
         <Slot />
       </View>
       <View style={styles.tabBarContainer}>
-        <FractalGlassTabBar tabs={tabs} activeKey={activeKey} onPress={(key: string) => {}} />
+        <FractalGlassTabBar 
+          tabs={tabs} 
+          activeKey={activeKey} 
+          onPress={(key: string) => {
+            if (key === 'settings') {
+              router.push('/settings');
+            } else if (key === 'status') {
+              router.push('/journeyPlanner');
+            }
+          }} 
+        />
       </View>
     </View>
   );

@@ -1,7 +1,7 @@
 # UX & UI MASTER PLAN
 ## My Commute — London Transport Dashboard
 ### "Fractal Glass — Ambient Status Refraction" — Complete Specification
-### v4.4 — Fully Audited, Patched & Strategically Bridged
+### v4.5 — Fully Audited, Patched & Strategically Bridged
 
 ---
 
@@ -10,14 +10,14 @@
 >
 > **Linked Documents:**
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.4+)
-> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.4+)
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.5+)
+> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.5+)
 >
 > **Sync Protocol:** Any token change in Section 1 must be reflected in `VoidBackground.tsx` (Execution Step 2) and `GradientBackground` component before the change is considered live. Any copy change in Section 17 must be cross-checked against the verbatim compliance copy in the Master Plan Compliance section.
 
 ---
 
-## AUDIT CONFLICT RESOLUTIONS (v4.2 → v4.3 → v4.4)
+## AUDIT CONFLICT RESOLUTIONS (v4.2 → v4.3 → v4.4 → v4.5)
 
 | # | Change | Resolution |
 |---|---|---|
@@ -27,9 +27,11 @@
 | 4 | SpaceGrotesk Font Loading | Resolved: Added `useFonts()` and `SplashScreen.preventAutoHideAsync()` to the Step 0 splash screen architecture so the app doesn't flash system fonts on older devices. |
 | 5 | Empty State Copy | Resolved: Rewrote "Your commute is a blank slate" (weak) to "Ready when you are. Add your first line." (Forward-looking and personalised). |
 | 6 | Loading Skeleton Opacity | Resolved: Explicitly separated the 10% faint zero-state skeleton from the 100% full-opacity data-loading skeleton. |
+| 7 | Sinusoidal Floating Jiggle | Resolved: Replaced hyperactive withSpring/sequence loops in Jiggle Mode with a premium, fluid sinusoidal rotate pattern using `withTiming` (900ms duration, max 1.5° rotation) for a native iOS floating feel. |
+| 8 | Synchronous Reduced Motion | Resolved: Replaced asynchronous `AccessibilityInfo` check with React Native Reanimated's native, synchronous `useReducedMotion()` hook to prevent screen flickering and race conditions. |
 
 > **↑ Cross-Document Alignment Note**
-> Items 4 and 5 above have direct counterparts in other documents. Item 4 (font loading) is implemented in **Execution Plan Step 0**. Item 5 (zero state copy) is the exact copy string in **Execution Plan Step 7**. If either is changed here, both must be updated in sync.
+> Items 4, 5, 7, and 8 above have direct counterparts in other documents. Item 4 (font loading) is implemented in **Execution Plan Step 0**. Item 5 (zero state copy) is the exact copy string in **Execution Plan Step 7**. Items 7 and 8 (floating jiggle & reduced motion) are implemented in **Execution Plan Step 9**. If any are changed here, they must be updated in sync.
 
 ---
 
@@ -70,16 +72,19 @@ The Grand Reveal transition is the deliberate handoff between these two worlds.
 
 ### 1.8 Animation System & Reduced Motion (CRITICAL)
 
-All animations use React Native Reanimated 3 with `withSpring` or `withTiming`.
+All animations use React Native Reanimated 3.
 
-**Reduced motion (App Store Requirement):** You MUST wrap ALL animations in an `if (isReduceMotionEnabled)` check via `AccessibilityInfo.isReduceMotionEnabled()`.
+**Sinusoidal Jiggle floating physics (Jiggle Mode):**
+The Edit Mode (Jiggle Mode) animation uses a fluid, sinusoidal float pattern using `withTiming` with a duration of 900ms and a peak rotation of `1.5deg` to achieve a highly premium, non-jittery iOS-native feel rather than a hyperactive spring sequence. When reduced motion is active, the rotation cancels instantly and falls back to a clean static layout.
 
-When `true`, replace all spring/translate animations with instant opacity fades (80ms).
-
-The `LivingDot` pulsing radar must immediately revert to static concentric rings.
+**Reduced motion (App Store Requirement):**
+You MUST wrap/guard ALL animations using Reanimated's native `useReducedMotion()` hook. 
+- When `useReducedMotion()` is `true`, replace all spring/translate animations with instant opacity changes or extremely fast fades.
+- The `LivingDot` pulsing radar must immediately revert to static concentric rings.
+- The `StaleStatusText` pulsing opacity (3000ms duration, 0.4 to 0.9 opacity) must fall back to a static 0.7 opacity.
 
 > **↑ Implementation Reference — Execution Plan: "Section 1 — Project Philosophy (Reduced Motion Guard)"**
-> The `useReducedMotion()` check referenced in the Execution Plan Philosophy is the implementation hook for this UX requirement. They describe the same behaviour. The 80ms fade duration is the canonical value — both documents must match. The `LivingDot` static fallback applies to **Execution Plan Step 7** (zero state) and must be implemented there.
+> The `useReducedMotion()` check referenced in the Execution Plan Philosophy is the implementation hook for this UX requirement. They describe the same behaviour. The static fallbacks apply to **Execution Plan Step 7** (zero state) and **Step 9** (polish & stale UI) and must be implemented there.
 
 ---
 
@@ -99,7 +104,7 @@ This is the core of the Ambient Status Refraction system.
 **Rule:** `useWorstStatus` is the ONLY place in the codebase that determines status severity. If community reports ≥ 3 AND TfL shows `'good'`, upgrade to `'minor'` (community overrides TfL optimism).
 
 > **↑ Infrastructure Reference — Infrastructure Doc: "Section 2 — TfL API Resiliency"**
-> `useWorstStatus` consumes the TfL API response. The `stale-while-revalidate` caching layer in the Infrastructure doc is what feeds this hook when TfL is unreachable. When the cache is stale, `useWorstStatus` must propagate a `stale: true` flag upstream to trigger the amber warning dot and timestamp UI specified in the Master Plan Offline section. This is the exact data flow that closes the loop between infra caching and the user-facing stale-data state.
+> `useWorstStatus` consumes the TfL API response. The stale-data detection in client-side hook (`useTflPoller`) monitors fetch timeout (8000ms), network availability, and HTTP errors to show accurate status messages in real-time. When the cache is stale, `useWorstStatus` must propagate a `stale: true` flag upstream to trigger the warning state and stale UI.
 
 ---
 
@@ -115,14 +120,14 @@ Shown when a card is in loading state (first ever fetch).
 
 **Critical distinction — two skeleton states:**
 
-| State | Trigger | Skeleton opacity | Shimmer |
+| State | Trigger | Skeleton opacity | Shimmer / Pulse |
 |---|---|---|---|
 | Zero state | `hasContent === false` | 10% (faint, ghosted) | None |
 | Loading state | `hasContent === true`, data fetching | 100% (full opacity) | Yes |
-| Stale state | Data exists but TfL cache expired | 100% | Amber dot + timestamp |
+| Stale state | Data exists but TfL cache expired | 100% | Pulsing text (`0.4` to `0.9` opacity, `3000ms` timing) |
 
 > **↑ Implementation Reference — Execution Plan: "Step 7 — Premium Zero State"**
-> Step 7 implements the zero state row only (10% skeleton). The loading state and stale state rows in the table above are currently unimplemented in the Execution Plan and must be added to Step 7 scope or a new Step 9. This is an open action item. Until all three states are built, the dashboard behaviour is incomplete per this spec.
+> Step 7 implements the zero state row only (10% skeleton). The loading state is an open action item. Stale state (pulsing alert text in subheading area) is implemented in **Execution Plan Step 9**.
 
 ---
 
@@ -203,13 +208,10 @@ Shown when `hasCompletedOnboarding === true` but `pinnedStations.length === 0`.
 
 ---
 
-## OPEN ACTION ITEMS (Post v4.4)
+## OPEN ACTION ITEMS (Post v4.5)
 
 | # | Item | Owner | Blocks |
 |---|---|---|---|
 | 1 | Implement loading state skeleton (100% opacity + shimmer) in `MyCommuteDashboard.tsx` | Engineering | Section 5.3 |
-| 2 | Implement stale-data state (amber dot + timestamp) in `MyCommuteDashboard.tsx` | Engineering | Section 5.3 + Master Plan Offline Rules |
-| 3 | Wire `useWorstStatus` stale flag to amber dot UI | Engineering | Section 2.1 |
-| 4 | Confirm WCAG 4.5:1 contrast on all glass card text tokens | Design | Section 1.1 + App Store review |
-| 5 | Add `accessibilityLanguage="en-GB"` to root component | Engineering | Section 10.1 |
-| 6 | Verify `LivingDot` static ring fallback fires on `reduceMotion === true` | Engineering | Section 1.8 + Execution Plan Step 7 |
+| 2 | Confirm WCAG 4.5:1 contrast on all glass card text tokens | Design | Section 1.1 + App Store review |
+| 3 | Add `accessibilityLanguage="en-GB"` to root component | Engineering | Section 10.1 |

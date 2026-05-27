@@ -36,8 +36,7 @@ interface DepartureCardProps {
 }
 
 const getDepTimeStyle = (minutes: number | 'now') => {
-  if (minutes === 'now') return { color: '#FFFFFF', fontWeight: '700' as const };
-  if (minutes <= 3) return { color: AMBER_COLOR, fontWeight: '600' as const };
+  if (minutes === 'now' || minutes <= 3) return { color: 'rgba(255,255,255,0.9)', fontWeight: '800' as const };
   return { color: 'rgba(255,255,255,0.75)', fontWeight: '400' as const };
 };
 
@@ -51,6 +50,7 @@ export default function DepartureCard({
 }: DepartureCardProps) {
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async () => {
@@ -90,8 +90,14 @@ export default function DepartureCard({
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
     .trim();
 
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsExpanded(prev => !prev);
+  };
+
   return (
     <Pressable
+      onPress={handlePress}
       onLongPress={onLongPress}
       style={styles.container}
     >
@@ -110,6 +116,14 @@ export default function DepartureCard({
           )}
         </View>
 
+        {!isEditing && (
+          <Ionicons
+            name={isExpanded ? 'chevron-down' : 'chevron-forward'}
+            size={16}
+            color="rgba(255,255,255,0.4)"
+          />
+        )}
+
         {isEditing && onDelete && (
           <Pressable
             style={styles.deleteBadge}
@@ -123,40 +137,42 @@ export default function DepartureCard({
         )}
       </View>
 
-      <View style={styles.arrivalsContainer}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-            <Text style={styles.loadingText}>Fetching departures...</Text>
-          </View>
-        ) : arrivals.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No upcoming departures found</Text>
-          </View>
-        ) : (
-          arrivals.slice(0, 3).map((a, i) => {
-            const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
-            const depStyle = getDepTimeStyle(depVal);
-            return (
-              <View
-                key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
-                style={styles.arrivalRow}
-              >
-                <View style={[styles.arrivalDot, { backgroundColor: a.lineColor }]} />
-                <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
-                  {a.lineName}
-                </Text>
-                <Text style={styles.arrivalDest} numberOfLines={1}>
-                  {a.destination}
-                </Text>
-                <Text style={[styles.arrivalTime, depStyle]}>
-                  {depVal === 'now' ? 'Due' : `${depVal} min`}
-                </Text>
-              </View>
-            );
-          })
-        )}
-      </View>
+      {isExpanded && (
+        <View style={styles.arrivalsContainer}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+              <Text style={styles.loadingText}>Fetching departures...</Text>
+            </View>
+          ) : arrivals.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No upcoming departures found</Text>
+            </View>
+          ) : (
+            arrivals.slice(0, 3).map((a, i) => {
+              const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
+              const depStyle = getDepTimeStyle(depVal);
+              return (
+                <View
+                  key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
+                  style={styles.arrivalRow}
+                >
+                  <View style={[styles.arrivalDot, { backgroundColor: a.lineColor }]} />
+                  <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
+                    {a.lineName}
+                  </Text>
+                  <Text style={styles.arrivalDest} numberOfLines={1}>
+                    {a.destination}
+                  </Text>
+                  <Text style={[styles.arrivalTime, depStyle]}>
+                    {depVal === 'now' ? 'Due' : `${depVal} min`}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+      )}
     </Pressable>
   );
 }

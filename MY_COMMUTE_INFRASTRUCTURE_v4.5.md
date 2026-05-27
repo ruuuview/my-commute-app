@@ -1,6 +1,6 @@
 # INFRASTRUCTURE & SERVICES
 ## My Commute — Stack, Free Tiers, Upgrade Triggers & Cost Tracking
-### v4.5 — Fully Audited, Patched & Strategically Bridged
+### v4.6 — Fully Audited, Patched & Strategically Bridged (Onboarding & UX Polish Complete)
 
 ---
 
@@ -9,8 +9,8 @@
 >
 > **Linked Documents:**
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.5+)
-> - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.5+)
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.6+)
+> - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.6+)
 >
 > **Sync Protocol:** Update this file every time you upgrade a plan, add a service, or hit a quota ceiling. Any new service added here must also be added to the locked stack in `MY_COMMUTE_MASTER_PLAN.md §2` before it is considered ratified.
 
@@ -208,7 +208,7 @@ Why this is required: Expo bare workflow apps cannot be reliably signed for Appl
 
 ---
 
-## OPEN ACTION ITEMS (Post v4.5)
+## OPEN ACTION ITEMS (Post v4.6)
 
 | # | Item | Risk | Blocks |
 |---|---|---|---|

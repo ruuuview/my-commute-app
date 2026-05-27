@@ -1,7 +1,7 @@
 # UX & UI MASTER PLAN
 ## My Commute — London Transport Dashboard
 ### "Fractal Glass — Ambient Status Refraction" — Complete Specification
-### v4.5 — Fully Audited, Patched & Strategically Bridged
+### v4.6 — Fully Audited, Patched & Strategically Bridged (Onboarding & UX Polish Complete)
 
 ---
 
@@ -10,14 +10,14 @@
 >
 > **Linked Documents:**
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.5+)
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.6+)
 > - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.5+)
 >
 > **Sync Protocol:** Any token change in Section 1 must be reflected in `VoidBackground.tsx` (Execution Step 2) and `GradientBackground` component before the change is considered live. Any copy change in Section 17 must be cross-checked against the verbatim compliance copy in the Master Plan Compliance section.
 
 ---
 
-## AUDIT CONFLICT RESOLUTIONS (v4.2 → v4.3 → v4.4 → v4.5)
+## AUDIT CONFLICT RESOLUTIONS (v4.2 → v4.3 → v4.4 → v4.5 → v4.6)
 
 | # | Change | Resolution |
 |---|---|---|
@@ -208,7 +208,7 @@ Shown when `hasCompletedOnboarding === true` but `pinnedStations.length === 0`.
 
 ---
 
-## OPEN ACTION ITEMS (Post v4.5)
+## OPEN ACTION ITEMS (Post v4.6)
 
 | # | Item | Owner | Blocks |
 |---|---|---|---|

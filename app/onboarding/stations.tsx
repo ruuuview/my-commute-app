@@ -245,14 +245,15 @@ export default function StationsScreen() {
       shouldSort: true,
     });
 
-    const searchResults = fuse.search(query);
+    const cleanQuery = query.toLowerCase().replace(/'/g, '');
+    const searchResults = fuse.search(cleanQuery);
 
     return searchResults
       .filter((r) => (r.score ?? 1) < 0.2)
       .sort((a, b) => {
-        const q = query.toLowerCase();
-        const aStarts = a.item.name.toLowerCase().startsWith(q);
-        const bStarts = b.item.name.toLowerCase().startsWith(q);
+        const q = cleanQuery;
+        const aStarts = a.item.name.toLowerCase().replace(/'/g, '').startsWith(q);
+        const bStarts = b.item.name.toLowerCase().replace(/'/g, '').startsWith(q);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
         return (a.score ?? 1) - (b.score ?? 1);
@@ -352,37 +353,36 @@ export default function StationsScreen() {
 
         {/* Navigation & Progress Header */}
         <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
-          <Pressable
+          <SpringPressable
             onPress={handleBack}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             style={styles.navHeaderBtn}
+            pressScale={0.95}
             accessibilityRole="button"
             accessibilityLabel="Go back to line selection"
           >
             <Ionicons name="chevron-back" size={20} color={TEXT_PRIMARY} />
             <Text style={styles.navBackText}>Back</Text>
-          </Pressable>
+          </SpringPressable>
 
           <ProgressDots currentStep={1} totalSteps={2} style={styles.navProgressDots} />
 
-          <Pressable
+          <SpringPressable
             onPress={handleSkip}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             style={styles.navHeaderBtnRight}
+            pressScale={0.96}
             accessibilityRole="button"
             accessibilityLabel="Skip station selection"
           >
             <Text style={styles.navSkipText}>Skip</Text>
-          </Pressable>
+          </SpringPressable>
         </View>
 
         {/* Header Title */}
         <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={2} allowFontScaling maxFontSizeMultiplier={1.3}>
-            {'Where do you\ncatch it?'}
-          </Text>
-          <Text style={styles.subtitle} allowFontScaling maxFontSizeMultiplier={1.4}>
-            {'Your platform. Your timing.'}
+          <Text style={styles.title} numberOfLines={1} allowFontScaling maxFontSizeMultiplier={1.3}>
+            {'Where do you catch it?'}
           </Text>
         </View>
 
@@ -531,7 +531,7 @@ export default function StationsScreen() {
             </Text>
           )}
           <View pointerEvents={canContinue ? 'auto' : 'none'}>
-            <BouncyPressable
+            <SpringPressable
               onPress={async () => {
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 playSelect();
@@ -552,6 +552,7 @@ export default function StationsScreen() {
                 useUserPreferencesStore.getState().completeOnboarding();
               }}
               disabled={!canContinue}
+              pressScale={0.97}
               accessibilityRole="button"
               accessibilityLabel={canContinue ? 'Continue to permissions' : 'Add at least one station to continue'}
               accessibilityState={{ disabled: !canContinue }}
@@ -573,7 +574,7 @@ export default function StationsScreen() {
                   </View>
                 )}
               </View>
-            </BouncyPressable>
+            </SpringPressable>
           </View>
         </View>
       </View>

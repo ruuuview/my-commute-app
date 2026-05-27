@@ -7,6 +7,7 @@ export interface TfLStation {
   name: string;
   lines: string[];
   zone?: number;
+  searchKeys?: string[];
 }
 
 import fullStationsData from './tflStationsFull.json';
@@ -28,8 +29,8 @@ export function sanitiseStationName(raw: string): string {
       break;
     }
   }
-  // Normalise St. → St, trim trailing punctuation
-  return name.replace(/\bSt\.\b/g, 'St').replace(/\.$/, '').trim();
+  // Normalise St. → St, remove apostrophes, trim trailing punctuation
+  return name.replace(/\bSt\.\b/g, 'St').replace(/'/g, '').replace(/\.$/, '').trim();
 }
 
 

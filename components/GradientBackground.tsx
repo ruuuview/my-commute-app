@@ -22,16 +22,17 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWorstStatus, StatusLevel } from '../hooks/useWorstStatus';
 
-// ─── Gradient palette (v4.1 §1.1 + §2.4) ─────────────────────────────────────
-// Top colour shifts with traffic-light status.
-// Bottom colour provides the refractive ice base for glass cards.
-const STATUS_GRADIENTS: Record<StatusLevel, readonly [string, string]> = {
-  good:      ['#1A6B3A', '#0A3D20'],
-  minor:     ['#D4820A', '#7A4A00'],
-  severe:    ['#C0392B', '#7B1A1A'],
-  suspended: ['#8B0000', '#3A0000'],
-  unknown:   ['#1A1A3E', '#0A0A1F'],
+// ─── Gradient palette (v4.6 overhaul) ─────────────────────────────────────────
+// Top color shifts with traffic-light status, bleeding elegantly down into the UNIFIED_DARK_GRADIENT pitch-black base.
+const STATUS_GRADIENTS: Record<StatusLevel, readonly [string, string, string, string]> = {
+  good:      ['#1A6B3A', '#0A3D20', '#02040A', '#000000'],
+  minor:     ['#D4820A', '#7A4A00', '#02040A', '#000000'],
+  severe:    ['#C0392B', '#7B1A1A', '#02040A', '#000000'],
+  suspended: ['#8B0000', '#3A0000', '#02040A', '#000000'],
+  unknown:   ['#0E1730', '#070C1B', '#02040A', '#000000'],
 } as const;
+
+const GRADIENT_LOCATIONS = [0, 0.30, 0.70, 1] as const;
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 interface Props {
@@ -92,8 +93,9 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
       <LinearGradient
         colors={STATUS_GRADIENTS[layers[0]]}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
+        locations={GRADIENT_LOCATIONS}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
       {/* Top layer — incoming gradient, cross-fades in over 800ms */}
@@ -101,8 +103,9 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
         <LinearGradient
           colors={STATUS_GRADIENTS[layers[1]]}
           style={StyleSheet.absoluteFillObject}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
+          locations={GRADIENT_LOCATIONS}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
         />
       </Animated.View>
 

@@ -1,7 +1,7 @@
 # My Commute
-## Master Plan v2.1
+## Master Plan v2.2
 ### Full Strategic, Product, GTM, Technical, Fundraising, and Founder Blueprint
-### v2.1 — Fully Synchronized with UX, Execution, and Infrastructure Specs v4.5
+### v2.2 — Fully Synchronized with UX, Execution, and Infrastructure Specs v4.6
 
 ---
 
@@ -9,9 +9,9 @@
 > This is the **strategic authority document**. It owns all *decisions* — the why, the what, and the non-negotiables. Every detail across all other documents traces back to a section here. When a decision changes, it changes here first. All linked documents inherit the update.
 >
 > **Linked Documents (full suite):**
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md`
-> - UX/UI authority: `MY_COMMUTE_UX_PLAN_v4.5.md`
-> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md`
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md` (Updated in-file to v4.6)
+> - UX/UI authority: `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.6)
+> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.6)
 >
 > **Sync Protocol:** Any change to a locked decision in this document must trigger a simultaneous audit of all three linked documents. Each section's bridge callout below identifies which documents and sections are affected.
 
@@ -56,10 +56,10 @@ These decisions are fixed. Do not trade launch momentum for theoretical stack im
 > Stack decisions map to **Execution Step 1** (MMKV/Zustand store), **Step 6** (routing and transition), and **Step 8** (RevenueCat subscription screen). The dependency checklist in **Execution Step 0 / Section 2** is the operational expression of this locked stack. No new dependencies enter the project without first being added here.
 >
 > **→ Infrastructure Bridge**
-> The full service registry in `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` is the cost and quota expression of this stack. Vercel, MongoDB Atlas, RevenueCat, Sentry, and EAS Build each map to a stack item. Any new service added to the Infrastructure doc must appear in this locked stack list first.
+> The full service registry in `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.6) is the cost and quota expression of this stack. Vercel, MongoDB Atlas, RevenueCat, Sentry, and EAS Build each map to a stack item. Any new service added to the Infrastructure doc must appear in this locked stack list first.
 >
 > **→ UX Bridge**
-> The "Fractal Glass" and "Void" UI engine referenced here is fully specified in `MY_COMMUTE_UX_PLAN_v4.5.md §0 — Design Philosophy`. The design token system in UX Plan §1.1 is the implementation contract for these visual decisions.
+> The "Fractal Glass" and "Void" UI engine referenced here is fully specified in `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.6) `§0 — Design Philosophy`. The design token system in UX Plan §1.1 is the implementation contract for these visual decisions.
 
 ---
 
@@ -80,7 +80,7 @@ The app relies on a strict Live Activity lifecycle to protect battery and delive
 * **The Stop Trigger:** The Live Activity automatically terminates the moment the user reaches their destination geofence, or exactly **15 minutes after** the linked calendar event has started.
 
 > **→ Execution Bridge**
-> The calendar trigger depends on `calendarGranted` state wired in **Execution Step 5** (Screen 3 — Permissions). The geofence origin depends on `pinnedStations` schema wired in **Execution Step 1**. The Live Activity implementation itself is post-launch scope and does not appear in v4.5 of the Execution Plan — it must be added as Step 10 in the next Execution Plan revision.
+> The calendar trigger depends on `calendarGranted` state wired in **Execution Step 5** (Screen 3 — Permissions). The geofence origin depends on `pinnedStations` schema wired in **Execution Step 1**. The Live Activity implementation itself is post-launch scope and does not appear in v4.6 of the Execution Plan — it must be added as Step 10 in the next Execution Plan revision.
 
 ---
 
@@ -94,10 +94,10 @@ Users on the Tube will lose signal. The app cannot behave like this is an edge c
 > These rules govern the behaviour of `MyCommuteDashboard.tsx` specified in **Execution Step 7** and fully wired in **Execution Step 9**. The `hasContent` zero-state logic was extended with a stale-data status state that consumes `staleState` and `staleMinutes` from `useTflPoller` to pulse beautiful amber status text without replacing the active commuter cards.
 >
 > **→ Infrastructure Bridge**
-> The server-side expression of these rules is the `stale-while-revalidate` TfL API caching layer in `MY_COMMUTE_INFRASTRUCTURE_v4.5.md §2`. The client-side status text is fed by network availability, HTTP server failures, and fetch timeouts (8000ms) within `useTflPoller`. Both layers must be in place for offline behaviour to be complete.
+> The server-side expression of these rules is the `stale-while-revalidate` TfL API caching layer in `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.6) `§2`. The client-side status text is fed by network availability, HTTP server failures, and fetch timeouts (8000ms) within `useTflPoller`. Both layers must be in place for offline behaviour to be complete.
 >
 > **→ UX Bridge**
-> The three ghost states (zero, loading, stale) are fully specified in `MY_COMMUTE_UX_PLAN_v4.5.md §5.3`. The stale state has been fully implemented in components and hooks.
+> The three ghost states (zero, loading, stale) are fully specified in `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.6) `§5.3`. The stale state has been fully implemented in components and hooks.
 
 ---
 
@@ -112,10 +112,10 @@ We are not using a lazy, time-based SaaS metric. We are using a value-driven met
 > `entitlementActive` in the Zustand store (**Execution Step 1**) is the runtime expression of this monetization decision. The cold-start `Purchases.getCustomerInfo()` AppState listener is mandatory — not optional — because trial expiry can occur while the app is backgrounded. The "Restore Purchases" button in **Execution Step 8** is a direct App Store compliance requirement of this monetization model.
 >
 > **→ Infrastructure Bridge**
-> The RevenueCat service entry in `MY_COMMUTE_INFRASTRUCTURE_v4.5.md §1` governs the free tier threshold ($2,500 MTR) and the webhook requirement. The webhook (`/api/revenuecat-webhook.py`) is the backend mechanism that keeps `entitlementActive` accurate server-side. The Stripe ruling in the Infrastructure doc is a permanent architectural constraint of this monetization model.
+> The RevenueCat service entry in `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.6) `§1` governs the free tier threshold ($2,500 MTR) and the webhook requirement. The webhook (`/api/revenuecat-webhook.py`) is the backend mechanism that keeps `entitlementActive` accurate server-side. The Stripe ruling in the Infrastructure doc is a permanent architectural constraint of this monetization model.
 >
 > **→ UX Bridge**
-> The trial countdown copy (*"Trial — 7 commutes left"*) and the locked card blur state are specified in `MY_COMMUTE_UX_PLAN_v4.5.md §11`. Those UX states are the user-facing expression of this monetization decision.
+> The trial countdown copy (*"Trial — 7 commutes left"*) and the locked card blur state are specified in `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.6) `§11`. Those UX states are the user-facing expression of this monetization decision.
 
 ---
 
@@ -136,7 +136,7 @@ Do not hire a traditional enterprise closer immediately. Run 30 days of founder-
 3. **Data & Privacy Architecture (Mandatory pre-B2B):** B2B data must rely strictly on aggregated cohorts. User-level data stays on-device. Establish minimum cohort sizes for reporting and noise-addition to ensure GDPR compliance before scaling institutional sales.
 
 > **→ Execution Bridge**
-> The B2B layer has **zero dependencies in v4.5 of the Execution Plan** — it is deliberately post-launch scope. However, the `pinnedStations` and `selectedLines` schema defined in **Execution Step 1** must be architected to support anonymous cohort aggregation from day one. Do not store PII in these fields. Flag this constraint to the engineering agent before Step 1 is closed.
+> The B2B layer has **zero dependencies in v4.6 of the Execution Plan** — it is deliberately post-launch scope. However, the `pinnedStations` and `selectedLines` schema defined in **Execution Step 1** must be architected to support anonymous cohort aggregation from day one. Do not store PII in these fields. Flag this constraint to the engineering agent before Step 1 is closed.
 
 ---
 
@@ -155,9 +155,9 @@ The strongest founder story is not "I am a genius engineer." It is:
 
 ## Launch Execution Sequence (Next 30 Days)
 1. **Run `eas build:configure`** and lock Vercel Pro.
-2. Implement the exact 3-screen Foyer onboarding architecture.
+2. Implement the exact 3-screen Foyer onboarding architecture. — ✅ COMPLETED
 3. Wire up RevenueCat for the 10-commute trial and degraded UI states.
-4. Build the offline/stale-data UI (Step 9).
+4. Build the offline/stale-data UI (Step 9). — ✅ COMPLETED
 5. Draft App Store Optimisation (ASO) metadata and legal documents.
 6. Ship to TestFlight Beta.
 

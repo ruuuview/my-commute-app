@@ -11,7 +11,27 @@ export interface TfLStation {
 
 import fullStationsData from './tflStationsFull.json';
 
-export const FULL_STATIONS: TfLStation[] = fullStationsData as TfLStation[];
+const STRIP_SUFFIXES = [
+  ' Elizabeth line Station',
+  ' Underground Station',
+  ' Overground Station',
+  ' DLR Station',
+  ' Rail Station',
+  ' Station',
+];
+
+export function sanitiseStationName(raw: string): string {
+  let name = raw;
+  for (const suffix of STRIP_SUFFIXES) {
+    if (name.endsWith(suffix)) {
+      name = name.slice(0, -suffix.length);
+      break;
+    }
+  }
+  // Normalise St. → St, trim trailing punctuation
+  return name.replace(/\bSt\.\b/g, 'St').replace(/\.$/, '').trim();
+}
+
 
 export const TFL_STATIONS: TfLStation[] = [
   // Zone 1
@@ -112,7 +132,26 @@ export const TFL_STATIONS: TfLStation[] = [
   { id: 'richmond',         name: 'Richmond',              lines: ['district','overground'],                  zone: 4 },
   { id: 'romford',          name: 'Romford',               lines: ['elizabeth'],                              zone: 6 },
   { id: 'wimbledon',        name: 'Wimbledon',             lines: ['district'],                               zone: 3 },
-];
+].map(s => ({
+  ...s,
+  name: sanitiseStationName(s.name),
+}));
+
+export const FULL_STATIONS: TfLStation[] = (fullStationsData as TfLStation[]).map(s => {
+  const sanitisedName = sanitiseStationName(s.name);
+  const key = sanitisedName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const matchingHardcoded = TFL_STATIONS.find(t =>
+    t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === key ||
+    t.id === s.id
+  );
+
+  return {
+    ...s,
+    name: sanitisedName,
+    zone: matchingHardcoded?.zone ?? s.zone,
+  };
+});
 
 // Popular stations shown when search is empty (zone 1 key hubs)
 export const POPULAR_STATIONS = TFL_STATIONS.filter(s =>

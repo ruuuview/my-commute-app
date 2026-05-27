@@ -35,7 +35,13 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mycommute.app"
+      "package": "com.mycommute.app",
+      "permissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -56,7 +62,7 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "We read departure times alongside your calendar \u2014 all on your device. Nothing leaves your phone."
+          "calendarPermission": "We read departure times alongside your calendar — all on your device. Nothing leaves your phone."
         }
       ],
       "expo-font",
@@ -72,9 +78,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "67f6a2fa-0d78-43d6-bd96-52027756a463"
+        "projectId": "14082521-640e-45da-bbea-3edf0b8a91d1"
       }
     },
-    "owner": "rushingwiners-organization"
+    "owner": "rudra1998s-organization"
   }
 }

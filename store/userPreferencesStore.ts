@@ -32,6 +32,8 @@ interface UserPreferencesState {
   lastKnownStatus: StatusLevel;
   lastKnownData: any[];
   _hasHydrated: boolean;
+  sessionCount: number;
+  firstOpenTimestamp: number | null;
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
   setNotificationsGranted: (granted: boolean) => void;
@@ -59,6 +61,8 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   lastKnownStatus: 'unknown',
   lastKnownData: [],
   _hasHydrated: false,
+  sessionCount: 0,
+  firstOpenTimestamp: null,
 };
 
 export const useUserPreferencesStore = create<UserPreferencesState>()(

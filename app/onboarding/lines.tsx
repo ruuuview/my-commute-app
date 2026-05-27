@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, useWindowDimensions, Platform,
+  View, Text, StyleSheet, ScrollView, useWindowDimensions, Platform, Image,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn, useReducedMotion, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -14,12 +14,28 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import VoidBackground, { VOID_ROOT_COLOR } from '../../components/VoidBackground';
+import { useOnboardingStore } from '../../store/onboardingStore';
 import BouncyPressable from '../../components/BouncyPressable';
 import ProgressDots from '../../components/ProgressDots';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAudioPlayer } from 'expo-audio';
+import { useTapSound } from '../../hooks/useTapSound';
+import DisruptionTicker from '../../components/DisruptionTicker';
+
+const ONBOARDING_GRADIENT = {
+  colors: ['#070714', '#0A1128', '#001040', '#000810'] as const,
+  locations: [0, 0.38, 0.65, 1] as const,
+  start: { x: 0.2, y: 0 },
+  end: { x: 0.8, y: 1 },
+};
+
+const TEXT_PRIMARY   = 'rgba(255,255,255,0.9)';
+const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
+const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
+const TEXT_SKIP      = 'rgba(255,255,255,0.35)';
+const ROW_ADDED_BG   = 'rgba(255,255,255,0.06)';
+const CHIP_BG        = 'rgba(255,255,255,0.10)';
+const SEARCH_BG      = 'rgba(255,255,255,0.08)';
+const SEARCH_BORDER  = 'rgba(255,255,255,0.12)';
 
 // ─── 14 TfL lines (§1.3 + DLR) ──────────────────────────────────────────────
 const TFL_LINES = [
@@ -32,7 +48,7 @@ const TFL_LINES = [
   { id: 'hammersmith-city', name: 'Hammersmith & City', color: '#F3A9BB' },
   { id: 'jubilee',          name: 'Jubilee',            color: '#A0A5A9' },
   { id: 'metropolitan',     name: 'Metropolitan',       color: '#9B0056' },
-  { id: 'northern',         name: 'Northern',           color: '#3A3A3C' },
+  { id: 'northern',         name: 'Northern',           color: '#1A1A1A' },
   { id: 'overground',       name: 'Overground',         color: '#EE7C0E' },
   { id: 'piccadilly',       name: 'Piccadilly',         color: '#003688' },
   { id: 'victoria',         name: 'Victoria',           color: '#0098D4' },
@@ -51,6 +67,8 @@ const Pill = React.memo(function Pill({
   onToggle,
   pillWidth,
   delay,
+  playSelect,
+  playDeselect,
 }: {
   line: typeof TFL_LINES[number];
   isSelected: boolean;
@@ -58,33 +76,35 @@ const Pill = React.memo(function Pill({
   onToggle: (id: string) => void;
   pillWidth: number;
   delay: number;
+  playSelect: () => void;
+  playDeselect: () => void;
 }) {
-  const player = useAudioPlayer(require('../../assets/audio/tap.wav'));
-
   const onPress = useCallback(async () => {
     if (!isSelected && isAtLimit) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
-    isSelected
-      ? await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      : await Haptics.selectionAsync();
-
-    try {
-      if (player) {
-        player.volume = 0.4;
-        player.play();
-      }
-    } catch (e) {}
+    if (isSelected) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      playDeselect();
+    } else {
+      await Haptics.selectionAsync();
+      playSelect();
+    }
 
     onToggle(line.id);
-  }, [isSelected, isAtLimit, line.id, onToggle, player]);
+  }, [isSelected, isAtLimit, line.id, onToggle, playSelect, playDeselect]);
 
   const disabled = !isSelected && isAtLimit;
 
   // Colour on OUTER wrapper — BlurView refracts it through the frost.
-  const bgColor     = isSelected ? `${line.color}4D` : `${line.color}26`;  // 30% / 15%
-  const borderColor = isSelected ? `${line.color}CC` : `${line.color}66`;  // 80% / 40%
+  const isNorthern = line.id === 'northern';
+  const bgColor = isNorthern
+    ? (isSelected ? '#1A1A1A' : 'rgba(255,255,255,0.06)')
+    : (isSelected ? `${line.color}4D` : `${line.color}26`);  // 30% / 15%
+  const borderColor = isNorthern
+    ? (isSelected ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)')
+    : (isSelected ? `${line.color}CC` : `${line.color}66`);  // 80% / 40%
   const borderWidth = isSelected ? 2 : 1;
 
   const reducedMotion = useReducedMotion();
@@ -167,10 +187,11 @@ export default function LinesScreen() {
   const { push }      = useRouter();
   const insets        = useSafeAreaInsets();
   const { width }     = useWindowDimensions();
-  const selectedLines = useUserPreferencesStore(s => s.selectedLines);
-  const toggleLine    = useUserPreferencesStore(s => s.toggleLine);
+  const selectedLines = useOnboardingStore(s => s.selectedLines);
+  const toggleLine    = useOnboardingStore(s => s.toggleLine);
   const isAtLimit     = selectedLines.length >= MAX;
   const canContinue   = selectedLines.length > 0;
+  const { playSelect, playDeselect } = useTapSound();
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
@@ -181,31 +202,40 @@ export default function LinesScreen() {
 
   const pillWidth = (width - H_PAD * 2 - GAP) / 2;
 
-  // Dynamic Subtitle Selection Counter
-  const subtitleText = selectedLines.length > 0
-    ? `Select your lines (${selectedLines.length} of ${MAX} selected)`
-    : 'Select your lines';
-
   return (
-    <LinearGradient
-      colors={['#0D0B1A', '#1A0D2E', '#0A1A2A']}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={styles.root}
-    >
-      <VoidBackground />
+    <View style={styles.root}>
+      <LinearGradient
+        colors={ONBOARDING_GRADIENT.colors}
+        locations={ONBOARDING_GRADIENT.locations}
+        start={ONBOARDING_GRADIENT.start}
+        end={ONBOARDING_GRADIENT.end}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+        <Image
+          source={require('../../assets/images/grain.png')}
+          style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
+          resizeMode="repeat"
+        />
+      </View>
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
+      {/* Status Bar / Notch Padding Spacer */}
+      <View style={{ height: insets.top }} />
+
+      {/* Live Disruption Ticker Marquee */}
+      <DisruptionTicker />
+
       {/* Progress dots — pinned below status bar */}
-      <ProgressDots currentStep={0} totalSteps={3} style={{ paddingTop: insets.top + 16 }} />
+      <ProgressDots currentStep={0} totalSteps={2} style={{ paddingTop: 16 }} />
 
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={2} allowFontScaling maxFontSizeMultiplier={1.3}>
-          {'Which lines\ndo you travel?'}
+          {'Which lines\ndo you ride?'}
         </Text>
         <Text style={styles.subtitle} allowFontScaling maxFontSizeMultiplier={1.4}>
-          {subtitleText}
+          {"We're already watching them."}
         </Text>
       </View>
 
@@ -228,6 +258,8 @@ export default function LinesScreen() {
               onToggle={toggleLine}
               pillWidth={pillWidth}
               delay={index * 35}
+              playSelect={playSelect}
+              playDeselect={playDeselect}
             />
           ))}
         </View>
@@ -238,6 +270,7 @@ export default function LinesScreen() {
         <BouncyPressable
           onPress={async () => {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            playSelect();
             push('/onboarding/stations');
           }}
           disabled={!canContinue}
@@ -268,7 +301,7 @@ export default function LinesScreen() {
           </View>
         </BouncyPressable>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 

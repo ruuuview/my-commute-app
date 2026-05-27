@@ -16,7 +16,8 @@ import {
   Text,
   UIManager,
   View,
-  RefreshControl
+  RefreshControl,
+  Modal
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -40,9 +41,11 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
+import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
 import GradientBackground from './GradientBackground';
+import DepartureCard from './DepartureCard';
 import DashboardSkeleton from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyButton from './BouncyButton';
@@ -127,7 +130,7 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 const TFL_COLORS: Record<string, string> = {
   bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
   'hammersmith-city': '#F3A9BB', jubilee: '#A0A5A9', metropolitan: '#9B0056',
-  northern: '#000000', piccadilly: '#003688', victoria: '#0098D4', 'waterloo-city': '#95CDBA',
+  northern: '#1A1A1A', piccadilly: '#003688', victoria: '#0098D4', 'waterloo-city': '#95CDBA',
   elizabeth: '#6950A1', overground: '#EE7C0E', dlr: '#00A4A7',
 };
 
@@ -216,7 +219,7 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
   const jiggleStyle = useJiggle(isEditing);
   const { animStyle, onPressIn, onPressOut } = usePressSpring();
   const severity = parseSeverity(line.status);
-  const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#FF9500' : severity === 'suspended' ? '#FF3B30' : '#34C759';
+  const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
 
   return (
     <Animated.View style={[jiggleStyle, animStyle]}>
@@ -249,65 +252,7 @@ const pill = StyleSheet.create({
   deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
 
-// ─── StationCard ──────────────────────────────────────────────────
-const getDepTimeStyle = (minutes: number | 'now') => {
-  if (minutes === 'now') return { color: '#FFFFFF', fontWeight: '700' as const };
-  if (minutes <= 3) return { color: '#FF9500', fontWeight: '600' as const };
-  return { color: 'rgba(255,255,255,0.75)', fontWeight: '400' as const };
-};
-
-const StationCard: React.FC<{ station: StationData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ station, isEditing, onDelete, onLongPress }) => {
-  const jiggleStyle = useJiggle(isEditing);
-  const { animStyle, onPressIn, onPressOut } = usePressSpring();
-
-  return (
-    <Animated.View style={[jiggleStyle, animStyle, { marginBottom: 8 }]}>
-      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={[stCard.container, { marginBottom: 0 }]}>
-        <View style={stCard.header}>
-          <View style={stCard.uBadge}><Text style={stCard.uText}>U</Text></View>
-          <Text style={stCard.stationName} numberOfLines={1}>{String(station.name ?? '').replace(/ Underground Station$/i, '')}</Text>
-          {isEditing && (
-            <Pressable style={stCard.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(station.id); }}>
-              <Text style={stCard.deleteIcon}>−</Text>
-            </Pressable>
-          )}
-        </View>
-        {Array.isArray(station.arrivals) && station.arrivals.length > 0 && (
-          <View style={stCard.arrivals}>
-            {station.arrivals.slice(0, 3).map((a, i) => {
-              const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
-              const depStyle = getDepTimeStyle(depVal);
-              return (
-                <View key={`arrival-${a.lineId}-${a.destination}-${a.minutesAway}-${(a as any).expectedArrival || 'fallback'}`} style={stCard.arrivalRow}>
-                  <View style={[stCard.arrivalDot, { backgroundColor: a.lineColor }]} />
-                  <Text style={stCard.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">{a.lineName}</Text>
-                  <Text style={stCard.arrivalDest} numberOfLines={1}>{a.destination}</Text>
-                  <Text style={[stCard.arrivalTime, depStyle]}>{depVal === 'now' ? 'Due' : `${depVal} min`}</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </Pressable>
-    </Animated.View>
-  );
-};
-
-const stCard = StyleSheet.create({
-  container: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 12, overflow: 'visible' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  uBadge: { width: 20, height: 20, borderRadius: 3, backgroundColor: '#003688', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  uText: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 11, color: '#FFF' },
-  stationName: { flex: 1, fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 15, color: '#FFFFFF' },
-  arrivals: { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.1)' },
-  arrivalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, gap: 8 },
-  arrivalDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  arrivalLineName: { width: 72, fontFamily: 'SpaceGrotesk-Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' },
-  arrivalDest: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.9)' },
-  arrivalTime: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 13, color: '#FFFFFF', textAlign: 'right' },
-  deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
-  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
-});
+// ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
 // ─── Section header ───────────────────────────────────────────────
 const SectionHeader: React.FC<{ title: string; icon: React.ReactNode }> = ({ title, icon }) => (
@@ -382,6 +327,30 @@ export const MyCommuteDashboard: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+
+  // ✅ Deferred Permission Trigger System (Phase 6)
+  const {
+    shouldShowNotificationPrompt,
+    shouldShowCalendarPrompt,
+    requestCalendarPermission,
+    requestNotificationPermission,
+  } = useDeferredPermissionTriggers();
+
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+  const [showCalPrompt, setShowCalPrompt] = useState(false);
+
+  useEffect(() => {
+    if (hasContent) {
+      const t = setTimeout(() => {
+        if (shouldShowNotificationPrompt()) {
+          setShowNotifPrompt(true);
+        } else if (shouldShowCalendarPrompt()) {
+          setShowCalPrompt(true);
+        }
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [hasContent, shouldShowNotificationPrompt, shouldShowCalendarPrompt]);
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -470,8 +439,7 @@ export const MyCommuteDashboard: React.FC = () => {
   }, [setLines]);
 
   const myLines = data.lines.filter(l => selectedLines.includes(l.id));
-  const myStations = data.stations.filter(s => selectedStations.some((st: any) => st.id === s.id));
-  const hasContent = myLines.length > 0 || myStations.length > 0;
+  const hasContent = myLines.length > 0 || selectedStations.length > 0;
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
@@ -551,11 +519,19 @@ export const MyCommuteDashboard: React.FC = () => {
             </View>
           )}
 
-          {myStations.length > 0 && (
+          {selectedStations.length > 0 && (
             <View style={dash.section}>
               <SectionHeader title="MY STATIONS" icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} />
-              {myStations.map((station) => (
-                <StationCard key={station.id} station={station} isEditing={isEditing} onDelete={removeStation} onLongPress={handleEdit} />
+              {selectedStations.map((station: any) => (
+                <DepartureCard
+                  key={station.id}
+                  stationId={station.id}
+                  stationName={station.name}
+                  role={station.role}
+                  isEditing={isEditing}
+                  onDelete={removeStation}
+                  onLongPress={handleEdit}
+                />
               ))}
             </View>
           )}
@@ -569,6 +545,76 @@ export const MyCommuteDashboard: React.FC = () => {
           savedStations={selectedStations}
           onSave={handleModalSave}
         />
+
+        {/* Deferred Notification Modal */}
+        <Modal
+          visible={showNotifPrompt}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowNotifPrompt(false)}
+        >
+          <View style={dash.promptScrim}>
+            <View style={dash.promptCard}>
+              <Ionicons name="notifications-outline" size={32} color="#F2A002" style={dash.promptIcon} />
+              <Text style={dash.promptTitle}>Don't get stuck.</Text>
+              <Text style={dash.promptText}>
+                TfL lines have delays right now. Want an alert next time?
+              </Text>
+              <View style={dash.promptActions}>
+                <Pressable
+                  style={[dash.promptBtn, dash.promptBtnPrimary]}
+                  onPress={async () => {
+                    await requestNotificationPermission();
+                    setShowNotifPrompt(false);
+                  }}
+                >
+                  <Text style={dash.promptBtnTextPrimary}>Notify me</Text>
+                </Pressable>
+                <Pressable
+                  style={dash.promptBtn}
+                  onPress={() => setShowNotifPrompt(false)}
+                >
+                  <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Deferred Calendar Modal */}
+        <Modal
+          visible={showCalPrompt}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCalPrompt(false)}
+        >
+          <View style={dash.promptScrim}>
+            <View style={dash.promptCard}>
+              <Ionicons name="calendar-outline" size={32} color="#0098D4" style={dash.promptIcon} />
+              <Text style={dash.promptTitle}>Know before you leave.</Text>
+              <Text style={dash.promptText}>
+                Your calendar stays on your device. We match your schedule to live departures.
+              </Text>
+              <View style={dash.promptActions}>
+                <Pressable
+                  style={[dash.promptBtn, dash.promptBtnPrimary]}
+                  onPress={async () => {
+                    await requestCalendarPermission();
+                    setShowCalPrompt(false);
+                  }}
+                >
+                  <Text style={dash.promptBtnTextPrimary}>Allow Calendar Access</Text>
+                </Pressable>
+                <Pressable
+                  style={dash.promptBtn}
+                  onPress={() => setShowCalPrompt(false)}
+                >
+                  <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
@@ -599,6 +645,16 @@ const dash = StyleSheet.create({
   primaryBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk-Bold', color: '#0A0A0F' },
   ghostBtn: { height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' },
   ghostBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk-SemiBold', color: 'rgba(255,255,255,0.6)' },
+  promptScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  promptCard: { backgroundColor: '#141424', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 24, width: '100%', maxWidth: 340, alignItems: 'center' },
+  promptIcon: { marginBottom: 16 },
+  promptTitle: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 20, color: '#FFFFFF', textAlign: 'center', marginBottom: 12 },
+  promptText: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  promptActions: { width: '100%', gap: 12 },
+  promptBtn: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
+  promptBtnPrimary: { backgroundColor: '#FFFFFF' },
+  promptBtnTextPrimary: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 15, color: '#0A0A0F' },
+  promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
 });
 
 export default MyCommuteDashboard;

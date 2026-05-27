@@ -37,6 +37,20 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [isReady]);
+
+  // Increment session statistics once per cold start when store hydrates
+  useEffect(() => {
+    if (_hasHydrated) {
+      const store = useUserPreferencesStore.getState();
+      const updates: any = {
+        sessionCount: (store.sessionCount || 0) + 1
+      };
+      if (!store.firstOpenTimestamp) {
+        updates.firstOpenTimestamp = Date.now();
+      }
+      useUserPreferencesStore.setState(updates);
+    }
+  }, [_hasHydrated]);
   
   const overlayOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();

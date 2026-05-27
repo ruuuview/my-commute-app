@@ -1,10 +1,13 @@
-// app/onboarding/lines.tsx — Screen 1: Line Selection (v4.1 §4.2)
+// app/onboarding/lines.tsx — Screen 1: Line Selection (v4.6)
 
 import React, { useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, useWindowDimensions, Platform, Image,
+  View, Text, StyleSheet, ScrollView, useWindowDimensions, Image, Pressable,
 } from 'react-native';
-import Animated, { FadeInDown, FadeIn, useReducedMotion, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown, FadeIn, useReducedMotion, useSharedValue, useAnimatedStyle,
+  withTiming, withDelay, Easing, runOnJS, ZoomIn, ZoomOut,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Haptics from 'expo-haptics';
@@ -15,27 +18,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
-import BouncyPressable from '../../components/BouncyPressable';
 import ProgressDots from '../../components/ProgressDots';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTapSound } from '../../hooks/useTapSound';
 import DisruptionTicker from '../../components/DisruptionTicker';
+import { usePressAnimation } from '../../hooks/usePressAnimation';
 
-const ONBOARDING_GRADIENT = {
-  colors: ['#070714', '#0A1128', '#001040', '#000810'] as const,
-  locations: [0, 0.38, 0.65, 1] as const,
-  start: { x: 0.2, y: 0 },
-  end: { x: 0.8, y: 1 },
-};
+import { MASTER_BACKGROUND_GRADIENT } from '../../theme/colors';
 
 const TEXT_PRIMARY   = 'rgba(255,255,255,0.9)';
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
 const TEXT_SKIP      = 'rgba(255,255,255,0.35)';
-const ROW_ADDED_BG   = 'rgba(255,255,255,0.06)';
-const CHIP_BG        = 'rgba(255,255,255,0.10)';
-const SEARCH_BG      = 'rgba(255,255,255,0.08)';
-const SEARCH_BORDER  = 'rgba(255,255,255,0.12)';
 
 // ─── 14 TfL lines (§1.3 + DLR) ──────────────────────────────────────────────
 const TFL_LINES = [
@@ -79,47 +73,59 @@ const Pill = React.memo(function Pill({
   playSelect: () => void;
   playDeselect: () => void;
 }) {
+  const disabled = !isSelected && isAtLimit;
+
   const onPress = useCallback(async () => {
     if (!isSelected && isAtLimit) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
     if (isSelected) {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Soft deep Light thud on deselect
       playDeselect();
     } else {
-      await Haptics.selectionAsync();
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Assertive Medium thud on select
       playSelect();
     }
 
     onToggle(line.id);
   }, [isSelected, isAtLimit, line.id, onToggle, playSelect, playDeselect]);
 
-  const disabled = !isSelected && isAtLimit;
+  // Hook handles select/deselect scale spring properties perfectly per task requirements
+  const configKey = isSelected ? 'line_deselect' : 'line_select';
+  const { onPressIn, onPressOut, animatedStyle } = usePressAnimation(configKey, disabled);
 
-  // Colour on OUTER wrapper — BlurView refracts it through the frost.
   const isNorthern = line.id === 'northern';
   const bgColor = isNorthern
     ? (isSelected ? '#1A1A1A' : 'rgba(255,255,255,0.06)')
-    : (isSelected ? `${line.color}4D` : `${line.color}26`);  // 30% / 15%
+    : (isSelected ? `${line.color}4D` : `${line.color}26`);
   const borderColor = isNorthern
     ? (isSelected ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)')
-    : (isSelected ? `${line.color}CC` : `${line.color}66`);  // 80% / 40%
+    : (isSelected ? `${line.color}CC` : `${line.color}66`);
   const borderWidth = isSelected ? 2 : 1;
 
   const reducedMotion = useReducedMotion();
 
-  // Dynamic Scale Spring
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = withSpring(isSelected ? 1.03 : 1, { damping: 15, stiffness: 300 });
-  }, [isSelected]);
+  // Radial Glow Bloom Animation
+  const glowProgress = useSharedValue(isSelected ? 1 : 0);
+  React.useEffect(() => {
+    if (reducedMotion) {
+      glowProgress.value = isSelected ? 1 : 0;
+      return;
+    }
+    glowProgress.value = withTiming(isSelected ? 1 : 0, {
+      duration: 350,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [isSelected, reducedMotion]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const glowStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: 0.8 + 0.2 * glowProgress.value }],
+      opacity: 0.12 * glowProgress.value,
+    };
+  });
 
-  // Selected Box Shadow Glow for iOS Contrast Signal
   const selectedShadowStyle = isSelected ? {
     shadowColor: line.color,
     shadowOffset: { width: 0, height: 0 },
@@ -131,10 +137,12 @@ const Pill = React.memo(function Pill({
   return (
     <Animated.View
       entering={reducedMotion ? FadeIn.duration(80) : FadeInDown.delay(delay).springify().damping(15).stiffness(150)}
-      style={[{ width: pillWidth, opacity: disabled ? 0.35 : 1 }, animStyle, selectedShadowStyle]}
+      style={[{ width: pillWidth }, selectedShadowStyle]}
       importantForAccessibility="yes"
     >
-      <BouncyPressable
+      <Pressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         onPress={onPress}
         disabled={disabled}
         accessibilityRole="checkbox"
@@ -142,42 +150,61 @@ const Pill = React.memo(function Pill({
         accessibilityLabel={`${line.name} line`}
         style={{
           borderRadius: 16,
-          overflow: 'visible', // Ensure shadow is visible
+          overflow: 'visible',
+          opacity: disabled ? 0.35 : 1,
         }}
       >
-        <BlurView
-          intensity={30}
-          tint="dark"
-          style={[
-            styles.pillBlur,
-            {
-              backgroundColor: bgColor,
-              borderColor: borderColor,
-              borderWidth: borderWidth,
-            },
-          ]}
-        >
-          <Text
-            style={styles.pillText}
-            numberOfLines={1}
-            allowFontScaling
-            maxFontSizeMultiplier={1.3}
-            adjustsFontSizeToFit={true}
-            minimumFontScale={0.85}
+        <Animated.View style={[animatedStyle, { borderRadius: 16, overflow: 'hidden' }]}>
+          {/* Radial Glow Bloom Backing */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                borderRadius: 16,
+                backgroundColor: isNorthern ? '#FFFFFF' : line.color,
+              },
+              glowStyle,
+            ]}
+          />
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={[
+              styles.pillBlur,
+              {
+                backgroundColor: bgColor,
+                borderColor: borderColor,
+                borderWidth: borderWidth,
+              },
+            ]}
           >
-            {line.name}
-          </Text>
+            <Text
+              style={styles.pillText}
+              numberOfLines={1}
+              allowFontScaling
+              maxFontSizeMultiplier={1.3}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.85}
+            >
+              {line.name}
+            </Text>
 
-          {isSelected && (
-            <Ionicons
-              name="checkmark-circle"
-              size={18}
-              color="rgba(255,255,255,0.95)"
-              style={styles.checkmarkIcon}
-            />
-          )}
-        </BlurView>
-      </BouncyPressable>
+            {isSelected && (
+              <Animated.View
+                entering={ZoomIn.springify().damping(10).stiffness(180)}
+                exiting={ZoomOut.duration(100)}
+                style={styles.checkmarkIcon}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color="rgba(255,255,255,0.95)"
+                />
+              </Animated.View>
+            )}
+          </BlurView>
+        </Animated.View>
+      </Pressable>
     </Animated.View>
   );
 });
@@ -202,13 +229,42 @@ export default function LinesScreen() {
 
   const pillWidth = (width - H_PAD * 2 - GAP) / 2;
 
+  // Continue CTA capsule scale spring animation
+  const continueAnim = usePressAnimation('continue_btn', !canContinue);
+
+  // Shared-axis slide transitions
+  const transitionX = useSharedValue(60);
+  const transitionOpacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      transitionX.value = 0;
+      transitionOpacity.value = 1;
+      return;
+    }
+    transitionX.value = withDelay(40, withTiming(0, {
+      duration: 280,
+      easing: Easing.out(Easing.poly(4)),
+    }));
+    transitionOpacity.value = withDelay(40, withTiming(1, {
+      duration: 280,
+      easing: Easing.out(Easing.poly(4)),
+    }));
+  }, [reducedMotion]);
+
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: transitionX.value }],
+    opacity: transitionOpacity.value,
+  }));
+
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={ONBOARDING_GRADIENT.colors}
-        locations={ONBOARDING_GRADIENT.locations}
-        start={ONBOARDING_GRADIENT.start}
-        end={ONBOARDING_GRADIENT.end}
+        colors={MASTER_BACKGROUND_GRADIENT.colors}
+        locations={MASTER_BACKGROUND_GRADIENT.locations}
+        start={MASTER_BACKGROUND_GRADIENT.start}
+        end={MASTER_BACKGROUND_GRADIENT.end}
         style={StyleSheet.absoluteFillObject}
       />
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
@@ -227,7 +283,8 @@ export default function LinesScreen() {
       <DisruptionTicker />
 
       {/* Progress dots — pinned below status bar */}
-      <ProgressDots currentStep={0} totalSteps={2} style={{ paddingTop: 16 }} />
+      <Animated.View style={[{ flex: 1 }, slideStyle]}>
+        <ProgressDots currentStep={0} totalSteps={2} style={{ paddingTop: 16 }} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -244,7 +301,7 @@ export default function LinesScreen() {
         style={styles.flex1}
         contentContainerStyle={[
           styles.grid,
-          { paddingBottom: insets.bottom + 130 }, // spacious clearance to clear footer
+          { paddingBottom: insets.bottom + 130 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -265,13 +322,32 @@ export default function LinesScreen() {
         </View>
       </ScrollView>
 
+      </Animated.View>
+
       {/* Footer Continue CTA - standardized height & arrow badge */}
       <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
-        <BouncyPressable
+        <Pressable
+          onPressIn={continueAnim.onPressIn}
+          onPressOut={continueAnim.onPressOut}
           onPress={async () => {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             playSelect();
-            push('/onboarding/stations');
+            if (reducedMotion) {
+              push('/onboarding/stations');
+              return;
+            }
+            transitionX.value = withTiming(-60, {
+              duration: 280,
+              easing: Easing.out(Easing.poly(4)),
+            });
+            transitionOpacity.value = withTiming(0, {
+              duration: 280,
+              easing: Easing.out(Easing.poly(4)),
+            }, (finished) => {
+              if (finished) {
+                runOnJS(push)('/onboarding/stations');
+              }
+            });
           }}
           disabled={!canContinue}
           accessibilityRole="button"
@@ -279,27 +355,31 @@ export default function LinesScreen() {
             canContinue ? 'Continue to station selection' : 'Select at least one line to continue'
           }
           accessibilityState={{ disabled: !canContinue }}
-          style={[
-            styles.cta,
-            {
-              backgroundColor: canContinue ? '#FFFFFF' : 'rgba(255,255,255,0.12)',
-            },
-          ]}
         >
-          <View style={styles.ctaContent}>
-            <Text style={[
-              styles.ctaText,
-              { color: canContinue ? '#0A0A0F' : 'rgba(255,255,255,0.35)' },
-            ]}>
-              Continue
-            </Text>
-            {canContinue && (
-              <View style={styles.arrowBadge}>
-                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-              </View>
-            )}
-          </View>
-        </BouncyPressable>
+          <Animated.View
+            style={[
+              styles.cta,
+              continueAnim.animatedStyle,
+              {
+                backgroundColor: canContinue ? '#FFFFFF' : 'rgba(255,255,255,0.12)',
+              },
+            ]}
+          >
+            <View style={styles.ctaContent}>
+              <Text style={[
+                styles.ctaText,
+                { color: canContinue ? '#0A0A0F' : 'rgba(255,255,255,0.35)' },
+              ]}>
+                Continue
+              </Text>
+              {canContinue && (
+                <View style={styles.arrowBadge}>
+                  <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        </Pressable>
       </View>
     </View>
   );

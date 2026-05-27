@@ -33,11 +33,11 @@ interface DepartureCardProps {
   isEditing?: boolean;
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
+  autoExpand?: boolean;
 }
 
 const getDepTimeStyle = (minutes: number | 'now') => {
-  if (minutes === 'now' || minutes <= 3) return { color: 'rgba(255,255,255,0.9)', fontWeight: '800' as const };
-  return { color: 'rgba(255,255,255,0.75)', fontWeight: '400' as const };
+  return { color: 'rgba(255,255,255,0.9)', fontWeight: '700' as const };
 };
 
 export default function DepartureCard({
@@ -47,10 +47,11 @@ export default function DepartureCard({
   isEditing = false,
   onDelete,
   onLongPress,
+  autoExpand = false,
 }: DepartureCardProps) {
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(autoExpand);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async () => {
@@ -278,6 +279,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
   deleteBadge: {
     position: 'absolute',

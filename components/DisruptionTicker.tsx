@@ -1,5 +1,7 @@
+// components/DisruptionTicker.tsx — Screen 1: Disruption Marquee Ticker (v4.6)
+
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, Text, useWindowDimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,9 +10,10 @@ import Animated, {
   Easing,
   useReducedMotion,
   cancelAnimation,
+  withDelay,
+  withSequence,
 } from 'react-native-reanimated';
 
-// ─── TfL Line interface ──────────────────────────────────────────────────────
 interface TflStatusResponse {
   id: string;
   name: string;
@@ -20,26 +23,61 @@ interface TflStatusResponse {
   }>;
 }
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-const TEXT_SECONDARY = 'rgba(255,255,255,0.5)';
-const SEARCH_BORDER  = 'rgba(255,255,255,0.12)';
+const LINE_COLORS: Record<string, string> = {
+  bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
+  dlr: '#00AFAD', elizabeth: 'rgb(106, 16, 153)', 'hammersmith-city': '#F3A9BB',
+  jubilee: '#A0A5A9', metropolitan: '#9B0056', northern: '#FFFFFF', // High-contrast readable white on midnight dark canvas
+  overground: '#EE7C0E', piccadilly: '#003688', victoria: '#0098D4',
+  'waterloo-city': '#95CDBA',
+};
 
+interface TickerLineItem {
+  id: string;
+  name: string;
+  color: string;
+  status: string;
+  isDisrupted: boolean;
+}
+
+// ─── Smart Staggered Loading Dot ─────────────────────────────────────────────
+function LoadingDot({ index }: { index: number }) {
+  const opacity = useSharedValue(0.3);
+
+  useEffect(() => {
+    opacity.value = withDelay(
+      index * 150,
+      withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 600 }),
+          withTiming(0.3, { duration: 600 })
+        ),
+        -1,
+        true
+      )
+    );
+    return () => cancelAnimation(opacity);
+  }, [index]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return <Animated.View style={[styles.loadingDot, animStyle]} />;
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function DisruptionTicker() {
-  const { width } = useWindowDimensions();
+  const { width: containerWidth } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
-  const [tickerText, setTickerText] = useState(
-    'WATCHING ALL 14 LINES IN REAL-TIME · LIVE COMMUTE MONITORING · NO LOAD DELAYS · '
-  );
-  const [hasDisruptions, setHasDisruptions] = useState(false);
 
-  // Reanimated horizontal scroll position
+  const [loading, setLoading] = useState(true);
+  const [lineItems, setLineItems] = useState<TickerLineItem[]>([]);
+
   const translateX = useSharedValue(0);
   const textWidthRef = useRef<number>(0);
   const [isAnimationStarted, setIsAnimationStarted] = useState(false);
 
-  // 1. Fetch live TfL disruptions on mount
   useEffect(() => {
     let active = true;
+
     const fetchStatus = async () => {
       try {
         const res = await fetch(
@@ -50,53 +88,55 @@ export default function DisruptionTicker() {
         const data: TflStatusResponse[] = await res.json();
         if (!active) return;
 
-        // Parse lines that are NOT running normally (severity !== 10)
-        const disrupted = data.filter((line) =>
-          line.lineStatuses.some((status) => status.statusSeverity !== 10)
-        );
+        const items: TickerLineItem[] = data.map((line) => {
+          const statusDesc = line.lineStatuses[0]?.statusSeverityDescription || 'Good Service';
+          const isDisrupted = line.lineStatuses.some((status) => status.statusSeverity !== 10);
+          return {
+            id: line.id,
+            name: line.name,
+            color: LINE_COLORS[line.id] || '#888',
+            status: statusDesc,
+            isDisrupted,
+          };
+        });
 
-        if (disrupted.length > 0) {
-          const textSegments = disrupted.map((line) => {
-            const worstStatus = line.lineStatuses[0]?.statusSeverityDescription || 'Delays';
-            return `${line.name.toUpperCase()}: ${worstStatus.toUpperCase()}`;
-          });
-          setTickerText('⚠️ ' + textSegments.join(' · ') + ' · ');
-          setHasDisruptions(true);
-        } else {
-          setTickerText('✅ ALL LINES RUNNING NORMALLY · NO COMMUTE DELAYS · ');
-          setHasDisruptions(false);
-        }
+        setLineItems(items);
+        setLoading(false);
       } catch (err) {
-        // Silent fail: stay on premium static skeleton marquee
-        console.log('Ticker fetch ignored (network offline/timeout)');
+        console.log('Ticker fetch offline');
+        // Fallback placeholder data if offline
+        if (active) {
+          setLineItems([
+            { id: 'offline', name: 'OFFLINE', color: 'rgba(255,255,255,0.4)', status: 'STANDBY ACTIVE', isDisrupted: false }
+          ]);
+          setLoading(false);
+        }
       }
     };
 
-    // 300ms small delay to let page mount transitions finish smoothly before network fetch
-    const t = setTimeout(fetchStatus, 300);
+    fetchStatus();
     return () => {
       active = false;
-      clearTimeout(t);
     };
   }, []);
 
-  // 2. Continuous Marquee Scrolling logic
   const startScrolling = (textWidth: number) => {
     if (reducedMotion) {
       translateX.value = 0;
       return;
     }
     cancelAnimation(translateX);
-    translateX.value = 0;
+    
+    // Start marquee completely offscreen to the right and scroll past container and text width
+    translateX.value = containerWidth;
 
-    // Loop marquee continuously from right (0) to left (-textWidth)
     translateX.value = withRepeat(
       withTiming(-textWidth, {
-        duration: textWidth * 35, // Speed factor: 35ms per pixel
+        duration: (textWidth + containerWidth) * 15, // Responsive 15ms speed per pixel
         easing: Easing.linear,
       }),
-      -1, // Infinite repeat
-      false // Do not reverse, loop back to start
+      -1,
+      false
     );
   };
 
@@ -109,80 +149,92 @@ export default function DisruptionTicker() {
     }
   };
 
-  // Trigger scroll rebuild on text change
   useEffect(() => {
     if (textWidthRef.current > 0) {
       startScrolling(textWidthRef.current);
     }
-  }, [tickerText]);
+  }, [lineItems, containerWidth]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
-  // Render static marquee text if reducedMotion is active
-  if (reducedMotion) {
-    return (
-      <View style={styles.container}>
-        <Text style={[styles.tickerText, hasDisruptions && styles.disruptedText]}>
-          {tickerText.substring(0, 100)}...
-        </Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.marqueeWrap}>
-        <Animated.View style={[styles.scrollRow, animatedStyle]}>
-          {/* Row 1 */}
-          <Text
-            onLayout={handleTextLayout}
-            style={[styles.tickerText, hasDisruptions && styles.disruptedText]}
-          >
-            {tickerText}
-          </Text>
-          {/* Row 2 (duplicates for seamless looping) */}
-          {isAnimationStarted && (
-            <Text style={[styles.tickerText, hasDisruptions && styles.disruptedText]}>
-              {tickerText}
+      {loading ? (
+        /* Staggered Placeholder Dots */
+        <View style={styles.loadingDotsContainer}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <LoadingDot key={i} index={i} />
+          ))}
+        </View>
+      ) : (
+        /* Looping Reanimated Marquee */
+        <View style={styles.marqueeWrap}>
+          <Animated.View style={[styles.scrollRow, animatedStyle]}>
+            <Text
+              onLayout={handleTextLayout}
+              style={styles.tickerText}
+              numberOfLines={1}
+            >
+              {lineItems.map((line, idx) => (
+                <React.Fragment key={line.id}>
+                  {idx > 0 && <Text style={styles.bullet}> · </Text>}
+                  <Text
+                    style={{
+                      color: line.isDisrupted ? line.color : 'rgba(255,255,255,0.5)',
+                      fontWeight: line.isDisrupted ? 'bold' : 'normal',
+                    }}
+                  >
+                    {line.name.toUpperCase()}: {line.status.toUpperCase()}
+                  </Text>
+                </React.Fragment>
+              ))}
             </Text>
-          )}
-          {isAnimationStarted && (
-            <Text style={[styles.tickerText, hasDisruptions && styles.disruptedText]}>
-              {tickerText}
-            </Text>
-          )}
-        </Animated.View>
-      </View>
+          </Animated.View>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    height: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderBottomWidth: 1,
-    borderBottomColor: SEARCH_BORDER,
-    justifyContent: 'center',
+    height: 24,
+    width: '100%',
+    backgroundColor: 'transparent',
     overflow: 'hidden',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  loadingDotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  loadingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.8)',
   },
   marqueeWrap: {
-    width: '100%',
+    flex: 1,
     overflow: 'hidden',
   },
   scrollRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'absolute',
   },
   tickerText: {
     fontSize: 10,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: TEXT_SECONDARY,
-    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    letterSpacing: 0.8,
   },
-  disruptedText: {
-    color: '#F2A002', // Premium amber disruption warnings
+  bullet: {
+    color: 'rgba(255,255,255,0.3)',
   },
 });

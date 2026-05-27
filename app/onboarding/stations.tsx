@@ -1,4 +1,4 @@
-// app/onboarding/stations.tsx — Screen 2: Station Search (v4.5 §4.3 + §17.5)
+// app/onboarding/stations.tsx — Screen 2: Station Search with Premium Custom Bottom Sheet Overlay (v4.6)
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
@@ -6,8 +6,11 @@ import {
   Pressable, Platform, Keyboard, useWindowDimensions, Image,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import Animated, { FadeInDown, FadeOutLeft, ZoomIn, ZoomOut } from 'react-native-reanimated';
-import { useSharedValue, useAnimatedStyle, withSequence, withSpring } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown, FadeOutLeft, ZoomIn, ZoomOut, useSharedValue, useAnimatedStyle,
+  withTiming, withDelay, Easing, runOnJS, useReducedMotion, withSpring
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
 import {
@@ -19,25 +22,18 @@ import { Stack, useRouter } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { TfLStation, FULL_STATIONS } from '../../data/tflStations';
-import BouncyPressable from '../../components/BouncyPressable';
-import ProgressDots from '../../components/ProgressDots';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTapSound } from '../../hooks/useTapSound';
-import { SpringPressable } from '../../components/SpringPressable';
+import { usePressAnimation } from '../../hooks/usePressAnimation';
 import DepartureCard from '../../components/DepartureCard';
+import ProgressDots from '../../components/ProgressDots';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const STATION_SEARCH_PLACEHOLDER = 'Find your home, work, or transfer station...';
 const MAX_PINS = 5;
 const ROW_HEIGHT = 64;
 
 // ─── Locked Design Tokens ─────────────────────────────────────────────────────
-const ONBOARDING_GRADIENT = {
-  colors: ['#070714', '#0A1128', '#001040', '#000810'] as const,
-  locations: [0, 0.38, 0.65, 1] as const,
-  start: { x: 0.2, y: 0 },
-  end: { x: 0.8, y: 1 },
-};
+import { MASTER_BACKGROUND_GRADIENT } from '../../theme/colors';
 
 const TEXT_PRIMARY   = 'rgba(255,255,255,0.9)';
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -45,7 +41,6 @@ const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
 const TEXT_SKIP      = 'rgba(255,255,255,0.35)';
 const ROW_ADDED_BG   = 'rgba(255,255,255,0.06)';
 const CHIP_BG        = 'rgba(255,255,255,0.10)';
-const SEARCH_BG      = 'rgba(255,255,255,0.08)';
 const SEARCH_BORDER  = 'rgba(255,255,255,0.12)';
 
 // ─── Line colour map for dots in search results ───────────────────────────────
@@ -123,7 +118,7 @@ function LineDots({ lines }: { lines: string[] }) {
   );
 }
 
-// ─── Search result row — fixed 64pt height for FlatList performance ───────────
+// ─── Search result row ────────────────────────────────────────────────────────
 const StationRow = React.memo(function StationRow({
   station,
   isPinned,
@@ -133,46 +128,60 @@ const StationRow = React.memo(function StationRow({
   isPinned: boolean;
   onTap: (s: TfLStation) => void;
 }) {
+  const rowAnim = usePressAnimation('station_row');
+  const addBtnAnim = usePressAnimation('nav_item');
+
   return (
-    <SpringPressable
+    <Pressable
+      onPressIn={rowAnim.onPressIn}
+      onPressOut={rowAnim.onPressOut}
       onPress={() => onTap(station)}
-      pressScale={0.97}
-      style={[
-        styles.row,
-        isPinned && styles.rowAdded,
-      ]}
       accessibilityRole="button"
       accessibilityLabel={`${station.name}, Zone ${station.zone}${isPinned ? ', already added' : ''}`}
     >
-      <View style={styles.flex1}>
-        <Text style={styles.rowName}>{station.name}</Text>
-        <View style={styles.stationRowZoneContainer}>
-          {station.zone !== undefined && <Text style={styles.rowZone}>Zone {station.zone}</Text>}
-          <LineDots lines={station.lines} />
-        </View>
-      </View>
-
-      {/* Right — add/added button */}
-      <SpringPressable
-        onPress={() => onTap(station)}
-        pressScale={0.88}
-        overshoot={!isPinned}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        style={isPinned ? styles.addedCircle : styles.addCircle}
+      <Animated.View
+        style={[
+          styles.row,
+          isPinned && styles.rowAdded,
+          rowAnim.animatedStyle,
+        ]}
       >
-        <Animated.View
-          entering={ZoomIn.springify().damping(12)}
-          exiting={ZoomOut.duration(100)}
-          key={isPinned ? 'check' : 'plus'}
+        <View style={styles.flex1}>
+          <Text style={styles.rowName}>{station.name}</Text>
+          <View style={styles.stationRowZoneContainer}>
+            {station.zone !== undefined && <Text style={styles.rowZone}>Zone {station.zone}</Text>}
+            <LineDots lines={station.lines} />
+          </View>
+        </View>
+
+        {/* Right — add/added button */}
+        <Pressable
+          onPressIn={addBtnAnim.onPressIn}
+          onPressOut={addBtnAnim.onPressOut}
+          onPress={() => onTap(station)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Ionicons
-            name={isPinned ? 'checkmark' : 'add'}
-            size={14}
-            color={isPinned ? '#070714' : 'rgba(255,255,255,0.7)'}
-          />
-        </Animated.View>
-      </SpringPressable>
-    </SpringPressable>
+          <Animated.View
+            style={[
+              isPinned ? styles.addedCircle : styles.addCircle,
+              addBtnAnim.animatedStyle,
+            ]}
+          >
+            <Animated.View
+              entering={ZoomIn.springify().damping(12)}
+              exiting={ZoomOut.duration(100)}
+              key={isPinned ? 'check' : 'plus'}
+            >
+              <Ionicons
+                name={isPinned ? 'checkmark' : 'add'}
+                size={14}
+                color={isPinned ? '#070714' : 'rgba(255,255,255,0.7)'}
+              />
+            </Animated.View>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    </Pressable>
   );
 });
 
@@ -180,7 +189,7 @@ const StationRow = React.memo(function StationRow({
 export default function StationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
   const { playSelect, playDeselect } = useTapSound();
   
   const pinnedStations = useOnboardingStore(s => s.pinnedStations);
@@ -189,6 +198,7 @@ export default function StationsScreen() {
   const selectedLines = useOnboardingStore(s => s.selectedLines);
 
   const [query, setQuery] = useState('');
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const chipScrollViewRef = useRef<ScrollView>(null);
 
@@ -206,7 +216,6 @@ export default function StationsScreen() {
     SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
   });
 
-  const isAtLimit = pinnedStations.length >= MAX_PINS;
   const canContinue = pinnedStations.length > 0;
 
   // 1. Deduplicate full station list (memoized once)
@@ -286,22 +295,87 @@ export default function StationsScreen() {
 
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
+  // Bottom sheet translation values
+  const sheetHeight = screenHeight * 0.6;
+  const sheetTranslateY = useSharedValue(sheetHeight);
+
+  const openBottomSheet = () => {
+    setIsSheetOpen(true);
+    sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 250);
+  };
+
+  const closeBottomSheet = () => {
+    Keyboard.dismiss();
+    // 60ms layout stagger: keyboard dismisses first, sheet drops exactly at peak velocity
+    setTimeout(() => {
+      sheetTranslateY.value = withSpring(sheetHeight, { damping: 20, stiffness: 200 }, (finished) => {
+        if (finished) {
+          runOnJS(setIsSheetOpen)(false);
+        }
+      });
+    }, 60);
+    setQuery('');
+  };
+
   const renderItem = useCallback(({ item }: { item: TfLStation }) => (
     <StationRow
       station={item}
       isPinned={pinnedIds.has(item.id)}
-      onTap={handleRowTap}
+      onTap={(station) => {
+        handleRowTap(station);
+        closeBottomSheet();
+      }}
     />
   ), [pinnedIds, handleRowTap]);
 
-  const getItemLayout = useCallback((_: any, index: number) => ({
-    length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index,
-  }), []);
+  // Shared-axis slide transitions
+  const transitionX = useSharedValue(60);
+  const transitionOpacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      transitionX.value = 0;
+      transitionOpacity.value = 1;
+      return;
+    }
+    transitionX.value = withDelay(40, withTiming(0, {
+      duration: 280,
+      easing: Easing.out(Easing.poly(4)),
+    }));
+    transitionOpacity.value = withDelay(40, withTiming(1, {
+      duration: 280,
+      easing: Easing.out(Easing.poly(4)),
+    }));
+  }, [reducedMotion]);
+
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: transitionX.value }],
+    opacity: transitionOpacity.value,
+  }));
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     playDeselect();
-    router.back();
+    if (reducedMotion) {
+      router.back();
+      return;
+    }
+    transitionX.value = withTiming(60, {
+      duration: 280,
+      easing: Easing.out(Easing.poly(4)),
+    });
+    transitionOpacity.value = withTiming(0, {
+      duration: 280,
+      easing: Easing.out(Easing.poly(4)),
+    }, (finished) => {
+      if (finished) {
+        runOnJS(router.back)();
+      }
+    });
   };
 
   const handleSkip = () => {
@@ -330,16 +404,28 @@ export default function StationsScreen() {
     return `${count} result${count !== 1 ? 's' : ''}`;
   }, [query, results]);
 
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
+
+  // Hook mappings to consume physical configs per specifications
+  const backAnim = usePressAnimation('back_btn');
+  const skipAnim = usePressAnimation('skip_btn');
+  const searchBarTriggerAnim = usePressAnimation('continue_btn');
+  const zeroStateBtnAnim = usePressAnimation('continue_btn');
+  const ctaBtnAnim = usePressAnimation('continue_btn', !canContinue);
+  const overlayCloseAnim = usePressAnimation('back_btn');
+
   if (!fontsLoaded) return null;
 
   return (
     <Pressable style={styles.flex1} onPress={() => Keyboard.dismiss()}>
       <View style={styles.flex1}>
         <LinearGradient
-          colors={ONBOARDING_GRADIENT.colors}
-          locations={ONBOARDING_GRADIENT.locations}
-          start={ONBOARDING_GRADIENT.start}
-          end={ONBOARDING_GRADIENT.end}
+          colors={MASTER_BACKGROUND_GRADIENT.colors}
+          locations={MASTER_BACKGROUND_GRADIENT.locations}
+          start={MASTER_BACKGROUND_GRADIENT.start}
+          end={MASTER_BACKGROUND_GRADIENT.end}
           style={StyleSheet.absoluteFillObject}
         />
         <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
@@ -351,232 +437,323 @@ export default function StationsScreen() {
         </View>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
-        {/* Navigation & Progress Header */}
-        <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
-          <SpringPressable
-            onPress={handleBack}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            style={styles.navHeaderBtn}
-            pressScale={0.95}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to line selection"
+        <Animated.View style={[{ flex: 1 }, slideStyle]}>
+
+          {/* ─── BACKGROUND DASHBOARD VIEW ─── */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: insets.bottom + 180,
+            }}
+            keyboardShouldPersistTaps="handled"
           >
-            <Ionicons name="chevron-back" size={20} color={TEXT_PRIMARY} />
-            <Text style={styles.navBackText}>Back</Text>
-          </SpringPressable>
+            {/* Navigation & Progress Header */}
+            <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
+              <Pressable
+                onPressIn={backAnim.onPressIn}
+                onPressOut={backAnim.onPressOut}
+                onPress={handleBack}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                accessibilityRole="button"
+                accessibilityLabel="Go back to line selection"
+              >
+                <Animated.View style={[styles.navHeaderBtn, backAnim.animatedStyle]}>
+                  <Ionicons name="chevron-back" size={20} color={TEXT_PRIMARY} />
+                  <Text style={styles.navBackText}>Back</Text>
+                </Animated.View>
+              </Pressable>
 
-          <ProgressDots currentStep={1} totalSteps={2} style={styles.navProgressDots} />
+              <ProgressDots currentStep={1} totalSteps={2} style={styles.navProgressDots} />
 
-          <SpringPressable
-            onPress={handleSkip}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            style={styles.navHeaderBtnRight}
-            pressScale={0.96}
-            accessibilityRole="button"
-            accessibilityLabel="Skip station selection"
-          >
-            <Text style={styles.navSkipText}>Skip</Text>
-          </SpringPressable>
-        </View>
+              <Pressable
+                onPressIn={skipAnim.onPressIn}
+                onPressOut={skipAnim.onPressOut}
+                onPress={handleSkip}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                accessibilityRole="button"
+                accessibilityLabel="Skip station selection"
+              >
+                <Animated.View style={[styles.navHeaderBtnRight, skipAnim.animatedStyle]}>
+                  <Text style={styles.navSkipText}>Skip</Text>
+                </Animated.View>
+              </Pressable>
+            </View>
 
-        {/* Header Title */}
-        <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={1} allowFontScaling maxFontSizeMultiplier={1.3}>
-            {'Where do you catch it?'}
-          </Text>
-        </View>
+            {/* Header Title */}
+            <View style={styles.header}>
+              <Text style={styles.title} numberOfLines={1} allowFontScaling maxFontSizeMultiplier={1.3}>
+                {'Where do you catch it?'}
+              </Text>
+            </View>
 
-        {/* Header Micro-confirmation: Selected Lines */}
-        {selectedLines.length > 0 && (
-          <View style={styles.selectedLinesStrip}>
-            {selectedLines.map((lineId: string) => {
-              const name = lineId.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-              return (
-                <View key={lineId} style={[styles.microLinePill, { backgroundColor: LINE_COLORS[lineId] || '#888' }]}>
-                  <Text style={styles.microLineText}>{name}</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
+            {/* Header Micro-confirmation: Selected Lines */}
+            {selectedLines.length > 0 && (
+              <View style={styles.selectedLinesStrip}>
+                {selectedLines.map((lineId: string) => {
+                  const name = lineId.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  return (
+                    <View key={lineId} style={[styles.microLinePill, { backgroundColor: LINE_COLORS[lineId] || '#888' }]}>
+                      <Text style={styles.microLineText}>{name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
-        {/* Pinned Chip Scroll Strip */}
-        {pinnedStations.length > 0 && (
-          <Animated.View entering={FadeInDown.duration(200)} style={styles.chipScrollWrap}>
-            <ScrollView
-              ref={chipScrollViewRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
-            >
-              {pinnedStations.map((station) => {
-                const fullSt = cleanFullStations.find(s => s.id === station.id);
-                const displayZone = fullSt?.zone !== undefined ? ` (Z${fullSt.zone})` : '';
-                return (
-                  <Animated.View
-                    key={station.id}
-                    exiting={FadeOutLeft.duration(150)}
-                    style={styles.pinnedChip}
-                  >
-                    <Ionicons name="checkmark" size={12} color={TEXT_PRIMARY} style={{ marginRight: 4 }} />
-                    <Text
-                      style={styles.pinnedChipText}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}
-                    >
-                      {station.name}{displayZone}
-                    </Text>
-                    <SpringPressable
-                      pressScale={0.85}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      onPress={() => {
+            {/* Pinned Chip Scroll Strip */}
+            {pinnedStations.length > 0 && (
+              <Animated.View entering={FadeInDown.duration(200)} style={styles.chipScrollWrap}>
+                <ScrollView
+                  ref={chipScrollViewRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
+                >
+                  {pinnedStations.map((station) => {
+                    const fullSt = cleanFullStations.find(s => s.id === station.id);
+                    const displayZone = fullSt?.zone !== undefined ? ` (Z${fullSt.zone})` : '';
+                    const removeBtnAnim = usePressAnimation('nav_item'); // eslint-disable-line react-hooks/rules-of-hooks
+                    return (
+                      <Animated.View
+                        key={station.id}
+                        exiting={FadeOutLeft.duration(150)}
+                        style={styles.pinnedChip}
+                      >
+                        <Ionicons name="checkmark" size={12} color={TEXT_PRIMARY} style={{ marginRight: 4 }} />
+                        <Text
+                          style={styles.pinnedChipText}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.8}
+                        >
+                          {station.name}{displayZone}
+                        </Text>
+                        <Pressable
+                          onPressIn={removeBtnAnim.onPressIn}
+                          onPressOut={removeBtnAnim.onPressOut}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            playDeselect();
+                            removeStation(station.id);
+                          }}
+                        >
+                          <Animated.View style={[styles.chipRemoveBtn, removeBtnAnim.animatedStyle]}>
+                            <Ionicons name="close" size={14} color={TEXT_SECONDARY} />
+                          </Animated.View>
+                        </Pressable>
+                      </Animated.View>
+                    );
+                  })}
+                </ScrollView>
+              </Animated.View>
+            )}
+
+            {/* Live Departure Cards for Pinned Stations */}
+            {pinnedStations.length > 0 ? (
+              <Animated.View
+                entering={FadeInDown.springify().damping(15)}
+                style={{ paddingHorizontal: 16, marginTop: 12, gap: 12 }}
+              >
+                {pinnedStations.map((station) => (
+                  <Animated.View key={station.id} entering={ZoomIn.springify().damping(12)}>
+                    <DepartureCard
+                      stationId={station.id}
+                      stationName={station.name}
+                      onDelete={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         playDeselect();
                         removeStation(station.id);
                       }}
-                      style={styles.chipRemoveBtn}
-                    >
-                      <Ionicons name="close" size={14} color={TEXT_SECONDARY} />
-                    </SpringPressable>
+                      isEditing={true}
+                      autoExpand={true}
+                    />
                   </Animated.View>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* Search bar */}
-        <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color={TEXT_SECONDARY} style={styles.searchIcon} />
-          <TextInput
-            ref={inputRef}
-            value={query}
-            onChangeText={setQuery}
-            placeholder={STATION_SEARCH_PLACEHOLDER}
-            placeholderTextColor={TEXT_SKIP}
-            autoFocus
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-            style={styles.searchInput}
-            accessibilityLabel="Search London stations"
-            accessibilityRole="search"
-          />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close-circle" size={18} color={TEXT_SECONDARY} style={styles.clearIcon} />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Live Departure Cards for Pinned Stations */}
-        {pinnedStations.length > 0 && (
-          <Animated.View
-            entering={FadeInDown.springify().damping(15)}
-            style={{ paddingHorizontal: 16, marginBottom: 8 }}
-          >
-            {pinnedStations.map((station) => (
-              <DepartureCard
-                key={station.id}
-                stationId={station.id}
-                stationName={station.name}
-                onDelete={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  playDeselect();
-                  removeStation(station.id);
-                }}
-                isEditing={true}
-              />
-            ))}
-          </Animated.View>
-        )}
-
-        {/* Section label */}
-        <Text style={styles.sectionLabel}>
-          {resultCountText}
-        </Text>
-
-        {/* Results list — utilizing FlashList for 60fps performance */}
-        <View style={{ flex: 1, width: '100%' }}>
-          <FlashList
-            data={results}
-            keyExtractor={item => item.id}
-            renderItem={renderItem}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 150 }}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={28} color={TEXT_GHOST} />
-                <Text style={styles.emptyText}>No stations found</Text>
-                <Text style={styles.emptyHint}>Try "Waterloo" or "Paddington"</Text>
-              </View>
-            }
-          />
-        </View>
-
-        {/* Sticky Continue CTA with count and badge */}
-        <View style={{
-          position: 'absolute',
-          bottom: insets.bottom + 16,
-          left: 16,
-          right: 16,
-          zIndex: 10,
-        }}>
-          {pinnedStations.length > 0 && (
-            <Text style={styles.ctaCountLabel}>
-              {pinnedStations.length} station{pinnedStations.length !== 1 ? 's' : ''} added
-            </Text>
-          )}
-          <View pointerEvents={canContinue ? 'auto' : 'none'}>
-            <SpringPressable
-              onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                playSelect();
-                
-                const onboarding = useOnboardingStore.getState();
-                const mappedStations = onboarding.pinnedStations.map((station, index) => ({
-                  id: station.id,
-                  name: station.name,
-                  lines: station.lineIds,
-                  role: index === 0 ? ('home' as const) : index === 1 ? ('work' as const) : ('other' as const),
-                }));
-
-                useUserPreferencesStore.setState({
-                  selectedLines: onboarding.selectedLines,
-                  pinnedStations: mappedStations,
-                });
-
-                useUserPreferencesStore.getState().completeOnboarding();
-              }}
-              disabled={!canContinue}
-              pressScale={0.97}
-              accessibilityRole="button"
-              accessibilityLabel={canContinue ? 'Continue to permissions' : 'Add at least one station to continue'}
-              accessibilityState={{ disabled: !canContinue }}
-              style={[
-                styles.cta,
-                {
-                  backgroundColor: canContinue ? '#FFFFFF' : 'rgba(255,255,255,0.12)',
-                  opacity: canContinue ? 1 : 0.35,
-                },
-              ]}
-            >
-              <View style={styles.ctaContent}>
-                <Text style={[styles.ctaText, { color: canContinue ? '#0A0A0F' : TEXT_SKIP }]}>
-                  Continue
+                ))}
+              </Animated.View>
+            ) : (
+              /* Premium Dashboard Zero State when no stations are pinned */
+              <Animated.View
+                entering={FadeInDown.duration(400)}
+                style={styles.dashboardZeroState}
+              >
+                <View style={styles.dashboardZeroIconBg}>
+                  <Ionicons name="train-outline" size={32} color="#FFFFFF" />
+                </View>
+                <Text style={styles.dashboardZeroTitle}>Your Departure Board</Text>
+                <Text style={styles.dashboardZeroSubtitle}>
+                  Add your commuter stations to build a real-time departures and live disruptions monitor.
                 </Text>
-                {canContinue && (
-                  <View style={styles.arrowBadge}>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                <Pressable
+                  onPressIn={zeroStateBtnAnim.onPressIn}
+                  onPressOut={zeroStateBtnAnim.onPressOut}
+                  onPress={openBottomSheet}
+                >
+                  <Animated.View style={[styles.zeroStateBtn, zeroStateBtnAnim.animatedStyle]}>
+                    <Text style={styles.zeroStateBtnText}>Search Stations</Text>
+                    <Ionicons name="search" size={14} color="#0A0A0F" />
+                  </Animated.View>
+                </Pressable>
+              </Animated.View>
+            )}
+          </ScrollView>
+
+          {/* Sticky CTA Footer Container */}
+          <View style={[styles.ctaFooterContainer, { bottom: insets.bottom + 16 }]}>
+            {/* Pinned Add Trigger Capsule */}
+            {pinnedStations.length > 0 && (
+              <Pressable
+                onPressIn={searchBarTriggerAnim.onPressIn}
+                onPressOut={searchBarTriggerAnim.onPressOut}
+                onPress={openBottomSheet}
+              >
+                <Animated.View style={[styles.addStationTriggerBtn, searchBarTriggerAnim.animatedStyle]}>
+                  <Ionicons name="add" size={20} color={TEXT_PRIMARY} />
+                  <Text style={styles.addStationTriggerBtnText}>Add Station</Text>
+                </Animated.View>
+              </Pressable>
+            )}
+
+            {/* Main Continue button */}
+            {pinnedStations.length > 0 && (
+              <Pressable
+                onPressIn={ctaBtnAnim.onPressIn}
+                onPressOut={ctaBtnAnim.onPressOut}
+                onPress={async () => {
+                  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  playSelect();
+                  
+                  const onboarding = useOnboardingStore.getState();
+                  const mappedStations = onboarding.pinnedStations.map((station, index) => ({
+                    id: station.id,
+                    name: station.name,
+                    lines: station.lineIds,
+                    role: index === 0 ? ('home' as const) : index === 1 ? ('work' as const) : ('other' as const),
+                  }));
+
+                  useUserPreferencesStore.setState({
+                    selectedLines: onboarding.selectedLines,
+                    pinnedStations: mappedStations,
+                  });
+
+                  useUserPreferencesStore.getState().completeOnboarding();
+                }}
+                disabled={!canContinue}
+                accessibilityRole="button"
+                accessibilityLabel={canContinue ? 'Continue to permissions' : 'Add at least one station to continue'}
+                accessibilityState={{ disabled: !canContinue }}
+              >
+                <Animated.View
+                  style={[
+                    styles.cta,
+                    ctaBtnAnim.animatedStyle,
+                    {
+                      backgroundColor: canContinue ? '#FFFFFF' : 'rgba(255,255,255,0.12)',
+                      opacity: canContinue ? 1 : 0.35,
+                    },
+                  ]}
+                >
+                  <View style={styles.ctaContent}>
+                    <Text style={[styles.ctaText, { color: canContinue ? '#0A0A0F' : TEXT_SKIP }]}>
+                      Continue ({pinnedStations.length} added)
+                    </Text>
+                    {canContinue && (
+                      <View style={styles.arrowBadge}>
+                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-            </SpringPressable>
+                </Animated.View>
+              </Pressable>
+            )}
           </View>
-        </View>
+
+          {/* ─── ACTIVE CUSTOM BOTTOM SHEET SEARCH OVERLAY ─── */}
+          {isSheetOpen && (
+            <Animated.View style={[StyleSheet.absoluteFillObject, { zIndex: 100 }]} entering={FadeIn.duration(200)} exiting={ZoomOut.duration(150)}>
+              {/* Tap Outside Scrim */}
+              <Pressable style={StyleSheet.absoluteFillObject} onPress={closeBottomSheet}>
+                <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
+              </Pressable>
+
+              {/* Bottom Sheet Container */}
+              <Animated.View
+                style={[
+                  styles.bottomSheet,
+                  sheetAnimatedStyle,
+                  {
+                    height: sheetHeight,
+                    top: screenHeight - sheetHeight,
+                  },
+                ]}
+              >
+                <View style={styles.sheetHandle} />
+
+                <View style={styles.overlayContent}>
+                  {/* Overlay Search Header */}
+                  <View style={styles.overlayHeader}>
+                    <Pressable
+                      onPressIn={overlayCloseAnim.onPressIn}
+                      onPressOut={overlayCloseAnim.onPressOut}
+                      onPress={closeBottomSheet}
+                    >
+                      <Animated.View style={[styles.overlayCloseBtn, overlayCloseAnim.animatedStyle]}>
+                        <Ionicons name="close" size={22} color={TEXT_PRIMARY} />
+                      </Animated.View>
+                    </Pressable>
+
+                    <View style={styles.overlaySearchWrap}>
+                      <Ionicons name="search-outline" size={16} color={TEXT_SECONDARY} style={styles.searchIcon} />
+                      <TextInput
+                        ref={inputRef}
+                        value={query}
+                        onChangeText={setQuery}
+                        placeholder="Search 471 stations..."
+                        placeholderTextColor={TEXT_SKIP}
+                        autoFocus
+                        autoCorrect={false}
+                        autoCapitalize="none"
+                        returnKeyType="search"
+                        style={styles.searchInput}
+                      />
+                      {query.length > 0 && (
+                        <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                          <Ionicons name="close-circle" size={18} color={TEXT_SECONDARY} style={styles.clearIcon} />
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Result Count Label */}
+                  <Text style={styles.sectionLabel}>
+                    {resultCountText}
+                  </Text>
+
+                  {/* Search Results FlashList */}
+                  <View style={{ flex: 1, width: '100%' }}>
+                    <FlashList
+                      data={results}
+                      keyExtractor={item => item.id}
+                      renderItem={renderItem}
+                      estimatedItemSize={ROW_HEIGHT}
+                      keyboardShouldPersistTaps="handled"
+                      keyboardDismissMode="on-drag"
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={{ paddingBottom: 80 }}
+                      ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                          <Ionicons name="search-outline" size={28} color={TEXT_GHOST} />
+                          <Text style={styles.emptyText}>No stations found</Text>
+                          <Text style={styles.emptyHint}>Try "Waterloo" or "Paddington"</Text>
+                        </View>
+                      }
+                    />
+                  </View>
+                </View>
+              </Animated.View>
+            </Animated.View>
+          )}
+        </Animated.View>
       </View>
     </Pressable>
   );
@@ -594,14 +771,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight: 38,
   },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: TEXT_SECONDARY,
-    marginTop: 8,
-  },
   lineDotsContainer: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
-  lineDotsExtra: { color: TEXT_SECONDARY, fontSize: 11, fontFamily: 'SpaceGrotesk_400Regular' },
   stationRowZoneContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   searchIcon: { marginLeft: 14 },
   clearIcon: { marginRight: 12 },
@@ -645,10 +815,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 16,
   },
-  chipScrollContainer: {
-    gap: 8,
-    alignItems: 'center',
-  },
   pinnedChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -672,15 +838,103 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Search bar — glass-bg-input per §1.1
-  searchWrap: {
+  // Premium Dashboard Zero State when no stations are pinned
+  dashboardZeroState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    marginTop: 20,
+    marginHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  dashboardZeroIconBg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  dashboardZeroTitle: {
+    fontSize: 20,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: TEXT_PRIMARY,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  dashboardZeroSubtitle: {
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: TEXT_SECONDARY,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  zeroStateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: SEARCH_BG,
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  zeroStateBtnText: {
+    color: '#0A0A0F',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+  },
+
+  // Custom Bottom Sheet Search Overlay
+  bottomSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: 'rgba(20, 20, 36, 0.95)',
     borderWidth: 1,
-    borderColor: SEARCH_BORDER,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginVertical: 8,
+  },
+  overlayContent: {
+    flex: 1,
+  },
+  overlayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  overlayCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlaySearchWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 14,
     height: 48,
   },
@@ -692,12 +946,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     height: '100%',
   },
+
   sectionLabel: {
     fontSize: 11,
     fontFamily: 'SpaceGrotesk_400Regular',
     color: TEXT_SECONDARY,
     paddingHorizontal: 16,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1.0,
   },
@@ -749,7 +1005,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 100,
+    paddingTop: 80,
     paddingHorizontal: 32,
     gap: 8,
   },
@@ -766,13 +1022,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Sticky CTA
-  ctaWrap: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingTop: 12,
-    backgroundColor: 'rgba(13,11,23,0.92)',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: SEARCH_BORDER,
+  // Sticky CTA Footer Layout
+  ctaFooterContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 10,
+    gap: 12,
+  },
+  addStationTriggerBtn: {
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addStationTriggerBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: TEXT_PRIMARY,
   },
   ctaCountLabel: {
     fontFamily: 'SpaceGrotesk_400Regular',

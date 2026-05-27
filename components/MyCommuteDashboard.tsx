@@ -49,6 +49,7 @@ import DepartureCard from './DepartureCard';
 import DashboardSkeleton from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyButton from './BouncyButton';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -182,47 +183,15 @@ const useJiggle = (isEditing: boolean) => {
   }));
 };
 
-// ─── Press Spring Hook ─────────────────────────
-const usePressSpring = () => {
-  const scale = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
-  const player = useAudioPlayer(require('../assets/audio/tap.wav'));
-
-  const onPressIn = React.useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!reducedMotion) {
-      scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
-      try {
-        if (player) {
-          player.volume = 0.5;
-          player.play();
-        }
-      } catch (e) {}
-    }
-  }, [reducedMotion, scale, player]);
-
-  const onPressOut = React.useCallback(() => {
-    if (!reducedMotion) {
-      scale.value = withSpring(1.0, { damping: 12, stiffness: 200 });
-    }
-  }, [reducedMotion, scale]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
-  }));
-
-  return { animStyle, onPressIn, onPressOut };
-};
-
 // ─── LinePill ───────────────────────────────────────────────────
 const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ line, isEditing, onDelete, onLongPress }) => {
   const jiggleStyle = useJiggle(isEditing);
-  const { animStyle, onPressIn, onPressOut } = usePressSpring();
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
 
   return (
-    <Animated.View style={[jiggleStyle, animStyle]}>
+    <Animated.View style={[jiggleStyle, animatedStyle]}>
       <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
@@ -310,6 +279,26 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 // ─── Main Dashboard ───────────────────────────────────────────────
 export const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
+
+  // Premium scale-up center reveal for dashboard transition
+  const revealScale = useSharedValue(0.92);
+  const revealOpacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      revealScale.value = 1;
+      revealOpacity.value = 1;
+      return;
+    }
+    revealScale.value = withSpring(1, { damping: 18, stiffness: 120 });
+    revealOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.poly(4)) });
+  }, [reducedMotion]);
+
+  const revealStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: revealScale.value }],
+    opacity: revealOpacity.value,
+  }));
 
   // ✅ Store bindings
   const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, lastKnownStatus, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
@@ -452,7 +441,7 @@ export const MyCommuteDashboard: React.FC = () => {
   return (
     <View style={dash.root}>
       <GradientBackground lines={selectedLines} status={networkSeverity as StatusLevel} />
-      <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]}>
+      <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
         {/* ── Global header ── */}
         <View style={dash.header}>
           <View style={dash.titleRow}>
@@ -615,7 +604,7 @@ export const MyCommuteDashboard: React.FC = () => {
             </View>
           </View>
         </Modal>
-      </View>
+      </Animated.View>
     </View>
   );
 };

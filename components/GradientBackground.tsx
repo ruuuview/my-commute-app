@@ -25,14 +25,14 @@ import { useWorstStatus, StatusLevel } from '../hooks/useWorstStatus';
 // ─── Gradient palette (v4.6 overhaul) ─────────────────────────────────────────
 // Top color shifts with traffic-light status, bleeding elegantly down into the UNIFIED_DARK_GRADIENT pitch-black base.
 const STATUS_GRADIENTS: Record<StatusLevel, readonly [string, string, string, string]> = {
-  good:      ['#1A6B3A', '#0A3D20', '#02040A', '#000000'],
-  minor:     ['#D4820A', '#7A4A00', '#02040A', '#000000'],
-  severe:    ['#C0392B', '#7B1A1A', '#02040A', '#000000'],
-  suspended: ['#8B0000', '#3A0000', '#02040A', '#000000'],
-  unknown:   ['#0E1730', '#070C1B', '#02040A', '#000000'],
+  good:      ['#1A6B3A', '#0A3D20', '#020307', '#000000'],
+  minor:     ['#D4820A', '#7A4A00', '#020307', '#000000'],
+  severe:    ['#C0392B', '#7B1A1A', '#020307', '#000000'],
+  suspended: ['#8B0000', '#3A0000', '#020307', '#000000'],
+  unknown:   ['#0A122C', '#060B1E', '#020307', '#000000'],
 } as const;
 
-const GRADIENT_LOCATIONS = [0, 0.30, 0.70, 1] as const;
+const GRADIENT_LOCATIONS = [0, 0.42, 0.75, 1.0] as const;
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 interface Props {

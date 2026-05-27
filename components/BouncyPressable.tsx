@@ -1,7 +1,7 @@
 // components/BouncyPressable.tsx
 // Universal tappable wrapper for every interactive element in the app.
-// Spring physics: snappy compression on press-in, bouncy release on press-out.
-// Every pill, button, card, and station row uses this — no raw Pressable/TouchableOpacity.
+// Central Config: snaps to PREMIUM_SPRING_CONFIG from theme/physics.
+// Reduced Motion: safeguards against motion-induced flickering when accessibility is active.
 
 import React from 'react';
 import { Pressable, StyleProp, ViewStyle } from 'react-native';
@@ -9,7 +9,9 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  useReducedMotion,
 } from 'react-native-reanimated';
+import { PREMIUM_SPRING_CONFIG } from '../theme/physics';
 
 interface Props {
   onPress?: () => void;
@@ -43,18 +45,21 @@ export default function BouncyPressable({
   hitSlop,
 }: Props) {
   const scale = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
 
   const springStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.94, { damping: 15, stiffness: 400 });
+    if (reducedMotion) return;
+    scale.value = withSpring(0.96, PREMIUM_SPRING_CONFIG);
     onPressIn?.();
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 12, stiffness: 300 });
+    if (reducedMotion) return;
+    scale.value = withSpring(1, PREMIUM_SPRING_CONFIG);
     onPressOut?.();
   };
 

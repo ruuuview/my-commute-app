@@ -735,7 +735,6 @@ export default function StationsScreen() {
                       data={results}
                       keyExtractor={item => item.id}
                       renderItem={renderItem}
-                      estimatedItemSize={ROW_HEIGHT}
                       keyboardShouldPersistTaps="handled"
                       keyboardDismissMode="on-drag"
                       showsVerticalScrollIndicator={false}

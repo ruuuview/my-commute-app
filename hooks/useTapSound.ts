@@ -16,30 +16,72 @@ export function useTapSound() {
 
       try {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: false });
+      } catch (e) {
+        console.log('Error setting audio mode:', e);
+      }
 
-        const { sound: selectSound } = await Audio.Sound.createAsync(
+      // 1. Load Select Sound
+      try {
+        const { sound } = await Audio.Sound.createAsync(
           require('../assets/audio/select.m4a'),
           { shouldPlay: false }
         );
-        globalSelectSound = selectSound;
+        globalSelectSound = sound;
+      } catch (err) {
+        try {
+          // Fallback to select.wav if m4a is empty/damaged
+          const { sound } = await Audio.Sound.createAsync(
+            require('../assets/audio/select.wav'),
+            { shouldPlay: false }
+          );
+          globalSelectSound = sound;
+        } catch (fallbackErr) {
+          console.log('Failed to load select sound fallback:', fallbackErr);
+        }
+      }
 
-        const { sound: deselectSound } = await Audio.Sound.createAsync(
+      // 2. Load Deselect Sound
+      try {
+        const { sound } = await Audio.Sound.createAsync(
           require('../assets/audio/deselect.m4a'),
           { shouldPlay: false }
         );
-        globalDeselectSound = deselectSound;
+        globalDeselectSound = sound;
+      } catch (err) {
+        try {
+          // Fallback to deselect.wav if m4a is empty/damaged
+          const { sound } = await Audio.Sound.createAsync(
+            require('../assets/audio/deselect.wav'),
+            { shouldPlay: false }
+          );
+          globalDeselectSound = sound;
+        } catch (fallbackErr) {
+          console.log('Failed to load deselect sound fallback:', fallbackErr);
+        }
+      }
 
-        const { sound: confirmSound } = await Audio.Sound.createAsync(
+      // 3. Load Confirm Sound
+      try {
+        const { sound } = await Audio.Sound.createAsync(
           require('../assets/audio/confirm.m4a'),
           { shouldPlay: false }
         );
-        globalConfirmSound = confirmSound;
-        isAudioInitialized = true;
+        globalConfirmSound = sound;
       } catch (err) {
-        console.log('Error initializing global audio singletons:', err);
-      } finally {
-        isAudioInitializing = false;
+        try {
+          // Fallback to tap.wav if confirm.m4a is empty/damaged
+          const { sound } = await Audio.Sound.createAsync(
+            require('../assets/audio/tap.wav'),
+            { shouldPlay: false }
+          );
+          globalConfirmSound = sound;
+        } catch (fallbackErr) {
+          console.log('Failed to load confirm sound fallback:', fallbackErr);
+        }
       }
+
+      isAudioInitialized = true;
+      isAudioInitializing = false;
     }
 
     loadAudio().catch(() => {});

@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, {
-  FadeInDown, FadeOutLeft, ZoomIn, ZoomOut, useSharedValue, useAnimatedStyle,
+  FadeInDown, FadeIn, FadeOutLeft, ZoomIn, ZoomOut, useSharedValue, useAnimatedStyle,
   withTiming, withDelay, Easing, runOnJS, useReducedMotion, withSpring
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';

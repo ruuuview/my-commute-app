@@ -16,7 +16,7 @@ export default function ProgressDots({ currentStep, totalSteps, style }: Props) 
 
   useEffect(() => {
     activeIndex.value = withSpring(currentStep, { damping: 18, stiffness: 180 });
-  }, [currentStep]);
+  }, [currentStep, activeIndex]);
 
   return (
     <View

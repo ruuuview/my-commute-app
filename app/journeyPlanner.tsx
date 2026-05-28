@@ -1382,3 +1382,4 @@ const SearchModal = React.memo(({
     </SafeAreaView>
   </Modal>
 ));
+SearchModal.displayName = 'SearchModal';

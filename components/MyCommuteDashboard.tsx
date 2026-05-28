@@ -7,7 +7,6 @@
 
 import React, { useCallback, useEffect, useState, useMemo, memo } from 'react';
 import {
-  Animated as RNAnimated,
   LayoutAnimation,
   Platform,
   Pressable,
@@ -27,13 +26,11 @@ import Animated, {
   withRepeat,
   withSequence,
   Easing,
-  runOnJS,
   useReducedMotion,
   cancelAnimation,
   withSpring
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useAudioPlayer } from 'expo-audio';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -119,12 +116,13 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
       ),
       -1, true
     );
-  }, [severity]);
+  }, [severity, opacity]);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }, animStyle]} />;
 });
+NetworkHealthDot.displayName = 'NetworkHealthDot';
 
 // ─── Status configuration removed in favor of direct styling in LinePill
 
@@ -135,29 +133,6 @@ const TFL_COLORS: Record<string, string> = {
   elizabeth: '#6950A1', overground: '#EE7C0E', dlr: '#00A4A7',
 };
 
-// ─── SVG Icons ───────────────────────────────────────────────────
-const RoundElIcon = () => (
-  <View style={iconStyles.roundel}>
-    <View style={iconStyles.roundelCircle} />
-    <View style={iconStyles.roundelBar} />
-  </View>
-);
-
-const PinIcon = () => (
-  <View style={iconStyles.pin}>
-    <View style={iconStyles.pinHead} />
-    <View style={iconStyles.pinTail} />
-  </View>
-);
-
-const iconStyles = StyleSheet.create({
-  roundel: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
-  roundelCircle: { position: 'absolute', width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
-  roundelBar: { width: 14, height: 2.5, backgroundColor: 'rgba(255,255,255,0.6)' },
-  pin: { width: 12, height: 14, alignItems: 'center' },
-  pinHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', backgroundColor: 'transparent' },
-  pinTail: { width: 2, height: 5, backgroundColor: 'rgba(255,255,255,0.6)', borderBottomLeftRadius: 1, borderBottomRightRadius: 1 },
-});
 
 // ─── Jiggle Hook (Sinusoidal) ─────────────────────────
 const useJiggle = (isEditing: boolean) => {
@@ -176,7 +151,7 @@ const useJiggle = (isEditing: boolean) => {
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, reducedMotion]);
+  }, [isEditing, reducedMotion, rotation]);
 
   return useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }]
@@ -293,15 +268,14 @@ export const MyCommuteDashboard: React.FC = () => {
     }
     revealScale.value = withSpring(1, { damping: 18, stiffness: 120 });
     revealOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.poly(4)) });
-  }, [reducedMotion]);
+  }, [reducedMotion, revealScale, revealOpacity]);
 
   const revealStyle = useAnimatedStyle(() => ({
     transform: [{ scale: revealScale.value }],
     opacity: revealOpacity.value,
   }));
 
-  // ✅ Store bindings
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, lastKnownStatus, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -309,7 +283,6 @@ export const MyCommuteDashboard: React.FC = () => {
     removeStation: s.unpinStation,
     setLines: s.reorderLines,
     lastKnownData: s.lastKnownData || [],
-    lastKnownStatus: s.lastKnownStatus || 'unknown',
     setLastKnown: s.setLastKnown,
   })));
 
@@ -545,7 +518,7 @@ export const MyCommuteDashboard: React.FC = () => {
           <View style={dash.promptScrim}>
             <View style={dash.promptCard}>
               <Ionicons name="notifications-outline" size={32} color="#F2A002" style={dash.promptIcon} />
-              <Text style={dash.promptTitle}>Don't get stuck.</Text>
+              <Text style={dash.promptTitle}>Don&apos;t get stuck.</Text>
               <Text style={dash.promptText}>
                 TfL lines have delays right now. Want an alert next time?
               </Text>

@@ -4,10 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
-const TEXT_PRIMARY   = 'rgba(255,255,255,0.9)';
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
-const AMBER_COLOR    = '#F2A002'; // Locked amber token
 
 const TFL_COLORS: Record<string, string> = {
   bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',

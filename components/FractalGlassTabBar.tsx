@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 
 interface TabBarProps {
-  tabs: Array<{ key: string; icon: keyof typeof Ionicons.glyphMap; label: string }>;
+  tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[];
   activeKey: string;
   onPress: (key: string) => void;
 }

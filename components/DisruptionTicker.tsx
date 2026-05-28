@@ -17,10 +17,10 @@ import Animated, {
 interface TflStatusResponse {
   id: string;
   name: string;
-  lineStatuses: Array<{
+  lineStatuses: {
     statusSeverity: number;
     statusSeverityDescription: string;
-  }>;
+  }[];
 }
 
 const LINE_COLORS: Record<string, string> = {

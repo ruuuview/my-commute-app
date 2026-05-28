@@ -743,7 +743,7 @@ export default function StationsScreen() {
                         <View style={styles.emptyState}>
                           <Ionicons name="search-outline" size={28} color={TEXT_GHOST} />
                           <Text style={styles.emptyText}>No stations found</Text>
-                          <Text style={styles.emptyHint}>Try "Waterloo" or "Paddington"</Text>
+                          <Text style={styles.emptyHint}>Try &quot;Waterloo&quot; or &quot;Paddington&quot;</Text>
                         </View>
                       }
                     />

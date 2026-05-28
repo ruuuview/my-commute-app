@@ -466,7 +466,7 @@ export default function LineDetailScreen() {
                   ))}
                 </View>
                 <Text style={styles.keyConnectionsNote}>
-                  💡 Tap a station in your "Stations" list for live departure times
+                  💡 Tap a station in your &quot;Stations&quot; list for live departure times
                 </Text>
               </View>
             );

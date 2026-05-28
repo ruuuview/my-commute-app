@@ -296,7 +296,7 @@ export default function SettingsScreen() {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle" size={24} color="#007AFF" />
             <Text style={styles.infoText}>
-              Notifications will only alert you about lines and stations you've saved to your dashboard.
+              Notifications will only alert you about lines and stations you&apos;ve saved to your dashboard.
             </Text>
           </View>
         </View>

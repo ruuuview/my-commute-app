@@ -8,7 +8,7 @@ import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
 import { Ionicons } from '@expo/vector-icons';
 
-const tabs: Array<{ key: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = [
+const tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { key: 'dashboard', icon: 'home', label: 'Dashboard' },
   { key: 'status', icon: 'information-circle', label: 'Status' },
   { key: 'settings', icon: 'settings', label: 'Settings' },

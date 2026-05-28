@@ -4,7 +4,7 @@
  * Gesture-handler + Reanimated implementation
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -75,7 +75,6 @@ export const JiggleCard = ({
     let timeoutId: ReturnType<typeof setTimeout>;
     
     if (isEditMode) {
-      const phase = (index % 2 === 0) ? 0 : 0.5;
       // Slight delay before starting so they don't all sync
       const delay = index * 40;
 
@@ -98,7 +97,7 @@ export const JiggleCard = ({
         clearTimeout(timeoutId);
       }
     };
-  }, [isEditMode, index]);
+  }, [isEditMode, index, rotation]);
 
   // Drag gesture — modern Gesture.Pan() API (replaces deprecated useAnimatedGestureHandler)
   const startY = useSharedValue(0);
@@ -163,7 +162,7 @@ export const JiggleCard = ({
     deleteBadgeScale.value = isEditMode
       ? withSpring(1, { damping: 12, stiffness: 200 })
       : withTiming(0, { duration: 100 });
-  }, [isEditMode]);
+  }, [isEditMode, deleteBadgeScale]);
 
   const deleteBadgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: deleteBadgeScale.value }],

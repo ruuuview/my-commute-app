@@ -41,9 +41,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
-import GradientBackground from './GradientBackground';
+import { GradientBackground } from './GradientBackground';
 import DepartureCard from './DepartureCard';
-import DashboardSkeleton from './DashboardSkeleton';
+import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyButton from './BouncyButton';
 import { usePressAnimation } from '../hooks/usePressAnimation';

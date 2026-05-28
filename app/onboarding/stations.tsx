@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, ScrollView,
-  Pressable, Platform, Keyboard, useWindowDimensions, Image,
+  Pressable, Keyboard, useWindowDimensions, Image,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, {
@@ -27,13 +27,13 @@ import { useTapSound } from '../../hooks/useTapSound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import DepartureCard from '../../components/DepartureCard';
 import ProgressDots from '../../components/ProgressDots';
+import { MASTER_BACKGROUND_GRADIENT } from '../../theme/colors';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_PINS = 5;
 const ROW_HEIGHT = 64;
 
 // ─── Locked Design Tokens ─────────────────────────────────────────────────────
-import { MASTER_BACKGROUND_GRADIENT } from '../../theme/colors';
 
 const TEXT_PRIMARY   = 'rgba(255,255,255,0.9)';
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -329,7 +329,7 @@ export default function StationsScreen() {
         closeBottomSheet();
       }}
     />
-  ), [pinnedIds, handleRowTap]);
+  ), [pinnedIds, handleRowTap, closeBottomSheet]);
 
   // Shared-axis slide transitions
   const transitionX = useSharedValue(60);
@@ -350,7 +350,7 @@ export default function StationsScreen() {
       duration: 280,
       easing: Easing.out(Easing.poly(4)),
     }));
-  }, [reducedMotion]);
+  }, [reducedMotion, transitionX, transitionOpacity]);
 
   const slideStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: transitionX.value }],

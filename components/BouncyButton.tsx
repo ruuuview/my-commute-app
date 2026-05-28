@@ -40,7 +40,7 @@ const BouncyButton: React.FC<BouncyButtonProps> = ({
       tension: 300,
       friction: 10,
     }).start();
-  }, [scaleDown]);
+  }, [scaleDown, scaleAnim]);
 
   const handlePressOut = useCallback(() => {
     Animated.spring(scaleAnim, {
@@ -49,7 +49,7 @@ const BouncyButton: React.FC<BouncyButtonProps> = ({
       tension: 300,
       friction: 10,
     }).start();
-  }, []);
+  }, [scaleAnim]);
 
   const handlePress = useCallback(() => {
     if (disabled) return;

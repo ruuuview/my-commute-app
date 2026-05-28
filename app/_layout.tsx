@@ -4,7 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, useReducedMotion } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
@@ -77,7 +77,6 @@ export default function RootLayout() {
   }, []);
   
   const overlayOpacity = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
   
   // Guard: Initialize with current state to prevent cold-start animations
   const hasAnimatedReveal = useRef(hasCompletedOnboarding);

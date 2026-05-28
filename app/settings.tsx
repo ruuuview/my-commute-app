@@ -8,7 +8,6 @@ import {
   Switch,
   Alert,
   Linking,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,10 +34,7 @@ interface NotificationSettings {
   time_window_start: string; // HH:MM format
   time_window_end: string;   // HH:MM format
 }
-
 const TRIAL_DURATION_DAYS = 45;
-const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-brain.vercel.app';
-
 export default function SettingsScreen() {
   const { back } = useRouter();
   const insets = useSafeAreaInsets();
@@ -140,23 +136,9 @@ export default function SettingsScreen() {
     return Math.max(0, TRIAL_DURATION_DAYS - diffDays);
   };
 
-  const handleOpenLink = (url: string) => {
-    Linking.openURL(url).catch((err) => console.error('Error opening link:', err));
-  };
-
-  const handleContactSupport = () => {
-    Linking.openURL('mailto:support@mycommute.app?subject=Support Request').catch((err) =>
-      Alert.alert('Error', 'Could not open email client')
-    );
-  };
-
   const trialDaysRemaining = userPrefs.trial_start_date 
     ? getTrialDaysRemaining(userPrefs.trial_start_date)
     : 0;
-
-  const isTrialActive = userPrefs.trial_activated && 
-                       userPrefs.trial_start_date && 
-                       trialDaysRemaining > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

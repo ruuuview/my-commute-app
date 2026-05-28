@@ -117,7 +117,7 @@ const TrafficLightLoader: React.FC<TrafficLightLoaderProps> = ({
       -1
     );
 
-  }, [isComplete]);
+  }, [isComplete, redOpacity, redScale, amberOpacity, amberScale, greenOpacity, greenScale]);
 
   const containerStyle = horizontal
     ? [styles.containerH, { height: dims.dot + 8, borderRadius: (dims.dot + 8) / 2 }]

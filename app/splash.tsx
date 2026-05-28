@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 const Splash: React.FC = () => {
-  const hasCompletedOnboarding = useUserPreferencesStore((state) => state.hasCompletedOnboarding);
 
   return (
     <View style={styles.container}>

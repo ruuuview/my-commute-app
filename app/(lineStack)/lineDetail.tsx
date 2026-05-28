@@ -250,12 +250,7 @@ interface StationInfo {
   connecting_lines?: ConnectingLine[];
 }
 
-interface LineDetailData extends LineData {
-  stations: StationInfo[];
-  branches?: {
-    [branchName: string]: StationInfo[];
-  };
-}
+
 
 const getTrialDaysRemaining = (trialStartDate: string): number => {
   if (!trialStartDate) return 0;
@@ -309,7 +304,6 @@ export default function LineDetailScreen() {
   const lineData = useLine(lineId);
   const allLinesMap = useLines();
   const loading = useLineLoading();
-  const error = useLineError();
   const { fetchAllLines } = useLineData();
 
   useEffect(() => {
@@ -319,7 +313,7 @@ export default function LineDetailScreen() {
       }
     };
     loadData();
-  }, [lineId]);
+  }, [lineId, allLinesMap, fetchAllLines, lineData]);
 
   useEffect(() => {
     if (lineData && (lineData as any).updated_at) {

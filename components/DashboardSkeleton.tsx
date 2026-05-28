@@ -2,7 +2,7 @@
  * SkeletonLoader - Shimmering placeholder cards for loading state
  * Renders ghost cards that match the exact layout of real content.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 
@@ -15,7 +15,7 @@ const ShimmerBar: React.FC<{ width: number | string; height: number; style?: any
       -1,
       false
     );
-  }, []);
+  }, [shimmerAnim]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shimmerAnim.value }],
@@ -53,15 +53,7 @@ const SkeletonStationCard: React.FC = () => (
   </View>
 );
 
-const SkeletonHeroCard: React.FC = () => (
-  <View style={styles.heroSkeleton}>
-    <View style={styles.rowCenter}>
-      <ShimmerBar width={20} height={20} style={styles.br10} />
-      <ShimmerBar width={140} height={20} style={styles.ml12} />
-    </View>
-    <ShimmerBar width={200} height={14} style={styles.mt10} />
-  </View>
-);
+
 
 export const DashboardSkeleton: React.FC = () => {
   const { width: SCREEN_WIDTH } = useWindowDimensions();

@@ -52,7 +52,7 @@ export default function VoidBackground() {
         });
       }
     });
-  }, [status]);
+  }, [status, opacity]);
 
   const topStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 

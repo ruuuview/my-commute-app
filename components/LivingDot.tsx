@@ -90,7 +90,7 @@ const LivingDot: React.FC<LivingDotProps> = ({ color, size = 10 }) => {
         false
       )
     );
-  }, []);
+  }, [dotScale, ring1Scale, ring1Opacity, ring2Scale, ring2Opacity]);
 
   const ring1Style = useAnimatedStyle(() => ({
     transform: [{ scale: ring1Scale.value }],

@@ -95,9 +95,9 @@ export default function StationDetailScreen() {
     fetchStationDetail();
     const interval = setInterval(() => fetchStationDetail(false), 30000); 
     return () => clearInterval(interval);
-  }, [stationId]);
+  }, [stationId, fetchStationDetail]);
 
-  const fetchStationDetail = async (useCache: boolean = true) => {
+  const fetchStationDetail = useCallback(async (useCache: boolean = true) => {
     try {
       dispatch({ loading: true, error: null });
       if (useCache && stationDataCache.has(stationId)) {
@@ -106,7 +106,7 @@ export default function StationDetailScreen() {
           dispatch({ stationData: data, loading: false });
           stationDataCache.delete(stationId);
           return;
-        } catch (cacheError) { stationDataCache.delete(stationId); }
+        } catch { stationDataCache.delete(stationId); }
       }
       
       const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`);
@@ -118,7 +118,7 @@ export default function StationDetailScreen() {
     } finally {
       dispatch({ loading: false });
     }
-  };
+  }, [stationId]);
 
   if (loading && !stationData) {
     return (

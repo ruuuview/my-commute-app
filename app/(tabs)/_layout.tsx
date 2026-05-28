@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Slot, useRouter } from 'expo-router';
-import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
 import { Ionicons } from '@expo/vector-icons';

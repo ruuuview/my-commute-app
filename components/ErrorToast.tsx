@@ -24,6 +24,14 @@ const ErrorToast: React.FC<ErrorToastProps> = ({
 }) => {
   const slideAnim = useRef(new Animated.Value(-80)).current;
 
+  const dismissToast = useCallback(() => {
+    Animated.timing(slideAnim, {
+      toValue: -80,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => onDismiss());
+  }, [slideAnim, onDismiss]);
+
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
@@ -41,15 +49,7 @@ const ErrorToast: React.FC<ErrorToastProps> = ({
     } else {
       slideAnim.setValue(-80);
     }
-  }, [visible]);
-
-  const dismissToast = () => {
-    Animated.timing(slideAnim, {
-      toValue: -80,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => onDismiss());
-  };
+  }, [visible, autoDismissMs, dismissToast, slideAnim]);
 
   if (!visible) return null;
 

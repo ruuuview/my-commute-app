@@ -26,10 +26,7 @@ import { usePressAnimation } from '../../hooks/usePressAnimation';
 
 import { MASTER_BACKGROUND_GRADIENT } from '../../theme/colors';
 
-const TEXT_PRIMARY   = 'rgba(255,255,255,0.9)';
-const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
-const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
-const TEXT_SKIP      = 'rgba(255,255,255,0.35)';
+
 
 // ─── 14 TfL lines (§1.3 + DLR) ──────────────────────────────────────────────
 const TFL_LINES = [
@@ -117,7 +114,7 @@ const Pill = React.memo(function Pill({
       duration: 350,
       easing: Easing.out(Easing.quad),
     });
-  }, [isSelected, reducedMotion]);
+  }, [isSelected, reducedMotion, glowProgress]);
 
   const glowStyle = useAnimatedStyle(() => {
     return {
@@ -251,7 +248,7 @@ export default function LinesScreen() {
       duration: 280,
       easing: Easing.out(Easing.poly(4)),
     }));
-  }, [reducedMotion]);
+  }, [reducedMotion, transitionX, transitionOpacity]);
 
   const slideStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: transitionX.value }],

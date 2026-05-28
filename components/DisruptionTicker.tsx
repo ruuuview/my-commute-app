@@ -56,7 +56,7 @@ function LoadingDot({ index }: { index: number }) {
       )
     );
     return () => cancelAnimation(opacity);
-  }, [index]);
+  }, [index, opacity]);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
@@ -73,7 +73,6 @@ export default function DisruptionTicker() {
 
   const translateX = useSharedValue(0);
   const textWidthRef = useRef<number>(0);
-  const [isAnimationStarted, setIsAnimationStarted] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -102,7 +101,7 @@ export default function DisruptionTicker() {
 
         setLineItems(items);
         setLoading(false);
-      } catch (err) {
+      } catch {
         console.log('Ticker fetch offline');
         // Fallback placeholder data if offline
         if (active) {
@@ -120,7 +119,7 @@ export default function DisruptionTicker() {
     };
   }, []);
 
-  const startScrolling = (textWidth: number) => {
+  const startScrolling = useCallback((textWidth: number) => {
     if (reducedMotion) {
       translateX.value = 0;
       return;
@@ -138,13 +137,12 @@ export default function DisruptionTicker() {
       -1,
       false
     );
-  };
+  }, [reducedMotion, translateX, containerWidth]);
 
   const handleTextLayout = (e: any) => {
     const w = e.nativeEvent.layout.width;
     if (w > 0 && w !== textWidthRef.current) {
       textWidthRef.current = w;
-      setIsAnimationStarted(true);
       startScrolling(w);
     }
   };
@@ -153,7 +151,7 @@ export default function DisruptionTicker() {
     if (textWidthRef.current > 0) {
       startScrolling(textWidthRef.current);
     }
-  }, [lineItems, containerWidth]);
+  }, [lineItems, containerWidth, startScrolling]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],

@@ -75,7 +75,7 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
         }
       });
     }
-  }, [status, reducedMotion]);
+  }, [status, reducedMotion, crossfadeOpacity]);
 
   const topLayerStyle = useAnimatedStyle(() => ({
     opacity: crossfadeOpacity.value,

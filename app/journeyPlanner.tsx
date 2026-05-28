@@ -1,5 +1,5 @@
 import { APP_CONFIG } from '../config/app.config';
-import React, { useReducer, useEffect } from 'react';
+import React, { useReducer } from 'react';
 import {
   View,
   Text,

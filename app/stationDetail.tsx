@@ -1,5 +1,5 @@
 import { APP_CONFIG } from '../config/app.config';
-import React, { useEffect, useReducer } from 'react';
+import React, { useEffect, useReducer, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -90,13 +90,6 @@ export default function StationDetailScreen() {
     { stationData: null, loading: true, error: null }
   );
 
-  useEffect(() => {
-    dispatch({ stationData: null, error: null, loading: true });
-    fetchStationDetail();
-    const interval = setInterval(() => fetchStationDetail(false), 30000); 
-    return () => clearInterval(interval);
-  }, [stationId, fetchStationDetail]);
-
   const fetchStationDetail = useCallback(async (useCache: boolean = true) => {
     try {
       dispatch({ loading: true, error: null });
@@ -113,12 +106,19 @@ export default function StationDetailScreen() {
       if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
       const data = await response.json();
       dispatch({ stationData: data });
-    } catch (err: any) {
-      dispatch({ error: err.message || 'Failed to load station details' });
+    } catch (e: any) {
+      dispatch({ error: e.message || 'Failed to load details' });
     } finally {
       dispatch({ loading: false });
     }
   }, [stationId]);
+
+  useEffect(() => {
+    dispatch({ stationData: null, error: null, loading: true });
+    fetchStationDetail();
+    const interval = setInterval(() => fetchStationDetail(false), 30000); 
+    return () => clearInterval(interval);
+  }, [stationId, fetchStationDetail]);
 
   if (loading && !stationData) {
     return (

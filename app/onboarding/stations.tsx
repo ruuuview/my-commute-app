@@ -307,7 +307,7 @@ export default function StationsScreen() {
     }, 250);
   };
 
-  const closeBottomSheet = () => {
+  const closeBottomSheet = useCallback(() => {
     Keyboard.dismiss();
     // 60ms layout stagger: keyboard dismisses first, sheet drops exactly at peak velocity
     setTimeout(() => {
@@ -318,7 +318,7 @@ export default function StationsScreen() {
       });
     }, 60);
     setQuery('');
-  };
+  }, [sheetTranslateY, sheetHeight]);
 
   const renderItem = useCallback(({ item }: { item: TfLStation }) => (
     <StationRow

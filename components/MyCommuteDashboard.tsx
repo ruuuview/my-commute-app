@@ -252,7 +252,7 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 };
 
 // ─── Main Dashboard ───────────────────────────────────────────────
-export const MyCommuteDashboard: React.FC = () => {
+const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // Premium scale-up center reveal for dashboard transition
@@ -297,6 +297,9 @@ export const MyCommuteDashboard: React.FC = () => {
     requestCalendarPermission,
     requestNotificationPermission,
   } = useDeferredPermissionTriggers();
+
+  const myLines = data.lines.filter(l => selectedLines.includes(l.id));
+  const hasContent = myLines.length > 0 || selectedStations.length > 0;
 
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [showCalPrompt, setShowCalPrompt] = useState(false);
@@ -400,8 +403,6 @@ export const MyCommuteDashboard: React.FC = () => {
     setModalVisible(false);
   }, [setLines]);
 
-  const myLines = data.lines.filter(l => selectedLines.includes(l.id));
-  const hasContent = myLines.length > 0 || selectedStations.length > 0;
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };

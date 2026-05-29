@@ -3,7 +3,7 @@
  * Grey (not red) to avoid collision with TfL disruption colors.
  * Auto-dismisses after 5 seconds or on tap.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 

@@ -7,14 +7,13 @@ import {
   ScrollView,
   Switch,
   Alert,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
-import Constants from 'expo-constants';
+
 
 interface UserPreferences {
   saved_lines: string[];
@@ -160,7 +159,7 @@ export default function SettingsScreen() {
         {/* Smart Pro Status Card */}
         <ProStatusCard 
           isPro={userPrefs.is_pro}
-          trialDaysRemaining={userPrefs.trial_start_date ? getTrialDaysRemaining(userPrefs.trial_start_date) : 0}
+          trialDaysRemaining={trialDaysRemaining}
           onUpgrade={() => Alert.alert('Coming Soon', 'Pro features and upgrades will be available in a future update.')}
         />
 

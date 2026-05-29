@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useLine, useLines, useLineLoading, useLineError } from '../../store/lineDataStore';
+import { useLine, useLines, useLineLoading } from '../../store/lineDataStore';
 import { useLineData } from '../../hooks/useLineData';
 
 const LINE_ALTERNATIVES: { [key: string]: string[] } = {
@@ -223,34 +223,6 @@ const COMPLETE_INTERCHANGE_DB: { [key: string]: ConnectionData } = {
   'waterloo-city-windrush': [],
   'weaver-windrush': [],
 };
-
-interface LineData {
-  id: string;
-  name: string;
-  color: string;
-  status: string;
-  status_severity: number;
-  reason?: string;
-  updated_at: string;
-}
-
-interface ConnectingLine {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface StationInfo {
-  id: string;
-  name: string;
-  status: 'open' | 'closed' | 'part_suspended' | 'no_service';
-  status_description?: string;
-  zone?: string;
-  interchange?: boolean;
-  connecting_lines?: ConnectingLine[];
-}
-
-
 
 const getTrialDaysRemaining = (trialStartDate: string): number => {
   if (!trialStartDate) return 0;

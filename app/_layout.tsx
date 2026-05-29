@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { View, StyleSheet, AccessibilityInfo, AppState } from 'react-native';
+import { useEffect, useRef, useCallback } from 'react';
+import { StyleSheet, AccessibilityInfo, AppState } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

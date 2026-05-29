@@ -1,7 +1,6 @@
 // app/splash.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 const Splash: React.FC = () => {
 

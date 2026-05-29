@@ -1,7 +1,7 @@
 // components/ProgressDots.tsx
 import React, { useEffect } from 'react';
 import { View, ViewStyle } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, SharedValue } from 'react-native-reanimated';
 
 interface Props {
   currentStep: number; // 0-indexed
@@ -32,7 +32,7 @@ export default function ProgressDots({ currentStep, totalSteps, style }: Props) 
   );
 }
 
-function AnimatedDot({ index, activeIndex }: { index: number; activeIndex: Animated.SharedValue<number> }) {
+function AnimatedDot({ index, activeIndex }: { index: number; activeIndex: SharedValue<number> }) {
   const animatedStyle = useAnimatedStyle(() => {
     // Distance from this dot to the active index
     const dist = Math.abs(activeIndex.value - index);

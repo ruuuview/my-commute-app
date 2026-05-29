@@ -1,6 +1,6 @@
 // components/DisruptionTicker.tsx — Screen 1: Disruption Marquee Ticker (v4.6)
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, View, Text, useWindowDimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,

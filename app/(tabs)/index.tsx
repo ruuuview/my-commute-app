@@ -1,7 +1,7 @@
 // app/(tabs)/index.tsx
 import React from 'react';
-import MyCommuteDashboard from '../../components/MyCommuteDashboard';
+import CommuteDashboard from '../../components/MyCommuteDashboard';
 
 export default function DashboardIndex() {
-  return <MyCommuteDashboard />;
+  return <CommuteDashboard />;
 }

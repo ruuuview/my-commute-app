@@ -29,8 +29,12 @@ export function sanitiseStationName(raw: string): string {
       break;
     }
   }
-  // Normalise St. → St, remove apostrophes, trim trailing punctuation
-  return name.replace(/\bSt\.\b/g, 'St').replace(/'/g, '').replace(/\.$/, '').trim();
+  // Ensure both indexing and lookup streams run clean sanitization keys
+  return name
+    .replace(/'/g, '')  // Wipe apostrophes cleanly
+    .replace(/\./g, '') // Wipe tracking periods
+    .toLowerCase()
+    .trim();
 }
 
 
@@ -60,7 +64,7 @@ export const TFL_STATIONS: TfLStation[] = [
   { id: 'holborn',          name: 'Holborn',               lines: ['central','piccadilly'],                   zone: 1 },
   { id: 'hyde-park-corner', name: 'Hyde Park Corner',      lines: ['piccadilly'],                             zone: 1 },
   { id: 'kennington',       name: 'Kennington',            lines: ['northern'],                               zone: 2 },
-  { id: 'kings-cross',      name: "King's Cross St. Pancras", lines: ['circle','hammersmith-city','metropolitan','northern','piccadilly','victoria'], zone: 1 },
+  { id: 'kings-cross',      name: "King's Cross St. Pancras", lines: ['circle','hammersmith-city','metropolitan','northern','piccadilly','victoria'], zone: 1, searchKeys: ['kings cross'] },
   { id: 'knightsbridge',    name: 'Knightsbridge',         lines: ['piccadilly'],                             zone: 1 },
   { id: 'lambeth-north',    name: 'Lambeth North',         lines: ['bakerloo'],                               zone: 1 },
   { id: 'lancaster-gate',   name: 'Lancaster Gate',        lines: ['central'],                                zone: 1 },

@@ -1,5 +1,4 @@
 // components/DisruptionTicker.tsx — Screen 1: Disruption Marquee Ticker (v4.6)
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { StyleSheet, View, Text, useWindowDimensions, Platform } from 'react-native';
 import Animated, {
@@ -24,10 +23,19 @@ interface TflStatusResponse {
 }
 
 const LINE_COLORS: Record<string, string> = {
-  bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
-  dlr: '#00AFAD', elizabeth: 'rgb(106, 16, 153)', 'hammersmith-city': '#F3A9BB',
-  jubilee: '#A0A5A9', metropolitan: '#9B0056', northern: '#FFFFFF', // High-contrast readable white on midnight dark canvas
-  overground: '#EE7C0E', piccadilly: '#003688', victoria: '#0098D4',
+  bakerloo: '#B36305',
+  central: '#E32017',
+  circle: '#FFD300',
+  district: '#00782A',
+  dlr: '#00AFAD',
+  elizabeth: '#6950A1',
+  'hammersmith-city': '#F3A9BB',
+  jubilee: '#A0A5A9',
+  metropolitan: '#9B0056',
+  northern: '#FFFFFF',
+  overground: '#EE7C0E',
+  piccadilly: '#003688',
+  victoria: '#0098D4',
   'waterloo-city': '#95CDBA',
 };
 
@@ -39,7 +47,7 @@ interface TickerLineItem {
   isDisrupted: boolean;
 }
 
-// ─── Smart Staggered Loading Dot ─────────────────────────────────────────────
+// ─── Smart Staggered Loading Dot (exactly 3 layout points) ─────────────────────
 function LoadingDot({ index }: { index: number }) {
   const opacity = useSharedValue(0.3);
 
@@ -65,14 +73,16 @@ function LoadingDot({ index }: { index: number }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function DisruptionTicker() {
-  const { width: containerWidth } = useWindowDimensions();
+  const { width: systemWidth } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
 
   const [loading, setLoading] = useState(true);
   const [lineItems, setLineItems] = useState<TickerLineItem[]>([]);
 
+  const [containerWidth, setContainerWidth] = useState(systemWidth);
+  const [contentWidth, setContentWidth] = useState(0);
+
   const translateX = useSharedValue(0);
-  const textWidthRef = useRef<number>(0);
 
   useEffect(() => {
     let active = true;
@@ -103,7 +113,6 @@ export default function DisruptionTicker() {
         setLoading(false);
       } catch {
         console.log('Ticker fetch offline');
-        // Fallback placeholder data if offline
         if (active) {
           setLineItems([
             { id: 'offline', name: 'OFFLINE', color: 'rgba(255,255,255,0.4)', status: 'STANDBY ACTIVE', isDisrupted: false }
@@ -119,50 +128,56 @@ export default function DisruptionTicker() {
     };
   }, []);
 
-  const startScrolling = useCallback((textWidth: number) => {
+  const startScrolling = useCallback((cWidth: number, parentWidth: number) => {
+    if (cWidth <= 0 || parentWidth <= 0) return;
     if (reducedMotion) {
       translateX.value = 0;
       return;
     }
     cancelAnimation(translateX);
-    
-    // Start marquee completely offscreen to the right and scroll past container and text width
-    translateX.value = containerWidth;
+
+    translateX.value = parentWidth;
 
     translateX.value = withRepeat(
-      withTiming(-textWidth, {
-        duration: (textWidth + containerWidth) * 15, // Responsive 15ms speed per pixel
+      withTiming(-cWidth, {
+        duration: (cWidth + parentWidth) * 15,
         easing: Easing.linear,
       }),
       -1,
       false
     );
-  }, [reducedMotion, translateX, containerWidth]);
+  }, [reducedMotion, translateX]);
 
-  const handleTextLayout = (e: any) => {
+  const handleParentLayout = (e: any) => {
     const w = e.nativeEvent.layout.width;
-    if (w > 0 && w !== textWidthRef.current) {
-      textWidthRef.current = w;
-      startScrolling(w);
+    if (w > 0 && w !== containerWidth) {
+      setContainerWidth(w);
+    }
+  };
+
+  const handleContentLayout = (e: any) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0 && w !== contentWidth) {
+      setContentWidth(w);
     }
   };
 
   useEffect(() => {
-    if (textWidthRef.current > 0) {
-      startScrolling(textWidthRef.current);
+    if (contentWidth > 0 && containerWidth > 0) {
+      startScrolling(contentWidth, containerWidth);
     }
-  }, [lineItems, containerWidth, startScrolling]);
+  }, [contentWidth, containerWidth, lineItems, startScrolling]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleParentLayout}>
       {loading ? (
-        /* Staggered Placeholder Dots */
+        /* Staggered Placeholder Dots (Exactly 3 layout points) */
         <View style={styles.loadingDotsContainer}>
-          {[0, 1, 2, 3, 4].map((i) => (
+          {[0, 1, 2].map((i) => (
             <LoadingDot key={i} index={i} />
           ))}
         </View>
@@ -171,22 +186,22 @@ export default function DisruptionTicker() {
         <View style={styles.marqueeWrap}>
           <Animated.View style={[styles.scrollRow, animatedStyle]}>
             <Text
-              onLayout={handleTextLayout}
+              onLayout={handleContentLayout}
               style={styles.tickerText}
               numberOfLines={1}
             >
               {lineItems.map((line, idx) => (
-                <React.Fragment key={line.id}>
+                <Text key={line.id}>
                   {idx > 0 && <Text style={styles.bullet}> · </Text>}
                   <Text
                     style={{
-                      color: line.isDisrupted ? line.color : 'rgba(255,255,255,0.5)',
+                      color: line.isDisrupted ? line.color : 'rgba(255, 255, 255, 0.5)',
                       fontWeight: line.isDisrupted ? 'bold' : 'normal',
                     }}
                   >
                     {line.name.toUpperCase()}: {line.status.toUpperCase()}
                   </Text>
-                </React.Fragment>
+                </Text>
               ))}
             </Text>
           </Animated.View>
@@ -233,6 +248,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   bullet: {
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255, 255, 255, 0.3)',
   },
 });

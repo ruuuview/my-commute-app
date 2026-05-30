@@ -2,26 +2,45 @@
 import { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion, withSequence } from 'react-native-reanimated';
 import { useCallback } from 'react';
 
-export type PressType = 
-  | 'line_select' | 'line_deselect' | 'station_row' 
-  | 'continue_btn' | 'back_btn' | 'skip_btn' 
-  | 'nav_item' | 'departure_card';
+export const PRESS_PRESETS = {
+  LINE_PILL_SELECT:   { scaleDown: 0.94, scaleUp: 1.04, damping: 12, stiffness: 200 },
+  LINE_PILL_DESELECT: { scaleDown: 0.96, scaleUp: 1.00, damping: 16, stiffness: 180 },
+  STATION_ROW:        { scaleDown: 0.97, damping: 20, stiffness: 260 },
+  CONTINUE_BTN:       { scaleDown: 0.96, damping: 14, stiffness: 180 },
+  BACK_BTN:           { scaleDown: 0.95, damping: 18, stiffness: 200 },
+  SKIP_BTN:           { scaleDown: 0.97, damping: 22, stiffness: 240 },
+  NAV_BAR_ITEM:       { scaleDown: 0.88, scaleUp: 1.00, damping: 10, stiffness: 220 },
+  DEPARTURE_CARD:     { scaleDown: 0.98, damping: 24, stiffness: 300 }
+} as const;
 
-const PHYSICS_CONFIGS = {
-  line_select:    { damping: 12, stiffness: 200, target: 0.94, overshoot: 1.04 },
-  line_deselect:  { damping: 16, stiffness: 180, target: 0.96, overshoot: undefined },
-  station_row:    { damping: 20, stiffness: 260, target: 0.97, overshoot: undefined },
-  continue_btn:   { damping: 14, stiffness: 180, target: 0.96, overshoot: undefined },
-  back_btn:       { damping: 18, stiffness: 200, target: 0.95, overshoot: undefined },
-  skip_btn:       { damping: 22, stiffness: 240, target: 0.97, overshoot: undefined },
-  nav_item:       { damping: 10, stiffness: 220, target: 0.88, overshoot: 1.0 },
-  departure_card: { damping: 24, stiffness: 300, target: 0.98, overshoot: undefined }
+export type PressType =
+  | keyof typeof PRESS_PRESETS
+  | 'line_select'
+  | 'line_deselect'
+  | 'station_row'
+  | 'continue_btn'
+  | 'back_btn'
+  | 'skip_btn'
+  | 'nav_item'
+  | 'departure_card';
+
+const KEY_MAP: Record<string, keyof typeof PRESS_PRESETS> = {
+  line_select: 'LINE_PILL_SELECT',
+  line_deselect: 'LINE_PILL_DESELECT',
+  station_row: 'STATION_ROW',
+  continue_btn: 'CONTINUE_BTN',
+  back_btn: 'BACK_BTN',
+  skip_btn: 'SKIP_BTN',
+  nav_item: 'NAV_BAR_ITEM',
+  departure_card: 'DEPARTURE_CARD',
 };
 
 export function usePressAnimation(configKey: PressType, disabled = false) {
   const scale = useSharedValue(1);
   const reducedMotion = useReducedMotion();
-  const config = PHYSICS_CONFIGS[configKey];
+
+  const mappedKey = (KEY_MAP[configKey] || configKey) as keyof typeof PRESS_PRESETS;
+  const config = PRESS_PRESETS[mappedKey];
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -31,7 +50,8 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
 
   const onPressIn = useCallback(() => {
     if (disabled || reducedMotion) return;
-    scale.value = withSpring(config.target, {
+    const target = config.scaleDown;
+    scale.value = withSpring(target, {
       damping: config.damping,
       stiffness: config.stiffness,
     });
@@ -42,9 +62,10 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
       scale.value = 1;
       return;
     }
-    if (config.overshoot && config.overshoot > 1.0) {
+    const overshoot = 'scaleUp' in config ? config.scaleUp : undefined;
+    if (overshoot && overshoot > 1.0) {
       scale.value = withSequence(
-        withSpring(config.overshoot, {
+        withSpring(overshoot, {
           damping: config.damping,
           stiffness: config.stiffness,
         }),

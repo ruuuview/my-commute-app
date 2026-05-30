@@ -29,7 +29,7 @@ const STATUS_GRADIENTS: Record<StatusLevel, readonly [string, string, string, st
   minor:     ['#D4820A', '#7A4A00', '#020307', '#000000'],
   severe:    ['#C0392B', '#7B1A1A', '#020307', '#000000'],
   suspended: ['#8B0000', '#3A0000', '#020307', '#000000'],
-  unknown:   ['#0A122C', '#060B1E', '#020307', '#000000'],
+  unknown:   ['#001E6B', '#001245', '#00091E', '#000000'],
 } as const;
 
 const GRADIENT_LOCATIONS = [0, 0.42, 0.75, 1.0] as const;

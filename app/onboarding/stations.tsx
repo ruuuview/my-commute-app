@@ -27,7 +27,7 @@ import { useTapSound } from '../../hooks/useTapSound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import DepartureCard from '../../components/DepartureCard';
 import ProgressDots from '../../components/ProgressDots';
-import { MASTER_BACKGROUND_GRADIENT } from '../../theme/colors';
+import { SCREEN_2_BACKGROUND_GRADIENT, DASHBOARD_OVERLAY_GRADIENT } from '../../theme/colors';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_PINS = 5;
@@ -184,6 +184,42 @@ const StationRow = React.memo(function StationRow({
     </Pressable>
   );
 });
+// ─── Pinned Station Chip ──────────────────────────────────────────────────────────
+interface PinnedStationChipProps {
+  station: { id: string; name: string };
+  displayZone: string;
+  onPressRemove: () => void;
+}
+
+const PinnedStationChip = React.memo(function PinnedStationChip({ station, displayZone, onPressRemove }: PinnedStationChipProps) {
+  const removeBtnAnim = usePressAnimation('nav_item');
+  return (
+    <Animated.View
+      exiting={FadeOutLeft.duration(150)}
+      style={styles.pinnedChip}
+    >
+      <Ionicons name="checkmark" size={12} color={TEXT_PRIMARY} style={{ marginRight: 4 }} />
+      <Text
+        style={styles.pinnedChipText}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
+        {station.name}{displayZone}
+      </Text>
+      <Pressable
+        onPressIn={removeBtnAnim.onPressIn}
+        onPressOut={removeBtnAnim.onPressOut}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        onPress={onPressRemove}
+      >
+        <Animated.View style={[styles.chipRemoveBtn, removeBtnAnim.animatedStyle]}>
+          <Ionicons name="close" size={14} color={TEXT_SECONDARY} />
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+});
 
 // ─── Screen Component ──────────────────────────────────────────────────────────
 export default function StationsScreen() {
@@ -246,23 +282,27 @@ export default function StationsScreen() {
     if (!query.trim()) return popularStations;
 
     const fuse = new Fuse(cleanFullStations, {
-      keys: ['name'],
-      threshold: 0.2,
-      distance: 30,
+      keys: ['name', 'searchKeys'],
+      threshold: 0.35,
+      distance: 100,
       ignoreLocation: false,
       includeScore: true,
       shouldSort: true,
     });
 
-    const cleanQuery = query.toLowerCase().replace(/'/g, '');
+    const cleanQuery = query
+      .replace(/'/g, '')
+      .replace(/\./g, '')
+      .toLowerCase()
+      .trim();
     const searchResults = fuse.search(cleanQuery);
 
     return searchResults
-      .filter((r) => (r.score ?? 1) < 0.2)
+      .filter((r) => (r.score ?? 1) < 0.35)
       .sort((a, b) => {
         const q = cleanQuery;
-        const aStarts = a.item.name.toLowerCase().replace(/'/g, '').startsWith(q);
-        const bStarts = b.item.name.toLowerCase().replace(/'/g, '').startsWith(q);
+        const aStarts = a.item.name.toLowerCase().replace(/'/g, '').replace(/\./g, '').startsWith(q);
+        const bStarts = b.item.name.toLowerCase().replace(/'/g, '').replace(/\./g, '').startsWith(q);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
         return (a.score ?? 1) - (b.score ?? 1);
@@ -422,10 +462,18 @@ export default function StationsScreen() {
     <Pressable style={styles.flex1} onPress={() => Keyboard.dismiss()}>
       <View style={styles.flex1}>
         <LinearGradient
-          colors={MASTER_BACKGROUND_GRADIENT.colors}
-          locations={MASTER_BACKGROUND_GRADIENT.locations}
-          start={MASTER_BACKGROUND_GRADIENT.start}
-          end={MASTER_BACKGROUND_GRADIENT.end}
+          colors={SCREEN_2_BACKGROUND_GRADIENT.colors}
+          locations={SCREEN_2_BACKGROUND_GRADIENT.locations}
+          start={SCREEN_2_BACKGROUND_GRADIENT.start}
+          end={SCREEN_2_BACKGROUND_GRADIENT.end}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <LinearGradient
+          colors={DASHBOARD_OVERLAY_GRADIENT.colors}
+          locations={DASHBOARD_OVERLAY_GRADIENT.locations}
+          start={DASHBOARD_OVERLAY_GRADIENT.start}
+          end={DASHBOARD_OVERLAY_GRADIENT.end}
+          pointerEvents={DASHBOARD_OVERLAY_GRADIENT.pointerEvents}
           style={StyleSheet.absoluteFillObject}
         />
         <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
@@ -484,6 +532,9 @@ export default function StationsScreen() {
               <Text style={styles.title} numberOfLines={1} allowFontScaling maxFontSizeMultiplier={1.3}>
                 {'Where do you catch it?'}
               </Text>
+              <Text style={styles.subtitle} allowFontScaling maxFontSizeMultiplier={1.4}>
+                {"Search, tap, done."}
+              </Text>
             </View>
 
             {/* Header Micro-confirmation: Selected Lines */}
@@ -512,37 +563,17 @@ export default function StationsScreen() {
                   {pinnedStations.map((station) => {
                     const fullSt = cleanFullStations.find(s => s.id === station.id);
                     const displayZone = fullSt?.zone !== undefined ? ` (Z${fullSt.zone})` : '';
-                    const removeBtnAnim = usePressAnimation('nav_item'); // eslint-disable-line react-hooks/rules-of-hooks
                     return (
-                      <Animated.View
+                      <PinnedStationChip
                         key={station.id}
-                        exiting={FadeOutLeft.duration(150)}
-                        style={styles.pinnedChip}
-                      >
-                        <Ionicons name="checkmark" size={12} color={TEXT_PRIMARY} style={{ marginRight: 4 }} />
-                        <Text
-                          style={styles.pinnedChipText}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.8}
-                        >
-                          {station.name}{displayZone}
-                        </Text>
-                        <Pressable
-                          onPressIn={removeBtnAnim.onPressIn}
-                          onPressOut={removeBtnAnim.onPressOut}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            playDeselect();
-                            removeStation(station.id);
-                          }}
-                        >
-                          <Animated.View style={[styles.chipRemoveBtn, removeBtnAnim.animatedStyle]}>
-                            <Ionicons name="close" size={14} color={TEXT_SECONDARY} />
-                          </Animated.View>
-                        </Pressable>
-                      </Animated.View>
+                        station={station}
+                        displayZone={displayZone}
+                        onPressRemove={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          playDeselect();
+                          removeStation(station.id);
+                        }}
+                      />
                     );
                   })}
                 </ScrollView>
@@ -769,6 +800,12 @@ const styles = StyleSheet.create({
     color: TEXT_PRIMARY,
     letterSpacing: -0.5,
     lineHeight: 38,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255,255,255,0.60)',
+    marginTop: 4,
   },
   lineDotsContainer: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
   stationRowZoneContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },

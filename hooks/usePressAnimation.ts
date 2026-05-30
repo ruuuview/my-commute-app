@@ -1,6 +1,8 @@
 // hooks/usePressAnimation.ts
 import { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion, withSequence } from 'react-native-reanimated';
 import { useCallback } from 'react';
+import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
 
 export const PRESS_PRESETS = {
   LINE_PILL_SELECT:   { scaleDown: 0.94, scaleUp: 1.04, damping: 12, stiffness: 200 },
@@ -50,12 +52,28 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
 
   const onPressIn = useCallback(() => {
     if (disabled || reducedMotion) return;
+
+    // Direct user tactile feedback pairings (Haptic always fired BEFORE playSound)
+    try {
+      if (mappedKey === 'BACK_BTN' || mappedKey === 'LINE_PILL_DESELECT') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playSound('deselect');
+      } else if (mappedKey === 'SKIP_BTN') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Softer skip - silent by design
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playSound('select');
+      }
+    } catch (e) {
+      console.log('Error triggering press feedback:', e);
+    }
+
     const target = config.scaleDown;
     scale.value = withSpring(target, {
       damping: config.damping,
       stiffness: config.stiffness,
     });
-  }, [config, disabled, reducedMotion]);
+  }, [config, mappedKey, disabled, reducedMotion]);
 
   const onPressOut = useCallback(() => {
     if (disabled || reducedMotion) {

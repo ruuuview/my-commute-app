@@ -25,6 +25,7 @@ import { TfLStation, FULL_STATIONS } from '../../data/tflStations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTapSound } from '../../hooks/useTapSound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { playSound } from '../../utils/sound';
 import DepartureCard from '../../components/DepartureCard';
 import ProgressDots from '../../components/ProgressDots';
 import { SCREEN_2_BACKGROUND_GRADIENT, DASHBOARD_OVERLAY_GRADIENT } from '../../theme/colors';
@@ -247,6 +248,14 @@ export default function StationsScreen() {
     }
     prevPinnedCount.current = pinnedStations.length;
   }, [pinnedStations.length]);
+
+  // Trigger Error feedback when search returns 0 results
+  useEffect(() => {
+    if (query.trim() && results.length === 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      playSound('error');
+    }
+  }, [results.length, query]);
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
@@ -651,9 +660,6 @@ export default function StationsScreen() {
                 onPressIn={ctaBtnAnim.onPressIn}
                 onPressOut={ctaBtnAnim.onPressOut}
                 onPress={async () => {
-                  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  playSelect();
-                  
                   const onboarding = useOnboardingStore.getState();
                   const mappedStations = onboarding.pinnedStations.map((station, index) => ({
                     id: station.id,
@@ -666,6 +672,13 @@ export default function StationsScreen() {
                     selectedLines: onboarding.selectedLines,
                     pinnedStations: mappedStations,
                   });
+
+                  if (mappedStations.length > 0) {
+                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    playSound('confirm');
+                  } else {
+                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
 
                   useUserPreferencesStore.getState().completeOnboarding();
                 }}

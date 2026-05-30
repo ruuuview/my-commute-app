@@ -12,6 +12,10 @@ import Animated, {
   withDelay,
   withSequence,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
+
+let lastDisruptionPlayTime = 0;
 
 interface TflStatusResponse {
   id: string;
@@ -111,6 +115,20 @@ export default function DisruptionTicker() {
 
         setLineItems(items);
         setLoading(false);
+
+        const hasDisruption = items.some((line) => line.isDisrupted);
+        if (hasDisruption) {
+          const now = Date.now();
+          if (now - lastDisruptionPlayTime > 60000) {
+            lastDisruptionPlayTime = now;
+            try {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              playSound('disruption');
+            } catch (e) {
+              console.log('Error playing disruption audio/haptic:', e);
+            }
+          }
+        }
       } catch {
         console.log('Ticker fetch offline');
         if (active) {

@@ -14,7 +14,8 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-// import { useAudioPlayer } from 'expo-audio'; 
+import { Audio, InterruptionModeIOS } from 'expo-av';
+import { preloadSounds } from '../utils/sound';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,6 +23,23 @@ export default function RootLayout() {
   const router = useRouter();
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
+
+  // Preload UI sounds and configure audio ducking
+  useEffect(() => {
+    async function initAudio() {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: false,
+          staysActiveInBackground: false,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        });
+        await preloadSounds();
+      } catch (e) {
+        console.log('Failed to initialize audio mode or preload sounds:', e);
+      }
+    }
+    initAudio();
+  }, []);
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,

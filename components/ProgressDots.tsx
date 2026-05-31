@@ -1,7 +1,7 @@
 // components/ProgressDots.tsx
 import React, { useEffect } from 'react';
-import { View, ViewStyle } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, SharedValue } from 'react-native-reanimated';
+import { View, ViewStyle, StyleSheet } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface Props {
   currentStep: number; // 0-indexed
@@ -10,55 +10,73 @@ interface Props {
 }
 
 const DOT_SIZE = 8;
+const GAP = 8;
+const ACTIVE_WIDTH = 24;
 
 export default function ProgressDots({ currentStep, totalSteps, style }: Props) {
   const activeIndex = useSharedValue(currentStep);
 
   useEffect(() => {
-    activeIndex.value = withSpring(currentStep, { damping: 18, stiffness: 180 });
+    activeIndex.value = withSpring(currentStep, { damping: 18, stiffness: 160 });
   }, [currentStep, activeIndex]);
 
-  return (
-    <View
-      style={[{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingBottom: 12 }, style]}
-      accessibilityLabel={`Step ${currentStep + 1} of ${totalSteps}`}
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: totalSteps - 1, now: currentStep }}
-    >
-      {Array.from({ length: totalSteps }, (_, i) => (
-        <AnimatedDot key={i} index={i} activeIndex={activeIndex} />
-      ))}
-    </View>
-  );
-}
-
-function AnimatedDot({ index, activeIndex }: { index: number; activeIndex: SharedValue<number> }) {
-  const animatedStyle = useAnimatedStyle(() => {
-    // Distance from this dot to the active index
-    const dist = Math.abs(activeIndex.value - index);
-    
-    // Width interpolates from 24 (dist = 0) down to 8 (dist >= 1)
-    const width = dist < 1 ? 8 + 16 * (1 - dist) : 8;
-    
-    // Opacity interpolates from 0.95 (dist = 0) to 0.30 (dist >= 1)
-    const opacity = dist < 1 ? 0.30 + 0.65 * (1 - dist) : 0.30;
-    
+  const activeStyle = useAnimatedStyle(() => {
+    const stepDistance = DOT_SIZE + GAP;
+    // Align active pill center (12px) with static dot center (4px)
+    // Static dot center = activeIndex * stepDistance + 4
+    // Active pill center = translateX + 12
+    // translateX = activeIndex * stepDistance - 8
+    const translateX = activeIndex.value * stepDistance - 8;
     return {
-      width,
-      opacity,
+      transform: [{ translateX }],
     };
   });
 
   return (
-    <Animated.View
-      style={[
-        {
-          height: DOT_SIZE,
-          borderRadius: DOT_SIZE / 2,
-          backgroundColor: '#FFFFFF',
-        },
-        animatedStyle,
-      ]}
-    />
+    <View
+      style={[styles.container, style]}
+      accessibilityLabel={`Step ${currentStep + 1} of ${totalSteps}`}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: totalSteps - 1, now: currentStep }}
+    >
+      <View style={styles.dotsRow}>
+        {/* Background static dots */}
+        {Array.from({ length: totalSteps }, (_, i) => (
+          <View key={i} style={styles.staticDot} />
+        ))}
+
+        {/* Sliding active overlay dot */}
+        <Animated.View style={[styles.activePill, activeStyle]} />
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 12,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    gap: GAP,
+  },
+  staticDot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  activePill: {
+    position: 'absolute',
+    left: 0,
+    width: ACTIVE_WIDTH,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    backgroundColor: '#FFFFFF',
+  },
+});
+

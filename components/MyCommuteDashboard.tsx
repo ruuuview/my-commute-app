@@ -28,7 +28,8 @@ import Animated, {
   Easing,
   useReducedMotion,
   cancelAnimation,
-  withSpring
+  withSpring,
+  withDelay
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -251,12 +252,42 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
   );
 };
 
+// ─── Staggered Card Wrapper ──────────────────────────────────────
+const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactNode; index: number }) => {
+  const translateY = useSharedValue(16);
+  const opacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      translateY.value = 0;
+      opacity.value = 1;
+      return;
+    }
+    const delay = 120 + index * 60;
+    translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
+  }, [index, reducedMotion, translateY, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      {children}
+    </Animated.View>
+  );
+});
+StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
+
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // Premium scale-up center reveal for dashboard transition
-  const revealScale = useSharedValue(0.92);
+  const revealScale = useSharedValue(0.88);
   const revealOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
@@ -266,8 +297,8 @@ const MyCommuteDashboard: React.FC = () => {
       revealOpacity.value = 1;
       return;
     }
-    revealScale.value = withSpring(1, { damping: 18, stiffness: 120 });
-    revealOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.poly(4)) });
+    revealScale.value = withSpring(1, { damping: 14, stiffness: 110 });
+    revealOpacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) });
   }, [reducedMotion, revealScale, revealOpacity]);
 
   const revealStyle = useAnimatedStyle(() => ({
@@ -485,16 +516,17 @@ const MyCommuteDashboard: React.FC = () => {
           {selectedStations.length > 0 && (
             <View style={dash.section}>
               <SectionHeader title="MY STATIONS" icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} />
-              {selectedStations.map((station: any) => (
-                <DepartureCard
-                  key={station.id}
-                  stationId={station.id}
-                  stationName={station.name}
-                  role={station.role}
-                  isEditing={isEditing}
-                  onDelete={removeStation}
-                  onLongPress={handleEdit}
-                />
+              {selectedStations.map((station: any, index: number) => (
+                <StaggeredCardWrapper key={station.id} index={index}>
+                  <DepartureCard
+                    stationId={station.id}
+                    stationName={station.name}
+                    role={station.role}
+                    isEditing={isEditing}
+                    onDelete={removeStation}
+                    onLongPress={handleEdit}
+                  />
+                </StaggeredCardWrapper>
               ))}
             </View>
           )}

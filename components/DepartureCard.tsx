@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -50,6 +51,10 @@ export default function DepartureCard({
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(autoExpand);
+  
+  const [contentHeight, setContentHeight] = useState(52);
+  const heightVal = useSharedValue(autoExpand ? 160 : 52);
+  const chevronRotation = useSharedValue(autoExpand ? 180 : 0);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async () => {
@@ -94,49 +99,74 @@ export default function DepartureCard({
     setIsExpanded(prev => !prev);
   };
 
+  const onInnerLayout = (event: any) => {
+    const { height } = event.nativeEvent.layout;
+    if (height > 52) {
+      setContentHeight(height);
+    }
+  };
+
+  useEffect(() => {
+    const targetHeight = isExpanded ? contentHeight : 52;
+    heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
+    chevronRotation.value = withSpring(isExpanded ? 180 : 0, { damping: 18, stiffness: 200 });
+  }, [isExpanded, contentHeight, heightVal, chevronRotation]);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    height: heightVal.value,
+  }));
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value}deg` }],
+  }));
+
   return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={onLongPress}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <View style={styles.uBadge}>
-          <Text style={styles.uText}>U</Text>
-        </View>
-        <View style={styles.titleColumn}>
-          <Text style={styles.stationName} numberOfLines={1}>
-            {cleanName}
-          </Text>
-          {role && (
-            <Text style={styles.roleBadge}>
-              {role.toUpperCase()} STATION
-            </Text>
-          )}
-        </View>
+    <Animated.View style={[styles.container, containerStyle]}>
+      <View onLayout={onInnerLayout} style={styles.innerContent}>
+        <Pressable
+          onPress={handlePress}
+          onLongPress={onLongPress}
+          style={styles.headerPressable}
+        >
+          <View style={styles.header}>
+            <View style={styles.uBadge}>
+              <Text style={styles.uText}>U</Text>
+            </View>
+            <View style={styles.titleColumn}>
+              <Text style={styles.stationName} numberOfLines={1}>
+                {cleanName}
+              </Text>
+              {role && (
+                <Text style={styles.roleBadge}>
+                  {role.toUpperCase()} STATION
+                </Text>
+              )}
+            </View>
 
-        {!isEditing && (
-          <Ionicons
-            name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-            size={16}
-            color="rgba(255,255,255,0.4)"
-          />
-        )}
+            {!isEditing && (
+              <Animated.View style={chevronStyle}>
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  color="rgba(255,255,255,0.4)"
+                />
+              </Animated.View>
+            )}
 
-        {isEditing && onDelete && (
-          <Pressable
-            style={styles.deleteBadge}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onDelete(stationId);
-            }}
-          >
-            <Text style={styles.deleteIcon}>−</Text>
-          </Pressable>
-        )}
-      </View>
+            {isEditing && onDelete && (
+              <Pressable
+                style={styles.deleteBadge}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onDelete(stationId);
+                }}
+              >
+                <Text style={styles.deleteIcon}>−</Text>
+              </Pressable>
+            )}
+          </View>
+        </Pressable>
 
-      {isExpanded && (
         <View style={styles.arrivalsContainer}>
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -171,8 +201,8 @@ export default function DepartureCard({
             })
           )}
         </View>
-      )}
-    </Pressable>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -185,7 +215,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
-    overflow: 'visible',
+    overflow: 'hidden', // Accordion clip!
+  },
+  innerContent: {
+    width: '100%',
+  },
+  headerPressable: {
+    width: '100%',
   },
   header: {
     flexDirection: 'row',

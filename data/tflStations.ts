@@ -21,7 +21,7 @@ const STRIP_SUFFIXES = [
   ' Station',
 ];
 
-export function sanitiseStationName(raw: string): string {
+export function cleanDisplayStationName(raw: string): string {
   let name = raw;
   for (const suffix of STRIP_SUFFIXES) {
     if (name.endsWith(suffix)) {
@@ -29,8 +29,15 @@ export function sanitiseStationName(raw: string): string {
       break;
     }
   }
-  // Ensure both indexing and lookup streams run clean sanitization keys
-  return name
+  name = name.trim();
+  if (name.endsWith('.')) {
+    name = name.slice(0, -1);
+  }
+  return name.trim();
+}
+
+export function sanitiseStationName(raw: string): string {
+  return cleanDisplayStationName(raw)
     .replace(/'/g, '')  // Wipe apostrophes cleanly
     .replace(/\./g, '') // Wipe tracking periods
     .toLowerCase()
@@ -137,14 +144,20 @@ export const TFL_STATIONS: TfLStation[] = [
   { id: 'richmond',         name: 'Richmond',              lines: ['district','overground'],                  zone: 4 },
   { id: 'romford',          name: 'Romford',               lines: ['elizabeth'],                              zone: 6 },
   { id: 'wimbledon',        name: 'Wimbledon',             lines: ['district'],                               zone: 3 },
-].map(s => ({
-  ...s,
-  name: sanitiseStationName(s.name),
-}));
+].map(s => {
+  const display = cleanDisplayStationName(s.name);
+  const searchKey = display.replace(/'/g, '').replace(/\./g, '').toLowerCase().trim();
+  return {
+    ...s,
+    name: display,
+    searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
+  };
+});
 
 export const FULL_STATIONS: TfLStation[] = (fullStationsData as TfLStation[]).map(s => {
-  const sanitisedName = sanitiseStationName(s.name);
-  const key = sanitisedName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const display = cleanDisplayStationName(s.name);
+  const searchKey = display.replace(/'/g, '').replace(/\./g, '').toLowerCase().trim();
+  const key = searchKey.replace(/[^a-z0-9]/g, '');
 
   const matchingHardcoded = TFL_STATIONS.find(t =>
     t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === key ||
@@ -153,8 +166,9 @@ export const FULL_STATIONS: TfLStation[] = (fullStationsData as TfLStation[]).ma
 
   return {
     ...s,
-    name: sanitisedName,
+    name: display,
     zone: matchingHardcoded?.zone ?? s.zone,
+    searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
   };
 });
 

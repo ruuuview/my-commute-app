@@ -27,6 +27,10 @@ interface OnboardingStore {
   addStation: (station: Station) => void;
   removeStation: (stationId: string) => void;
 
+  // Navigation Direction
+  navigationDirection: 'forward' | 'backward';
+  setNavigationDirection: (dir: 'forward' | 'backward') => void;
+
   // Reset
   reset: () => void;
 }
@@ -36,6 +40,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
     (set) => ({
       selectedLines: [],
       pinnedStations: [],
+      navigationDirection: 'forward',
 
       toggleLine: (lineId) =>
         set((s) => ({
@@ -56,7 +61,9 @@ export const useOnboardingStore = create<OnboardingStore>()(
           pinnedStations: s.pinnedStations.filter((p) => p.id !== stationId),
         })),
 
-      reset: () => set({ selectedLines: [], pinnedStations: [] }),
+      setNavigationDirection: (dir) => set({ navigationDirection: dir }),
+
+      reset: () => set({ selectedLines: [], pinnedStations: [], navigationDirection: 'forward' }),
     }),
     {
       name: 'onboarding-store',

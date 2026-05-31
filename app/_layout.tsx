@@ -4,7 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
@@ -15,7 +15,7 @@ import {
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
 import { Audio, InterruptionModeIOS } from 'expo-av';
-import { preloadSounds } from '../utils/sound';
+import { preloadSounds, playSound } from '../utils/sound';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -95,40 +95,61 @@ export default function RootLayout() {
   }, []);
   
   const overlayOpacity = useSharedValue(0);
+  const whiteOverlayOpacity = useSharedValue(0);
   
   // Guard: Initialize with current state to prevent cold-start animations
   const hasAnimatedReveal = useRef(hasCompletedOnboarding);
 
   const navigateToDashboard = useCallback(() => {
-    // Navigate to the index screen (dashboard) as we don't have a (app) folder group setup yet, 
-    // or we can just replace('/') which goes to the dashboard.
     router.replace('/');
   }, [router]);
-
-  const playHaptic = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    AccessibilityInfo.announceForAccessibility("Welcome to your dashboard");
-  }, []);
 
   useEffect(() => {
     // Only fire if they just completed it in this session
     if (hasCompletedOnboarding && !hasAnimatedReveal.current && _hasHydrated) {
       hasAnimatedReveal.current = true;
-      playHaptic();
+      
+      // Success haptics
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      AccessibilityInfo.announceForAccessibility("Welcome to your dashboard");
+      
+      // confirm chime at 0.72 volume
+      playSound('confirm', 0.72);
+
+      // 1-frame pure white flash sequence
+      whiteOverlayOpacity.value = 1;
+      whiteOverlayOpacity.value = withTiming(0, {
+        duration: 350,
+        easing: Easing.out(Easing.poly(3)),
+      });
+
       navigateToDashboard();
     }
-  }, [hasCompletedOnboarding, navigateToDashboard, playHaptic, _hasHydrated]);
+  }, [hasCompletedOnboarding, navigateToDashboard, _hasHydrated, whiteOverlayOpacity]);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
     zIndex: overlayOpacity.value > 0 ? 999 : -1,
   }));
 
+  const whiteOverlayStyle = useAnimatedStyle(() => ({
+    opacity: whiteOverlayOpacity.value,
+    zIndex: whiteOverlayOpacity.value > 0 ? 1000 : -1,
+  }));
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        {isReady ? <Stack screenOptions={{ headerShown: false }} /> : null}
+        {isReady ? (
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0A0A0F' },
+            }}
+          />
+        ) : null}
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.blackOverlay, overlayStyle]} pointerEvents="none" />
+        <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -137,4 +158,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
   blackOverlay: { backgroundColor: '#000000' },
+  whiteOverlay: { backgroundColor: '#FFFFFF' },
 });
+

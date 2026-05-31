@@ -16,11 +16,12 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import ProgressDots from '../../components/ProgressDots';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTapSound } from '../../hooks/useTapSound';
+import { playSound } from '../../utils/sound';
 import DisruptionTicker from '../../components/DisruptionTicker';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 
@@ -230,28 +231,54 @@ export default function LinesScreen() {
   const continueAnim = usePressAnimation('continue_btn', !canContinue);
 
   // Shared-axis slide transitions
-  const transitionX = useSharedValue(60);
-  const transitionOpacity = useSharedValue(0);
+  const transitionX = useSharedValue(0);
+  const transitionOpacity = useSharedValue(1);
+  const transitionScale = useSharedValue(1);
   const reducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    if (reducedMotion) {
-      transitionX.value = 0;
-      transitionOpacity.value = 1;
-      return;
-    }
-    transitionX.value = withDelay(40, withTiming(0, {
-      duration: 280,
-      easing: Easing.out(Easing.poly(4)),
-    }));
-    transitionOpacity.value = withDelay(40, withTiming(1, {
-      duration: 280,
-      easing: Easing.out(Easing.poly(4)),
-    }));
-  }, [reducedMotion, transitionX, transitionOpacity]);
+  useFocusEffect(
+    useCallback(() => {
+      const dir = useOnboardingStore.getState().navigationDirection;
+      if (dir === 'backward') {
+        // Entering backwards: slide in from left with scale-up reveal
+        transitionX.value = -width * 0.28;
+        transitionOpacity.value = 0;
+        transitionScale.value = 0.94;
+      } else {
+        // Initial mount or reset: instant solid layout
+        transitionX.value = 0;
+        transitionOpacity.value = 1;
+        transitionScale.value = 1;
+        return;
+      }
+
+      if (reducedMotion) {
+        transitionX.value = 0;
+        transitionOpacity.value = 1;
+        transitionScale.value = 1;
+        return;
+      }
+
+      transitionX.value = withTiming(0, {
+        duration: 320,
+        easing: Easing.out(Easing.poly(4)),
+      });
+      transitionOpacity.value = withTiming(1, {
+        duration: 320,
+        easing: Easing.out(Easing.poly(4)),
+      });
+      transitionScale.value = withTiming(1.0, {
+        duration: 320,
+        easing: Easing.out(Easing.poly(4)),
+      });
+    }, [width, reducedMotion])
+  );
 
   const slideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: transitionX.value }],
+    transform: [
+      { translateX: transitionX.value },
+      { scale: transitionScale.value }
+    ],
     opacity: transitionOpacity.value,
   }));
 
@@ -358,18 +385,27 @@ export default function LinesScreen() {
           onPressIn={continueAnim.onPressIn}
           onPressOut={continueAnim.onPressOut}
           onPress={async () => {
+            const store = useOnboardingStore.getState();
+            store.setNavigationDirection('forward');
+            
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            playSelect();
+            playSound('push', 0.38); // Forward screen push sound
+
             if (reducedMotion) {
               push('/onboarding/stations');
               return;
             }
-            transitionX.value = withTiming(-60, {
-              duration: 280,
+
+            transitionX.value = withTiming(-width * 0.28, {
+              duration: 320,
+              easing: Easing.out(Easing.poly(4)),
+            });
+            transitionScale.value = withTiming(0.94, {
+              duration: 320,
               easing: Easing.out(Easing.poly(4)),
             });
             transitionOpacity.value = withTiming(0, {
-              duration: 280,
+              duration: 320,
               easing: Easing.out(Easing.poly(4)),
             }, (finished) => {
               if (finished) {

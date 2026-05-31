@@ -2,7 +2,8 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { Slot, useRouter } from 'expo-router';
+import { Slot, useRouter, usePathname } from 'expo-router';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useReducedMotion, withTiming } from 'react-native-reanimated';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ const tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }
 
 const TabsLayout = () => {
   const router = useRouter();
+  const pathname = usePathname();
   // Hardcoded activeKey to 'dashboard' for now since we're on the dashboard index
   const activeKey = 'dashboard';
 
@@ -23,12 +25,45 @@ const TabsLayout = () => {
     SplashScreen.hideAsync();
   }, []);
 
+  const tabBarTranslateY = useSharedValue(40);
+  const contentOpacity = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      tabBarTranslateY.value = 0;
+      return;
+    }
+    tabBarTranslateY.value = withDelay(60, withSpring(0, { damping: 20, stiffness: 180 }));
+  }, [reducedMotion, tabBarTranslateY]);
+
+  // Tab content opacity crossfades on switch
+  useEffect(() => {
+    if (reducedMotion) {
+      contentOpacity.value = 1;
+      return;
+    }
+    contentOpacity.value = withTiming(0, { duration: 160 }, (finished) => {
+      if (finished) {
+        contentOpacity.value = withDelay(40, withTiming(1, { duration: 200 }));
+      }
+    });
+  }, [pathname, contentOpacity, reducedMotion]);
+
+  const tabBarStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: tabBarTranslateY.value }],
+  }));
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
+
   return (
     <View style={styles.container}>
-      <View style={styles.flex1}>
+      <Animated.View style={[styles.flex1, contentStyle]}>
         <Slot />
-      </View>
-      <View style={styles.tabBarContainer}>
+      </Animated.View>
+      <Animated.View style={[styles.tabBarContainer, tabBarStyle]}>
         <FractalGlassTabBar 
           tabs={tabs} 
           activeKey={activeKey} 
@@ -40,7 +75,7 @@ const TabsLayout = () => {
             }
           }} 
         />
-      </View>
+      </Animated.View>
     </View>
   );
 };
@@ -60,3 +95,5 @@ const styles = StyleSheet.create({
 });
 
 export default TabsLayout;
+
+

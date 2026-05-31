@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWorstStatus, StatusLevel } from '../hooks/useWorstStatus';
+import { DASHBOARD_OVERLAY_GRADIENT } from '../theme/colors';
 
 // ─── Gradient palette (v4.6 overhaul) ─────────────────────────────────────────
 // Top color shifts with traffic-light status, bleeding elegantly down into the UNIFIED_DARK_GRADIENT pitch-black base.
@@ -108,6 +109,16 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
           end={{ x: 0, y: 1 }}
         />
       </Animated.View>
+
+      {/* Universal Dashboard Edge Overlay */}
+      <LinearGradient
+        colors={DASHBOARD_OVERLAY_GRADIENT.colors}
+        locations={DASHBOARD_OVERLAY_GRADIENT.locations}
+        start={DASHBOARD_OVERLAY_GRADIENT.start}
+        end={DASHBOARD_OVERLAY_GRADIENT.end}
+        pointerEvents="none"
+        style={StyleSheet.absoluteFillObject}
+      />
 
       {children}
     </View>

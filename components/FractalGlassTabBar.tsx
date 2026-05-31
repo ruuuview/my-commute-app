@@ -1,9 +1,11 @@
 // components/FractalGlassTabBar.tsx
-import React from 'react';
+import React, { memo } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 interface TabBarProps {
   tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[];
@@ -11,32 +13,63 @@ interface TabBarProps {
   onPress: (key: string) => void;
 }
 
+const TabButton = memo(({ tab, isActive, onPress }: { tab: any; isActive: boolean; onPress: () => void }) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.82, { damping: 10, stiffness: 220 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1.0, { damping: 10, stiffness: 220 });
+  };
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      style={[
+        styles.tab,
+        isActive && styles.activeTab
+      ]}
+    >
+      <Animated.View style={[styles.tabContent, animatedStyle]}>
+        <Ionicons 
+          name={tab.icon} 
+          size={24} 
+          color={isActive ? "#FFFFFF" : "rgba(255,255,255,0.4)"} 
+        />
+        {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
+      </Animated.View>
+    </Pressable>
+  );
+});
+TabButton.displayName = 'TabButton';
+
 const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress }) => {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom || 16 }]}>
       <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
         <View style={styles.tabs}>
-          {tabs.map(tab => {
-            const isActive = activeKey === tab.key;
-            return (
-              <Pressable
-                key={tab.key}
-                onPress={() => onPress(tab.key)}
-                style={[
-                  styles.tab,
-                  isActive && styles.activeTab
-                ]}
-              >
-                <Ionicons 
-                  name={tab.icon} 
-                  size={24} 
-                  color={isActive ? "#FFFFFF" : "rgba(255,255,255,0.4)"} 
-                />
-                {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
-              </Pressable>
-            );
-          })}
+          {tabs.map(tab => (
+            <TabButton
+              key={tab.key}
+              tab={tab}
+              isActive={activeKey === tab.key}
+              onPress={() => onPress(tab.key)}
+            />
+          ))}
         </View>
       </BlurView>
     </View>
@@ -76,6 +109,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 24,
+  },
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   activeTab: {
@@ -89,3 +127,4 @@ const styles = StyleSheet.create({
 });
 
 export default FractalGlassTabBar;
+

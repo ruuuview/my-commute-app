@@ -10,6 +10,7 @@ import Animated, {
   FadeInDown, FadeIn, FadeOutLeft, ZoomIn, ZoomOut, useSharedValue, useAnimatedStyle,
   withTiming, withDelay, Easing, runOnJS, useReducedMotion, withSpring
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
@@ -18,7 +19,7 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { TfLStation, FULL_STATIONS } from '../../data/tflStations';
@@ -250,12 +251,6 @@ export default function StationsScreen() {
   }, [pinnedStations.length]);
 
   // Trigger Error feedback when search returns 0 results
-  useEffect(() => {
-    if (query.trim() && results.length === 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      playSound('error');
-    }
-  }, [results.length, query]);
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
@@ -319,6 +314,13 @@ export default function StationsScreen() {
       .map((r) => r.item);
   }, [query, popularStations, cleanFullStations]);
 
+  useEffect(() => {
+    if (query.trim() && results.length === 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      playSound('error');
+    }
+  }, [results.length, query]);
+
   // 4. Instant Selection Toggle with Haptics (No Bottom Sheet)
   const handleRowTap = useCallback((station: TfLStation) => {
     const isPinned = pinnedStations.some(p => p.id === station.id);
@@ -350,6 +352,7 @@ export default function StationsScreen() {
 
   const openBottomSheet = () => {
     setIsSheetOpen(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
     setTimeout(() => {
       inputRef.current?.focus();
@@ -358,6 +361,7 @@ export default function StationsScreen() {
 
   const closeBottomSheet = useCallback(() => {
     Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // 60ms layout stagger: keyboard dismisses first, sheet drops exactly at peak velocity
     setTimeout(() => {
       sheetTranslateY.value = withSpring(sheetHeight, { damping: 20, stiffness: 200 }, (finished) => {
@@ -368,6 +372,20 @@ export default function StationsScreen() {
     }, 60);
     setQuery('');
   }, [sheetTranslateY, sheetHeight]);
+
+  const panGesture = Gesture.Pan()
+    .onChange((event) => {
+      if (event.translationY > 0) {
+        sheetTranslateY.value = event.translationY;
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationY > 120 || event.velocityY > 400) {
+        runOnJS(closeBottomSheet)();
+      } else {
+        sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+      }
+    });
 
   const renderItem = useCallback(({ item }: { item: TfLStation }) => (
     <StationRow
@@ -381,44 +399,77 @@ export default function StationsScreen() {
   ), [pinnedIds, handleRowTap, closeBottomSheet]);
 
   // Shared-axis slide transitions
-  const transitionX = useSharedValue(60);
+  const { width } = useWindowDimensions();
+  const transitionX = useSharedValue(width * 0.55);
+  const transitionScale = useSharedValue(0.96);
   const transitionOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    if (reducedMotion) {
-      transitionX.value = 0;
-      transitionOpacity.value = 1;
-      return;
-    }
-    transitionX.value = withDelay(40, withTiming(0, {
-      duration: 280,
-      easing: Easing.out(Easing.poly(4)),
-    }));
-    transitionOpacity.value = withDelay(40, withTiming(1, {
-      duration: 280,
-      easing: Easing.out(Easing.poly(4)),
-    }));
-  }, [reducedMotion, transitionX, transitionOpacity]);
+  useFocusEffect(
+    useCallback(() => {
+      const dir = useOnboardingStore.getState().navigationDirection;
+      if (dir === 'forward') {
+        transitionX.value = width * 0.55;
+        transitionScale.value = 0.96;
+        transitionOpacity.value = 0;
+      } else {
+        transitionX.value = 0;
+        transitionScale.value = 1;
+        transitionOpacity.value = 1;
+        return;
+      }
+
+      if (reducedMotion) {
+        transitionX.value = 0;
+        transitionScale.value = 1;
+        transitionOpacity.value = 1;
+        return;
+      }
+
+      transitionX.value = withTiming(0, {
+        duration: 320,
+        easing: Easing.out(Easing.poly(4)),
+      });
+      transitionScale.value = withTiming(1.0, {
+        duration: 320,
+        easing: Easing.out(Easing.poly(4)),
+      });
+      transitionOpacity.value = withTiming(1, {
+        duration: 320,
+        easing: Easing.out(Easing.poly(4)),
+      });
+    }, [width, reducedMotion])
+  );
 
   const slideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: transitionX.value }],
+    transform: [
+      { translateX: transitionX.value },
+      { scale: transitionScale.value }
+    ],
     opacity: transitionOpacity.value,
   }));
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    playDeselect();
+    playSound('pop', 0.32); // Backward screen pop sound
+
+    useOnboardingStore.getState().setNavigationDirection('backward');
+
     if (reducedMotion) {
       router.back();
       return;
     }
-    transitionX.value = withTiming(60, {
-      duration: 280,
+
+    transitionX.value = withTiming(width * 0.55, {
+      duration: 320,
+      easing: Easing.out(Easing.poly(4)),
+    });
+    transitionScale.value = withTiming(0.96, {
+      duration: 320,
       easing: Easing.out(Easing.poly(4)),
     });
     transitionOpacity.value = withTiming(0, {
-      duration: 280,
+      duration: 320,
       easing: Easing.out(Easing.poly(4)),
     }, (finished) => {
       if (finished) {
@@ -716,7 +767,7 @@ export default function StationsScreen() {
           {isSheetOpen && (
             <Animated.View style={[StyleSheet.absoluteFillObject, { zIndex: 100 }]} entering={FadeIn.duration(200)} exiting={ZoomOut.duration(150)}>
               {/* Tap Outside Scrim */}
-              <Pressable style={StyleSheet.absoluteFillObject} onPress={closeBottomSheet}>
+              <Pressable style={StyleSheet.absoluteFillObject} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); closeBottomSheet(); }}>
                 <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
               </Pressable>
 
@@ -731,42 +782,47 @@ export default function StationsScreen() {
                   },
                 ]}
               >
-                <View style={styles.sheetHandle} />
+                <GestureDetector gesture={panGesture}>
+                  <View style={{ width: '100%', backgroundColor: 'transparent' }}>
+                    <View style={styles.sheetHandle} />
 
-                <View style={styles.overlayContent}>
-                  {/* Overlay Search Header */}
-                  <View style={styles.overlayHeader}>
-                    <Pressable
-                      onPressIn={overlayCloseAnim.onPressIn}
-                      onPressOut={overlayCloseAnim.onPressOut}
-                      onPress={closeBottomSheet}
-                    >
-                      <Animated.View style={[styles.overlayCloseBtn, overlayCloseAnim.animatedStyle]}>
-                        <Ionicons name="close" size={22} color={TEXT_PRIMARY} />
-                      </Animated.View>
-                    </Pressable>
+                    {/* Overlay Search Header */}
+                    <View style={styles.overlayHeader}>
+                      <Pressable
+                        onPressIn={overlayCloseAnim.onPressIn}
+                        onPressOut={overlayCloseAnim.onPressOut}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); closeBottomSheet(); }}
+                      >
+                        <Animated.View style={[styles.overlayCloseBtn, overlayCloseAnim.animatedStyle]}>
+                          <Ionicons name="close" size={22} color={TEXT_PRIMARY} />
+                        </Animated.View>
+                      </Pressable>
 
-                    <View style={styles.overlaySearchWrap}>
-                      <Ionicons name="search-outline" size={16} color={TEXT_SECONDARY} style={styles.searchIcon} />
-                      <TextInput
-                        ref={inputRef}
-                        value={query}
-                        onChangeText={setQuery}
-                        placeholder="Search 471 stations..."
-                        placeholderTextColor={TEXT_SKIP}
-                        autoFocus
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                        returnKeyType="search"
-                        style={styles.searchInput}
-                      />
-                      {query.length > 0 && (
-                        <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                          <Ionicons name="close-circle" size={18} color={TEXT_SECONDARY} style={styles.clearIcon} />
-                        </Pressable>
-                      )}
+                      <View style={styles.overlaySearchWrap}>
+                        <Ionicons name="search-outline" size={16} color={TEXT_SECONDARY} style={styles.searchIcon} />
+                        <TextInput
+                          ref={inputRef}
+                          value={query}
+                          onChangeText={setQuery}
+                          placeholder="Search 471 stations..."
+                          placeholderTextColor={TEXT_SKIP}
+                          autoFocus
+                          autoCorrect={false}
+                          autoCapitalize="none"
+                          returnKeyType="search"
+                          style={styles.searchInput}
+                        />
+                        {query.length > 0 && (
+                          <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Ionicons name="close-circle" size={18} color={TEXT_SECONDARY} style={styles.clearIcon} />
+                          </Pressable>
+                        )}
+                      </View>
                     </View>
                   </View>
+                </GestureDetector>
+
+                <View style={styles.overlayContent}>
 
                   {/* Result Count Label */}
                   <Text style={styles.sectionLabel}>

@@ -53,19 +53,21 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
   const onPressIn = useCallback(() => {
     if (disabled || reducedMotion) return;
 
-    // Direct user tactile feedback pairings (Haptic always fired BEFORE playSound)
-    try {
-      if (mappedKey === 'BACK_BTN' || mappedKey === 'LINE_PILL_DESELECT') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        playSound('deselect');
-      } else if (mappedKey === 'SKIP_BTN') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Softer skip - silent by design
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        playSound('select');
+    const isPill = mappedKey === 'LINE_PILL_SELECT' || mappedKey === 'LINE_PILL_DESELECT';
+    if (!isPill) {
+      try {
+        if (mappedKey === 'BACK_BTN') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          playSound('deselect');
+        } else if (mappedKey === 'SKIP_BTN') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } else {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          playSound('select');
+        }
+      } catch (e) {
+        console.log('Error triggering press feedback:', e);
       }
-    } catch (e) {
-      console.log('Error triggering press feedback:', e);
     }
 
     const target = config.scaleDown;

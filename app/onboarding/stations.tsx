@@ -557,7 +557,7 @@ export default function StationsScreen() {
                       playDeselect();
                       removeStation(station.id);
                     }}
-                    isEditing={true}
+                    isEditing={false}
                     autoExpand={false}
                     hideCard={query.length > 0}
                   />

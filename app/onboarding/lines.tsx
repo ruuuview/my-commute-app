@@ -182,9 +182,9 @@ const Pill = React.memo(function Pill({
   const selectedShadowStyle = isSelected ? {
     shadowColor: line.color,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
   } : {};
 
   return (
@@ -703,27 +703,6 @@ export default function LinesScreen() {
         start={MASTER_BACKGROUND_GRADIENT.start}
         end={MASTER_BACKGROUND_GRADIENT.end}
         style={StyleSheet.absoluteFillObject}
-      />
-      {/* Layer 3: Top-Left Accent (45% Height, diagonal flow) */}
-      <LinearGradient
-        colors={['#001E5A', 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '45%' }}
-      />
-      {/* Layer 2: Top-Right Bloom (50% Height, diagonal flow) */}
-      <LinearGradient
-        colors={['#002470', 'transparent']}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={{ position: 'absolute', top: 0, right: 0, width: '100%', height: '50%' }}
-      />
-      {/* Layer 1: Top-Center Glow (60% Height, vertical flow) */}
-      <LinearGradient
-        colors={['#003B8E', 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%' }}
       />
       {/* Universal Dashboard Edge Overlay */}
       <LinearGradient

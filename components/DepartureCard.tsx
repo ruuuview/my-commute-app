@@ -1,12 +1,14 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from 'react-native-reanimated';
+import { FULL_STATIONS } from '../data/tflStations';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
+const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
 
 const TFL_COLORS: Record<string, string> = {
   bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
@@ -33,11 +35,14 @@ interface DepartureCardProps {
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
   autoExpand?: boolean;
+  hideCard?: boolean;
 }
 
 const getDepTimeStyle = (minutes: number | 'now') => {
   return { color: 'rgba(255,255,255,0.9)', fontWeight: '700' as const };
 };
+
+const COLLAPSED_HEIGHT = 56;
 
 export default function DepartureCard({
   stationId,
@@ -47,14 +52,16 @@ export default function DepartureCard({
   onDelete,
   onLongPress,
   autoExpand = false,
+  hideCard = false,
 }: DepartureCardProps) {
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(autoExpand);
   
-  const [contentHeight, setContentHeight] = useState(52);
-  const heightVal = useSharedValue(autoExpand ? 160 : 52);
+  const [contentHeight, setContentHeight] = useState(160);
+  const heightVal = useSharedValue(autoExpand ? 160 : COLLAPSED_HEIGHT);
   const chevronRotation = useSharedValue(autoExpand ? 180 : 0);
+  const arrivalsOpacity = useSharedValue(autoExpand ? 1 : 0);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async () => {
@@ -101,23 +108,59 @@ export default function DepartureCard({
 
   const onInnerLayout = (event: any) => {
     const { height } = event.nativeEvent.layout;
-    if (height > 52) {
+    if (height > COLLAPSED_HEIGHT) {
       setContentHeight(height);
     }
   };
 
-  useEffect(() => {
-    const targetHeight = isExpanded ? contentHeight : 52;
-    heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
-    chevronRotation.value = withSpring(isExpanded ? 180 : 0, { damping: 18, stiffness: 200 });
-  }, [isExpanded, contentHeight, heightVal, chevronRotation]);
+  // Determine line color dot for the collapsed view
+  const activeLineColor = useMemo(() => {
+    if (arrivals.length > 0) return arrivals[0].lineColor;
+    const st = FULL_STATIONS.find(s => s.id === stationId);
+    const firstLine = st?.lines?.[0];
+    return firstLine ? (TFL_COLORS[firstLine] ?? '#888') : '#888';
+  }, [arrivals, stationId]);
 
-  const containerStyle = useAnimatedStyle(() => ({
-    height: heightVal.value,
-  }));
+  // Format next time string for the collapsed view
+  const nextTimeText = useMemo(() => {
+    if (loading) return '...';
+    if (arrivals.length === 0) return 'No departures';
+    const a = arrivals[0];
+    return a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`;
+  }, [loading, arrivals]);
+
+  useEffect(() => {
+    const targetHeight = hideCard ? 0 : (isExpanded ? contentHeight : COLLAPSED_HEIGHT);
+    heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
+    chevronRotation.value = withSpring(isExpanded && !hideCard ? 180 : 0, { damping: 22, stiffness: 240 });
+    
+    if (isExpanded && !hideCard) {
+      arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
+    } else {
+      arrivalsOpacity.value = withTiming(0, { duration: 100 });
+    }
+  }, [isExpanded, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard]);
+
+  const containerStyle = useAnimatedStyle(() => {
+    const opacityVal = withTiming(hideCard ? 0 : 1, { duration: 150 });
+    const marginVal = withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
+    const borderVal = withTiming(hideCard ? 0 : 1, { duration: 100 });
+
+    return {
+      height: heightVal.value,
+      opacity: opacityVal,
+      marginBottom: marginVal,
+      borderWidth: borderVal,
+    };
+  });
 
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${chevronRotation.value}deg` }],
+  }));
+
+
+  const arrivalsStyle = useAnimatedStyle(() => ({
+    opacity: arrivalsOpacity.value,
   }));
 
   return (
@@ -129,28 +172,32 @@ export default function DepartureCard({
           style={styles.headerPressable}
         >
           <View style={styles.header}>
-            <View style={styles.uBadge}>
-              <Text style={styles.uText}>U</Text>
-            </View>
+            <View style={[styles.arrivalDot, { backgroundColor: activeLineColor, width: 10, height: 10, borderRadius: 5 }]} />
+            
             <View style={styles.titleColumn}>
               <Text style={styles.stationName} numberOfLines={1}>
                 {cleanName}
               </Text>
-              {role && (
+              {role && !isExpanded && (
                 <Text style={styles.roleBadge}>
-                  {role.toUpperCase()} STATION
+                  {role.toUpperCase()}
                 </Text>
               )}
             </View>
 
             {!isEditing && (
-              <Animated.View style={chevronStyle}>
-                <Ionicons
-                  name="chevron-down"
-                  size={16}
-                  color="rgba(255,255,255,0.4)"
-                />
-              </Animated.View>
+              <View style={styles.headerRight}>
+                <Text style={styles.nextTimeText}>
+                  {nextTimeText}
+                </Text>
+                <Animated.View style={chevronStyle}>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color="rgba(255,255,255,0.3)"
+                  />
+                </Animated.View>
+              </View>
             )}
 
             {isEditing && onDelete && (
@@ -167,7 +214,7 @@ export default function DepartureCard({
           </View>
         </Pressable>
 
-        <View style={styles.arrivalsContainer}>
+        <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
@@ -200,7 +247,7 @@ export default function DepartureCard({
               );
             })
           )}
-        </View>
+        </Animated.View>
       </View>
     </Animated.View>
   );
@@ -213,7 +260,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 0,
     marginBottom: 12,
     overflow: 'hidden', // Accordion clip!
   },
@@ -221,29 +268,21 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerPressable: {
+    height: COLLAPSED_HEIGHT,
+    justifyContent: 'center',
     width: '100%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     gap: 10,
-  },
-  uBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 3,
-    backgroundColor: '#003688',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  uText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 11,
-    color: '#FFF',
   },
   titleColumn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   stationName: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -254,12 +293,29 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 8,
     color: TEXT_SECONDARY,
-    marginTop: 2,
     letterSpacing: 0.8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nextTimeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+    color: DEPARTURE_COUNTDOWN,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    marginRight: 8,
   },
   arrivalsContainer: {
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 0,
+    paddingTop: 8,
+    paddingBottom: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },
@@ -335,3 +391,4 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 });
+

@@ -5,14 +5,14 @@ import {
   View, Text, StyleSheet, ScrollView, useWindowDimensions, Image, Pressable,
 } from 'react-native';
 import Animated, {
-  FadeInDown, FadeIn, useReducedMotion, useSharedValue, useAnimatedStyle,
-  withTiming, withDelay, Easing, runOnJS, ZoomIn, ZoomOut,
+  FadeInDown, FadeIn, useSharedValue, useAnimatedStyle,
+  withTiming, Easing, runOnJS, interpolateColor, withRepeat, withSequence, withSpring
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+
 import * as SplashScreen from 'expo-splash-screen';
 import * as Haptics from 'expo-haptics';
 import {
-  useFonts, SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
+  useFonts, SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,8 +22,10 @@ import ProgressDots from '../../components/ProgressDots';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTapSound } from '../../hooks/useTapSound';
 import { playSound } from '../../utils/sound';
-import DisruptionTicker from '../../components/DisruptionTicker';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { useLineData } from '../../hooks/useLineData';
+import { useLineDataStore } from '../../store/lineDataStore';
+
 
 import { MASTER_BACKGROUND_GRADIENT, DASHBOARD_OVERLAY_GRADIENT } from '../../theme/colors';
 
@@ -47,11 +49,19 @@ const TFL_LINES = [
   { id: 'waterloo-city',    name: 'Waterloo & City',    color: '#95CDBA' },
 ];
 
+const hexToRgba = (hex: string, alpha: number) => {
+  if (hex.startsWith('rgba')) return hex;
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 const MAX     = 5;
 const H_PAD   = 16;
 const GAP     = 10;
 
-// ─── Single Pill ─────────────────────────────────────────────────────────────
 const Pill = React.memo(function Pill({
   line,
   isSelected,
@@ -61,6 +71,8 @@ const Pill = React.memo(function Pill({
   delay,
   playSelect,
   playDeselect,
+  statusSeverity,
+  isFetching,
 }: {
   line: typeof TFL_LINES[number];
   isSelected: boolean;
@@ -70,6 +82,8 @@ const Pill = React.memo(function Pill({
   delay: number;
   playSelect: () => void;
   playDeselect: () => void;
+  statusSeverity?: number;
+  isFetching?: boolean;
 }) {
   const disabled = !isSelected && isAtLimit;
 
@@ -94,16 +108,57 @@ const Pill = React.memo(function Pill({
   const { onPressIn, onPressOut, animatedStyle } = usePressAnimation(configKey, disabled);
 
   const isNorthern = line.id === 'northern';
-  const bgColor = isNorthern
-    ? (isSelected ? '#1A1A1A' : 'rgba(255,255,255,0.06)')
-    : (isSelected ? `${line.color}4D` : `${line.color}26`);
-  const borderColor = isNorthern
-    ? (isSelected ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)')
-    : (isSelected ? `${line.color}CC` : `${line.color}66`);
-  const borderWidth = isSelected ? 2 : 1;
+  const bgColor = isSelected
+    ? (isNorthern ? '#1A1A1A' : hexToRgba(line.color, 0.18))
+    : 'rgba(255, 255, 255, 0.07)';
 
-  const reducedMotion = useReducedMotion();
+  // Determine base border color — line brand color only, no status severity routing
+  const baseBorderColor = isSelected
+    ? (isNorthern 
+        ? 'rgba(255, 255, 255, 0.35)' 
+        : hexToRgba(line.color, 0.7))
+    : 'rgba(255, 255, 255, 0.10)';
 
+  const borderWidth = isSelected ? 1.5 : 1;
+
+  // Accent color — always line brand color, no status severity routing
+  const accentColor = line.color;
+
+  const accentOpacity = isSelected ? 0.9 : 0.4;
+
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure click springs execute!
+
+  // Shimmer Border Animation
+  const shimmerProgress = useSharedValue(0);
+  React.useEffect(() => {
+    if (isFetching && isSelected) {
+      shimmerProgress.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 600, easing: Easing.linear }),
+          withTiming(0, { duration: 600, easing: Easing.linear })
+        ),
+        -1,
+        true
+      );
+    } else {
+      shimmerProgress.value = 0;
+    }
+  }, [isFetching, isSelected, shimmerProgress]);
+
+  const borderAnimatedStyle = useAnimatedStyle(() => {
+    if (shimmerProgress.value > 0) {
+      return {
+        borderColor: interpolateColor(
+          shimmerProgress.value,
+          [0, 1],
+          [baseBorderColor, 'rgba(255, 255, 255, 0.75)']
+        ),
+      };
+    }
+    return {
+      borderColor: baseBorderColor,
+    };
+  });
   // Radial Glow Bloom Animation
   const glowProgress = useSharedValue(isSelected ? 1 : 0);
   React.useEffect(() => {
@@ -149,10 +204,20 @@ const Pill = React.memo(function Pill({
         style={{
           borderRadius: 16,
           overflow: 'visible',
-          opacity: disabled ? 0.35 : 1,
+          opacity: 1,
         }}
       >
-        <Animated.View style={[animatedStyle, { borderRadius: 16, overflow: 'hidden' }]}>
+        <Animated.View
+          style={[
+            animatedStyle,
+            borderAnimatedStyle,
+            {
+              borderRadius: 16,
+              overflow: 'hidden',
+              borderWidth: borderWidth,
+            }
+          ]}
+        >
           {/* Radial Glow Bloom Backing */}
           <Animated.View
             style={[
@@ -164,18 +229,29 @@ const Pill = React.memo(function Pill({
               glowStyle,
             ]}
           />
-          <BlurView
-            intensity={30}
-            tint="dark"
+          <View
             style={[
               styles.pillBlur,
               {
                 backgroundColor: bgColor,
-                borderColor: borderColor,
-                borderWidth: borderWidth,
               },
             ]}
           >
+            {/* Left Brand Color Accent */}
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: '20%',
+                width: 3,
+                height: '60%',
+                backgroundColor: accentColor,
+                borderRadius: 2,
+                opacity: accentOpacity,
+              }}
+            />
+
+
             <Text
               style={styles.pillText}
               numberOfLines={1}
@@ -186,23 +262,324 @@ const Pill = React.memo(function Pill({
             >
               {line.name}
             </Text>
-
-            {isSelected && (
-              <Animated.View
-                entering={ZoomIn.springify().damping(10).stiffness(180)}
-                exiting={ZoomOut.duration(100)}
-                style={styles.checkmarkIcon}
-              >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={18}
-                  color="rgba(255,255,255,0.95)"
-                />
-              </Animated.View>
-            )}
-          </BlurView>
+          </View>
         </Animated.View>
       </Pressable>
+    </Animated.View>
+  );
+});
+
+const getElapsedTime = (timestamp: number) => {
+  if (!timestamp) return 'Never';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 5) return 'Just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ago`;
+};
+
+const getStatusDetails = (severity: number, statusText: string) => {
+  if (severity === 5) {
+    return {
+      bg: 'rgba(242,160,2,0.15)',
+      border: 'rgba(242,160,2,0.4)',
+      text: '#F2A002',
+      label: 'Minor delays',
+    };
+  } else if (severity === 9 || severity === 20) {
+    const isSuspended = (statusText || '').toLowerCase().includes('suspended') || severity === 20;
+    return {
+      bg: 'rgba(227,32,23,0.15)',
+      border: 'rgba(227,32,23,0.4)',
+      text: '#E32017',
+      label: isSuspended ? 'Suspended' : 'Severe delays',
+    };
+  } else {
+    return {
+      bg: 'rgba(76,175,80,0.15)',
+      border: 'rgba(76,175,80,0.4)',
+      text: '#4CAF50',
+      label: 'Good service',
+    };
+  }
+};
+
+const StatusRow = React.memo(function StatusRow({
+  item,
+  index,
+  lastFetchTime,
+}: {
+  item: {
+    id: string;
+    name: string;
+    color: string;
+    status: string;
+    statusSeverity: number;
+    reason: string;
+  };
+  index: number;
+  lastFetchTime: number;
+}) {
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure entering animations play!
+  const translateY = useSharedValue(8);
+  const opacity = useSharedValue(0);
+
+  React.useEffect(() => {
+    if (reducedMotion) {
+      translateY.value = 0;
+      opacity.value = 1;
+      return;
+    }
+    const delay = index * 60;
+    
+    translateY.value = withSequence(
+      withTiming(8, { duration: 0 }),
+      withTiming(8, { duration: delay }),
+      withSpring(0, { damping: 15, stiffness: 120 })
+    );
+    opacity.value = withSequence(
+      withTiming(0, { duration: 0 }),
+      withTiming(0, { duration: delay }),
+      withTiming(1, { duration: 250 })
+    );
+  }, [index, reducedMotion, opacity, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  const details = getStatusDetails(item.statusSeverity, item.status);
+  
+  const [elapsed, setElapsed] = React.useState('Just now');
+  React.useEffect(() => {
+    setElapsed(getElapsedTime(lastFetchTime));
+    const interval = setInterval(() => {
+      setElapsed(getElapsedTime(lastFetchTime));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [lastFetchTime]);
+
+  return (
+    <Animated.View style={[styles.statusRow, animatedStyle]}>
+      <View style={styles.statusRowHeader}>
+        <View style={styles.statusRowLeft}>
+          <View style={[styles.lineDot, { backgroundColor: item.color }]} />
+          <Text style={styles.lineName}>{item.name}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: details.bg, borderColor: details.border }]}>
+          <Text style={[styles.statusBadgeText, { color: details.text }]}>{details.label}</Text>
+        </View>
+      </View>
+      
+      {item.reason ? (
+        <Text style={styles.statusReason} numberOfLines={3}>
+          {item.reason}
+        </Text>
+      ) : null}
+      
+      <Text style={styles.statusTime}>
+        Last updated: {elapsed}
+      </Text>
+    </Animated.View>
+  );
+});
+
+const LiveStatusStrip = React.memo(function LiveStatusStrip({
+  selectedLines,
+  lineStatuses,
+  lastFetchTime,
+}: {
+  selectedLines: string[];
+  lineStatuses: Record<string, any>;
+  lastFetchTime: number;
+}) {
+  const [contentHeight, setContentHeight] = React.useState(0);
+  const heightVal = useSharedValue(0);
+  const opacityVal = useSharedValue(0);
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure status strip slides smoothly!
+
+  React.useEffect(() => {
+    const hasSelection = selectedLines.length > 0;
+    const targetHeight = hasSelection ? contentHeight : 0;
+    const targetOpacity = hasSelection ? 1 : 0;
+
+    if (reducedMotion) {
+      heightVal.value = targetHeight;
+      opacityVal.value = targetOpacity;
+      return;
+    }
+
+    heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 200 });
+    opacityVal.value = withSpring(targetOpacity, { damping: 22, stiffness: 200 });
+  }, [selectedLines.length, contentHeight, reducedMotion, heightVal, opacityVal]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: heightVal.value,
+    opacity: opacityVal.value,
+    overflow: 'hidden',
+  }));
+
+  if (selectedLines.length === 0) return null;
+
+  const selectedLinesData = selectedLines.map(id => {
+    const lineInfo = TFL_LINES.find(l => l.id === id);
+    const statusInfo = lineStatuses[id];
+    return {
+      id,
+      name: lineInfo?.name || id,
+      color: lineInfo?.color || '#FFFFFF',
+      status: statusInfo?.status || 'Good Service',
+      statusSeverity: statusInfo?.status_severity ?? 1,
+      reason: statusInfo?.reason || '',
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.statusStripContainer, animatedStyle]}>
+      <View
+        style={styles.statusStripBlur}
+      >
+        <View
+          style={styles.statusStripContent}
+          onLayout={(e) => {
+            setContentHeight(e.nativeEvent.layout.height);
+          }}
+        >
+          <Text style={styles.statusStripTitle}>LIVE LINE STATUS</Text>
+          {selectedLinesData.map((item, index) => (
+            <StatusRow
+              key={item.id}
+              item={item}
+              index={index}
+              lastFetchTime={lastFetchTime}
+            />
+          ))}
+        </View>
+      </View>
+    </Animated.View>
+  );
+});
+
+const WatchingBadge = React.memo(function WatchingBadge({
+  selectedLines,
+  lineStatuses,
+}: {
+  selectedLines: string[];
+  lineStatuses: Record<string, any>;
+}) {
+  const count = selectedLines.length;
+  const show = count > 0;
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure watching badge springs!
+
+  const heightVal = useSharedValue(0);
+  const opacityVal = useSharedValue(0);
+  const marginTopVal = useSharedValue(0);
+
+  React.useEffect(() => {
+    const targetHeight = show ? 32 : 0;
+    const targetOpacity = show ? 1 : 0;
+    const targetMargin = show ? 12 : 0;
+
+    if (reducedMotion) {
+      heightVal.value = targetHeight;
+      opacityVal.value = targetOpacity;
+      marginTopVal.value = targetMargin;
+      return;
+    }
+
+    heightVal.value = withSpring(targetHeight, { damping: 20, stiffness: 180 });
+    opacityVal.value = withSpring(targetOpacity, { damping: 20, stiffness: 180 });
+    marginTopVal.value = withSpring(targetMargin, { damping: 20, stiffness: 180 });
+  }, [show, reducedMotion, heightVal, marginTopVal, opacityVal]);
+
+  const badgeWrapperStyle = useAnimatedStyle(() => ({
+    height: heightVal.value,
+    opacity: opacityVal.value,
+    marginTop: marginTopVal.value,
+    overflow: 'hidden',
+  }));
+
+  const selectedLinesStatuses = selectedLines.map(id => lineStatuses[id]);
+  const totalDisruptions = selectedLinesStatuses.filter(s => s && s.status_severity > 1).length;
+  const maxSeverity = selectedLinesStatuses.reduce((max, s) => {
+    if (!s) return max;
+    return Math.max(max, s.status_severity);
+  }, 1);
+
+  let themeColor = '#4CAF50';
+  let badgeBg = 'rgba(76, 175, 80, 0.10)';
+  let badgeBorder = 'rgba(76, 175, 80, 0.28)';
+
+  if (totalDisruptions > 0) {
+    if (maxSeverity === 9 || maxSeverity === 20) {
+      themeColor = '#E32017';
+      badgeBg = 'rgba(227, 32, 23, 0.10)';
+      badgeBorder = 'rgba(227, 32, 23, 0.28)';
+    } else {
+      themeColor = '#F2A002';
+      badgeBg = 'rgba(242, 160, 2, 0.10)';
+      badgeBorder = 'rgba(242, 160, 2, 0.28)';
+    }
+  }
+
+  let labelText = '';
+  if (totalDisruptions === 0) {
+    if (count <= 2) {
+      const names = selectedLines.map(id => TFL_LINES.find(l => l.id === id)?.name || id);
+      labelText = `Watching ${names.join(' · ')}`;
+    } else {
+      labelText = `Watching ${count} lines · All clear`;
+    }
+  } else {
+    labelText = `Watching ${count} line${count > 1 ? 's' : ''} · ${totalDisruptions} disruption${totalDisruptions > 1 ? 's' : ''} detected`;
+  }
+
+  const pulseVal = useSharedValue(0.4);
+  React.useEffect(() => {
+    pulseVal.value = withRepeat(
+      withSequence(
+        withTiming(1.0, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.4, { duration: 800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, [pulseVal]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: pulseVal.value,
+  }));
+
+  const animatedBgStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: withTiming(badgeBg, { duration: 300 }),
+      borderColor: withTiming(badgeBorder, { duration: 300 }),
+    };
+  });
+
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      color: withTiming(themeColor, { duration: 300 }),
+    };
+  });
+
+  const animatedDotStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: withTiming(themeColor, { duration: 300 }),
+    };
+  });
+
+  if (count === 0) return null;
+
+  return (
+    <Animated.View style={[badgeWrapperStyle]} pointerEvents={show ? 'auto' : 'none'}>
+      <Animated.View style={[styles.watchingBadge, animatedBgStyle]}>
+        <Animated.View style={[styles.pulseDot, animatedDotStyle, dotStyle]} />
+        <Animated.Text style={[styles.watchingBadgeText, animatedTextStyle]} numberOfLines={1}>
+          {labelText}
+        </Animated.Text>
+      </Animated.View>
     </Animated.View>
   );
 });
@@ -218,9 +595,45 @@ export default function LinesScreen() {
   const canContinue   = selectedLines.length > 0;
   const { playSelect, playDeselect } = useTapSound();
 
+  const { fetchAllLines } = useLineData();
+  const isLoadingStatuses = useLineDataStore(state => state.isLoading);
+  const lineStatuses = useLineDataStore(state => state.lines);
+  const lastFetchTime = useLineDataStore(state => state.lastFetchTime);
+
+  // Pre-hydrate TfL statuses on mount
+  useEffect(() => {
+    fetchAllLines();
+  }, [fetchAllLines]);
+
+  const handleToggleLine = useCallback((id: string) => {
+    toggleLine(id);
+    fetchAllLines(true);
+  }, [toggleLine, fetchAllLines]);
+
+  const [subText, setSubText] = React.useState("We're already watching them.");
+  const subtitleOpacity = useSharedValue(0.55);
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure crossfades and shared-axis slides play!
+
+  useEffect(() => {
+    const targetText = selectedLines.length > 0 ? "Live. Right now." : "We're already watching them.";
+    if (subText !== targetText) {
+      if (reducedMotion) {
+        setSubText(targetText);
+        return;
+      }
+      subtitleOpacity.value = withTiming(0, { duration: 120 }, (finished) => {
+        if (finished) {
+          runOnJS(setSubText)(targetText);
+          subtitleOpacity.value = withTiming(0.55, { duration: 120 });
+        }
+      });
+    }
+  }, [selectedLines.length, subText, reducedMotion, subtitleOpacity]);
+
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
   });
   useEffect(() => { if (fontsLoaded) SplashScreen.hideAsync(); }, [fontsLoaded]);
@@ -234,7 +647,6 @@ export default function LinesScreen() {
   const transitionX = useSharedValue(0);
   const transitionOpacity = useSharedValue(1);
   const transitionScale = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
 
   useFocusEffect(
     useCallback(() => {
@@ -271,7 +683,7 @@ export default function LinesScreen() {
         duration: 320,
         easing: Easing.out(Easing.poly(4)),
       });
-    }, [width, reducedMotion])
+    }, [width, reducedMotion, transitionOpacity, transitionScale, transitionX])
   );
 
   const slideStyle = useAnimatedStyle(() => ({
@@ -331,11 +743,9 @@ export default function LinesScreen() {
       </View>
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
+
       {/* Status Bar / Notch Padding Spacer */}
       <View style={{ height: insets.top }} />
-
-      {/* Live Disruption Ticker Marquee */}
-      <DisruptionTicker />
 
       {/* Progress dots — pinned below status bar */}
       <Animated.View style={[{ flex: 1 }, slideStyle]}>
@@ -346,9 +756,10 @@ export default function LinesScreen() {
         <Text style={styles.title} numberOfLines={2} allowFontScaling maxFontSizeMultiplier={1.3}>
           {'Which lines\ndo you ride?'}
         </Text>
-        <Text style={styles.subtitle} allowFontScaling maxFontSizeMultiplier={1.4}>
-          {"We're already watching them."}
-        </Text>
+        <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]} allowFontScaling maxFontSizeMultiplier={1.4}>
+          {subText}
+        </Animated.Text>
+        <WatchingBadge selectedLines={selectedLines} lineStatuses={lineStatuses} />
       </View>
 
       {/* Grid ScrollView */}
@@ -367,14 +778,21 @@ export default function LinesScreen() {
               line={line}
               isSelected={selectedLines.includes(line.id)}
               isAtLimit={isAtLimit}
-              onToggle={toggleLine}
+              onToggle={handleToggleLine}
               pillWidth={pillWidth}
               delay={index * 35}
               playSelect={playSelect}
               playDeselect={playDeselect}
+              statusSeverity={lineStatuses[line.id]?.status_severity}
+              isFetching={isLoadingStatuses}
             />
           ))}
         </View>
+        <LiveStatusStrip
+          selectedLines={selectedLines}
+          lineStatuses={lineStatuses}
+          lastFetchTime={lastFetchTime}
+        />
       </ScrollView>
 
       </Animated.View>
@@ -460,16 +878,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontWeight: '600',
     color: 'rgba(255,255,255,0.95)',
-    letterSpacing: -0.5,
+    letterSpacing: 0.3,
     lineHeight: 38,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255,255,255,0.60)',
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.55)',
   },
   grid: {
     paddingHorizontal: H_PAD,
@@ -530,4 +950,102 @@ const styles = StyleSheet.create({
   },
   checkmarkIcon: { marginRight: 14 },
   flex1: { flex: 1 },
+  watchingBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    gap: 8,
+    overflow: 'hidden',
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  watchingBadgeText: {
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+  statusStripContainer: {
+    marginTop: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  statusStripBlur: {
+    padding: 16,
+  },
+  statusStripContent: {
+    gap: 12,
+  },
+  statusStripTitle: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.4)',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  statusRow: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 6,
+  },
+  statusRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statusRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  lineName: {
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontWeight: '700',
+  },
+  statusReason: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.55)',
+    lineHeight: 15,
+  },
+  statusTime: {
+    fontSize: 9,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.35)',
+    marginTop: 2,
+  },
 });

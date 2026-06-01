@@ -1,7 +1,7 @@
 // components/ProgressDots.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, ViewStyle, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface Props {
   currentStep: number; // 0-indexed
@@ -9,29 +9,23 @@ interface Props {
   style?: ViewStyle;
 }
 
-const DOT_SIZE = 8;
-const GAP = 8;
-const ACTIVE_WIDTH = 24;
-
-export default function ProgressDots({ currentStep, totalSteps, style }: Props) {
-  const activeIndex = useSharedValue(currentStep);
-
-  useEffect(() => {
-    activeIndex.value = withSpring(currentStep, { damping: 18, stiffness: 160 });
-  }, [currentStep, activeIndex]);
-
-  const activeStyle = useAnimatedStyle(() => {
-    const stepDistance = DOT_SIZE + GAP;
-    // Align active pill center (12px) with static dot center (4px)
-    // Static dot center = activeIndex * stepDistance + 4
-    // Active pill center = translateX + 12
-    // translateX = activeIndex * stepDistance - 8
-    const translateX = activeIndex.value * stepDistance - 8;
+function ProgressDot({ isActive }: { isActive: boolean }) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const width = withSpring(isActive ? 20 : 8, { damping: 14, stiffness: 180 });
+    const backgroundColor = withSpring(
+      isActive ? 'rgba(255, 255, 255, 0.90)' : 'rgba(255, 255, 255, 0.25)',
+      { damping: 14, stiffness: 180 }
+    );
     return {
-      transform: [{ translateX }],
+      width,
+      backgroundColor,
     };
   });
 
+  return <Animated.View style={[styles.dot, animatedStyle]} />;
+}
+
+export default function ProgressDots({ currentStep, totalSteps, style }: Props) {
   return (
     <View
       style={[styles.container, style]}
@@ -40,13 +34,9 @@ export default function ProgressDots({ currentStep, totalSteps, style }: Props) 
       accessibilityValue={{ min: 0, max: totalSteps - 1, now: currentStep }}
     >
       <View style={styles.dotsRow}>
-        {/* Background static dots */}
         {Array.from({ length: totalSteps }, (_, i) => (
-          <View key={i} style={styles.staticDot} />
+          <ProgressDot key={i} isActive={i === currentStep} />
         ))}
-
-        {/* Sliding active overlay dot */}
-        <Animated.View style={[styles.activePill, activeStyle]} />
       </View>
     </View>
   );
@@ -61,22 +51,12 @@ const styles = StyleSheet.create({
   dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'relative',
-    gap: GAP,
+    gap: 6, // Gap: 6px
   },
-  staticDot: {
-    width: DOT_SIZE,
-    height: DOT_SIZE,
-    borderRadius: DOT_SIZE / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  activePill: {
-    position: 'absolute',
-    left: 0,
-    width: ACTIVE_WIDTH,
-    height: DOT_SIZE,
-    borderRadius: DOT_SIZE / 2,
-    backgroundColor: '#FFFFFF',
+  dot: {
+    height: 3, // height 3px
+    borderRadius: 1.5, // pill shape
   },
 });
+
 

@@ -1,17 +1,17 @@
 // theme/colors.ts
-export const MASTER_BACKGROUND_GRADIENT = {
-  // Luminous TfL deep navy base grid bleeding down to absolute pitch black
-  colors: ['#002D7A', '#001E5A', '#000F2E', '#000408', '#000204'] as const,
-  locations: [0, 0.22, 0.50, 0.78, 1.0] as const,
-  start: { x: 0, y: 0 },
+export const MASTER_BACKGROUND_GRADIENT = {  
+  // Vivid & Mid TfL blue variations held all the way through the upper 75%
+  colors: ['#0066CC', '#0055B3', '#003B8E', '#001240', '#000204'] as const,  
+  locations: [0, 0.30, 0.75, 0.88, 1.0] as const,  
+  start: { x: 0, y: 0 },  
   end: { x: 0, y: 1 },
 };
 
-export const SCREEN_2_BACKGROUND_GRADIENT = {
-  // Screen 2 deep transit navy base stack
-  colors: ['#001E6B', '#001245', '#00091E', '#000306', '#000204'] as const,
-  locations: [0, 0.25, 0.52, 0.78, 1.0] as const,
-  start: { x: 0, y: 0 },
+export const SCREEN_2_BACKGROUND_GRADIENT = {  
+  // Symmetrical screen 2 depth curve forcing a steep, deliberate drop to absolute black
+  colors: ['#005FBF', '#004EA6', '#003380', '#001038', '#000204'] as const,  
+  locations: [0, 0.32, 0.75, 0.89, 1.0] as const,  
+  start: { x: 0, y: 0 },  
   end: { x: 0, y: 1 },
 };
 

@@ -5,14 +5,12 @@ import {
   View, Text, StyleSheet, TextInput, ScrollView,
   Pressable, Keyboard, useWindowDimensions, Image,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import Animated, {
-  FadeInDown, FadeIn, FadeOutLeft, ZoomIn, ZoomOut, useSharedValue, useAnimatedStyle,
-  withTiming, withDelay, Easing, runOnJS, useReducedMotion, withSpring
+  FadeInDown, FadeIn, ZoomIn, ZoomOut, useSharedValue, useAnimatedStyle,
+  withTiming, Easing, runOnJS, withSpring
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { BlurView } from 'expo-blur';
 import Fuse from 'fuse.js';
+
 import * as Haptics from 'expo-haptics';
 import {
   useFonts, SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
@@ -42,7 +40,6 @@ const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
 const TEXT_SKIP      = 'rgba(255,255,255,0.35)';
 const ROW_ADDED_BG   = 'rgba(255,255,255,0.06)';
-const CHIP_BG        = 'rgba(255,255,255,0.10)';
 const SEARCH_BORDER  = 'rgba(255,255,255,0.12)';
 
 // ─── Line colour map for dots in search results ───────────────────────────────
@@ -186,48 +183,12 @@ const StationRow = React.memo(function StationRow({
     </Pressable>
   );
 });
-// ─── Pinned Station Chip ──────────────────────────────────────────────────────────
-interface PinnedStationChipProps {
-  station: { id: string; name: string };
-  displayZone: string;
-  onPressRemove: () => void;
-}
 
-const PinnedStationChip = React.memo(function PinnedStationChip({ station, displayZone, onPressRemove }: PinnedStationChipProps) {
-  const removeBtnAnim = usePressAnimation('nav_item');
-  return (
-    <Animated.View
-      exiting={FadeOutLeft.duration(150)}
-      style={styles.pinnedChip}
-    >
-      <Ionicons name="checkmark" size={12} color={TEXT_PRIMARY} style={{ marginRight: 4 }} />
-      <Text
-        style={styles.pinnedChipText}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.8}
-      >
-        {station.name}{displayZone}
-      </Text>
-      <Pressable
-        onPressIn={removeBtnAnim.onPressIn}
-        onPressOut={removeBtnAnim.onPressOut}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        onPress={onPressRemove}
-      >
-        <Animated.View style={[styles.chipRemoveBtn, removeBtnAnim.animatedStyle]}>
-          <Ionicons name="close" size={14} color={TEXT_SECONDARY} />
-        </Animated.View>
-      </Pressable>
-    </Animated.View>
-  );
-});
 
 // ─── Screen Component ──────────────────────────────────────────────────────────
 export default function StationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { height: screenHeight } = useWindowDimensions();
   const { playSelect, playDeselect } = useTapSound();
   
   const pinnedStations = useOnboardingStore(s => s.pinnedStations);
@@ -236,19 +197,7 @@ export default function StationsScreen() {
   const selectedLines = useOnboardingStore(s => s.selectedLines);
 
   const [query, setQuery] = useState('');
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const chipScrollViewRef = useRef<ScrollView>(null);
-
-  const prevPinnedCount = useRef(pinnedStations.length);
-  useEffect(() => {
-    if (pinnedStations.length > prevPinnedCount.current) {
-      setTimeout(() => {
-        chipScrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-    prevPinnedCount.current = pinnedStations.length;
-  }, [pinnedStations.length]);
 
   // Trigger Error feedback when search returns 0 results
 
@@ -346,64 +295,18 @@ export default function StationsScreen() {
 
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
-  // Bottom sheet translation values
-  const sheetHeight = screenHeight * 0.6;
-  const sheetTranslateY = useSharedValue(sheetHeight);
-
-  const openBottomSheet = () => {
-    setIsSheetOpen(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 250);
-  };
-
-  const closeBottomSheet = useCallback(() => {
-    Keyboard.dismiss();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // 60ms layout stagger: keyboard dismisses first, sheet drops exactly at peak velocity
-    setTimeout(() => {
-      sheetTranslateY.value = withSpring(sheetHeight, { damping: 20, stiffness: 200 }, (finished) => {
-        if (finished) {
-          runOnJS(setIsSheetOpen)(false);
-        }
-      });
-    }, 60);
+  const handleSearchResultTap = useCallback((station: TfLStation) => {
+    handleRowTap(station);
     setQuery('');
-  }, [sheetTranslateY, sheetHeight]);
+  }, [handleRowTap]);
 
-  const panGesture = Gesture.Pan()
-    .onChange((event) => {
-      if (event.translationY > 0) {
-        sheetTranslateY.value = event.translationY;
-      }
-    })
-    .onEnd((event) => {
-      if (event.translationY > 120 || event.velocityY > 400) {
-        runOnJS(closeBottomSheet)();
-      } else {
-        sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 200 });
-      }
-    });
-
-  const renderItem = useCallback(({ item }: { item: TfLStation }) => (
-    <StationRow
-      station={item}
-      isPinned={pinnedIds.has(item.id)}
-      onTap={(station) => {
-        handleRowTap(station);
-        closeBottomSheet();
-      }}
-    />
-  ), [pinnedIds, handleRowTap, closeBottomSheet]);
 
   // Shared-axis slide transitions
   const { width } = useWindowDimensions();
   const transitionX = useSharedValue(width * 0.55);
   const transitionScale = useSharedValue(0.96);
   const transitionOpacity = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure transitions slide/scale!
 
   useFocusEffect(
     useCallback(() => {
@@ -438,7 +341,7 @@ export default function StationsScreen() {
         duration: 320,
         easing: Easing.out(Easing.poly(4)),
       });
-    }, [width, reducedMotion])
+    }, [width, reducedMotion, transitionOpacity, transitionScale, transitionX])
   );
 
   const slideStyle = useAnimatedStyle(() => ({
@@ -504,19 +407,32 @@ export default function StationsScreen() {
     return `${count} result${count !== 1 ? 's' : ''}`;
   }, [query, results]);
 
-  const sheetAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
-  }));
-
   // Hook mappings to consume physical configs per specifications
   const backAnim = usePressAnimation('back_btn');
   const skipAnim = usePressAnimation('skip_btn');
-  const searchBarTriggerAnim = usePressAnimation('continue_btn');
   const zeroStateBtnAnim = usePressAnimation('continue_btn');
   const ctaBtnAnim = usePressAnimation('continue_btn', !canContinue);
-  const overlayCloseAnim = usePressAnimation('back_btn');
+  const doneButtonOpacity = useSharedValue(pinnedStations.length > 0 ? 1 : 0);
+
+
+  useEffect(() => {
+    doneButtonOpacity.value = withSpring(pinnedStations.length > 0 ? 1 : 0, {
+      damping: 14,
+      stiffness: 180,
+    });
+  }, [pinnedStations.length, doneButtonOpacity]);
+
+  const doneButtonStyle = useAnimatedStyle(() => {
+    return {
+      opacity: doneButtonOpacity.value,
+      transform: [
+        { scale: withSpring(pinnedStations.length > 0 ? 1 : 0.9, { damping: 14, stiffness: 180 }) }
+      ],
+    };
+  });
 
   if (!fontsLoaded) return null;
+
 
   return (
     <Pressable style={styles.flex1} onPress={() => Keyboard.dismiss()}>
@@ -597,272 +513,197 @@ export default function StationsScreen() {
               </Text>
             </View>
 
-            {/* Header Micro-confirmation: Selected Lines */}
-            {selectedLines.length > 0 && (
-              <View style={styles.selectedLinesStrip}>
-                {selectedLines.map((lineId: string) => {
-                  const name = lineId.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                  return (
-                    <View key={lineId} style={[styles.microLinePill, { backgroundColor: LINE_COLORS[lineId] || '#888' }]}>
-                      <Text style={styles.microLineText}>{name}</Text>
-                    </View>
-                  );
-                })}
+            {/* Search Bar */}
+            <View style={styles.searchBarContainer}>
+              <View style={styles.searchWrap}>
+                <Ionicons name="search-outline" size={16} color={TEXT_SECONDARY} style={styles.searchIcon} />
+                <TextInput
+                  ref={inputRef}
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search 471 stations..."
+                  placeholderTextColor={TEXT_SKIP}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  returnKeyType="search"
+                  style={styles.searchInput}
+                />
+                {query.length > 0 && (
+                  <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="close-circle" size={18} color={TEXT_SECONDARY} style={styles.clearIcon} />
+                  </Pressable>
+                )}
               </View>
-            )}
+            </View>
 
-            {/* Pinned Chip Scroll Strip */}
-            {pinnedStations.length > 0 && (
-              <Animated.View entering={FadeInDown.duration(200)} style={styles.chipScrollWrap}>
-                <ScrollView
-                  ref={chipScrollViewRef}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
-                >
-                  {pinnedStations.map((station) => {
-                    const fullSt = cleanFullStations.find(s => s.id === station.id);
-                    const displayZone = fullSt?.zone !== undefined ? ` (Z${fullSt.zone})` : '';
-                    return (
-                      <PinnedStationChip
-                        key={station.id}
-                        station={station}
-                        displayZone={displayZone}
-                        onPressRemove={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          playDeselect();
-                          removeStation(station.id);
-                        }}
-                      />
-                    );
-                  })}
-                </ScrollView>
-              </Animated.View>
-            )}
 
             {/* Live Departure Cards for Pinned Stations */}
             {pinnedStations.length > 0 ? (
               <Animated.View
                 entering={FadeInDown.springify().damping(15)}
-                style={{ paddingHorizontal: 16, marginTop: 12, gap: 12 }}
+                style={{
+                  paddingHorizontal: 16,
+                  marginTop: query.length > 0 ? 0 : 20,
+                  gap: query.length > 0 ? 0 : 12,
+                }}
               >
                 {pinnedStations.map((station) => (
-                  <Animated.View key={station.id} entering={ZoomIn.springify().damping(12)}>
-                    <DepartureCard
-                      stationId={station.id}
-                      stationName={station.name}
-                      onDelete={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        playDeselect();
-                        removeStation(station.id);
-                      }}
-                      isEditing={true}
-                      autoExpand={true}
-                    />
-                  </Animated.View>
+                  <DepartureCard
+                    key={station.id}
+                    stationId={station.id}
+                    stationName={station.name}
+                    onDelete={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      playDeselect();
+                      removeStation(station.id);
+                    }}
+                    isEditing={true}
+                    autoExpand={false}
+                    hideCard={query.length > 0}
+                  />
                 ))}
               </Animated.View>
             ) : (
               /* Premium Dashboard Zero State when no stations are pinned */
-              <Animated.View
-                entering={FadeInDown.duration(400)}
-                style={styles.dashboardZeroState}
-              >
-                <View style={styles.dashboardZeroIconBg}>
-                  <Ionicons name="train-outline" size={32} color="#FFFFFF" />
-                </View>
-                <Text style={styles.dashboardZeroTitle}>Your Departure Board</Text>
-                <Text style={styles.dashboardZeroSubtitle}>
-                  Add your commuter stations to build a real-time departures and live disruptions monitor.
-                </Text>
-                <Pressable
-                  onPressIn={zeroStateBtnAnim.onPressIn}
-                  onPressOut={zeroStateBtnAnim.onPressOut}
-                  onPress={openBottomSheet}
+              query.length === 0 && (
+                <Animated.View
+                  entering={FadeInDown.duration(400)}
+                  style={styles.dashboardZeroState}
                 >
-                  <Animated.View style={[styles.zeroStateBtn, zeroStateBtnAnim.animatedStyle]}>
-                    <Text style={styles.zeroStateBtnText}>Search Stations</Text>
-                    <Ionicons name="search" size={14} color="#0A0A0F" />
-                  </Animated.View>
-                </Pressable>
+                  <View style={styles.dashboardZeroIconBg}>
+                    <Ionicons name="train-outline" size={32} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.dashboardZeroTitle}>Your Departure Board</Text>
+                  <Text style={styles.dashboardZeroSubtitle}>
+                    Add your commuter stations to build a real-time departures and live disruptions monitor.
+                  </Text>
+                  <Pressable
+                    onPressIn={zeroStateBtnAnim.onPressIn}
+                    onPressOut={zeroStateBtnAnim.onPressOut}
+                    onPress={() => inputRef.current?.focus()}
+                  >
+                    <Animated.View style={[styles.zeroStateBtn, zeroStateBtnAnim.animatedStyle]}>
+                      <Text style={styles.zeroStateBtnText}>Search Stations</Text>
+                      <Ionicons name="search" size={14} color="#0A0A0F" />
+                    </Animated.View>
+                  </Pressable>
+                </Animated.View>
+              )
+            )}
+
+            {/* Search Results (Visible only when searching) */}
+            {query.length > 0 && (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                style={{ paddingHorizontal: 16, marginTop: 12 }}
+              >
+                <Text style={styles.sectionLabel}>{resultCountText}</Text>
+                
+                {results.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="search-outline" size={28} color={TEXT_GHOST} />
+                    <Text style={styles.emptyText}>No stations found</Text>
+                    <Text style={styles.emptyHint}>Try &quot;Waterloo&quot; or &quot;Paddington&quot;</Text>
+                  </View>
+                ) : (
+                  results.slice(0, 10).map((station) => (
+                    <StationRow
+                      key={station.id}
+                      station={station}
+                      isPinned={pinnedIds.has(station.id)}
+                      onTap={handleSearchResultTap}
+                    />
+                  ))
+                )}
               </Animated.View>
             )}
           </ScrollView>
 
           {/* Sticky CTA Footer Container */}
-          <View style={[styles.ctaFooterContainer, { bottom: insets.bottom + 16 }]}>
-            {/* Pinned Add Trigger Capsule */}
-            {pinnedStations.length > 0 && (
-              <Pressable
-                onPressIn={searchBarTriggerAnim.onPressIn}
-                onPressOut={searchBarTriggerAnim.onPressOut}
-                onPress={openBottomSheet}
-              >
-                <Animated.View style={[styles.addStationTriggerBtn, searchBarTriggerAnim.animatedStyle]}>
-                  <Ionicons name="add" size={20} color={TEXT_PRIMARY} />
-                  <Text style={styles.addStationTriggerBtnText}>Add Station</Text>
-                </Animated.View>
-              </Pressable>
-            )}
-
+          <Animated.View
+            pointerEvents={pinnedStations.length > 0 ? 'auto' : 'none'}
+            style={[
+              styles.ctaFooterContainer,
+              { bottom: insets.bottom + 16 },
+              doneButtonStyle
+            ]}
+          >
             {/* Main Continue button */}
-            {pinnedStations.length > 0 && (
-              <Pressable
-                onPressIn={ctaBtnAnim.onPressIn}
-                onPressOut={ctaBtnAnim.onPressOut}
-                onPress={async () => {
-                  const onboarding = useOnboardingStore.getState();
-                  const mappedStations = onboarding.pinnedStations.map((station, index) => ({
-                    id: station.id,
-                    name: station.name,
-                    lines: station.lineIds,
-                    role: index === 0 ? ('home' as const) : index === 1 ? ('work' as const) : ('other' as const),
-                  }));
+            <Pressable
+              onPressIn={ctaBtnAnim.onPressIn}
+              onPressOut={ctaBtnAnim.onPressOut}
+              onPress={async () => {
+                const onboarding = useOnboardingStore.getState();
+                const mappedStations = onboarding.pinnedStations.map((station, index) => ({
+                  id: station.id,
+                  name: station.name,
+                  lines: station.lineIds,
+                  role: index === 0 ? ('home' as const) : index === 1 ? ('work' as const) : ('other' as const),
+                }));
 
-                  useUserPreferencesStore.setState({
-                    selectedLines: onboarding.selectedLines,
-                    pinnedStations: mappedStations,
-                  });
+                useUserPreferencesStore.setState({
+                  selectedLines: onboarding.selectedLines,
+                  pinnedStations: mappedStations,
+                });
 
-                  if (mappedStations.length > 0) {
-                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    playSound('confirm');
-                  } else {
-                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
+                if (mappedStations.length > 0) {
+                  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  playSound('confirm');
+                } else {
+                  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
 
-                  useUserPreferencesStore.getState().completeOnboarding();
-                }}
-                disabled={!canContinue}
-                accessibilityRole="button"
-                accessibilityLabel={canContinue ? 'Continue to permissions' : 'Add at least one station to continue'}
-                accessibilityState={{ disabled: !canContinue }}
-              >
-                <Animated.View
-                  style={[
-                    styles.cta,
-                    ctaBtnAnim.animatedStyle,
-                    {
-                      backgroundColor: canContinue ? '#FFFFFF' : 'rgba(255,255,255,0.12)',
-                      opacity: canContinue ? 1 : 0.35,
-                    },
-                  ]}
-                >
-                  <View style={styles.ctaContent}>
-                    <Text style={[styles.ctaText, { color: canContinue ? '#0A0A0F' : TEXT_SKIP }]}>
-                      Continue ({pinnedStations.length} added)
-                    </Text>
-                    {canContinue && (
-                      <View style={styles.arrowBadge}>
-                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                      </View>
-                    )}
-                  </View>
-                </Animated.View>
-              </Pressable>
-            )}
-          </View>
-
-          {/* ─── ACTIVE CUSTOM BOTTOM SHEET SEARCH OVERLAY ─── */}
-          {isSheetOpen && (
-            <Animated.View style={[StyleSheet.absoluteFillObject, { zIndex: 100 }]} entering={FadeIn.duration(200)} exiting={ZoomOut.duration(150)}>
-              {/* Tap Outside Scrim */}
-              <Pressable style={StyleSheet.absoluteFillObject} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); closeBottomSheet(); }}>
-                <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
-              </Pressable>
-
-              {/* Bottom Sheet Container */}
+                useUserPreferencesStore.getState().completeOnboarding();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Continue to permissions"
+            >
               <Animated.View
                 style={[
-                  styles.bottomSheet,
-                  sheetAnimatedStyle,
+                  styles.cta,
+                  ctaBtnAnim.animatedStyle,
                   {
-                    height: sheetHeight,
-                    top: screenHeight - sheetHeight,
+                    backgroundColor: '#FFFFFF',
                   },
                 ]}
               >
-                <GestureDetector gesture={panGesture}>
-                  <View style={{ width: '100%', backgroundColor: 'transparent' }}>
-                    <View style={styles.sheetHandle} />
-
-                    {/* Overlay Search Header */}
-                    <View style={styles.overlayHeader}>
-                      <Pressable
-                        onPressIn={overlayCloseAnim.onPressIn}
-                        onPressOut={overlayCloseAnim.onPressOut}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); closeBottomSheet(); }}
-                      >
-                        <Animated.View style={[styles.overlayCloseBtn, overlayCloseAnim.animatedStyle]}>
-                          <Ionicons name="close" size={22} color={TEXT_PRIMARY} />
-                        </Animated.View>
-                      </Pressable>
-
-                      <View style={styles.overlaySearchWrap}>
-                        <Ionicons name="search-outline" size={16} color={TEXT_SECONDARY} style={styles.searchIcon} />
-                        <TextInput
-                          ref={inputRef}
-                          value={query}
-                          onChangeText={setQuery}
-                          placeholder="Search 471 stations..."
-                          placeholderTextColor={TEXT_SKIP}
-                          autoFocus
-                          autoCorrect={false}
-                          autoCapitalize="none"
-                          returnKeyType="search"
-                          style={styles.searchInput}
-                        />
-                        {query.length > 0 && (
-                          <Pressable onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Ionicons name="close-circle" size={18} color={TEXT_SECONDARY} style={styles.clearIcon} />
-                          </Pressable>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                </GestureDetector>
-
-                <View style={styles.overlayContent}>
-
-                  {/* Result Count Label */}
-                  <Text style={styles.sectionLabel}>
-                    {resultCountText}
+                <View style={styles.ctaContent}>
+                  <Text style={[styles.ctaText, { color: '#0A0A0F' }]}>
+                    Continue ({pinnedStations.length} added)
                   </Text>
-
-                  {/* Search Results FlashList */}
-                  <View style={{ flex: 1, width: '100%' }}>
-                    <FlashList
-                      data={results}
-                      keyExtractor={item => item.id}
-                      renderItem={renderItem}
-                      keyboardShouldPersistTaps="handled"
-                      keyboardDismissMode="on-drag"
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={{ paddingBottom: 80 }}
-                      ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                          <Ionicons name="search-outline" size={28} color={TEXT_GHOST} />
-                          <Text style={styles.emptyText}>No stations found</Text>
-                          <Text style={styles.emptyHint}>Try &quot;Waterloo&quot; or &quot;Paddington&quot;</Text>
-                        </View>
-                      }
-                    />
+                  <View style={styles.arrowBadge}>
+                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                   </View>
                 </View>
               </Animated.View>
-            </Animated.View>
-          )}
+            </Pressable>
+          </Animated.View>
         </Animated.View>
       </View>
     </Pressable>
   );
 }
 
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
   header: { paddingHorizontal: 16, paddingBottom: 12 },
+  searchBarContainer: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 14,
+    height: 48,
+  },
+
   title: {
     fontSize: 32,
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -914,34 +755,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
 
-  // Pinned Chips Strip
-  chipScrollWrap: {
-    height: 36,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-  },
-  pinnedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CHIP_BG,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  pinnedChipText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
-    color: TEXT_PRIMARY,
-  },
-  chipRemoveBtn: {
-    marginLeft: 6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: CHIP_BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
 
   // Premium Dashboard Zero State when no stations are pinned
   dashboardZeroState: {
@@ -1175,7 +989,4 @@ const styles = StyleSheet.create({
   },
   ctaText: { fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold' },
 
-  selectedLinesStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, marginBottom: 12 },
-  microLinePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  microLineText: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 12, color: '#FFF' },
 });

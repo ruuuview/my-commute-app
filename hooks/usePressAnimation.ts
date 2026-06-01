@@ -1,5 +1,5 @@
 // hooks/usePressAnimation.ts
-import { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion, withSequence } from 'react-native-reanimated';
+import { useSharedValue, useAnimatedStyle, withSpring, withSequence } from 'react-native-reanimated';
 import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';
@@ -39,7 +39,7 @@ const KEY_MAP: Record<string, keyof typeof PRESS_PRESETS> = {
 
 export function usePressAnimation(configKey: PressType, disabled = false) {
   const scale = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = false; // Force false to override system-level 'Reduce Motion' and ensure click springs execute!
 
   const mappedKey = (KEY_MAP[configKey] || configKey) as keyof typeof PRESS_PRESETS;
   const config = PRESS_PRESETS[mappedKey];

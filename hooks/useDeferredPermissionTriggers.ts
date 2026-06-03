@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
+import { useShallow } from 'zustand/react/shallow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 export function useDeferredPermissionTriggers() {
@@ -11,13 +12,15 @@ export function useDeferredPermissionTriggers() {
     notificationsGranted,
     setCalendarGranted,
     setNotificationsGranted,
-  } = useUserPreferencesStore((s) => ({
-    sessionCount: s.sessionCount,
-    calendarGranted: s.calendarGranted,
-    notificationsGranted: s.notificationsGranted,
-    setCalendarGranted: s.setCalendarGranted,
-    setNotificationsGranted: s.setNotificationsGranted,
-  }));
+  } = useUserPreferencesStore(
+    useShallow((s) => ({
+      sessionCount: s.sessionCount,
+      calendarGranted: s.calendarGranted,
+      notificationsGranted: s.notificationsGranted,
+      setCalendarGranted: s.setCalendarGranted,
+      setNotificationsGranted: s.setNotificationsGranted,
+    }))
+  );
 
   // 1. Trigger evaluation
   const shouldShowNotificationPrompt = useCallback(() => {

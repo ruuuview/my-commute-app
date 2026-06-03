@@ -30,5 +30,9 @@ export const UNIFIED_DARK_GRADIENT = {
   start: { x: 0, y: 0 },
   end: { x: 0, y: 1 },
 };
-
-
+export const ONBOARDING_GRADIENT = {
+  colors: ['#070714', '#0A1128', '#001040', '#000810'] as const,
+  locations: [0, 0.38, 0.65, 1] as const,
+  start: { x: 0.2, y: 0 },
+  end: { x: 0.8, y: 1 },
+};

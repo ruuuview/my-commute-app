@@ -19,7 +19,7 @@ const mmkvStorageAdapter: StateStorage = {
   },
 };
 
-interface UserPreferencesState {
+export interface UserPreferencesState {
   schemaVersion: number;
   hasCompletedOnboarding: boolean;
   onboardingStep: 0 | 1 | 2 | 3;
@@ -79,13 +79,15 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       toggleLine: (id: string) => {
         set(state => {
           const lines = [...state.selectedLines];
-          if (lines.includes(id)) {
+          const includes = lines.includes(id);
+          if (!includes && lines.length >= 5) {
+            // Cap at 5! Block selection additions.
+            return state;
+          }
+          if (includes) {
             lines.splice(lines.indexOf(id), 1);
           } else {
             lines.push(id);
-          }
-          if (lines.length > 5) {
-            lines.shift();
           }
           return { selectedLines: lines };
         });

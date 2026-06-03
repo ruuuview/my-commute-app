@@ -43,11 +43,17 @@ export const useOnboardingStore = create<OnboardingStore>()(
       navigationDirection: 'forward',
 
       toggleLine: (lineId) =>
-        set((s) => ({
-          selectedLines: s.selectedLines.includes(lineId)
-            ? s.selectedLines.filter((id) => id !== lineId)
-            : [...s.selectedLines, lineId],
-        })),
+        set((s) => {
+          const includes = s.selectedLines.includes(lineId);
+          if (!includes && s.selectedLines.length >= 5) {
+            return s;
+          }
+          return {
+            selectedLines: includes
+              ? s.selectedLines.filter((id) => id !== lineId)
+              : [...s.selectedLines, lineId],
+          };
+        }),
 
       addStation: (station) =>
         set((s) => {

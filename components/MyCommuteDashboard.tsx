@@ -46,7 +46,7 @@ import { GradientBackground } from './GradientBackground';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
-import BouncyButton from './BouncyButton';
+import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -494,13 +494,13 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
               <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
 
-              <BouncyButton onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
+              <BouncyPressable onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
                 <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
-              </BouncyButton>
+              </BouncyPressable>
 
-              <BouncyButton onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
+              <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
                 <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
-              </BouncyButton>
+              </BouncyPressable>
             </View>
           )}
 

@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useUserPreferencesStore, UserPreferencesState } from '../store/userPreferencesStore';
 import {
   useFonts,
   SpaceGrotesk_400Regular,
@@ -56,11 +56,14 @@ export default function RootLayout() {
     }
   }, [isReady]);
 
+  const hasIncrementedSession = useRef(false);
+
   // Increment session statistics once per cold start when store hydrates
   useEffect(() => {
-    if (_hasHydrated) {
+    if (_hasHydrated && !hasIncrementedSession.current) {
+      hasIncrementedSession.current = true;
       const store = useUserPreferencesStore.getState();
-      const updates: any = {
+      const updates: Partial<UserPreferencesState> = {
         sessionCount: (store.sessionCount || 0) + 1
       };
       if (!store.firstOpenTimestamp) {
@@ -79,7 +82,7 @@ export default function RootLayout() {
         lastBackgroundTime = Date.now();
       } else if (nextAppState === 'active') {
         // True app open from background (if backgrounded for > 60 seconds to prevent notification check noise)
-        if (lastBackgroundTime > 0 && Date.now() - lastBackgroundTime > 60000) {
+        if (hasIncrementedSession.current && lastBackgroundTime > 0 && Date.now() - lastBackgroundTime > 60000) {
           const store = useUserPreferencesStore.getState();
           useUserPreferencesStore.setState({
             sessionCount: (store.sessionCount || 0) + 1
@@ -100,32 +103,48 @@ export default function RootLayout() {
   // Guard: Initialize with current state to prevent cold-start animations
   const hasAnimatedReveal = useRef(hasCompletedOnboarding);
 
+  // Snapshot hasCompletedOnboarding at the exact moment hydration finishes to prevent cold-start race condition flashes
+  const atHydrationCompletedOnboarding = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (_hasHydrated && atHydrationCompletedOnboarding.current === null) {
+      atHydrationCompletedOnboarding.current = hasCompletedOnboarding;
+    }
+  }, [_hasHydrated, hasCompletedOnboarding]);
+
   const navigateToDashboard = useCallback(() => {
     router.replace('/');
   }, [router]);
 
   useEffect(() => {
-    // Only fire if they just completed it in this session
-    if (hasCompletedOnboarding && !hasAnimatedReveal.current && _hasHydrated) {
-      hasAnimatedReveal.current = true;
-      
-      // Success haptics
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      AccessibilityInfo.announceForAccessibility("Welcome to your dashboard");
-      
-      // confirm chime at 0.72 volume
-      playSound('confirm', 0.72);
+    // Only fire if they just completed it in this session (i.e. they were not completed at hydration)
+    if (_hasHydrated && hasCompletedOnboarding) {
+      if (atHydrationCompletedOnboarding.current === false) {
+        if (!hasAnimatedReveal.current) {
+          hasAnimatedReveal.current = true;
+          
+          // Success haptics
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          AccessibilityInfo.announceForAccessibility("Welcome to your dashboard");
+          
+          // confirm chime at 0.72 volume
+          playSound('confirm', 0.72);
 
-      // 1-frame pure white flash sequence
-      whiteOverlayOpacity.value = 1;
-      whiteOverlayOpacity.value = withTiming(0, {
-        duration: 350,
-        easing: Easing.out(Easing.poly(3)),
-      });
+          // 1-frame pure white flash sequence
+          whiteOverlayOpacity.value = 1;
+          whiteOverlayOpacity.value = withTiming(0, {
+            duration: 350,
+            easing: Easing.out(Easing.poly(3)),
+          });
 
-      navigateToDashboard();
+          navigateToDashboard();
+        }
+      } else {
+        // If they completed it in a prior session, mark as revealed instantly without animations
+        hasAnimatedReveal.current = true;
+      }
     }
-  }, [hasCompletedOnboarding, navigateToDashboard, _hasHydrated, whiteOverlayOpacity]);
+  }, [_hasHydrated, hasCompletedOnboarding, navigateToDashboard, whiteOverlayOpacity]);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,

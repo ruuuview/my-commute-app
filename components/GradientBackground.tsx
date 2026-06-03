@@ -1,7 +1,7 @@
 // components/GradientBackground.tsx
 //
 // The living root background for all app-interior screens (dashboard, status, settings).
-// NEVER used in onboarding — those screens use VoidBackground.
+// NEVER used in onboarding — those screens use OnboardingGradient.
 //
 // Architecture: Two stacked LinearGradient layers animated via opacity cross-fade.
 // Reanimated cannot interpolate hex strings — we animate the TOP layer's opacity

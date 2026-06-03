@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { stationDataCache } from '../utils/stationCache';
+import { tflCapitalise } from '../utils/tflCapitalise';
 
 export interface Arrival {
   id: string;
@@ -40,7 +42,26 @@ export function useArrivalPoller(naptanId: string | null) {
           expectedArrival: String(item.expectedArrival || ''),
         }));
 
-        setArrivals(mapped.sort((a, b) => a.timeToStation - b.timeToStation));
+        const sorted = mapped.sort((a, b) => a.timeToStation - b.timeToStation);
+        setArrivals(sorted);
+
+        // Write to stationDataCache to support instant navigation to station details
+        if (data && data.length > 0) {
+          const rawName = data[0].stationName || '';
+          stationDataCache.set(naptanId, Promise.resolve({
+            id: naptanId,
+            name: tflCapitalise(rawName),
+            departures: data.map((item: any) => ({
+              destination: String(item.destinationName || '').replace(' Underground Station', '').replace(' DLR Station', ''),
+              line: String(item.lineName || ''),
+              platform: String(item.platformName || ''),
+              minutes_away: Math.floor(Number(item.timeToStation || 0) / 60),
+              expected_arrival: String(item.expectedArrival || ''),
+            })),
+            updated_at: new Date().toISOString()
+          }));
+        }
+
         setError(false);
       } catch (err) {
         console.log('Error fetching arrivals for', naptanId, err);

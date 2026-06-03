@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { Platform } from 'react-native';
 
 export default function OnboardingLayout() {
   return (
@@ -6,7 +7,7 @@ export default function OnboardingLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#0A0A0F' },
-        animation: 'none', // Strips native transitions completely!
+        animation: Platform.OS === 'ios' ? 'ios' : 'slide_from_right',
       }}
     />
   );

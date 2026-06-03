@@ -1,6 +1,6 @@
 // app/onboarding/stations.tsx — Screen 2: Station Search (v2)
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import Animated, {
   interpolateColor,
   withSequence,
   withTiming,
+  withRepeat,
+  cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
@@ -34,26 +36,10 @@ import { ProgressPips } from '../../components/ProgressPips';
 import { StationCard } from '../../components/StationCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { LINE_COLORS } from '../../constants/lineColors';
 
 const MAX_PINS = 5;
 const RECENT_SEARCHES_KEY = 'recent_searches';
-
-// Line color map for left accent bar
-const LINE_COLORS: Record<string, string> = {
-  bakerloo: '#B36305', central: '#E32017', circle: '#FFD300',
-  district: '#00782A', dlr: '#00AFAD', elizabeth: '#6950A1',
-  'hammersmith-city': '#F3A9BB', jubilee: '#A0A5A9', metropolitan: '#9B0056',
-  northern: '#1A1A1A', overground: '#EE7C0E', piccadilly: '#003688',
-  victoria: '#0098D4', 'waterloo-city': '#95CDBA',
-};
-
-const LINE_NAMES: Record<string, string> = {
-  bakerloo: 'Bakerloo', central: 'Central', circle: 'Circle',
-  district: 'District', dlr: 'DLR', elizabeth: 'Elizabeth',
-  'hammersmith-city': 'Hammersmith & City', jubilee: 'Jubilee', metropolitan: 'Metropolitan',
-  northern: 'Northern', overground: 'Overground', piccadilly: 'Piccadilly',
-  victoria: 'Victoria', 'waterloo-city': 'Waterloo & City',
-};
 
 export default function StationsScreen() {
   const router = useRouter();
@@ -68,6 +54,8 @@ export default function StationsScreen() {
   const [recentSearches, setRecentSearches] = useState<TfLStation[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
+  const [ctaHeight, setCtaHeight] = useState(120);
+  const measuredCtaHeight = useRef(120);
 
   const canContinue = pinnedStations.length > 0;
   const backAnim = usePressAnimation('back_btn');
@@ -79,12 +67,46 @@ export default function StationsScreen() {
     transform: [{ translateX: maxPinsShakeX.value }],
   }));
 
+  // Pulse animation for mock arrival dot
+  const pulseOpacity = useSharedValue(0.4);
+  useEffect(() => {
+    pulseOpacity.value = withRepeat(
+      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+    return () => cancelAnimation(pulseOpacity);
+  }, []);
+
   // Scroll value tracking for search bar transition
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
     },
+  });
+
+  const ctaAnimValue = useSharedValue(1);
+
+  useEffect(() => {
+    ctaAnimValue.value = withTiming(isSearching ? 0 : 1, {
+      duration: 200,
+      easing: Easing.inOut(Easing.ease),
+    });
+  }, [isSearching]);
+
+  const ctaWrapAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      height: interpolate(ctaAnimValue.value, [0, 1], [0, ctaHeight], 'clamp'),
+      opacity: ctaAnimValue.value,
+      paddingTop: interpolate(ctaAnimValue.value, [0, 1], [0, 12], 'clamp'),
+      paddingBottom: interpolate(ctaAnimValue.value, [0, 1], [0, insets.bottom + 8], 'clamp'),
+      borderTopColor: interpolateColor(
+        ctaAnimValue.value,
+        [0, 1],
+        ['rgba(10,20,100,0)', 'rgba(10,20,100,0.05)']
+      ),
+    };
   });
 
   // Load search history from AsyncStorage
@@ -243,7 +265,7 @@ export default function StationsScreen() {
 
   // Search bar styles mapped to scrollY
   const searchBarAnimatedStyle = useAnimatedStyle(() => {
-    const t = interpolate(scrollY.value, [280, 320], [0, 1], 'clamp');
+    const t = interpolate(scrollY.value, [120, 160], [0, 1], 'clamp');
     return {
       backgroundColor: interpolateColor(
         t,
@@ -259,11 +281,10 @@ export default function StationsScreen() {
     };
   });
 
-  const renderStationItem = ({ item }: { item: TfLStation }) => {
+  const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = pinnedIds.has(item.id);
     const primaryLine = item.lines[0] || 'central';
     const primaryLineColor = LINE_COLORS[primaryLine] || '#888';
-    const primaryLineName = LINE_NAMES[primaryLine] || 'Tube';
 
     // Right element: add plus icon or checkmark for search results
     const rightElement = (
@@ -280,12 +301,36 @@ export default function StationsScreen() {
       <StationCard
         station={item}
         primaryLineColor={primaryLineColor}
-        primaryLineName={primaryLineName}
         rightElement={rightElement}
         onPress={() => handleToggleStation(item)}
       />
     );
-  };
+  }, [pinnedIds, handleToggleStation]);
+
+  const renderPinnedItem = useCallback(({ item }: { item: any }) => {
+    const primaryLine = item.lines[0] || 'central';
+    const primaryLineColor = LINE_COLORS[primaryLine] || '#888';
+
+    // Right element: Mock arrival widget in onboarding
+    const mockArrivalPill = (
+      <View style={styles.arrivalPillContainer}>
+        <View style={styles.arrivalPill}>
+          <Animated.View style={[styles.pulseDot, { opacity: pulseOpacity }]} />
+          <Text style={styles.arrivalPillText}>2 min</Text>
+        </View>
+        <Text style={styles.arrivalPillSub}>Live after setup</Text>
+      </View>
+    );
+
+    return (
+      <StationCard
+        station={item}
+        primaryLineColor={primaryLineColor}
+        rightElement={mockArrivalPill}
+        onPress={() => handleToggleStation(item as TfLStation)}
+      />
+    );
+  }, [pulseOpacity, handleToggleStation]);
 
   const stationCountLabel = `Search ${cleanFullStations.length} stations...`;
 
@@ -329,6 +374,10 @@ export default function StationsScreen() {
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             accessibilityRole="button"
             accessibilityLabel="Go back to line selection"
+            style={({ pressed }) => [
+              styles.backButtonPressable,
+              pressed && styles.backButtonPressed,
+            ]}
           >
             <Animated.View style={[styles.navHeaderBtn, backAnim.animatedStyle]}>
               <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
@@ -362,28 +411,7 @@ export default function StationsScreen() {
         {/* Scrollable list content */}
         <Animated.FlatList
           data={isSearching ? results : pinnedStations.map(p => ({ id: p.id, name: p.name, lines: p.lineIds, zone: p.zone }))}
-          renderItem={isSearching ? renderStationItem : ({ item }) => {
-            const primaryLine = item.lines[0] || 'central';
-            const primaryLineColor = LINE_COLORS[primaryLine] || '#888';
-            const primaryLineName = LINE_NAMES[primaryLine] || 'Tube';
-
-            // Right element: Static Live badge in onboarding
-            const liveBadge = (
-              <View style={styles.liveBadge}>
-                <Text style={styles.liveBadgeText}>Live</Text>
-              </View>
-            );
-
-            return (
-              <StationCard
-                station={item}
-                primaryLineColor={primaryLineColor}
-                primaryLineName={primaryLineName}
-                rightElement={liveBadge}
-                onPress={() => handleToggleStation(item as TfLStation)}
-              />
-            );
-          }}
+          renderItem={isSearching ? renderStationItem : renderPinnedItem}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={listHeader}
           initialNumToRender={12}
@@ -393,7 +421,7 @@ export default function StationsScreen() {
           scrollEventThrottle={16}
           contentContainerStyle={[
             styles.listContainer,
-            { paddingBottom: 24 },
+            { paddingBottom: ctaHeight + 16 },
           ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={() => {
@@ -409,8 +437,7 @@ export default function StationsScreen() {
             // Zero Pinned State
             return (
               <View style={styles.emptyState}>
-                <Ionicons name="location-outline" size={32} color="rgba(10,15,60,0.25)" />
-                <Text style={styles.emptyText}>Search above to add your first station</Text>
+                <Text style={styles.emptyText}>Search for stations above</Text>
               </View>
             );
           }}
@@ -423,7 +450,6 @@ export default function StationsScreen() {
                   {unpinnedRecentSearches.map(station => {
                     const primaryLine = station.lines[0] || 'central';
                     const primaryLineColor = LINE_COLORS[primaryLine] || '#888';
-                    const primaryLineName = LINE_NAMES[primaryLine] || 'Tube';
 
                     const rightBtn = (
                       <Pressable 
@@ -440,7 +466,6 @@ export default function StationsScreen() {
                         <StationCard
                           station={station}
                           primaryLineColor={primaryLineColor}
-                          primaryLineName={primaryLineName}
                           rightElement={rightBtn}
                           onPress={() => handleToggleStation(station)}
                         />
@@ -455,7 +480,21 @@ export default function StationsScreen() {
         />
 
         {/* Footer CTA — flex child, not absolute, so Android KAV can push it up */}
-        <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
+        <Animated.View 
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h > measuredCtaHeight.current) {
+              measuredCtaHeight.current = h;
+              setCtaHeight(h);
+            }
+          }}
+          style={[
+            styles.ctaWrap, 
+            ctaWrapAnimatedStyle,
+            { overflow: 'hidden' }
+          ]}
+          pointerEvents={isSearching ? 'none' : 'auto'}
+        >
           {/* Max pins toast nudge — always visible above CTA */}
           {maxPinsToast && (
             <Animated.View style={[styles.maxPinsToast, maxPinsShakeStyle]}>
@@ -497,7 +536,7 @@ export default function StationsScreen() {
           <Pressable onPress={handleSkip} style={styles.skipPressable}>
             <Text style={styles.skipText}>Skip for now</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -590,16 +629,40 @@ const styles = StyleSheet.create({
     color: 'rgba(10,15,60,0.40)',
     textAlign: 'center',
   },
-  liveBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(22, 163, 74, 0.12)',
+  arrivalPillContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    maxWidth: 76,
   },
-  liveBadgeText: {
-    fontSize: 11,
+  arrivalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: 'rgba(22, 163, 74, 0.10)',
+    gap: 4,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16A34A',
+  },
+  arrivalPillText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#16A34A',
+    fontFamily: 'System',
+  },
+  arrivalPillSub: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(10,15,60,0.48)',
+    marginTop: 2,
+    fontFamily: 'System',
+    textTransform: 'uppercase',
   },
   addCircle: {
     width: 24,
@@ -672,5 +735,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(10,15,60,0.38)',
     textDecorationLine: 'underline',
+  },
+  backButtonPressable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  backButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
 });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { tflCapitalise } from '../utils/tflCapitalise';
+import { LINE_COLORS } from '../constants/lineColors';
 
 interface StationCardProps {
   station: {
@@ -12,7 +13,6 @@ interface StationCardProps {
     zone?: number;
   };
   primaryLineColor: string;
-  primaryLineName: string;
   rightElement?: React.ReactNode;
   onPress?: () => void;
   disabled?: boolean;
@@ -21,7 +21,6 @@ interface StationCardProps {
 export function StationCard({
   station,
   primaryLineColor,
-  primaryLineName,
   rightElement,
   onPress,
   disabled = false,
@@ -47,9 +46,30 @@ export function StationCard({
           <Text style={styles.stationName} numberOfLines={1}>
             {cleanName}
           </Text>
-          <Text style={styles.lineName} numberOfLines={1}>
-            {primaryLineName} {station.zone !== undefined ? `· Zone ${station.zone}` : ''}
-          </Text>
+          
+          <View style={styles.subtitleRow}>
+            <View style={styles.dotsContainer}>
+              {station.lines.slice(0, 4).map((lineId) => (
+                <View
+                  key={lineId}
+                  style={[
+                    styles.lineDot,
+                    { backgroundColor: LINE_COLORS[lineId] || '#888' }
+                  ]}
+                />
+              ))}
+              {station.lines.length > 4 && (
+                <Text style={styles.overflowText}>
+                  +{station.lines.length - 4}
+                </Text>
+              )}
+            </View>
+            {station.zone !== undefined && (
+              <Text style={styles.zoneText}>
+                {station.lines.length > 0 ? '· ' : ''}Zone {station.zone}
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* Right Element (Add button, checkmark, or static/live badge) */}
@@ -68,13 +88,7 @@ const styles = StyleSheet.create({
     height: 68,
     alignSelf: 'stretch',
     borderRadius: 14,
-    overflow: 'hidden',
     marginBottom: 8,
-  },
-  cardInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     // iOS shadow
     shadowColor: 'rgba(0,20,100,1)',
@@ -84,9 +98,18 @@ const styles = StyleSheet.create({
     // Android elevation
     elevation: 2,
   },
+  cardInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+  },
   accentBar: {
     width: 3.5,
     alignSelf: 'stretch',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
   cardContent: {
     flex: 1,
@@ -99,11 +122,34 @@ const styles = StyleSheet.create({
     color: '#0A0F3C',
     fontFamily: 'System',
   },
-  lineName: {
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    height: 16,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  lineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  overflowText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(10,15,60,0.45)',
+    marginLeft: 2,
+    fontFamily: 'System',
+  },
+  zoneText: {
     fontSize: 11,
     fontWeight: '500',
     color: 'rgba(10,15,60,0.45)',
-    marginTop: 2,
+    marginLeft: 4,
     fontFamily: 'System',
   },
   rightContainer: {

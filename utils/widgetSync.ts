@@ -28,9 +28,9 @@ export const syncToWidget = (data: any) => {
       })),
     };
 
-    // TEMP: bypass App Group writes (crash mitigation)
+    // TODO: re-enable after App Group provisioning confirmed
     // widgetStorage?.set('widgetKey', JSON.stringify(widgetData));
-    console.log('✅ Widget Sync Success (MMKV):', widgetData.items.length);
+    console.log('⚠️ Widget Sync Bypassed (App Group provisioning pending):', widgetData.items.length);
 
   } catch (error) {
     console.error('❌ Widget Sync Failed (Likely App Group Provisioning):', error);

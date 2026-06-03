@@ -4,18 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from 'react-native-reanimated';
 import { FULL_STATIONS } from '../data/tflStations';
+import { LINE_COLORS } from '../constants/lineColors';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
 const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
 
-const TFL_COLORS: Record<string, string> = {
-  bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
-  'hammersmith-city': '#F3A9BB', jubilee: '#A0A5A9', metropolitan: '#9B0056',
-  northern: '#1A1A1A', piccadilly: '#003688', victoria: '#0098D4', 'waterloo-city': '#95CDBA',
-  elizabeth: '#6950A1', overground: '#EE7C0E', dlr: '#00A4A7',
-};
+
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 interface Arrival {
@@ -39,6 +35,12 @@ interface DepartureCardProps {
 }
 
 const getDepTimeStyle = (minutes: number | 'now') => {
+  if (minutes === 'now' || minutes === 0) {
+    return { color: '#22C55E', fontWeight: '700' as const };
+  }
+  if (typeof minutes === 'number' && minutes <= 2) {
+    return { color: '#F59E0B', fontWeight: '700' as const };
+  }
   return { color: 'rgba(255,255,255,0.9)', fontWeight: '700' as const };
 };
 
@@ -75,7 +77,7 @@ export default function DepartureCard({
         return {
           lineId: lineKey,
           lineName: dep.line,
-          lineColor: TFL_COLORS[lineKey] || '#888',
+          lineColor: LINE_COLORS[lineKey] || '#888',
           minutesAway: dep.minutes_away,
           destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
           expectedArrival: dep.expected_arrival,
@@ -118,7 +120,7 @@ export default function DepartureCard({
     if (arrivals.length > 0) return arrivals[0].lineColor;
     const st = FULL_STATIONS.find(s => s.id === stationId);
     const firstLine = st?.lines?.[0];
-    return firstLine ? (TFL_COLORS[firstLine] ?? '#888') : '#888';
+    return firstLine ? (LINE_COLORS[firstLine] ?? '#888') : '#888';
   }, [arrivals, stationId]);
 
   // Format next time string for the collapsed view

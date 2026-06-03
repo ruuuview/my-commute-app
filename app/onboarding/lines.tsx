@@ -1,6 +1,6 @@
 // app/onboarding/lines.tsx — Screen 1: Line Selection (v2)
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,24 +29,35 @@ import { LINE_CARD_HEIGHT, CARD_VERTICAL_GAP } from '../../constants/layout';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LINE_COLORS } from '../../constants/lineColors';
 
 // ─── 14 TfL lines with verified station counts ──────────────────────────────
 const TFL_LINES = [
-  { id: 'bakerloo',         name: 'Bakerloo',           color: '#B36305', stationCount: 25 },
-  { id: 'central',          name: 'Central',            color: '#E32017', stationCount: 49 },
-  { id: 'circle',           name: 'Circle',             color: '#FFD300', stationCount: 36 },
-  { id: 'district',         name: 'District',           color: '#00782A', stationCount: 60 },
-  { id: 'dlr',              name: 'DLR',                color: '#00AFAD', stationCount: 45 },
-  { id: 'elizabeth',        name: 'Elizabeth',          color: '#6950A1', stationCount: 41 },
-  { id: 'hammersmith-city', name: 'Hammersmith & City', color: '#F3A9BB', stationCount: 29 },
-  { id: 'jubilee',          name: 'Jubilee',            color: '#A0A5A9', stationCount: 27 },
-  { id: 'metropolitan',     name: 'Metropolitan',       color: '#9B0056', stationCount: 34 },
-  { id: 'northern',         name: 'Northern',           color: '#1A1A1A', stationCount: 52 },
-  { id: 'overground',       name: 'Overground',         color: '#EE7C0E', stationCount: 112 },
-  { id: 'piccadilly',       name: 'Piccadilly',         color: '#003688', stationCount: 53 },
-  { id: 'victoria',         name: 'Victoria',           color: '#0098D4', stationCount: 16 },
-  { id: 'waterloo-city',    name: 'Waterloo & City',    color: '#95CDBA', stationCount: 2 },
+  { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo, stationCount: 25 },
+  { id: 'central',          name: 'Central',            color: LINE_COLORS.central, stationCount: 49 },
+  { id: 'circle',           name: 'Circle',             color: LINE_COLORS.circle, stationCount: 36 },
+  { id: 'district',         name: 'District',           color: LINE_COLORS.district, stationCount: 60 },
+  { id: 'dlr',              name: 'DLR',                color: LINE_COLORS.dlr, stationCount: 45 },
+  { id: 'elizabeth',        name: 'Elizabeth',          color: LINE_COLORS.elizabeth, stationCount: 41 },
+  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
+  { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee, stationCount: 27 },
+  { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan, stationCount: 34 },
+  { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern, stationCount: 52 },
+  { id: 'overground',       name: 'Overground',         color: LINE_COLORS.overground, stationCount: 112 },
+  { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_COLORS.piccadilly, stationCount: 53 },
+  { id: 'victoria',         name: 'Victoria',           color: LINE_COLORS.victoria, stationCount: 16 },
+  { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'], stationCount: 2 },
 ];
+
+function getCtaLabel(selectedCount: number): string {
+  if (selectedCount === 0) {
+    return 'Select at least one line';
+  }
+  if (selectedCount === 1) {
+    return 'Continue with 1 line';
+  }
+  return `Continue with ${selectedCount} lines`;
+}
 
 export default function LinesScreen() {
   const router = useRouter();
@@ -56,11 +67,64 @@ export default function LinesScreen() {
   const selectedLines = useOnboardingStore(s => s.selectedLines);
   const toggleLine = useOnboardingStore(s => s.toggleLine);
 
+  const [apiStatuses, setApiStatuses] = useState<Record<string, { severity: number; description: string }>>({});
+  const [loadingStatuses, setLoadingStatuses] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStatuses = async () => {
+      try {
+        const res = await fetch('https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line/Status');
+        if (!res.ok) throw new Error('Failed to fetch TfL status');
+        const data = await res.json();
+        if (!active) return;
+        
+        const mapped: Record<string, { severity: number; description: string }> = {};
+        data.forEach((line: any) => {
+          const sev = line.lineStatuses?.[0]?.statusSeverity ?? 10;
+          const desc = line.lineStatuses?.[0]?.statusSeverityDescription ?? 'Good Service';
+          mapped[line.id] = { severity: sev, description: desc };
+        });
+        setApiStatuses(mapped);
+        setLoadingStatuses(false);
+      } catch (err) {
+        console.log('Error fetching onboarding line statuses:', err);
+        if (active) {
+          setLoadingStatuses(false);
+        }
+      }
+    };
+    fetchStatuses();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const canContinue = selectedLines.length > 0;
   const continueAnim = usePressAnimation('continue_btn', false);
 
-  // Counter shake values
+  // Counter animations: Shake and Scale Pulse
   const shakeTranslationX = useSharedValue(0);
+  const counterScale = useSharedValue(1);
+  const prevCountRef = React.useRef(selectedLines.length);
+
+  const [maxLinesToast, setMaxLinesToast] = useState(false);
+  const maxLinesShakeTranslationX = useSharedValue(0);
+
+  const triggerMaxLinesShake = () => {
+    maxLinesShakeTranslationX.value = withSequence(
+      withTiming(-8, { duration: 60, easing: Easing.linear }),
+      withTiming(8, { duration: 60, easing: Easing.linear }),
+      withTiming(-6, { duration: 60, easing: Easing.linear }),
+      withTiming(6, { duration: 60, easing: Easing.linear }),
+      withTiming(0, { duration: 60, easing: Easing.linear })
+    );
+  };
+
+  const maxLinesShakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: maxLinesShakeTranslationX.value }],
+  }));
+
   const triggerCounterShake = () => {
     shakeTranslationX.value = withSequence(
       withTiming(-8, { duration: 60, easing: Easing.linear }),
@@ -71,8 +135,23 @@ export default function LinesScreen() {
     );
   };
 
+  useEffect(() => {
+    if (selectedLines.length !== prevCountRef.current) {
+      prevCountRef.current = selectedLines.length;
+      if (!reducedMotion) {
+        counterScale.value = withSequence(
+          withTiming(1.15, { duration: 75 }),
+          withTiming(1, { duration: 75 })
+        );
+      }
+    }
+  }, [selectedLines.length, reducedMotion]);
+
   const counterAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shakeTranslationX.value }],
+    transform: [
+      { translateX: shakeTranslationX.value },
+      { scale: counterScale.value }
+    ],
   }));
 
   const handleToggleLine = useCallback(
@@ -80,10 +159,18 @@ export default function LinesScreen() {
       const isSelected = selectedLines.includes(id);
       if (isSelected) {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        toggleLine(id);
       } else {
+        if (selectedLines.length >= 5) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          triggerMaxLinesShake();
+          setMaxLinesToast(true);
+          setTimeout(() => setMaxLinesToast(false), 1500);
+          return;
+        }
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        toggleLine(id);
       }
-      toggleLine(id);
     },
     [selectedLines, toggleLine]
   );
@@ -107,19 +194,49 @@ export default function LinesScreen() {
     useUserPreferencesStore.getState().completeOnboarding();
   };
 
-  const ctaLabel = selectedLines.length === 0
-    ? 'Select at least one line'
-    : selectedLines.length === 1
-    ? 'Continue with 1 line'
-    : `Continue with ${selectedLines.length} lines`;
+  const ctaLabel = getCtaLabel(selectedLines.length);
+
+  const getLineStatus = (severity: number, desc: string) => {
+    if (severity === 10) {
+      return { statusType: 'good' as const, label: 'Good service' };
+    } else if (severity === 9) {
+      return { statusType: 'minor' as const, label: 'Minor delays' };
+    } else if (severity === 8 || severity === 7) {
+      return { statusType: 'minor' as const, label: desc || 'Reduced service' };
+    } else if (severity === 4) {
+      return { statusType: 'closure' as const, label: 'Planned closure' };
+    } else if (severity === 3 || severity === 2 || severity === 1 || severity === 5 || severity === 11) {
+      return { statusType: 'suspended' as const, label: desc || 'Part suspended' };
+    } else {
+      return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+    }
+  };
 
   const renderItem = ({ item }: { item: typeof TFL_LINES[number] }) => {
     const isSelected = selectedLines.includes(item.id);
+    const statusData = apiStatuses[item.id] || { severity: 10, description: 'Good Service' };
+    
+    let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' = 'loading';
+    let statusLabel = 'Loading status...';
+    
+    if (!loadingStatuses) {
+      if (apiStatuses[item.id]) {
+        const resolved = getLineStatus(statusData.severity, statusData.description);
+        statusType = resolved.statusType;
+        statusLabel = resolved.label;
+      } else {
+        statusType = 'error';
+        statusLabel = 'Status unknown';
+      }
+    }
+
     return (
       <LineCard
         line={item}
         selected={isSelected}
         onPress={() => handleToggleLine(item.id)}
+        statusType={statusType}
+        statusLabel={statusLabel}
       />
     );
   };
@@ -186,6 +303,13 @@ export default function LinesScreen() {
           </Text>
         </Animated.View>
 
+        {/* Max lines toast nudge — positioned inline above the line list */}
+        {maxLinesToast && (
+          <Animated.View style={[styles.maxLinesToast, maxLinesShakeStyle]}>
+            <Text style={styles.maxLinesToastText}>Maximum 5 lines</Text>
+          </Animated.View>
+        )}
+
         <FlatList
           data={TFL_LINES}
           renderItem={renderItem}
@@ -212,7 +336,7 @@ export default function LinesScreen() {
       </View>
 
       {/* Sticky CTA Footer */}
-      <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
           onPress={handleCTAPress}
           onPressIn={continueAnim.onPressIn}
@@ -298,7 +422,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#ECEFFE',
+    backgroundColor: 'transparent',
     paddingTop: 16,
   },
   counterContainer: {
@@ -352,5 +476,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(10,15,60,0.38)',
     textDecorationLine: 'underline',
+  },
+  maxLinesToast: {
+    backgroundColor: 'rgba(220, 38, 38, 0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 10,
+    marginHorizontal: 16,
+    alignSelf: 'flex-start',
+  },
+  maxLinesToastText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 });

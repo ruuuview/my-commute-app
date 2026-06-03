@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';
+import { LINE_COLORS } from '../constants/lineColors';
 
 let lastDisruptionPlayTime = 0;
 
@@ -26,22 +27,7 @@ interface TflStatusResponse {
   }[];
 }
 
-const LINE_COLORS: Record<string, string> = {
-  bakerloo: '#B36305',
-  central: '#E32017',
-  circle: '#FFD300',
-  district: '#00782A',
-  dlr: '#00AFAD',
-  elizabeth: '#6950A1',
-  'hammersmith-city': '#F3A9BB',
-  jubilee: '#A0A5A9',
-  metropolitan: '#9B0056',
-  northern: '#FFFFFF',
-  overground: '#EE7C0E',
-  piccadilly: '#003688',
-  victoria: '#0098D4',
-  'waterloo-city': '#95CDBA',
-};
+
 
 interface TickerLineItem {
   id: string;
@@ -184,6 +170,7 @@ export default function DisruptionTicker() {
     if (contentWidth > 0 && containerWidth > 0) {
       startScrolling(contentWidth, containerWidth);
     }
+    return () => cancelAnimation(translateX);
   }, [contentWidth, containerWidth, lineItems, startScrolling]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -213,7 +200,7 @@ export default function DisruptionTicker() {
                   {idx > 0 && <Text style={styles.bullet}> · </Text>}
                   <Text
                     style={{
-                      color: line.isDisrupted ? line.color : 'rgba(255, 255, 255, 0.5)',
+                      color: line.isDisrupted ? (line.id === 'northern' ? '#FFFFFF' : line.color) : 'rgba(255, 255, 255, 0.5)',
                       fontWeight: line.isDisrupted ? 'bold' : 'normal',
                     }}
                   >

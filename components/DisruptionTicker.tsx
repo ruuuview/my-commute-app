@@ -171,7 +171,7 @@ export default function DisruptionTicker() {
       startScrolling(contentWidth, containerWidth);
     }
     return () => cancelAnimation(translateX);
-  }, [contentWidth, containerWidth, lineItems, startScrolling]);
+  }, [contentWidth, containerWidth, lineItems, startScrolling, translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],

@@ -48,7 +48,7 @@ function StatusSkeleton() {
       -1,
       true
     );
-  }, [reducedMotion]);
+  }, [reducedMotion, opacity]);
 
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -88,7 +88,7 @@ const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: st
         true
       );
     }
-  }, [statusType, reducedMotion]);
+  }, [statusType, reducedMotion, pulse]);
 
   const animatedStyle = useAnimatedStyle(() => {
     if (statusType === 'severe' || statusType === 'suspended') {
@@ -169,7 +169,7 @@ export function LineCard({
     } else {
       opacityVal.value = 0;
     }
-  }, [statusType]);
+  }, [statusType, opacityVal]);
 
   const animatedStatusStyle = useAnimatedStyle(() => ({
     opacity: opacityVal.value,

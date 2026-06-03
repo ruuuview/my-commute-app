@@ -76,7 +76,7 @@ export default function StationsScreen() {
       true
     );
     return () => cancelAnimation(pulseOpacity);
-  }, []);
+  }, [pulseOpacity]);
 
   // Scroll value tracking for search bar transition
   const scrollY = useSharedValue(0);
@@ -93,7 +93,7 @@ export default function StationsScreen() {
       duration: 200,
       easing: Easing.inOut(Easing.ease),
     });
-  }, [isSearching]);
+  }, [isSearching, ctaAnimValue]);
 
   const ctaWrapAnimatedStyle = useAnimatedStyle(() => {
     return {

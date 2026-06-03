@@ -111,7 +111,7 @@ export default function LinesScreen() {
   const [maxLinesToast, setMaxLinesToast] = useState(false);
   const maxLinesShakeTranslationX = useSharedValue(0);
 
-  const triggerMaxLinesShake = () => {
+  const triggerMaxLinesShake = useCallback(() => {
     maxLinesShakeTranslationX.value = withSequence(
       withTiming(-8, { duration: 60, easing: Easing.linear }),
       withTiming(8, { duration: 60, easing: Easing.linear }),
@@ -119,7 +119,7 @@ export default function LinesScreen() {
       withTiming(6, { duration: 60, easing: Easing.linear }),
       withTiming(0, { duration: 60, easing: Easing.linear })
     );
-  };
+  }, [maxLinesShakeTranslationX]);
 
   const maxLinesShakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: maxLinesShakeTranslationX.value }],
@@ -145,7 +145,7 @@ export default function LinesScreen() {
         );
       }
     }
-  }, [selectedLines.length, reducedMotion]);
+  }, [selectedLines.length, reducedMotion, counterScale]);
 
   const counterAnimStyle = useAnimatedStyle(() => ({
     transform: [
@@ -172,7 +172,7 @@ export default function LinesScreen() {
         toggleLine(id);
       }
     },
-    [selectedLines, toggleLine]
+    [selectedLines, toggleLine, triggerMaxLinesShake]
   );
 
   const handleCTAPress = async () => {

@@ -16,6 +16,8 @@
   ],
   "exclude": [
     "node_modules",
-    "gstack-temp"
+    "gstack-temp",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }

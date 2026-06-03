@@ -146,6 +146,17 @@ export default function RootLayout() {
     }
   }, [_hasHydrated, hasCompletedOnboarding, navigateToDashboard, whiteOverlayOpacity]);
 
+  useEffect(() => {
+    if (_hasHydrated && !hasCompletedOnboarding) {
+      hasAnimatedReveal.current = false;
+      atHydrationCompletedOnboarding.current = false;
+      const t = setTimeout(() => {
+        router.replace('/onboarding/lines');
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [_hasHydrated, hasCompletedOnboarding, router]);
+
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
     zIndex: overlayOpacity.value > 0 ? 999 : -1,

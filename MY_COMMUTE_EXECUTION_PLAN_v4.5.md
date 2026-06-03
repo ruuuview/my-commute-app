@@ -1,6 +1,6 @@
 # ARCHITECTURE & EXECUTION PLAN
 ## My Commute — Onboarding Architecture & Execution Plan
-### v4.6 — Fully Audited, Patched & Strategically Bridged (Onboarding & UX Polish Complete)
+### v4.7 — Production Audit Pass Complete (20 Issues Resolved, ESLint Clean)
 
 ---
 
@@ -50,6 +50,41 @@ Ensure the following are installed before beginning:
 
 > **↑ Strategy Reference — Master Plan: "The Final Locked Stack"**
 > This dependency list is the direct operational expression of the locked stack. Every package here maps to a stack decision. No new dependency enters this list without a corresponding addition to the Master Plan stack section.
+
+---
+
+## 2.5 PRODUCTION AUDIT FIXES (v4.6 → v4.7)
+
+A full production audit scored the onboarding implementation at **82/100**. All 4 critical ship-blockers and 9 warnings were resolved across two passes, followed by a complete ESLint clean sweep (10 warnings → 0).
+
+### Critical Fixes (4)
+
+| # | File | Issue | Resolution |
+|---|---|---|---|
+| 1 | `lines.tsx` | `getItemLayout` used raw index instead of `Math.floor(index / 2)` for 2-column grid — wrong scroll offsets | Fixed: row math now divides by `numColumns` |
+| 2 | `usePressAnimation.ts` | `useReducedMotion()` hardcoded to `false` — WCAG 2.3.3 / Apple HIG violation | Fixed: restored real `useReducedMotion()` hook |
+| 3 | `stations.tsx` | `getItemLayout` incompatible with `ListHeaderComponent` — off-by-one crash surface | Fixed: removed `getItemLayout` entirely |
+| 4 | `lines.tsx` | `handleSkip` bypassed `completeOnboarding()` — infinite onboarding loop | Fixed: calls `completeOnboarding()` directly |
+
+### Warning Fixes (9)
+
+| # | File | Issue | Resolution |
+|---|---|---|---|
+| 1 | `stations.tsx` | Search placeholder hardcoded "471 stations" | Fixed: dynamic from `cleanFullStations.length` |
+| 2 | `stations.tsx` | Fuse.js index rebuilt on every keystroke | Fixed: index memoised separately from search |
+| 3 | `stations.tsx` | MAX_PINS hit → silent error haptic, no UI feedback | Fixed: shake animation + red "Maximum 5 stations" toast in CTA footer |
+| 4 | `stations.tsx` | `ctaWrap` position:absolute — Android keyboard overlap | Fixed: flex child of KAV, not absolute |
+| 5 | `stations.tsx` | `navHeader` height:44 clips on iPhone SE | Fixed: `insets.top + 44 + 8` |
+| 6 | `stations.tsx` | `recentRow` opacity:0.50 cascades to add button | Fixed: removed cascading opacity |
+| 7 | `SkeletonCard.tsx` | Shimmer start `-150` (mid-card), destination `300` | Fixed: `-200` → `400`, `750ms` duration |
+| 8 | `tflCapitalise.ts` | Regex partial-match corrupts substrings | Fixed: `\b` word-boundary anchors |
+| 9 | `stations.tsx` | `handleSkip` used direct `setState` (bypasses middleware) | Fixed: simplified to `completeOnboarding()` only |
+
+### ESLint Clean Sweep (10 warnings → 0)
+
+Removed unused imports (`withSpring`, `SkeletonCard`, `CARD_VERTICAL_GAP`, `tflCapitalise`, `Image` in lines.tsx, `Keyboard`, `useWindowDimensions`), unused state (`loadingResults`, `reducedMotion` in stations.tsx), wrapped `saveToRecents` in `useCallback`, and added `shimmerTranslate` to SkeletonCard's `useEffect` deps.
+
+> **Verification:** `npx tsc --noEmit` = 0 errors, `npx expo-doctor` = 17/17 passed, `npm run lint` = 0 warnings.
 
 ---
 
@@ -241,3 +276,5 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 | 5 | Run `eas build:configure` | Founder | Every signed build | Infra Doc §5 |
 | 6 | Upgrade Vercel to Pro before first TestFlight invite | Founder | TestFlight | Infra Doc §2 |
 | 7 | Set Sentry `tracesSampleRate: 0` + daily cap ~160/day | Engineering | Quota burn | Infra Doc §4 |
+| 8 | Wire `SkeletonCard` loading state into `stations.tsx` (currently scaffolded but unused) | Engineering | UX completeness | Audit v4.7 |
+| 9 | Wire `ctaWrap` Android KAV behaviour test on physical Android device | Engineering | Android launch | Audit v4.7 |

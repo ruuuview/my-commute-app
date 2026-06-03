@@ -1,7 +1,7 @@
 # My Commute
 ## Master Plan v2.2
 ### Full Strategic, Product, GTM, Technical, Fundraising, and Founder Blueprint
-### v2.2 — Fully Synchronized with UX, Execution, and Infrastructure Specs v4.6
+### v2.3 — Fully Synchronized with UX, Execution, and Infrastructure Specs v4.7
 
 ---
 
@@ -9,9 +9,9 @@
 > This is the **strategic authority document**. It owns all *decisions* — the why, the what, and the non-negotiables. Every detail across all other documents traces back to a section here. When a decision changes, it changes here first. All linked documents inherit the update.
 >
 > **Linked Documents (full suite):**
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md` (Updated in-file to v4.6)
-> - UX/UI authority: `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.6)
-> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.6)
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md` (Updated in-file to v4.7)
+> - UX/UI authority: `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.7)
+> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.7)
 >
 > **Sync Protocol:** Any change to a locked decision in this document must trigger a simultaneous audit of all three linked documents. Each section's bridge callout below identifies which documents and sections are affected.
 
@@ -156,10 +156,11 @@ The strongest founder story is not "I am a genius engineer." It is:
 ## Launch Execution Sequence (Next 30 Days)
 1. **Run `eas build:configure`** and lock Vercel Pro.
 2. Implement the exact 3-screen Foyer onboarding architecture. — ✅ COMPLETED
-3. Wire up RevenueCat for the 10-commute trial and degraded UI states.
-4. Build the offline/stale-data UI (Step 9). — ✅ COMPLETED
-5. Draft App Store Optimisation (ASO) metadata and legal documents.
-6. Ship to TestFlight Beta.
+3. **Production audit pass (20 issues resolved).** — ✅ COMPLETED (v4.7)
+4. Wire up RevenueCat for the 10-commute trial and degraded UI states.
+5. Build the offline/stale-data UI (Step 9). — ✅ COMPLETED
+6. Draft App Store Optimisation (ASO) metadata and legal documents.
+7. Ship to TestFlight Beta.
 
 > **→ Execution Bridge**
 > This sequence maps directly to the Execution Plan step order: Items 1–2 → Steps 0–5, Item 3 → Steps 1 & 8, Item 4 → Step 7 & Step 9 (extended with stale-data logic), Item 5 → Step 8 legal links. Item 6 is the gate that requires all P0 compliance items from the Compliance section above to be closed.

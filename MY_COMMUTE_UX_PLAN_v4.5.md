@@ -1,7 +1,7 @@
 # UX & UI MASTER PLAN
 ## My Commute — London Transport Dashboard
 ### "Fractal Glass — Ambient Status Refraction" — Complete Specification
-### v4.6 — Fully Audited, Patched & Strategically Bridged (Onboarding & UX Polish Complete)
+### v4.7 — Production Audit Pass Complete (20 Issues Resolved, ESLint Clean)
 
 ---
 
@@ -29,6 +29,9 @@
 | 6 | Loading Skeleton Opacity | Resolved: Explicitly separated the 10% faint zero-state skeleton from the 100% full-opacity data-loading skeleton. |
 | 7 | Sinusoidal Floating Jiggle | Resolved: Replaced hyperactive withSpring/sequence loops in Jiggle Mode with a premium, fluid sinusoidal rotate pattern using `withTiming` (900ms duration, max 1.5° rotation) for a native iOS floating feel. |
 | 8 | Synchronous Reduced Motion | Resolved: Replaced asynchronous `AccessibilityInfo` check with React Native Reanimated's native, synchronous `useReducedMotion()` hook to prevent screen flickering and race conditions. |
+| 9 | **Production Audit — Reduced Motion Regression in `usePressAnimation.ts`** | Resolved (v4.7): `useReducedMotion()` was hardcoded to `false` with an explicit override comment. This violated WCAG 2.3.3 (AAA) and Apple HIG. Restored to the real hook. All press animations now respect the user’s system Reduce Motion preference. |
+| 10 | **Production Audit — MAX_PINS Silent Failure** | Resolved (v4.7): Tapping a 6th station previously fired an error haptic with zero UI feedback. Added a visible red “Maximum 5 stations” toast in the CTA footer area + a shake animation on the toast element. Aligns with the “never punish silently” spec principle. |
+| 11 | **Production Audit — CTA Footer Android KAV** | Resolved (v4.7): `ctaWrap` was `position: absolute` inside `KeyboardAvoidingView`. On Android with `behavior="height"`, the keyboard slid over the CTA. Changed to a flex child so KAV can push it up. |
 
 > **↑ Cross-Document Alignment Note**
 > Items 4, 5, 7, and 8 above have direct counterparts in other documents. Item 4 (font loading) is implemented in **Execution Plan Step 0**. Item 5 (zero state copy) is the exact copy string in **Execution Plan Step 7**. Items 7 and 8 (floating jiggle & reduced motion) are implemented in **Execution Plan Step 9**. If any are changed here, they must be updated in sync.
@@ -215,3 +218,4 @@ Shown when `hasCompletedOnboarding === true` but `pinnedStations.length === 0`.
 | 1 | Implement loading state skeleton (100% opacity + shimmer) in `MyCommuteDashboard.tsx` | Engineering | Section 5.3 |
 | 2 | Confirm WCAG 4.5:1 contrast on all glass card text tokens | Design | Section 1.1 + App Store review |
 | 3 | Add `accessibilityLanguage="en-GB"` to root component | Engineering | Section 10.1 |
+| 4 | Wire `SkeletonCard` loading state into `stations.tsx` (scaffolded, not yet active) | Engineering | Section 5.3 |

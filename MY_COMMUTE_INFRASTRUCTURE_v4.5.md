@@ -1,6 +1,6 @@
 # INFRASTRUCTURE & SERVICES
 ## My Commute — Stack, Free Tiers, Upgrade Triggers & Cost Tracking
-### v4.6 — Fully Audited, Patched & Strategically Bridged (Onboarding & UX Polish Complete)
+### v4.7 — Production Audit Pass Complete (Synced with Execution, UX, Master Plan)
 
 ---
 
@@ -20,7 +20,7 @@
 
 | Field | Value |
 |---|---|
-| Last reviewed | May 2026 (Launch Audit Patch) |
+| Last reviewed | June 2026 (Production Audit Sync — v4.7) |
 | Monthly infra spend | £0 (pre-launch, all free tiers) |
 | First required paid upgrade | Vercel Pro (~£17/mo) — Required before TestFlight |
 | Next cost inflection | RevenueCat 1% kicks in above $2,500 MTR |

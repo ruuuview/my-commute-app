@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 
 interface UserPreferences {
@@ -37,6 +38,7 @@ const TRIAL_DURATION_DAYS = 45;
 export default function SettingsScreen() {
   const { back } = useRouter();
   const insets = useSafeAreaInsets();
+  const resetOnboarding = useUserPreferencesStore((s) => s.resetOnboarding);
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     saved_lines: [],
     saved_stations: [],
@@ -304,6 +306,43 @@ export default function SettingsScreen() {
                 <Text style={styles.aboutValue}>Powered by TfL</Text>
               </View>
             </View>
+          </View>
+        </View>
+
+        {/* Debug Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Debug Options</Text>
+          <View style={styles.aboutCard}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.aboutRow,
+                { opacity: pressed ? 0.6 : 1 }
+              ]}
+              onPress={() => {
+                Alert.alert(
+                  'Reset Onboarding',
+                  'Are you sure you want to reset onboarding? This will clear your saved lines and stations.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Reset',
+                      style: 'destructive',
+                      onPress: () => {
+                        resetOnboarding();
+                        back();
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="refresh-circle-outline" size={24} color="#DC3545" />
+              <View style={styles.aboutInfo}>
+                <Text style={[styles.aboutLabel, { color: '#DC3545', fontWeight: '600' }]}>Reset Onboarding</Text>
+                <Text style={styles.settingDescription}>Start the setup flow from the beginning</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+            </Pressable>
           </View>
         </View>
 

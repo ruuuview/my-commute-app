@@ -74,6 +74,10 @@ export const useOnboardingStore = create<OnboardingStore>()(
     {
       name: 'onboarding-store',
       storage: createJSONStorage(() => mmkvStorage),
+      partialize: (state) => ({
+        selectedLines: state.selectedLines,
+        pinnedStations: state.pinnedStations,
+      }),
     }
   )
 );

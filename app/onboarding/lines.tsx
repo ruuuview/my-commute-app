@@ -1,6 +1,6 @@
-// app/onboarding/lines.tsx — Screen 1: Line Selection (v2)
+// app/onboarding/lines.tsx — Screen 1: Line Selection (v3)
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -23,30 +24,29 @@ import { Stack, useRouter } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
-import { ProgressPips } from '../../components/ProgressPips';
+import { ProgressDots } from '../../components/ProgressDots';
 import { LineCard } from '../../components/LineCard';
-import { LINE_CARD_HEIGHT, CARD_VERTICAL_GAP } from '../../constants/layout';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LINE_COLORS } from '../../constants/lineColors';
 
-// ─── 14 TfL lines with verified station counts ──────────────────────────────
 const TFL_LINES = [
-  { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo, stationCount: 25 },
-  { id: 'central',          name: 'Central',            color: LINE_COLORS.central, stationCount: 49 },
-  { id: 'circle',           name: 'Circle',             color: LINE_COLORS.circle, stationCount: 36 },
-  { id: 'district',         name: 'District',           color: LINE_COLORS.district, stationCount: 60 },
-  { id: 'dlr',              name: 'DLR',                color: LINE_COLORS.dlr, stationCount: 45 },
-  { id: 'elizabeth',        name: 'Elizabeth',          color: LINE_COLORS.elizabeth, stationCount: 41 },
-  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
-  { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee, stationCount: 27 },
-  { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan, stationCount: 34 },
-  { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern, stationCount: 52 },
-  { id: 'overground',       name: 'Overground',         color: LINE_COLORS.overground, stationCount: 112 },
-  { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_COLORS.piccadilly, stationCount: 53 },
-  { id: 'victoria',         name: 'Victoria',           color: LINE_COLORS.victoria, stationCount: 16 },
-  { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'], stationCount: 2 },
+  { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo, stationCount: 25, isWide: false },
+  { id: 'central',          name: 'Central',            color: LINE_COLORS.central, stationCount: 49, isWide: false },
+  { id: 'circle',           name: 'Circle',             color: LINE_COLORS.circle, stationCount: 36, isWide: false },
+  { id: 'district',         name: 'District',           color: LINE_COLORS.district, stationCount: 60, isWide: false },
+  { id: 'dlr',              name: 'DLR',                color: LINE_COLORS.dlr, stationCount: 45, isWide: false },
+  { id: 'elizabeth',        name: 'Elizabeth line',     color: LINE_COLORS.elizabeth, stationCount: 41, isWide: true },
+  { id: 'hammersmith-city', name: 'Hammersmith & City line', color: LINE_COLORS['hammersmith-city'], stationCount: 29, isWide: true },
+  { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee, stationCount: 27, isWide: false },
+  { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan, stationCount: 34, isWide: false },
+  { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern, stationCount: 52, isWide: false },
+  { id: 'overground',       name: 'London Overground',  color: LINE_COLORS.overground, stationCount: 112, isWide: true },
+  { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_COLORS.piccadilly, stationCount: 53, isWide: false },
+  { id: 'victoria',         name: 'Victoria',           color: LINE_COLORS.victoria, stationCount: 16, isWide: false },
+  { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'], stationCount: 2, isWide: false },
 ];
 
 function getCtaLabel(selectedCount: number): string {
@@ -59,16 +59,25 @@ function getCtaLabel(selectedCount: number): string {
   return `Continue with ${selectedCount} lines`;
 }
 
+interface LineRow {
+  type: 'wide' | 'pair';
+  items: typeof TFL_LINES;
+}
+
 export default function LinesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
+  const { height } = useWindowDimensions();
 
   const selectedLines = useOnboardingStore(s => s.selectedLines);
   const toggleLine = useOnboardingStore(s => s.toggleLine);
 
   const [apiStatuses, setApiStatuses] = useState<Record<string, { severity: number; description: string }>>({});
   const [loadingStatuses, setLoadingStatuses] = useState(true);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  const PEARL_ZONE_THRESHOLD = height * 0.75;
 
   useEffect(() => {
     let active = true;
@@ -103,7 +112,6 @@ export default function LinesScreen() {
   const canContinue = selectedLines.length > 0;
   const continueAnim = usePressAnimation('continue_btn', false);
 
-  // Counter animations: Shake and Scale Pulse
   const shakeTranslationX = useSharedValue(0);
   const counterScale = useSharedValue(1);
   const prevCountRef = React.useRef(selectedLines.length);
@@ -158,7 +166,6 @@ export default function LinesScreen() {
     async (id: string) => {
       const isSelected = selectedLines.includes(id);
       if (isSelected) {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         toggleLine(id);
       } else {
         if (selectedLines.length >= 5) {
@@ -168,7 +175,6 @@ export default function LinesScreen() {
           setTimeout(() => setMaxLinesToast(false), 1500);
           return;
         }
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         toggleLine(id);
       }
     },
@@ -184,14 +190,27 @@ export default function LinesScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playSound('push', 0.38);
     
-    // Set flow direction and navigate
+    const timestamp = Date.now();
+    console.log(`[AUDIO_TRIGGER] playSound pushing from lines at ${timestamp}`);
+
     useOnboardingStore.getState().setNavigationDirection('forward');
-    router.push('/onboarding/stations');
+    
+    requestAnimationFrame(() => {
+      router.push('/onboarding/stations');
+    });
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    useUserPreferencesStore.getState().completeOnboarding();
+    
+    useUserPreferencesStore.setState({
+      hasCompletedOnboarding: true,
+      onboardingStep: 3,
+    });
+
+    requestAnimationFrame(() => {
+      router.replace('/(tabs)/dashboard');
+    });
   };
 
   const ctaLabel = getCtaLabel(selectedLines.length);
@@ -212,41 +231,69 @@ export default function LinesScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: typeof TFL_LINES[number] }) => {
-    const isSelected = selectedLines.includes(item.id);
-    const statusData = apiStatuses[item.id] || { severity: 10, description: 'Good Service' };
-    
-    let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' = 'loading';
-    let statusLabel = 'Loading status...';
-    
-    if (!loadingStatuses) {
-      if (apiStatuses[item.id]) {
-        const resolved = getLineStatus(statusData.severity, statusData.description);
-        statusType = resolved.statusType;
-        statusLabel = resolved.label;
-      } else {
-        statusType = 'error';
-        statusLabel = 'Status unknown';
+  const chunkedLines = useMemo(() => {
+    return TFL_LINES.reduce<LineRow[]>((acc, line) => {
+      if (line.isWide) {
+        acc.push({ type: 'wide', items: [line] });
+        return acc;
       }
-    }
+      const last = acc[acc.length - 1];
+      if (last?.type === 'pair' && last.items.length < 2) {
+        last.items.push(line);
+        return acc;
+      }
+      acc.push({ type: 'pair', items: [line] });
+      return acc;
+    }, []);
+  }, []);
+
+  const renderRow = ({ item, index }: { item: LineRow; index: number }) => {
+    const isPearlZone = (headerHeight + (index * 84)) > PEARL_ZONE_THRESHOLD;
+    const isWideRow = item.type === 'wide';
 
     return (
-      <LineCard
-        line={item}
-        selected={isSelected}
-        onPress={() => handleToggleLine(item.id)}
-        statusType={statusType}
-        statusLabel={statusLabel}
-      />
+      <View style={styles.rowContainer}>
+        {item.items.map((line) => {
+          const isSelected = selectedLines.includes(line.id);
+          const statusData = apiStatuses[line.id] || { severity: 10, description: 'Good Service' };
+          
+          let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' = 'loading';
+          let statusLabel = 'Loading status...';
+          
+          if (!loadingStatuses) {
+            if (apiStatuses[line.id]) {
+              const resolved = getLineStatus(statusData.severity, statusData.description);
+              statusType = resolved.statusType;
+              statusLabel = resolved.label;
+            } else {
+              statusType = 'error';
+              statusLabel = 'Status unknown';
+            }
+          }
+
+          return (
+            <View key={line.id} style={isWideRow ? styles.wideItem : styles.gridItem}>
+              <LineCard
+                line={line}
+                selected={isSelected}
+                onPress={() => handleToggleLine(line.id)}
+                statusType={statusType}
+                statusLabel={statusLabel}
+                isPearlZone={isPearlZone}
+                isWide={isWideRow}
+              />
+            </View>
+          );
+        })}
+      </View>
     );
   };
 
   return (
     <View style={styles.root}>
-      {/* Scope OnboardingGradient component directly here */}
       <OnboardingGradient />
 
-      {/* Volumetric Bloom Layers (hidden when reduced motion is active) */}
+      {/* Volumetric Bloom Layers */}
       {!reducedMotion && (
         <>
           <View style={styles.topBloomContainer} pointerEvents="none">
@@ -276,34 +323,29 @@ export default function LinesScreen() {
       {/* Stack Navigator Options */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
-      {/* Header zone with dark background crown contrast */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 16 }]}>
+      {/* Header zone */}
+      <View 
+        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 12 }]}
+      >
         <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
-        <ProgressPips total={2} current={1} />
+        <ProgressDots total={2} current={1} />
         
         <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
           Your lines
-        </Text>
-        <Text 
-          style={styles.subtitle} 
-          accessibilityElementsHidden={true} 
-          allowFontScaling 
-          maxFontSizeMultiplier={1.4}
-        >
-          Choose the lines you travel on
         </Text>
       </View>
 
       {/* Pearl Data Zone Grid Container */}
       <View style={styles.pearlDataZone}>
-        {/* Selection Counter - positioned at top of pearl zone */}
+        {/* Selection Counter */}
         <Animated.View style={[styles.counterContainer, counterAnimStyle]}>
           <Text style={styles.counterText}>
             {selectedLines.length} lines selected
           </Text>
         </Animated.View>
 
-        {/* Max lines toast nudge — positioned inline above the line list */}
+        {/* Max lines toast */}
         {maxLinesToast && (
           <Animated.View style={[styles.maxLinesToast, maxLinesShakeStyle]}>
             <Text style={styles.maxLinesToastText}>Maximum 5 lines</Text>
@@ -311,32 +353,31 @@ export default function LinesScreen() {
         )}
 
         <FlatList
-          data={TFL_LINES}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          initialNumToRender={12}
+          data={chunkedLines}
+          renderItem={renderRow}
+          keyExtractor={(_, idx) => idx.toString()}
+          initialNumToRender={10}
           windowSize={5}
           removeClippedSubviews={true}
-          getItemLayout={(_data, index) => {
-            const row = Math.floor(index / 2);
-            return {
-              length: LINE_CARD_HEIGHT + CARD_VERTICAL_GAP,
-              offset: (LINE_CARD_HEIGHT + CARD_VERTICAL_GAP) * row,
-              index,
-            };
-          }}
+          getItemLayout={(_, index) => ({
+            length: 84,
+            offset: 84 * index,
+            index,
+          })}
           contentContainerStyle={[
             styles.listContainer,
             { paddingBottom: insets.bottom + 120 },
           ]}
-          columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
         />
       </View>
 
       {/* Sticky CTA Footer */}
-      <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 8 }]}>
+      <BlurView
+        intensity={28}
+        tint="light"
+        style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
+      >
         <Pressable
           onPress={handleCTAPress}
           onPressIn={continueAnim.onPressIn}
@@ -348,19 +389,16 @@ export default function LinesScreen() {
               styles.cta,
               continueAnim.animatedStyle,
               {
-                backgroundColor: canContinue ? '#0044EE' : 'rgba(0,68,238,0.12)',
-                shadowColor: canContinue ? 'rgba(0,68,238,0.35)' : 'transparent',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: canContinue ? 1 : 0,
-                shadowRadius: 20,
-                elevation: canContinue ? 4 : 0,
+                backgroundColor: canContinue ? '#0044EE' : 'rgba(10, 15, 60, 0.07)',
+                borderColor: canContinue ? 'transparent' : 'rgba(10, 15, 60, 0.18)',
+                borderWidth: canContinue ? 0 : 1,
               },
             ]}
           >
             <Text
               style={[
                 styles.ctaText,
-                { color: canContinue ? '#FFFFFF' : 'rgba(0,68,238,0.60)' },
+                { color: canContinue ? '#FFFFFF' : 'rgba(10, 15, 60, 0.35)' },
               ]}
             >
               {ctaLabel}
@@ -371,7 +409,7 @@ export default function LinesScreen() {
         <Pressable onPress={handleSkip} style={styles.skipPressable}>
           <Text style={styles.skipText}>Skip setup</Text>
         </Pressable>
-      </View>
+      </BlurView>
     </View>
   );
 }
@@ -379,7 +417,7 @@ export default function LinesScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#ECEFFE',
+    backgroundColor: 'transparent',
   },
   topBloomContainer: {
     position: 'absolute',
@@ -390,20 +428,19 @@ const styles = StyleSheet.create({
   },
   midBloomContainer: {
     position: 'absolute',
-    top: 250,
-    left: 0,
-    right: 0,
-    height: 250,
+    top: 180,
+    left: -40,
+    right: -40,
+    height: 320,
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.38)',
-    letterSpacing: 1.6,
+    color: 'rgba(255,255,255,0.30)',
+    letterSpacing: 1.8,
   },
   title: {
     fontSize: 30,
@@ -412,18 +449,10 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     marginTop: 16,
   },
-  subtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.42)',
-    marginTop: 6,
-  },
   pearlDataZone: {
     flex: 1,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     backgroundColor: 'transparent',
-    paddingTop: 16,
+    paddingTop: 8,
   },
   counterContainer: {
     paddingHorizontal: 16,
@@ -432,16 +461,26 @@ const styles = StyleSheet.create({
   counterText: {
     fontSize: 10,
     fontWeight: '700',
-    color: 'rgba(10,15,60,0.30)',
+    color: 'rgba(255, 255, 255, 0.55)',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   listContainer: {
     paddingHorizontal: 16,
   },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: CARD_VERTICAL_GAP,
+  rowContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  wideItem: {
+    flex: 1,
+  },
+  gridItem: {
+    flex: 1,
   },
   ctaWrap: {
     position: 'absolute',
@@ -449,10 +488,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: 'rgba(236,239,254,0.95)',
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(10,20,100,0.05)',
+    borderTopColor: 'rgba(10, 15, 60, 0.10)',
+    overflow: 'hidden',
   },
   ctaPressable: {
     width: '100%',
@@ -474,7 +513,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
-    color: 'rgba(10,15,60,0.38)',
+    color: 'rgba(10, 15, 60, 0.45)',
     textDecorationLine: 'underline',
   },
   maxLinesToast: {

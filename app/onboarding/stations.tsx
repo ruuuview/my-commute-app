@@ -21,6 +21,7 @@ import Animated, {
   withRepeat,
   cancelAnimation,
   Easing,
+  runOnJS,
 } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,14 +33,19 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { TfLStation, FULL_STATIONS } from '../../data/tflStations';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
-import { ProgressPips } from '../../components/ProgressPips';
+import { ProgressDots } from '../../components/ProgressDots';
 import { StationCard } from '../../components/StationCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { LINE_COLORS } from '../../constants/lineColors';
+import { BlurView } from 'expo-blur';
 
 const MAX_PINS = 5;
 const RECENT_SEARCHES_KEY = 'recent_searches';
+
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+const AnimatedIcon = Animated.createAnimatedComponent(Ionicons);
 
 export default function StationsScreen() {
   const router = useRouter();
@@ -56,6 +62,9 @@ export default function StationsScreen() {
   const [maxPinsToast, setMaxPinsToast] = useState(false);
   const [ctaHeight, setCtaHeight] = useState(120);
   const measuredCtaHeight = useRef(120);
+
+  const [isScrolled, setIsScrolled] = useState(false);
+  const isScrolledRef = useRef(false);
 
   const canContinue = pinnedStations.length > 0;
   const backAnim = usePressAnimation('back_btn');
@@ -83,8 +92,13 @@ export default function StationsScreen() {
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
+      const scrolled = event.contentOffset.y > 60;
+      if (scrolled !== isScrolledRef.current) {
+        isScrolledRef.current = scrolled;
+        runOnJS(setIsScrolled)(scrolled);
+      }
     },
-  });
+  }, []);
 
   const ctaAnimValue = useSharedValue(1);
 
@@ -99,12 +113,12 @@ export default function StationsScreen() {
     return {
       height: interpolate(ctaAnimValue.value, [0, 1], [0, ctaHeight], 'clamp'),
       opacity: ctaAnimValue.value,
-      paddingTop: interpolate(ctaAnimValue.value, [0, 1], [0, 12], 'clamp'),
-      paddingBottom: interpolate(ctaAnimValue.value, [0, 1], [0, insets.bottom + 8], 'clamp'),
+      paddingTop: interpolate(ctaAnimValue.value, [0, 1], [0, 14], 'clamp'),
+      paddingBottom: interpolate(ctaAnimValue.value, [0, 1], [0, Math.max(insets.bottom, 16)], 'clamp'),
       borderTopColor: interpolateColor(
         ctaAnimValue.value,
         [0, 1],
-        ['rgba(10,20,100,0)', 'rgba(10,20,100,0.05)']
+        ['rgba(10,15,60,0)', 'rgba(10,15,60,0.10)']
       ),
     };
   });
@@ -247,9 +261,9 @@ export default function StationsScreen() {
     useUserPreferencesStore.setState({
       selectedLines,
       pinnedStations: mappedStations,
+      hasCompletedOnboarding: true,
+      onboardingStep: 3,
     });
-
-    useUserPreferencesStore.getState().completeOnboarding();
   };
 
   const handleSkip = () => {
@@ -265,19 +279,41 @@ export default function StationsScreen() {
 
   // Search bar styles mapped to scrollY
   const searchBarAnimatedStyle = useAnimatedStyle(() => {
-    const t = interpolate(scrollY.value, [120, 160], [0, 1], 'clamp');
+    const t = interpolate(scrollY.value, [40, 80], [0, 1], 'clamp');
     return {
       backgroundColor: interpolateColor(
         t,
         [0, 1],
-        ['rgba(255, 255, 255, 0.10)', '#FFFFFF']
+        ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.85)']
       ),
       borderColor: interpolateColor(
         t,
         [0, 1],
-        ['rgba(255, 255, 255, 0.20)', 'rgba(10, 15, 60, 0.08)']
+        ['rgba(255, 255, 255, 0.12)', 'rgba(10, 15, 60, 0.08)']
       ),
       borderWidth: 0.5,
+    };
+  });
+
+  const inputAnimatedStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [40, 80], [0, 1], 'clamp');
+    return {
+      color: interpolateColor(
+        t,
+        [0, 1],
+        ['#FFFFFF', '#0A0F3C']
+      ),
+    };
+  });
+
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    const t = interpolate(scrollY.value, [40, 80], [0, 1], 'clamp');
+    return {
+      color: interpolateColor(
+        t,
+        [0, 1],
+        ['rgba(255, 255, 255, 0.60)', 'rgba(10, 15, 60, 0.45)']
+      ),
     };
   });
 
@@ -292,7 +328,7 @@ export default function StationsScreen() {
         <Ionicons
           name={isPinned ? 'checkmark' : 'add'}
           size={12}
-          color={isPinned ? '#FFFFFF' : 'rgba(10,15,60,0.50)'}
+          color="#FFFFFF"
         />
       </View>
     );
@@ -318,7 +354,7 @@ export default function StationsScreen() {
           <Animated.View style={[styles.pulseDot, { opacity: pulseOpacity }]} />
           <Text style={styles.arrivalPillText}>2 min</Text>
         </View>
-        <Text style={styles.arrivalPillSub}>Live after setup</Text>
+        <Text style={styles.arrivalPillSub}>Live soon</Text>
       </View>
     );
 
@@ -334,25 +370,6 @@ export default function StationsScreen() {
 
   const stationCountLabel = `Search ${cleanFullStations.length} stations...`;
 
-  // Render headers
-  const listHeader = () => (
-    <View style={styles.listHeaderContainer}>
-      <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
-      <ProgressPips total={2} current={2} />
-      <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
-        Your stations
-      </Text>
-      <Text 
-        style={styles.subtitle} 
-        accessibilityElementsHidden={true} 
-        allowFontScaling 
-        maxFontSizeMultiplier={1.4}
-      >
-        Pin stops you use most
-      </Text>
-    </View>
-  );
-
   return (
     <View style={styles.root}>
       <OnboardingGradient />
@@ -366,7 +383,7 @@ export default function StationsScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         {/* Navigation header fixed crown area */}
-        <View style={[styles.navHeader, { paddingTop: insets.top + 8, height: insets.top + 44 + 8 }]}>
+        <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
           <Pressable
             onPressIn={backAnim.onPressIn}
             onPressOut={backAnim.onPressOut}
@@ -386,24 +403,33 @@ export default function StationsScreen() {
           </Pressable>
         </View>
 
+        {/* Title Header Container */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
+          <ProgressDots total={2} current={2} />
+          <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
+            Your stations
+          </Text>
+        </View>
+
         {/* Search Bar sticky element */}
         <Animated.View style={[styles.searchBarContainer, searchBarAnimatedStyle]}>
-          <Ionicons name="search-outline" size={16} color="rgba(10,15,60,0.45)" style={styles.searchIcon} />
-          <TextInput
+          <AnimatedIcon name="search-outline" size={16} style={[styles.searchIcon, iconAnimatedStyle]} />
+          <AnimatedTextInput
             value={query}
             onChangeText={(text) => {
               setQuery(text);
               setIsSearching(text.length > 0);
             }}
             placeholder={stationCountLabel}
-            placeholderTextColor="rgba(10,15,60,0.35)"
+            placeholderTextColor={isScrolled ? 'rgba(10,15,60,0.35)' : 'rgba(255,255,255,0.40)'}
             autoCorrect={false}
             autoCapitalize="none"
-            style={styles.searchInput}
+            style={[styles.searchInput, inputAnimatedStyle]}
           />
           {query.length > 0 && (
             <Pressable onPress={() => { setQuery(''); setIsSearching(false); }} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color="rgba(10,15,60,0.45)" style={styles.clearIcon} />
+              <AnimatedIcon name="close-circle" size={16} style={[styles.clearIcon, iconAnimatedStyle]} />
             </Pressable>
           )}
         </Animated.View>
@@ -413,7 +439,6 @@ export default function StationsScreen() {
           data={isSearching ? results : pinnedStations.map(p => ({ id: p.id, name: p.name, lines: p.lineIds, zone: p.zone }))}
           renderItem={isSearching ? renderStationItem : renderPinnedItem}
           keyExtractor={(item) => item.id}
-          ListHeaderComponent={listHeader}
           initialNumToRender={12}
           windowSize={5}
           removeClippedSubviews={true}
@@ -454,10 +479,10 @@ export default function StationsScreen() {
                     const rightBtn = (
                       <Pressable 
                         onPress={() => handleToggleStation(station)} 
-                        hitSlop={8}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         style={styles.addCircle}
                       >
-                        <Ionicons name="add" size={12} color="rgba(10,15,60,0.50)" />
+                        <Ionicons name="add" size={12} color="#FFFFFF" />
                       </Pressable>
                     );
 
@@ -478,9 +503,10 @@ export default function StationsScreen() {
             return null;
           }}
         />
-
         {/* Footer CTA — flex child, not absolute, so Android KAV can push it up */}
-        <Animated.View 
+        <AnimatedBlurView 
+          intensity={28}
+          tint="light"
           onLayout={(e) => {
             const h = e.nativeEvent.layout.height;
             if (h > measuredCtaHeight.current) {
@@ -513,19 +539,16 @@ export default function StationsScreen() {
                 styles.cta,
                 ctaBtnAnim.animatedStyle,
                 {
-                  backgroundColor: canContinue ? '#0044EE' : 'rgba(0,68,238,0.12)',
-                  shadowColor: canContinue ? 'rgba(0,68,238,0.35)' : 'transparent',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: canContinue ? 1 : 0,
-                  shadowRadius: 20,
-                  elevation: canContinue ? 4 : 0,
+                  backgroundColor: canContinue ? '#0044EE' : 'rgba(10,15,60,0.07)',
+                  borderColor: canContinue ? 'transparent' : 'rgba(10,15,60,0.18)',
+                  borderWidth: canContinue ? 0 : 1,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.ctaText,
-                  { color: canContinue ? '#FFFFFF' : 'rgba(0,68,238,0.60)' },
+                  { color: canContinue ? '#FFFFFF' : 'rgba(10,15,60,0.35)' },
                 ]}
               >
                 {ctaLabel}
@@ -536,7 +559,7 @@ export default function StationsScreen() {
           <Pressable onPress={handleSkip} style={styles.skipPressable}>
             <Text style={styles.skipText}>Skip for now</Text>
           </Pressable>
-        </Animated.View>
+        </AnimatedBlurView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -545,7 +568,7 @@ export default function StationsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#ECEFFE',
+    backgroundColor: 'transparent',
   },
   flex1: {
     flex: 1,
@@ -566,29 +589,22 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.70)',
     marginLeft: 4,
   },
-  listHeaderContainer: {
+  headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.38)',
-    letterSpacing: 1.6,
+    color: 'rgba(255,255,255,0.30)',
+    letterSpacing: 1.8,
   },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -1,
-    marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.42)',
-    marginTop: 6,
+    marginTop: 10,
   },
   searchBarContainer: {
     flexDirection: 'row',
@@ -610,7 +626,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0A0F3C',
     height: '100%',
   },
   listContainer: {
@@ -626,12 +641,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(10,15,60,0.40)',
+    color: 'rgba(255,255,255,0.40)',
     textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   arrivalPillContainer: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 8,
+    padding: 4,
     maxWidth: 76,
   },
   arrivalPill: {
@@ -641,8 +662,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     height: 28,
     borderRadius: 6,
-    backgroundColor: 'rgba(22, 163, 74, 0.10)',
+    backgroundColor: 'rgba(22, 163, 74, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(22, 163, 74, 0.30)',
     gap: 4,
+    overflow: 'hidden',
   },
   pulseDot: {
     width: 6,
@@ -659,24 +683,32 @@ const styles = StyleSheet.create({
   arrivalPillSub: {
     fontSize: 10,
     fontWeight: '600',
-    color: 'rgba(10,15,60,0.48)',
+    color: 'rgba(10,15,60,0.45)',
     marginTop: 2,
     fontFamily: 'System',
     textTransform: 'uppercase',
   },
   addCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(10,20,100,0.06)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: 'rgba(255,255,255,0.3)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
   },
   addedCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#0044EE',
+    borderWidth: 1,
+    borderColor: 'rgba(0,68,238,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -686,11 +718,14 @@ const styles = StyleSheet.create({
   recentsTitle: {
     fontSize: 10,
     fontWeight: '700',
-    color: 'rgba(10,15,60,0.30)',
+    color: 'rgba(255,255,255,0.40)',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 8,
     marginLeft: 4,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   recentRow: {},
   maxPinsToast: {
@@ -708,10 +743,8 @@ const styles = StyleSheet.create({
   },
   ctaWrap: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: 'rgba(236,239,254,0.95)',
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(10,20,100,0.05)',
   },
   ctaPressable: {
     width: '100%',
@@ -733,7 +766,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
-    color: 'rgba(10,15,60,0.38)',
+    color: 'rgba(10,15,60,0.45)',
     textDecorationLine: 'underline',
   },
   backButtonPressable: {

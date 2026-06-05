@@ -9,32 +9,16 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
+import { STATUS_SHORT } from '../constants/statusLabels';
 
-// WCAG AA compliant text color mappings for white backgrounds
-const STATUS_TEXT_COLORS: Record<string, string> = {
-  'circle':              '#7A6800', // darkened from #FFD300
-  'hammersmith-city':    '#A8294A', // darkened from #F3A9BB
-  'waterloo-city':       '#1F7A5C', // darkened from #93CEBA
-  'overground':          '#B85A00', // darkened from #EE7C0E
-  'elizabeth':           '#6B3A9B', // darkened from #9B59C6
-  'victoria':            '#006B97', // darkened from #0098D4
-  'northern':            '#444444', // softened from #1A1A1A
-};
-
-function getStatusTextColor(lineId: string, statusType: string, brandColor: string): string {
-  switch (statusType) {
-    case 'good':
-      return STATUS_TEXT_COLORS[lineId] || brandColor;
-    case 'minor':
-      return '#B85A00'; // Darkened amber for contrast
-    case 'severe':
-    case 'suspended':
-      return '#B91C1C'; // Red
-    case 'closure':
-      return '#4B5563'; // Gray
-    default:
-      return 'rgba(10,15,60,0.38)';
-  }
+function hexToRgba(hex: string, alpha: number): string {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function StatusSkeleton() {
@@ -58,10 +42,10 @@ function StatusSkeleton() {
     <Animated.View 
       style={[
         {
-          width: 44,
-          height: 10,
-          borderRadius: 5,
-          backgroundColor: 'rgba(10,15,60,0.12)',
+          width: 7,
+          height: 7,
+          borderRadius: 3.5,
+          backgroundColor: 'rgba(255,255,255,0.12)',
         },
         style
       ]}
@@ -77,13 +61,13 @@ const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: st
     if (reducedMotion) return;
     if (statusType === 'severe') {
       pulse.value = withRepeat(
-        withTiming(1, { duration: 1000 }), // 2s loop
+        withTiming(1, { duration: 1000 }),
         -1,
         true
       );
     } else if (statusType === 'suspended') {
       pulse.value = withRepeat(
-        withTiming(1, { duration: 500 }), // 1s loop
+        withTiming(1, { duration: 500 }),
         -1,
         true
       );
@@ -97,13 +81,14 @@ const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: st
     return { opacity: 1 };
   });
 
-  let color = '#9CA3AF'; // closure/error/unknown
+  let color = '#9CA3AF';
   if (statusType === 'good') color = '#22C55E';
   if (statusType === 'minor') color = '#F59E0B';
   if (statusType === 'severe' || statusType === 'suspended') color = '#EF4444';
 
   return (
     <Animated.View
+      accessibilityLabel={`Status: ${statusType}`}
       style={[
         {
           width: 7,
@@ -128,6 +113,8 @@ interface LineCardProps {
   disabled?: boolean;
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error';
   statusLabel: string;
+  isPearlZone?: boolean;
+  isWide?: boolean;
 }
 
 export function LineCard({
@@ -137,30 +124,9 @@ export function LineCard({
   disabled = false,
   statusType,
   statusLabel,
+  isPearlZone = false,
+  isWide = false,
 }: LineCardProps) {
-  const reducedMotion = useReducedMotion();
-  const configKey = selected ? 'line_deselect' : 'line_select';
-  const pressAnim = usePressAnimation(configKey, disabled);
-
-  const nameStyle = selected ? styles.lineNameSelected : styles.lineNameUnselected;
-
-  // Selected shadow styling for iOS
-  const selectedShadowStyle = selected ? {
-    shadowColor: line.color,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-  } : {};
-
-  // Custom border color/width when selected
-  const selectedBorder = selected ? {
-    borderWidth: 1.5,
-    borderColor: line.color,
-  } : {
-    borderWidth: 0.5,
-    borderColor: 'rgba(10,20,100,0.10)',
-  };
-
   const opacityVal = useSharedValue(0);
   
   React.useEffect(() => {
@@ -175,40 +141,87 @@ export function LineCard({
     opacity: opacityVal.value,
   }));
 
+  const selectedStyle = selected ? {
+    borderWidth: 1,
+    borderColor: hexToRgba(line.color, 0.6),
+    backgroundColor: hexToRgba(line.color, 0.12),
+  } : (isPearlZone ? {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.90)',
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    shadowColor: 'rgba(10, 15, 60, 0.10)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
+  } : {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  });
+
+  const reducedMotion = useReducedMotion();
+  const configKey = selected ? 'line_deselect' : 'line_select';
+  const pressAnim = usePressAnimation(configKey, disabled);
+  
+  const nameStyle = selected 
+    ? styles.lineNameSelected 
+    : (isPearlZone ? styles.lineNameUnselectedPearl : styles.lineNameUnselectedTop);
+
+  const handlePress = () => {
+    if (disabled) return;
+    
+    const timestamp = Date.now();
+    console.log(`[AUDIO_TRIGGER] playSound at ${timestamp} (selected: ${selected})`);
+    
+    if (selected) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      playSound('deselect', 0.35);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playSound('select', 0.45);
+    }
+    
+    onPress();
+  };
+
+  const abbreviateStatus = (label: string): string => {
+    return STATUS_SHORT[label] ?? label;
+  };
+
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={styles.outerCard}>
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      style={styles.outerCard}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={`${line.name} line, status: ${statusLabel}${selected ? ', selected' : ''}`}
+    >
       <Animated.View 
         style={[
           styles.cardInner, 
-          selectedBorder, 
-          selectedShadowStyle, 
+          selectedStyle, 
           !reducedMotion && pressAnim.animatedStyle
         ]}
       >
-        {/* Accent bar — flush left, rounded top/bottom left to match cardInner rounding */}
+        {/* Accent bar — flush left, matching cardInner rounding */}
         <View style={[styles.accentBar, { backgroundColor: line.color }]} />
         
         {/* Content */}
         <View style={styles.cardContent}>
-          <Text style={[styles.lineName, nameStyle]} numberOfLines={1}>
+          <Text style={[styles.lineName, nameStyle]} numberOfLines={1} ellipsizeMode="tail">
             {line.name}
           </Text>
           
-          {/* Status Slot — 16px fixed height to prevent CLS */}
-          <View style={styles.statusSlot}>
+          <View style={styles.statusSubRow}>
             {statusType === 'loading' ? (
               <StatusSkeleton />
             ) : (
-              <Animated.View style={[styles.statusRow, animatedStatusStyle]}>
+              <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
                 <StatusDot statusType={statusType} />
-                <Text
-                  style={[
-                    styles.statusText,
-                    { color: getStatusTextColor(line.id, statusType, line.color) }
-                  ]}
-                  numberOfLines={1}
-                >
-                  {statusLabel}
+                <Text style={[styles.statusText, isPearlZone ? styles.statusTextPearl : styles.statusTextTop]} numberOfLines={1}>
+                  {abbreviateStatus(statusLabel)}
                 </Text>
               </Animated.View>
             )}
@@ -236,18 +249,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    // iOS shadow
-    shadowColor: 'rgba(0,20,100,1)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    // Android elevation
-    elevation: 3,
+    position: 'relative',
   },
   accentBar: {
-    width: 3.5,
+    width: 3,
     alignSelf: 'stretch',
     borderTopLeftRadius: 16,
     borderBottomLeftRadius: 16,
@@ -260,37 +266,52 @@ const styles = StyleSheet.create({
   lineName: {
     fontSize: 13,
     fontWeight: '700',
-    fontFamily: 'System', // system font falls back to SF Pro Display/Text on iOS
-  },
-  lineNameSelected: {
-    color: '#0A0F3C',
-  },
-  lineNameUnselected: {
-    color: '#434875',
-  },
-  statusSlot: {
-    height: 16,
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
     fontFamily: 'System',
   },
+  lineNameSelected: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  lineNameUnselectedTop: {
+    color: 'rgba(255,255,255,0.72)',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  lineNameUnselectedPearl: {
+    color: 'rgba(10,15,60,0.72)',
+  },
+  statusSubRow: {
+    marginTop: 4,
+    height: 16,
+    justifyContent: 'center',
+  },
+  statusRowLayout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
+  statusTextTop: {
+    color: 'rgba(255,255,255,0.60)',
+  },
+  statusTextPearl: {
+    color: 'rgba(10,15,60,0.60)',
+  },
   checkBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
     width: 18,
     height: 18,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
 });

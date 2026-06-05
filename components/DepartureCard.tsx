@@ -224,7 +224,7 @@ export default function DepartureCard({
             </View>
           ) : arrivals.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No upcoming departures found</Text>
+              <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
             </View>
           ) : (
             arrivals.slice(0, 3).map((a, i) => {

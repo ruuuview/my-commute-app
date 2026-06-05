@@ -15,7 +15,7 @@ import {
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
 import { Audio, InterruptionModeIOS } from 'expo-av';
-import { preloadSounds, playSound } from '../utils/sound';
+import { preloadSounds } from '../utils/sound';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -97,7 +97,6 @@ export default function RootLayout() {
     };
   }, []);
   
-  const overlayOpacity = useSharedValue(0);
   const whiteOverlayOpacity = useSharedValue(0);
   
   // Guard: Initialize with current state to prevent cold-start animations
@@ -126,9 +125,6 @@ export default function RootLayout() {
           // Success haptics
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           AccessibilityInfo.announceForAccessibility("Welcome to your dashboard");
-          
-          // confirm chime at 0.72 volume
-          playSound('confirm', 0.72);
 
           // 1-frame pure white flash sequence
           whiteOverlayOpacity.value = 1;
@@ -157,11 +153,6 @@ export default function RootLayout() {
     }
   }, [_hasHydrated, hasCompletedOnboarding, router]);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-    zIndex: overlayOpacity.value > 0 ? 999 : -1,
-  }));
-
   const whiteOverlayStyle = useAnimatedStyle(() => ({
     opacity: whiteOverlayOpacity.value,
     zIndex: whiteOverlayOpacity.value > 0 ? 1000 : -1,
@@ -178,7 +169,6 @@ export default function RootLayout() {
             }}
           />
         ) : null}
-        <Animated.View style={[StyleSheet.absoluteFillObject, styles.blackOverlay, overlayStyle]} pointerEvents="none" />
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -187,7 +177,6 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
-  blackOverlay: { backgroundColor: '#000000' },
   whiteOverlay: { backgroundColor: '#FFFFFF' },
 });
 

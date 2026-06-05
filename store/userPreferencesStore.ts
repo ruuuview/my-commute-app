@@ -24,7 +24,7 @@ export interface UserPreferencesState {
   hasCompletedOnboarding: boolean;
   onboardingStep: 0 | 1 | 2 | 3;
   selectedLines: string[];
-  pinnedStations: { id: string; name: string; lines: string[]; role: 'home' | 'work' | 'other' }[];
+  pinnedStations: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[];
   notificationsGranted: boolean;
   calendarGranted: boolean;
   entitlementActive: boolean;
@@ -40,10 +40,10 @@ export interface UserPreferencesState {
   setEntitlementActive: (active: boolean) => void;
   completeOnboarding: () => void;
   toggleLine: (id: string) => void;
-  pinStation: (station: { id: string; name: string; lines: string[] }, role: 'home' | 'work' | 'other') => void;
+  pinStation: (station: { id: string; name: string; lines: string[]; zone: number }, role: 'home' | 'work' | 'other') => void;
   unpinStation: (id: string) => void;
   reorderLines: (order: string[]) => void;
-  reorderStations: (order: { id: string; name: string; lines: string[]; role: 'home' | 'work' | 'other' }[]) => void;
+  reorderStations: (order: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   resetOnboarding: () => void;
   setLastKnown: (status: StatusLevel, data: any[]) => void;
 }
@@ -63,6 +63,14 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   _hasHydrated: false,
   sessionCount: 0,
   firstOpenTimestamp: null,
+};
+
+const validateStationZoneCache = (pinnedStations: any[]) => {
+  if (!pinnedStations) return;
+  const cleanedStations = pinnedStations.filter(station => station.zone !== undefined);
+  if (cleanedStations.length !== pinnedStations.length) {
+    useUserPreferencesStore.setState({ pinnedStations: cleanedStations });
+  }
 };
 
 export const useUserPreferencesStore = create<UserPreferencesState>()(
@@ -92,7 +100,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           return { selectedLines: lines };
         });
       },
-      pinStation: (station: { id: string; name: string; lines: string[] }, role: 'home' | 'work' | 'other') => {
+      pinStation: (station: { id: string; name: string; lines: string[]; zone: number }, role: 'home' | 'work' | 'other') => {
         set(state => {
           const stations = [...state.pinnedStations];
           if (stations.length < 5) {
@@ -116,7 +124,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       reorderLines: (order: string[]) => {
         set({ selectedLines: order });
       },
-      reorderStations: (order: { id: string; name: string; lines: string[]; role: 'home' | 'work' | 'other' }[]) => {
+      reorderStations: (order: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => {
         set({ pinnedStations: order });
       }
     }),
@@ -129,7 +137,10 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         return persisted;
       },
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        if (state) {
+          validateStationZoneCache(state.pinnedStations);
+          state.setHasHydrated(true);
+        }
       },
     }
   )

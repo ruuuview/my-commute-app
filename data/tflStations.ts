@@ -6,7 +6,7 @@ export interface TfLStation {
   id: string;
   name: string;
   lines: string[];
-  zone?: number;
+  zone: number;
   searchKeys?: string[];
 }
 
@@ -141,6 +141,7 @@ export const TFL_STATIONS: TfLStation[] = [
   { id: 'heathrow-t4',      name: 'Heathrow Terminal 4',   lines: ['piccadilly'],                             zone: 6 },
   { id: 'heathrow-t5',      name: 'Heathrow Terminal 5',   lines: ['elizabeth','piccadilly'],                  zone: 6 },
   { id: 'ilford',           name: 'Ilford',                lines: ['elizabeth'],                              zone: 4 },
+  { id: 'northolt',         name: 'Northolt',              lines: ['central'],                                zone: 5 },
   { id: 'richmond',         name: 'Richmond',              lines: ['district','overground'],                  zone: 4 },
   { id: 'romford',          name: 'Romford',               lines: ['elizabeth'],                              zone: 6 },
   { id: 'wimbledon',        name: 'Wimbledon',             lines: ['district'],                               zone: 3 },
@@ -154,7 +155,7 @@ export const TFL_STATIONS: TfLStation[] = [
   };
 });
 
-export const FULL_STATIONS: TfLStation[] = (fullStationsData as TfLStation[]).map(s => {
+export const FULL_STATIONS: TfLStation[] = (fullStationsData as any[]).map(s => {
   const display = cleanDisplayStationName(s.name);
   const searchKey = display.replace(/'/g, '').replace(/\./g, '').toLowerCase().trim();
   const key = searchKey.replace(/[^a-z0-9]/g, '');
@@ -167,7 +168,7 @@ export const FULL_STATIONS: TfLStation[] = (fullStationsData as TfLStation[]).ma
   return {
     ...s,
     name: display,
-    zone: matchingHardcoded?.zone ?? s.zone,
+    zone: matchingHardcoded?.zone ?? s.zone ?? 1,
     searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
   };
 });

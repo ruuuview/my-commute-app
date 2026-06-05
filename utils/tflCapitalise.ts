@@ -41,6 +41,8 @@ function capitaliseFirst(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
+const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export function tflCapitalise(input: string): string {
   if (!input) return '';
   const key = input.toLowerCase().trim();
@@ -49,7 +51,13 @@ export function tflCapitalise(input: string): string {
   // Partial match — check if any exception key is a substring
   for (const [exKey, exValue] of Object.entries(TFL_EXCEPTIONS)) {
     if (key.includes(exKey)) {
-      return input.replace(new RegExp(`\\b${exKey}\\b`, 'gi'), exValue);
+      // After escaping, \b breaks on apostrophes — "King's Cross" apostrophe is a
+      // non-word char, so \b fires mid-name. Strip \b anchors entirely when the
+      // escaped key contains a non-word character.
+      const safePattern = /\W/.test(exKey)
+        ? escapeRegExp(exKey)
+        : `\\b${escapeRegExp(exKey)}\\b`;
+      return input.replace(new RegExp(safePattern, 'gi'), exValue);
     }
   }
   // Fallback: standard title case

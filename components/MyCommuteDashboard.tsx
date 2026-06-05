@@ -447,36 +447,6 @@ const MyCommuteDashboard: React.FC = () => {
     <View style={dash.root}>
       <GradientBackground lines={selectedLines} status={networkSeverity as StatusLevel} />
       <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
-        {/* ── Global header ── */}
-        <View style={dash.header}>
-          <View style={dash.titleRow}>
-            <NetworkHealthDot severity={networkSeverity} />
-            <Text style={dash.titleMain}>MY</Text>
-          </View>
-          <View style={dash.titleSecondRow}>
-            <Text style={dash.titleSub}>COMMUTE</Text>
-            <View style={dash.headerActions}>
-              {hasContent && (
-                <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
-                  <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
-                </Pressable>
-              )}
-              {/* ✅ + Button opens modal directly */}
-              <Pressable onPress={() => setModalVisible(true)} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
-                <Text style={dash.addBtnText}>+</Text>
-              </Pressable>
-            </View>
-          </View>
-          <View style={dash.subheadingArea}>
-            {networkSeverity !== 'good' && networkSeverity !== 'unknown' && (
-              <Text style={dash.disruptedLinesText}>
-                {sortedLines.filter(l => parseSeverity(l.status) !== 'good').map(l => l.name).join(', ')}
-              </Text>
-            )}
-            <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
-          </View>
-        </View>
-
         {/* ── Content ── */}
         <ScrollView
           style={dash.scroll}
@@ -484,6 +454,35 @@ const MyCommuteDashboard: React.FC = () => {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
+          {/* ── Global header ── */}
+          <View style={[dash.header, { paddingHorizontal: 4 }]}>
+            <View style={dash.titleRow}>
+              <NetworkHealthDot severity={networkSeverity} />
+              <Text style={dash.titleMain}>MY</Text>
+            </View>
+            <View style={dash.titleSecondRow}>
+              <Text style={dash.titleSub}>COMMUTE</Text>
+              <View style={dash.headerActions}>
+                {hasContent && (
+                  <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
+                    <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+                  </Pressable>
+                )}
+                {/* ✅ + Button opens modal directly */}
+                <Pressable onPress={() => setModalVisible(true)} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
+                  <Text style={dash.addBtnText}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+            <View style={dash.subheadingArea}>
+              {networkSeverity !== 'good' && networkSeverity !== 'unknown' && (
+                <Text style={dash.disruptedLinesText}>
+                  {sortedLines.filter(l => parseSeverity(l.status) !== 'good').map(l => l.name).join(', ')}
+                </Text>
+              )}
+              <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
+            </View>
+          </View>
           {!hasContent && (
             <View style={dash.premiumEmptyState}>
               <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">

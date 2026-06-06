@@ -12,14 +12,8 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';
 import { STATUS_SHORT } from '../constants/statusLabels';
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleanHex = hex.replace('#', '');
-  const r = parseInt(cleanHex.substring(0, 2), 16);
-  const g = parseInt(cleanHex.substring(2, 4), 16);
-  const b = parseInt(cleanHex.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
+import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
+import { BlurView } from 'expo-blur';
 
 function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
@@ -113,8 +107,6 @@ interface LineCardProps {
   disabled?: boolean;
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error';
   statusLabel: string;
-  isPearlZone?: boolean;
-  isWide?: boolean;
 }
 
 export function LineCard({
@@ -124,8 +116,6 @@ export function LineCard({
   disabled = false,
   statusType,
   statusLabel,
-  isPearlZone = false,
-  isWide = false,
 }: LineCardProps) {
   const opacityVal = useSharedValue(0);
   
@@ -143,30 +133,15 @@ export function LineCard({
 
   const selectedStyle = selected ? {
     borderWidth: 1,
-    borderColor: hexToRgba(line.color, 0.6),
-    backgroundColor: hexToRgba(line.color, 0.12),
-  } : (isPearlZone ? {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.90)',
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    shadowColor: 'rgba(10, 15, 60, 0.10)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
+    borderColor: 'rgba(255, 255, 255, 0.70)',
   } : {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  });
+  };
 
   const reducedMotion = useReducedMotion();
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);
-  
-  const nameStyle = selected 
-    ? styles.lineNameSelected 
-    : (isPearlZone ? styles.lineNameUnselectedPearl : styles.lineNameUnselectedTop);
 
   const handlePress = () => {
     if (disabled) return;
@@ -189,11 +164,26 @@ export function LineCard({
     return STATUS_SHORT[label] ?? label;
   };
 
+  // Add a subtle outer glow for dark lines (e.g. Northern)
+  const isDarkLine = line.id === 'northern';
+  const barGlowStyle = isDarkLine ? {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  } : null;
+
+  // Conditionally apply right padding to avoid checkmark badge collision when selected
+  const contentPaddingRight = selected ? 28 : 12;
+
   return (
     <Pressable
       onPress={handlePress}
+      onPressIn={pressAnim.onPressIn}
+      onPressOut={pressAnim.onPressOut}
       disabled={disabled}
-      style={styles.outerCard}
+      style={({ pressed }) => [styles.outerCard, pressed && { opacity: 0.65 }]}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${line.name} line, status: ${statusLabel}${selected ? ', selected' : ''}`}
@@ -205,12 +195,19 @@ export function LineCard({
           !reducedMotion && pressAnim.animatedStyle
         ]}
       >
-        {/* Accent bar — flush left, matching cardInner rounding */}
-        <View style={[styles.accentBar, { backgroundColor: line.color }]} />
+        {/* Frosted glass background layer with opaque fallback styling */}
+        <BlurView
+          intensity={30}
+          tint="dark"
+          style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
+        />
+
+        {/* Accent bar — centred 36px vertically, 3px wide, rounded, placed 14px from left */}
+        <View style={[styles.accentBar, { backgroundColor: line.color }, barGlowStyle]} />
         
         {/* Content */}
-        <View style={styles.cardContent}>
-          <Text style={[styles.lineName, nameStyle]} numberOfLines={1} ellipsizeMode="tail">
+        <View style={[styles.cardContent, { paddingRight: contentPaddingRight }]}>
+          <Text style={styles.lineName} numberOfLines={1} ellipsizeMode="tail">
             {line.name}
           </Text>
           
@@ -220,7 +217,7 @@ export function LineCard({
             ) : (
               <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
                 <StatusDot statusType={statusType} />
-                <Text style={[styles.statusText, isPearlZone ? styles.statusTextPearl : styles.statusTextTop]} numberOfLines={1}>
+                <Text style={styles.statusText} numberOfLines={1}>
                   {abbreviateStatus(statusLabel)}
                 </Text>
               </Animated.View>
@@ -228,10 +225,10 @@ export function LineCard({
           </View>
         </View>
         
-        {/* Selected check badge */}
+        {/* Selected check badge — 18px white circle, dark check */}
         {selected && (
-          <View style={[styles.checkBadge, { backgroundColor: line.color }]}>
-            <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+          <View style={styles.checkBadge}>
+            <Ionicons name="checkmark" size={12} color="#0A0F3C" />
           </View>
         )}
       </Animated.View>
@@ -241,47 +238,38 @@ export function LineCard({
 
 const styles = StyleSheet.create({
   outerCard: {
-    height: 72,
-    flex: 1,
-    borderRadius: 16,
+    height: ONBOARDING_CARD_HEIGHT,
+    borderRadius: 18,
   },
   cardInner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 18,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  blurBackground: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   accentBar: {
+    position: 'absolute',
+    left: 14,
+    top: 21, // Centred in 80px height: (80 - 36 - 2 border height offset) / 2 = 21
     width: 3,
-    alignSelf: 'stretch',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    height: 36,
+    borderRadius: 2,
   },
   cardContent: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingLeft: 22, // 14px margin + 3px bar + 5px breathing room
     justifyContent: 'center',
   },
   lineName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: 'System',
-  },
-  lineNameSelected: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  lineNameUnselectedTop: {
-    color: 'rgba(255,255,255,0.72)',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  lineNameUnselectedPearl: {
-    color: 'rgba(10,15,60,0.72)',
+    color: 'rgba(255, 255, 255, 0.95)',
   },
   statusSubRow: {
     marginTop: 4,
@@ -291,18 +279,13 @@ const styles = StyleSheet.create({
   statusRowLayout: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   statusText: {
     fontSize: 11,
     fontWeight: '600',
     fontFamily: 'System',
-  },
-  statusTextTop: {
-    color: 'rgba(255,255,255,0.60)',
-  },
-  statusTextPearl: {
-    color: 'rgba(10,15,60,0.60)',
+    color: 'rgba(255, 255, 255, 0.55)',
   },
   checkBadge: {
     position: 'absolute',
@@ -311,6 +294,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -29,6 +29,21 @@ export function cleanDisplayStationName(raw: string): string {
       break;
     }
   }
+  // Strip -Underground / -DLR / -Overground tail (e.g. "Paddington (H&C Line)-Underground")
+  name = name.replace(/-(Underground|DLR|Overground)$/i, '');
+  // Strip parenthetical line qualifiers — (H&C Line), (Circle Line), (Bakerloo),
+  // (Dist&Picc Line), (Central), (for ExCel), (for Maritime Greenwich), (Berks), (London)
+  name = name.replace(/\s*\([^)]*\b(Line|DLR|for |Berks|London)\b[^)]*\)/gi, '');
+  // Also strip remaining bare line qualifiers like "(Bakerloo)" or "(Central)"
+  name = name.replace(/\s*\((Bakerloo|Central|Circle|District|Hammersmith|Metropolitan|Northern|Jubilee|Piccadilly|Victoria|Elizabeth|Overground|DLR)\)/gi, '');
+  // Second suffix pass — catches cases where parenthetical was at the end
+  // e.g. "Queen's Park Station (London)" → after stripping (London) → "Queen's Park Station"
+  for (const suffix of STRIP_SUFFIXES) {
+    if (name.endsWith(suffix)) {
+      name = name.slice(0, -suffix.length);
+      break;
+    }
+  }
   name = name.trim();
   if (name.endsWith('.')) {
     name = name.slice(0, -1);

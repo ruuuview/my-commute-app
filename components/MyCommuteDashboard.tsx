@@ -19,6 +19,8 @@ import {
   Modal
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -200,10 +202,17 @@ const pill = StyleSheet.create({
 // ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
 // ─── Section header ───────────────────────────────────────────────
-const SectionHeader: React.FC<{ title: string; icon: React.ReactNode }> = ({ title, icon }) => (
+const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd?: () => void }> = ({ title, icon, onPressAdd }) => (
   <View style={section.row}>
-    {icon}
-    <Text style={section.title}>{title}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+      {icon}
+      <Text style={section.title}>{title}</Text>
+    </View>
+    {onPressAdd && (
+      <Pressable onPress={onPressAdd} hitSlop={8}>
+        <Ionicons name="add" size={18} color="rgba(255,255,255,0.6)" />
+      </Pressable>
+    )}
   </View>
 );
 const section = StyleSheet.create({
@@ -317,6 +326,7 @@ const MyCommuteDashboard: React.FC = () => {
     setLastKnown: s.setLastKnown,
   })));
 
+  const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
@@ -512,21 +522,40 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
           )}
 
-          {selectedStations.length > 0 && (
+          {sortedLines.length > 0 && (
             <View style={dash.section}>
-              <SectionHeader title="MY STATIONS" icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} />
-              {selectedStations.map((station: any, index: number) => (
-                <StaggeredCardWrapper key={station.id} index={index}>
-                  <DepartureCard
-                    stationId={station.id}
-                    stationName={station.name}
-                    role={station.role}
-                    isEditing={isEditing}
-                    onDelete={removeStation}
-                    onLongPress={handleEdit}
+              <SectionHeader 
+                title="MY STATIONS" 
+                icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                onPressAdd={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+              />
+              {selectedStations.length === 0 ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                  style={dash.addStationCard}
+                >
+                  <BlurView
+                    intensity={20}
+                    tint="dark"
+                    style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
                   />
-                </StaggeredCardWrapper>
-              ))}
+                  <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
+                  <Text style={dash.addCardText}>Add your first station</Text>
+                </Pressable>
+              ) : (
+                selectedStations.map((station: any, index: number) => (
+                  <StaggeredCardWrapper key={station.id} index={index}>
+                    <DepartureCard
+                      stationId={station.id}
+                      stationName={station.name}
+                      role={station.role}
+                      isEditing={isEditing}
+                      onDelete={removeStation}
+                      onLongPress={handleEdit}
+                    />
+                  </StaggeredCardWrapper>
+                ))
+              )}
             </View>
           )}
         </ScrollView>
@@ -649,6 +678,31 @@ const dash = StyleSheet.create({
   promptBtnPrimary: { backgroundColor: '#FFFFFF' },
   promptBtnTextPrimary: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 15, color: '#0A0A0F' },
   promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
+  addStationCard: {
+    alignSelf: 'stretch',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
+    height: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  addCardBlur: {
+    backgroundColor: Platform.OS === 'android' ? 'rgba(15,20,70,0.85)' : 'rgba(255,255,255,0.07)',
+  },
+  addCardIcon: {
+    marginRight: 10,
+  },
+  addCardText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.50)',
+    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk-SemiBold',
+  },
 });
 
 export default MyCommuteDashboard;

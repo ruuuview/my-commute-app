@@ -45,10 +45,13 @@ export interface UserPreferencesState {
   reorderLines: (order: string[]) => void;
   reorderStations: (order: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   resetOnboarding: () => void;
+  recentSearches: string[];
+  addRecentSearch: (stationId: string) => void;
+  clearRecentSearches: () => void;
   setLastKnown: (status: StatusLevel, data: any[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches'> = {
   schemaVersion: 1,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -63,6 +66,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   _hasHydrated: false,
   sessionCount: 0,
   firstOpenTimestamp: null,
+  recentSearches: [],
 };
 
 const validateStationZoneCache = (pinnedStations: any[]) => {
@@ -77,6 +81,17 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
   persist(
     (set) => ({
       ...initialState,
+      addRecentSearch: (stationId: string) => {
+        set(state => {
+          const list = state.recentSearches || [];
+          const filtered = list.filter(id => id !== stationId);
+          const updated = [stationId, ...filtered].slice(0, 8);
+          return { recentSearches: updated };
+        });
+      },
+      clearRecentSearches: () => {
+        set({ recentSearches: [] });
+      },
       setLastKnown: (status, data) => set({ lastKnownStatus: status, lastKnownData: data }),
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       setCalendarGranted: (granted) => set({ calendarGranted: granted }),

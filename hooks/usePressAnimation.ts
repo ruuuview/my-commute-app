@@ -5,9 +5,9 @@ import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';
 
 export const PRESS_PRESETS = {
-  LINE_PILL_SELECT:   { scaleDown: 0.97, damping: 12, stiffness: 90 },
-  LINE_PILL_DESELECT: { scaleDown: 0.97, damping: 12, stiffness: 90 },
-  STATION_ROW:        { scaleDown: 0.97, damping: 20, stiffness: 260 },
+  LINE_PILL_SELECT:   { scaleDown: 0.96, damping: 12, stiffness: 90 },
+  LINE_PILL_DESELECT: { scaleDown: 0.96, damping: 12, stiffness: 90 },
+  STATION_ROW:        { scaleDown: 0.96, damping: 20, stiffness: 260 },
   CONTINUE_BTN:       { scaleDown: 0.96, damping: 14, stiffness: 180 },
   BACK_BTN:           { scaleDown: 0.95, damping: 18, stiffness: 200 },
   SKIP_BTN:           { scaleDown: 0.97, damping: 22, stiffness: 240 },

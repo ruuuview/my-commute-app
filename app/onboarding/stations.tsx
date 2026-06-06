@@ -37,7 +37,6 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { LINE_COLORS } from '../../constants/lineColors';
 import { BlurView } from 'expo-blur';
-import { STATION_CARD_HEIGHT, COLUMN_GAP, SCREEN_PADDING } from '../../constants/layout';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const MAX_PINS = 5;
@@ -92,7 +91,7 @@ export default function StationsScreen() {
     }));
   }, [pinnedStationsRaw]);
 
-  const recentSearchIds = useUserPreferencesStore(s => s.recentSearches) || [];
+  const recentSearchIds = useUserPreferencesStore(s => s.recentSearches);
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -191,7 +190,8 @@ export default function StationsScreen() {
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
   const recentStations = useMemo(() => {
-    return recentSearchIds
+    const searchIds = recentSearchIds || [];
+    return searchIds
       .map(id => cleanFullStations.find(s => s.id === id))
       .filter((s): s is TfLStation => !!s);
   }, [recentSearchIds, cleanFullStations]);

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';

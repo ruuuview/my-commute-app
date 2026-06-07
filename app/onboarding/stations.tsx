@@ -352,13 +352,13 @@ export default function StationsScreen() {
       {/* Volumetric Bloom Layers */}
       <View style={styles.topBloomContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(0, 68, 238, 0.18)', 'rgba(0, 68, 238, 0)']}
+          colors={['rgba(0, 80, 255, 0.30)', 'rgba(0, 80, 255, 0)']}
           style={StyleSheet.absoluteFillObject}
         />
       </View>
       <View style={styles.midBloomContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(184, 192, 240, 0.12)', 'rgba(184, 192, 240, 0)']}
+          colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
           style={StyleSheet.absoluteFillObject}
         />
       </View>

@@ -238,6 +238,7 @@ export function LineCard({
 
 const styles = StyleSheet.create({
   outerCard: {
+    width: '100%',
     height: ONBOARDING_CARD_HEIGHT,
     borderRadius: 18,
   },

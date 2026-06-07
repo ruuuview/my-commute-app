@@ -256,8 +256,16 @@ export default function LinesScreen() {
     let statusLabel = 'Loading status...';
     
     if (!loadingStatuses) {
-      if (apiStatuses[lineId]) {
-        const statusData = apiStatuses[lineId];
+      const API_LINE_ID_MAP: Record<string, string> = {
+        'overground': 'london-overground',
+        'hammersmith-city': 'hammersmith-city',
+        'elizabeth': 'elizabeth-line',
+        'dlr': 'dlr',
+      };
+      const apiKey = API_LINE_ID_MAP[lineId] ?? lineId;
+
+      if (apiStatuses[apiKey]) {
+        const statusData = apiStatuses[apiKey];
         const resolved = getLineStatus(statusData.severity, statusData.description);
         statusType = resolved.statusType;
         statusLabel = resolved.label;
@@ -350,13 +358,13 @@ export default function LinesScreen() {
         <>
           <View style={styles.topBloomContainer} pointerEvents="none">
             <LinearGradient
-              colors={['rgba(0, 68, 238, 0.18)', 'rgba(0, 68, 238, 0)']}
+              colors={['rgba(0, 80, 255, 0.30)', 'rgba(0, 80, 255, 0)']}
               style={StyleSheet.absoluteFillObject}
             />
           </View>
           <View style={styles.midBloomContainer} pointerEvents="none">
             <LinearGradient
-              colors={['rgba(184, 192, 240, 0.12)', 'rgba(184, 192, 240, 0)']}
+              colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
               style={StyleSheet.absoluteFillObject}
             />
           </View>
@@ -424,7 +432,7 @@ export default function LinesScreen() {
       {/* Sticky CTA Footer */}
       <BlurView
         intensity={28}
-        tint="light"
+        tint="dark"
         style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
       >
         <Pressable
@@ -537,7 +545,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(10, 15, 60, 0.10)',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
     overflow: 'hidden',
   },
   ctaPressable: {
@@ -560,7 +568,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
-    color: 'rgba(10, 15, 60, 0.45)',
+    color: 'rgba(255, 255, 255, 0.35)',
     textDecorationLine: 'underline',
   },
   maxLinesToast: {

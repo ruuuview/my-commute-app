@@ -89,7 +89,7 @@ export default function LinesScreen() {
     let active = true;
     const fetchStatuses = async () => {
       try {
-        const res = await fetch('https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line/Status');
+        const res = await fetch('https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line,london-overground/Status');
         if (!res.ok) throw new Error('Failed to fetch TfL status');
         const data = await res.json();
         if (!active) return;
@@ -236,19 +236,17 @@ export default function LinesScreen() {
   const ctaLabel = getCtaLabel(selectedLines.length);
 
   const getLineStatus = (severity: number, desc: string) => {
-    if (severity === 10) {
-      return { statusType: 'good' as const, label: 'Good service' };
-    } else if (severity === 9) {
-      return { statusType: 'minor' as const, label: 'Minor delays' };
-    } else if (severity === 8 || severity === 7) {
-      return { statusType: 'minor' as const, label: desc || 'Reduced service' };
-    } else if (severity === 4) {
-      return { statusType: 'closure' as const, label: 'Planned closure' };
-    } else if (severity === 3 || severity === 2 || severity === 1 || severity === 5 || severity === 11) {
-      return { statusType: 'suspended' as const, label: desc || 'Part suspended' };
-    } else {
-      return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-    }
+    const d = desc.toLowerCase();
+    if (severity === 10)                          return { statusType: 'good' as const,      label: 'Good service' };
+    if (severity === 9)                           return { statusType: 'minor' as const,     label: 'Minor delays' };
+    if (severity === 8 || severity === 7)         return { statusType: 'minor' as const,     label: desc || 'Reduced service' };
+    if (severity === 6)                           return { statusType: 'severe' as const,    label: desc || 'Severe delays' };
+    if (severity === 5 || severity === 11)        return { statusType: 'suspended' as const, label: desc || 'Part suspended' };
+    if (severity === 4 || severity === 3)         return { statusType: 'closure' as const,   label: desc || 'Planned closure' };
+    if (severity === 20 || severity === 0)        return { statusType: 'closure' as const,   label: 'Not running' };
+    if (d.includes('closure') || d.includes('closed')) return { statusType: 'closure' as const, label: desc };
+    if (d.includes('suspend'))                    return { statusType: 'suspended' as const, label: desc };
+    return { statusType: 'severe' as const, label: desc || 'Severe delays' };
   };
 
   const resolveLineStatus = (lineId: string) => {

@@ -7,6 +7,7 @@ import Animated, {
   useReducedMotion,
   withRepeat,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import * as Haptics from 'expo-haptics';
@@ -48,37 +49,34 @@ function StatusSkeleton() {
 }
 
 const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: string }) {
-  const pulse = useSharedValue(0.4);
+  const pulse = useSharedValue(1);
   const reducedMotion = useReducedMotion();
 
   React.useEffect(() => {
     if (reducedMotion) return;
-    if (statusType === 'severe') {
+    if (statusType === 'closure') {
+      pulse.value = 0.4;
       pulse.value = withRepeat(
-        withTiming(1, { duration: 1000 }),
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
-    } else if (statusType === 'suspended') {
-      pulse.value = withRepeat(
-        withTiming(1, { duration: 500 }),
-        -1,
-        true
-      );
+    } else {
+      pulse.value = 1;
     }
   }, [statusType, reducedMotion, pulse]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    if (statusType === 'severe' || statusType === 'suspended') {
+    if (statusType === 'closure') {
       return { opacity: pulse.value };
     }
     return { opacity: 1 };
   });
 
   let color = '#9CA3AF';
-  if (statusType === 'good') color = '#22C55E';
-  if (statusType === 'minor') color = '#F59E0B';
-  if (statusType === 'severe' || statusType === 'suspended') color = '#EF4444';
+  if (statusType === 'good')                                    color = '#4CAF50';
+  if (statusType === 'minor')                                   color = '#F2A002';
+  if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') color = '#E32017';
 
   return (
     <Animated.View

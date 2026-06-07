@@ -35,7 +35,6 @@ import {
   ONBOARDING_CARD_HEIGHT,
   SCREEN_PADDING,
   COLUMN_GAP,
-  WIDE_LINES,
 } from '../../constants/layout';
 
 const TFL_LINES = [
@@ -63,11 +62,6 @@ function getCtaLabel(selectedCount: number): string {
     return 'Continue with 1 line';
   }
   return `Continue with ${selectedCount} lines`;
-}
-
-interface LineRow {
-  type: 'wide' | 'pair';
-  items: typeof TFL_LINES;
 }
 
 export default function LinesScreen() {
@@ -275,76 +269,20 @@ export default function LinesScreen() {
     return { statusType, statusLabel };
   };
 
-  // Group line cards into rows statically (single column for WIDE, 2-column for others)
-  const chunkedLines = useMemo(() => {
-    const rows: LineRow[] = [];
-    let currentPair: typeof TFL_LINES = [];
-
-    TFL_LINES.forEach((line) => {
-      const isWide = WIDE_LINES.has(line.id);
-      if (isWide) {
-        if (currentPair.length > 0) {
-          rows.push({ type: 'pair', items: currentPair });
-          currentPair = [];
-        }
-        rows.push({ type: 'wide', items: [line] });
-      } else {
-        currentPair.push(line);
-        if (currentPair.length === 2) {
-          rows.push({ type: 'pair', items: currentPair });
-          currentPair = [];
-        }
-      }
-    });
-
-    if (currentPair.length > 0) {
-      rows.push({ type: 'pair', items: currentPair });
-    }
-
-    return rows;
-  }, []);
-
-  const renderRow = ({ item }: { item: LineRow }) => {
-    if (item.type === 'wide') {
-      const line = item.items[0];
-      const isSelected = selectedLines.includes(line.id);
-      const { statusType, statusLabel } = resolveLineStatus(line.id);
-
-      return (
-        <View style={styles.wideRowContainer}>
-          <View style={{ width: width - SCREEN_PADDING * 2, height: ONBOARDING_CARD_HEIGHT }}>
-            <LineCard
-              line={line}
-              selected={isSelected}
-              onPress={() => handleToggleLine(line.id)}
-              statusType={statusType}
-              statusLabel={statusLabel}
-            />
-          </View>
-        </View>
-      );
-    } else {
-      return (
-        <View style={styles.pairRowContainer}>
-          {item.items.map((line) => {
-            const isSelected = selectedLines.includes(line.id);
-            const { statusType, statusLabel } = resolveLineStatus(line.id);
-
-            return (
-              <View key={line.id} style={{ width: cardWidth, height: ONBOARDING_CARD_HEIGHT }}>
-                <LineCard
-                  line={line}
-                  selected={isSelected}
-                  onPress={() => handleToggleLine(line.id)}
-                  statusType={statusType}
-                  statusLabel={statusLabel}
-                />
-              </View>
-            );
-          })}
-        </View>
-      );
-    }
+  const renderItem = ({ item }: { item: typeof TFL_LINES[0] }) => {
+    const isSelected = selectedLines.includes(item.id);
+    const { statusType, statusLabel } = resolveLineStatus(item.id);
+    return (
+      <View style={{ width: cardWidth, height: ONBOARDING_CARD_HEIGHT }}>
+        <LineCard
+          line={item}
+          selected={isSelected}
+          onPress={() => handleToggleLine(item.id)}
+          statusType={statusType}
+          statusLabel={statusLabel}
+        />
+      </View>
+    );
   };
 
   return (
@@ -408,17 +346,13 @@ export default function LinesScreen() {
         )}
 
         <FlatList
-          data={chunkedLines}
-          renderItem={renderRow}
-          keyExtractor={(_, idx) => idx.toString()}
-          initialNumToRender={10}
-          windowSize={5}
+          data={TFL_LINES}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          numColumns={2}
+          columnWrapperStyle={{ gap: COLUMN_GAP, marginBottom: COLUMN_GAP }}
+          initialNumToRender={14}
           removeClippedSubviews={true}
-          getItemLayout={(_, index) => ({
-            length: ONBOARDING_CARD_HEIGHT + COLUMN_GAP,
-            offset: (ONBOARDING_CARD_HEIGHT + COLUMN_GAP) * index,
-            index,
-          })}
           contentContainerStyle={[
             styles.listContainer,
             { paddingBottom: insets.bottom + 120 },
@@ -527,14 +461,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: 12,
   },
-  wideRowContainer: {
-    marginBottom: 12,
-  },
-  pairRowContainer: {
-    flexDirection: 'row',
-    gap: COLUMN_GAP,
-    marginBottom: 12,
-  },
+
   ctaWrap: {
     position: 'absolute',
     bottom: 0,

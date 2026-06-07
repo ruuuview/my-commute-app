@@ -5,11 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 export function OnboardingGradient() {
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {/* Base deep navy to dark navy diagonal gradient */}
+      {/* Base deep navy to dark navy vertical gradient */}
       <LinearGradient
         colors={['#07103a', '#040810']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
       {/* Cobalt radial-like bloom from top-left */}

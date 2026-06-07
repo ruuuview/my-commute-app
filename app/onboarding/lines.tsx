@@ -335,9 +335,11 @@ export default function LinesScreen() {
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
       {/* Header zone */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 8 }]}>
-        <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
-        <ProgressDots total={2} current={1} />
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 4 }]}>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
+          <ProgressDots total={2} current={1} />
+        </View>
         
         <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
           Your lines
@@ -439,7 +441,12 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 4,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   eyebrow: {
     fontSize: 9,
@@ -452,7 +459,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.8,
-    marginTop: 8,
+    marginTop: 4,
   },
   listArea: {
     flex: 1,

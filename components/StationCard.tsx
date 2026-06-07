@@ -53,7 +53,13 @@ const LINE_TERMINALS: Record<string, string[]> = {
   bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
   metropolitan: ['Aldgate', 'Watford', 'Amersham', 'Uxbridge'],
   'hammersmith-city': ['Hammersmith', 'Barking'],
-  overground: ['Watford Junction', 'Clapham Junction', 'Highbury & Islington'],
+  overground: ['Watford Junction', 'London Euston', 'Clapham Junction', 'Highbury & Islington', 'Stratford'],
+  weaver: ['Chingford', 'Liverpool Street', 'Enfield Town', 'Cheshunt'],
+  mildmay: ['Stratford', 'Richmond', 'Clapham Junction'],
+  windrush: ['Highbury & Islington', 'West Croydon', 'Crystal Palace', 'New Cross', 'Clapham Junction'],
+  suffragette: ['Gospel Oak', 'Barking Riverside'],
+  lioness: ['Watford Junction', 'London Euston'],
+  liberty: ['Romford', 'Upminster'],
   dlr: ['Bank', 'Lewisham', 'Beckton', 'Woolwich Arsenal'],
 };
 
@@ -64,8 +70,6 @@ function getSeedOffset(stationId: string): number {
   }
   return sum % 5;
 }
-
-
 
 function generateMockDepartures(stationId: string, lines: string[], count = 3): Departure[] {
   const linesList = lines.length > 0 ? lines : ['central'];
@@ -80,6 +84,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
   };
 
   const lastMinsForLineDirection: Record<string, number> = {};
+  const lineOccurrenceCount: Record<string, number> = {};
 
   let index = 0;
   while (departures.length < count && index < 15) {
@@ -97,8 +102,10 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
     lastMinsForLineDirection[lineId] = mins;
 
     const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-    const terminals = LINE_TERMINALS[lineId] || ['Central London'];
-    const destination = terminals[(index + seed) % terminals.length];
+    const terminals = LINE_TERMINALS[lineId] || ['See timetable'];
+    const occ = lineOccurrenceCount[lineId] ?? 0;
+    lineOccurrenceCount[lineId] = occ + 1;
+    const destination = terminals[(occ + seed) % terminals.length];
 
     departures.push({
       lineId,
@@ -396,9 +403,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   pillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
   pillText: {
     fontSize: 10,

@@ -407,8 +407,10 @@ export default function StationsScreen() {
 
           {/* Title Header Container */}
           <View style={styles.headerContainer}>
-            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
-            <ProgressDots total={2} current={2} />
+            <View style={styles.headerTopRow}>
+              <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
+              <ProgressDots total={2} current={2} />
+            </View>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
               Your stations
             </Text>
@@ -568,6 +570,13 @@ export default function StationsScreen() {
           </BlurView>
         )}
       </KeyboardAvoidingView>
+
+      {/* Bottom Fade Overlay for scroll affordance */}
+      <LinearGradient
+        colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.85)']}
+        style={styles.bottomFade}
+        pointerEvents="none"
+      />
     </View>
   );
 }
@@ -612,7 +621,12 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 6,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   eyebrow: {
     fontSize: 9,
@@ -625,7 +639,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -1,
-    marginTop: 10,
+    marginTop: 4,
   },
   searchBarContainer: {
     flexDirection: 'row',
@@ -818,5 +832,12 @@ const styles = StyleSheet.create({
   },
   backButtonPressed: {
     backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  bottomFade: {
+    position: 'absolute',
+    bottom: 110,
+    left: 0,
+    right: 0,
+    height: 80,
   },
 });

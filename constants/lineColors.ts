@@ -8,7 +8,7 @@ export const LINE_COLORS: Record<string, string> = {
   dlr: '#00AFAD',
   elizabeth: '#6950A1',
   'hammersmith-city': '#F3A9BB',
-  jubilee: '#A0A5A9',
+  jubilee: '#C8CDD1',
   metropolitan: '#9B0056',
   northern: '#1A1A1A',
   overground: '#EE7C0E',

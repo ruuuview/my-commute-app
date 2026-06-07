@@ -43,8 +43,8 @@ const TFL_LINES = [
   { id: 'circle',           name: 'Circle',             color: LINE_COLORS.circle, stationCount: 36 },
   { id: 'district',         name: 'District',           color: LINE_COLORS.district, stationCount: 60 },
   { id: 'dlr',              name: 'DLR',                color: LINE_COLORS.dlr, stationCount: 45 },
-  { id: 'elizabeth',        name: 'Elizabeth line',     color: LINE_COLORS.elizabeth, stationCount: 41 },
-  { id: 'hammersmith-city', name: 'Hammersmith & City line', color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
+  { id: 'elizabeth',        name: 'Elizabeth',           color: LINE_COLORS.elizabeth, stationCount: 41 },
+  { id: 'hammersmith-city', name: 'Hammersmith & City',  color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
   { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee, stationCount: 27 },
   { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan, stationCount: 34 },
   { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern, stationCount: 52 },
@@ -320,23 +320,23 @@ export default function LinesScreen() {
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
       {/* Header zone */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 12 }]}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 8 }]}>
         <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
         <ProgressDots total={2} current={1} />
         
         <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
           Your lines
         </Text>
+
+        <Animated.View style={counterAnimStyle}>
+          <Text style={[styles.counterText, { marginTop: 4 }]}>
+            {selectedLines.length} lines selected
+          </Text>
+        </Animated.View>
       </View>
 
       {/* Main Content Area */}
       <View style={styles.listArea}>
-        {/* Selection Counter */}
-        <Animated.View style={[styles.counterContainer, counterAnimStyle]}>
-          <Text style={styles.counterText}>
-            {selectedLines.length} lines selected
-          </Text>
-        </Animated.View>
 
         {/* Max lines toast */}
         {maxLinesToast && (
@@ -424,6 +424,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   eyebrow: {
     fontSize: 9,
@@ -432,20 +433,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
   },
   title: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1,
-    marginTop: 16,
+    letterSpacing: -0.8,
+    marginTop: 8,
   },
   listArea: {
     flex: 1,
     backgroundColor: 'transparent',
-    paddingTop: 8,
-  },
-  counterContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 10,
   },
   counterText: {
     fontSize: 10,
@@ -470,7 +466,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   ctaPressable: {

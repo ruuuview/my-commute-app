@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   FlatList,
   InteractionManager,
+  Image,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -171,7 +172,12 @@ export default function StationsScreen() {
   }, [selectedLines, cleanFullStations]);
 
   const fuse = useMemo(
-    () => new Fuse(cleanFullStations, { keys: ['name'], threshold: 0.3, distance: 100 }),
+    () => new Fuse(cleanFullStations, { 
+      keys: ['name'], 
+      threshold: 0.2, 
+      minMatchCharLength: 4, 
+      distance: 60 
+    }),
     [cleanFullStations]
   );
 
@@ -337,6 +343,7 @@ export default function StationsScreen() {
         onPress={() => handleToggleStation(item)}
         selected={isPinned}
         mode="onboarding"
+        showLedger={true}
       />
     );
   }, [pinnedIds, handleToggleStation]);
@@ -360,6 +367,15 @@ export default function StationsScreen() {
         <LinearGradient
           colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
           style={StyleSheet.absoluteFillObject}
+        />
+      </View>
+
+      {/* Grain Overlay */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+        <Image
+          source={require('../../assets/images/grain.png')}
+          style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
+          resizeMode="repeat"
         />
       </View>
 
@@ -752,7 +768,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   maxPinsToast: {
@@ -790,7 +806,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.28)',
+    color: 'rgba(255, 255, 255, 0.35)',
     textDecorationLine: 'underline',
   },
   backButtonPressable: {

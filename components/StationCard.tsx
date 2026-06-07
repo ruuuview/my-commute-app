@@ -1,12 +1,18 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Animated, { useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useReducedMotion,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { cleanDisplayStationName } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
-import { LINE_SHORT_NAMES, DARK_LINE_IDS } from '../data/lineMetadata';
+import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { IMMINENT_BLUE } from '../theme/colors';
 
 export interface Departure {
@@ -59,14 +65,7 @@ function getSeedOffset(stationId: string): number {
   return sum % 5;
 }
 
-function hexToRgba(hex: string, opacity: number): string {
-  const cleanHex = hex.replace('#', '');
-  if (cleanHex.length !== 6) return `rgba(255,255,255,${opacity})`;
-  const r = parseInt(cleanHex.substring(0, 2), 16);
-  const g = parseInt(cleanHex.substring(2, 4), 16);
-  const b = parseInt(cleanHex.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
+
 
 function generateMockDepartures(stationId: string, lines: string[], count = 3): Departure[] {
   const linesList = lines.length > 0 ? lines : ['central'];
@@ -119,6 +118,37 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
   });
 }
 
+function ImminentCountdown({ text, color }: { text: string; color: string }) {
+  const opacity = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
+
+  React.useEffect(() => {
+    if (reducedMotion) return;
+    opacity.value = withRepeat(
+      withTiming(0.4, { duration: 600 }),
+      -1,
+      true
+    );
+  }, [reducedMotion, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.Text
+      style={[
+        styles.ledgerTimeText,
+        { color },
+        animatedStyle,
+      ]}
+      numberOfLines={1}
+    >
+      {text}
+    </Animated.Text>
+  );
+}
+
 export function StationCard({
   station,
   primaryLineColor,
@@ -167,43 +197,36 @@ export function StationCard({
 
   const renderLinePills = () => {
     if (!station.lines || station.lines.length === 0) return null;
-    const isOverflow = station.lines.length > 4;
-    const scrollStyle = isOverflow ? { maxWidth: 200 } : null;
+    const visibleLines = station.lines.slice(0, 4);
+    const overflowCount = station.lines.length - 4;
+
     return (
       <View style={styles.pillsRowWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={scrollStyle}
-          contentContainerStyle={styles.pillsScrollContainer}
-        >
-          {station.lines.map((lineId) => {
+        <View style={styles.pillsContainer}>
+          {visibleLines.map((lineId) => {
             const shortName = LINE_SHORT_NAMES[lineId] || lineId;
             const brandColor = LINE_COLORS[lineId] || '#888';
-            
-            const isDark = DARK_LINE_IDS.has(lineId);
-            
-            const bg = isDark ? 'rgba(255,255,255,0.10)' : hexToRgba(brandColor, 0.15);
-            const border = isDark ? 'rgba(255,255,255,0.25)' : hexToRgba(brandColor, 0.35);
-            const text = isDark ? 'rgba(255,255,255,0.80)' : hexToRgba(brandColor, 0.90);
 
             return (
               <View
                 key={lineId}
-                style={[
-                  styles.linePill,
-                  { backgroundColor: bg, borderColor: border }
-                ]}
+                style={styles.pillItem}
                 accessibilityLabel={`${shortName} line`}
                 accessibilityRole="text"
               >
-                <Text style={[styles.linePillText, { color: text }]}>
+                <View style={[styles.pillDot, { backgroundColor: brandColor }]} />
+                <Text style={styles.pillText}>
                   {shortName}
                 </Text>
               </View>
             );
           })}
-        </ScrollView>
+          {overflowCount > 0 && (
+            <View style={styles.overflowBadge}>
+              <Text style={styles.overflowText}>+{overflowCount}</Text>
+            </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -286,15 +309,22 @@ export function StationCard({
 
                       {/* Column 3: Countdown (flex: 0, fixed width: 38) */}
                       <View style={styles.columnCountdown}>
-                        <Text 
-                          style={[
-                            styles.ledgerTimeText, 
-                            { color: timeColor }
-                          ]} 
-                          numberOfLines={1}
-                        >
-                          {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
-                        </Text>
+                        {minutesVal <= 2 ? (
+                          <ImminentCountdown
+                            text={minutesVal === 0 ? 'Due' : `${minutesVal} min`}
+                            color={timeColor}
+                          />
+                        ) : (
+                          <Text 
+                            style={[
+                              styles.ledgerTimeText, 
+                              { color: timeColor }
+                            ]} 
+                            numberOfLines={1}
+                          >
+                            {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
+                          </Text>
+                        )}
                       </View>
                     </View>
                   );
@@ -355,22 +385,39 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 8,
   },
-  pillsScrollContainer: {
+  pillsContainer: {
     flexDirection: 'row',
-    gap: 5,
+    alignItems: 'center',
+    gap: 10,
   },
-  linePill: {
-    height: 18,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 50,
-    borderWidth: 1,
+  pillItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  pillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  pillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontFamily: 'System',
+  },
+  overflowBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  linePillText: {
-    fontSize: 10,
-    fontWeight: '600',
+  overflowText: {
+    fontSize: 9,
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontWeight: '700',
     fontFamily: 'System',
   },
   divider: {

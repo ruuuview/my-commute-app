@@ -1,6 +1,6 @@
 // app/onboarding/lines.tsx — Screen 1: Line Selection (v5)
 
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,12 @@ import {
   SCREEN_PADDING,
   COLUMN_GAP,
 } from '../../constants/layout';
+const API_LINE_ID_MAP: Record<string, string> = {
+  'overground':       'london-overground',
+  'hammersmith-city': 'hammersmith-city',
+  'elizabeth':        'elizabeth-line',
+  'dlr':              'dlr',
+};
 
 const TFL_LINES = [
   { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo, stationCount: 25 },
@@ -248,12 +254,6 @@ export default function LinesScreen() {
     let statusLabel = 'Loading status...';
     
     if (!loadingStatuses) {
-      const API_LINE_ID_MAP: Record<string, string> = {
-        'overground': 'london-overground',
-        'hammersmith-city': 'hammersmith-city',
-        'elizabeth': 'elizabeth-line',
-        'dlr': 'dlr',
-      };
       const apiKey = API_LINE_ID_MAP[lineId] ?? lineId;
 
       if (apiStatuses[apiKey]) {
@@ -290,22 +290,18 @@ export default function LinesScreen() {
       <OnboardingGradient />
 
       {/* Volumetric Bloom Layers */}
-      {!reducedMotion && (
-        <>
-          <View style={styles.topBloomContainer} pointerEvents="none">
-            <LinearGradient
-              colors={['rgba(0, 80, 255, 0.30)', 'rgba(0, 80, 255, 0)']}
-              style={StyleSheet.absoluteFillObject}
-            />
-          </View>
-          <View style={styles.midBloomContainer} pointerEvents="none">
-            <LinearGradient
-              colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
-              style={StyleSheet.absoluteFillObject}
-            />
-          </View>
-        </>
-      )}
+      <View style={styles.topBloomContainer} pointerEvents="none">
+        <LinearGradient
+          colors={['rgba(0, 80, 255, 0.30)', 'rgba(0, 80, 255, 0)']}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
+      <View style={styles.midBloomContainer} pointerEvents="none">
+        <LinearGradient
+          colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
 
       {/* Grain Overlay */}
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>

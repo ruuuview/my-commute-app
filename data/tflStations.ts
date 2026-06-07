@@ -170,23 +170,30 @@ export const TFL_STATIONS: TfLStation[] = [
   };
 });
 
-export const FULL_STATIONS: TfLStation[] = (fullStationsData as any[]).map(s => {
-  const display = cleanDisplayStationName(s.name);
-  const searchKey = display.replace(/'/g, '').replace(/\./g, '').toLowerCase().trim();
-  const key = searchKey.replace(/[^a-z0-9]/g, '');
+const EXCLUDE_IDS = new Set([
+  'kings-cross-intl',
+  'st-pancras-international',
+]);
 
-  const matchingHardcoded = TFL_STATIONS.find(t =>
-    t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === key ||
-    t.id === s.id
-  );
+export const FULL_STATIONS: TfLStation[] = (fullStationsData as any[])
+  .filter(s => !EXCLUDE_IDS.has(s.id))
+  .map(s => {
+    const display = cleanDisplayStationName(s.name);
+    const searchKey = display.replace(/'/g, '').replace(/\./g, '').toLowerCase().trim();
+    const key = searchKey.replace(/[^a-z0-9]/g, '');
 
-  return {
-    ...s,
-    name: display,
-    zone: matchingHardcoded?.zone ?? s.zone ?? 1,
-    searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
-  };
-});
+    const matchingHardcoded = TFL_STATIONS.find(t =>
+      t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === key ||
+      t.id === s.id
+    );
+
+    return {
+      ...s,
+      name: display,
+      zone: matchingHardcoded?.zone ?? s.zone ?? 1,
+      searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
+    };
+  });
 
 // Popular stations shown when search is empty (zone 1 key hubs)
 export const POPULAR_STATIONS = TFL_STATIONS.filter(s =>

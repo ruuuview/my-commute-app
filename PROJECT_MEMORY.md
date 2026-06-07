@@ -6,10 +6,10 @@ Mission: A high-end, cinematic London Underground navigation app that provides b
 Workflow: Vibe Coding — AI must provide complete, copy-pasteable files, not snippets or partial replacements.  
 
 2. Current Documentation & Strategy Authority
-- Strategy & Rules: `MY_COMMUTE_MASTER_PLAN_v2 (1).md`
-- Execution Authority: `MY_COMMUTE_EXECUTION_PLAN_v4.4.md`
-- Infrastructure: `MY_COMMUTE_INFRASTRUCTURE_v4.4.md`
-- UX/UI: `MY_COMMUTE_UX_PLAN_v4.4.md`
+- Strategy & Rules: `MY_COMMUTE_MASTER_PLAN_v2.md`
+- Execution Authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md`
+- Infrastructure: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md`
+- UX/UI: `MY_COMMUTE_UX_PLAN_v4.5.md`
 
 3. Backend Architecture (LIVE)
 URL: [https://my-commute-brain.vercel.app](https://my-commute-brain.vercel.app).
@@ -29,6 +29,15 @@ Animation: react-native-reanimated for all cinematic transitions.
 UI/UX Philosophy (The Foyer & The Void):
 Color Palette: Deep Premium Black (#0A0A0F) with grain overlay for depth.
 Vibe: Dark mode, minimalist, high-end letter spacing (-0.5 SpaceGrotesk-Bold), and smooth fade-in/fade-out transitions.
+
+Lumina Transit Design Specifications (Current Authority):
+- Card Heights: Standard onboarding modules (LineCard and StationCard) are strictly 68px tall.
+- Accent Bars: Vertically centered (16px top/bottom offset for 36px bar height).
+- Headers: Step indicators and setup subtitles are aligned inline in a row container (headerTopRow) to compress vertical height and maintain folding limits.
+- Backgrounds: Onboarding backgrounds (OnboardingGradient) combine a vertical deep navy base with diagonal cobalt (top-left) and violet (top-right) radial blooms.
+- Scroll Affordance: FlatLists include a bottom fade gradient (bottomFade) positioned above the sticky CTA footer (bottom: 110, height: 80).
+- Jubilee Color: Coded as '#C8CDD1' (brighter silver) globally for contrast.
+- Overground: Displayed as one unified card/item ("Overground") but statuses are aggregated dynamically from the six individual TfL Overground branches.
 
 5. Progress Tracking (Execution Plan v4.4)
 [COMPLETED] Vercel Backend deployment and TfL API integration.

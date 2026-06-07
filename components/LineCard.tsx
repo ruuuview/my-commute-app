@@ -129,9 +129,18 @@ export function LineCard({
     opacity: opacityVal.value,
   }));
 
+  const isNorthern = line.id === 'northern';
+  const selectedBorderColor = isNorthern ? 'rgba(255, 255, 255, 0.70)' : line.color;
+  const selectedGlowColor   = isNorthern ? 'rgba(255, 255, 255, 0.30)' : line.color;
+
   const selectedStyle = selected ? {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.70)',
+    borderWidth: 2,
+    borderColor: selectedBorderColor,
+    shadowColor: selectedGlowColor,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 8,
+    elevation: 6,
   } : {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',

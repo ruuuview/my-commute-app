@@ -130,16 +130,27 @@ export function LineCard({
   }));
 
   const isNorthern = line.id === 'northern';
-  const selectedBorderColor = isNorthern ? 'rgba(255, 255, 255, 0.70)' : line.color;
-  const selectedGlowColor   = isNorthern ? 'rgba(255, 255, 255, 0.30)' : line.color;
+  const isJubilee = line.id === 'jubilee';
+
+  const selectedBorderColor = isNorthern 
+    ? 'rgba(255, 255, 255, 0.70)' 
+    : isJubilee 
+    ? '#C8CDD1' 
+    : line.color;
+
+  const selectedGlowColor = isNorthern 
+    ? '#000000' 
+    : isJubilee 
+    ? '#A0A5A9' 
+    : line.color;
 
   const selectedStyle = selected ? {
     borderWidth: 2,
     borderColor: selectedBorderColor,
     shadowColor: selectedGlowColor,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.55,
-    shadowRadius: 8,
+    shadowOpacity: isNorthern ? 0.9 : isJubilee ? 0.7 : 0.55,
+    shadowRadius: isNorthern ? 12 : isJubilee ? 10 : 8,
     elevation: 6,
   } : {
     borderWidth: 1,
@@ -206,7 +217,12 @@ export function LineCard({
         <BlurView
           intensity={30}
           tint="dark"
-          style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
+          style={[
+            StyleSheet.absoluteFillObject, 
+            styles.blurBackground,
+            selected && isNorthern && { backgroundColor: 'rgba(0, 0, 0, 0.60)' },
+            selected && isJubilee && { backgroundColor: 'rgba(160, 165, 169, 0.12)' },
+          ]}
         />
 
         {/* Accent bar — centred 36px vertically, 3px wide, rounded, placed 14px from left */}
@@ -263,7 +279,7 @@ const styles = StyleSheet.create({
   accentBar: {
     position: 'absolute',
     left: 14,
-    top: 21, // Centred in 80px height: (80 - 36 - 2 border height offset) / 2 = 21
+    top: 16, // Centred in 68px height: (68 - 36) / 2 = 16
     width: 3,
     height: 36,
     borderRadius: 2,

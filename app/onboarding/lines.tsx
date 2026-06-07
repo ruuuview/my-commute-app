@@ -36,12 +36,7 @@ import {
   SCREEN_PADDING,
   COLUMN_GAP,
 } from '../../constants/layout';
-const API_LINE_ID_MAP: Record<string, string> = {
-  'overground':       'london-overground',
-  'hammersmith-city': 'hammersmith-city',
-  'elizabeth':        'elizabeth-line',
-  'dlr':              'dlr',
-};
+const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
 const TFL_LINES = [
   { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo, stationCount: 25 },
@@ -54,7 +49,7 @@ const TFL_LINES = [
   { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee, stationCount: 27 },
   { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan, stationCount: 34 },
   { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern, stationCount: 52 },
-  { id: 'overground',       name: 'London Overground',  color: LINE_COLORS.overground, stationCount: 112 },
+  { id: 'overground',       name: 'Overground',         color: LINE_COLORS.overground, stationCount: 112 },
   { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_COLORS.piccadilly, stationCount: 53 },
   { id: 'victoria',         name: 'Victoria',           color: LINE_COLORS.victoria, stationCount: 16 },
   { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'], stationCount: 2 },
@@ -89,7 +84,7 @@ export default function LinesScreen() {
     let active = true;
     const fetchStatuses = async () => {
       try {
-        const res = await fetch('https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line,london-overground/Status');
+        const res = await fetch('https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line/Status');
         if (!res.ok) throw new Error('Failed to fetch TfL status');
         const data = await res.json();
         if (!active) return;
@@ -254,16 +249,40 @@ export default function LinesScreen() {
     let statusLabel = 'Loading status...';
     
     if (!loadingStatuses) {
-      const apiKey = API_LINE_ID_MAP[lineId] ?? lineId;
+      if (lineId === 'overground') {
+        let worstSeverity = 10;
+        let worstDescription = 'Good Service';
+        let foundAny = false;
 
-      if (apiStatuses[apiKey]) {
-        const statusData = apiStatuses[apiKey];
-        const resolved = getLineStatus(statusData.severity, statusData.description);
-        statusType = resolved.statusType;
-        statusLabel = resolved.label;
+        OVERGROUND_BRANCH_IDS.forEach(branchId => {
+          if (apiStatuses[branchId]) {
+            foundAny = true;
+            const statusData = apiStatuses[branchId];
+            if (statusData.severity < worstSeverity) {
+              worstSeverity = statusData.severity;
+              worstDescription = statusData.description;
+            }
+          }
+        });
+
+        if (foundAny) {
+          const resolved = getLineStatus(worstSeverity, worstDescription);
+          statusType = resolved.statusType;
+          statusLabel = resolved.label;
+        } else {
+          statusType = 'error';
+          statusLabel = 'Status unknown';
+        }
       } else {
-        statusType = 'error';
-        statusLabel = 'Status unknown';
+        if (apiStatuses[lineId]) {
+          const statusData = apiStatuses[lineId];
+          const resolved = getLineStatus(statusData.severity, statusData.description);
+          statusType = resolved.statusType;
+          statusLabel = resolved.label;
+        } else {
+          statusType = 'error';
+          statusLabel = 'Status unknown';
+        }
       }
     }
     return { statusType, statusLabel };

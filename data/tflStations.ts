@@ -171,8 +171,7 @@ export const TFL_STATIONS: TfLStation[] = [
 });
 
 const EXCLUDE_IDS = new Set([
-  'kings-cross-intl',
-  'st-pancras-international',
+  'HUBKGX',
 ]);
 
 export const FULL_STATIONS: TfLStation[] = (fullStationsData as any[])

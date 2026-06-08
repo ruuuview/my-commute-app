@@ -94,7 +94,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
     const lastVal = lastMinsForLineDirection[lineId];
     let mins = 0;
     if (lastVal === undefined) {
-      mins = (seed + index * 2) % 6;
+      mins = seed % 3;
     } else {
       mins = lastVal + minHeadway + ((seed + index) % 3);
     }

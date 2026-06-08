@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
+import { useOnboardingStore } from './onboardingStore';
 
 const storage = createMMKV();
 
@@ -71,7 +72,10 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
 
 const validateStationZoneCache = (pinnedStations: any[]) => {
   if (!pinnedStations) return;
-  const cleanedStations = pinnedStations.filter(station => station.zone !== undefined);
+  const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
+  const cleanedStations = pinnedStations.filter(station => 
+    station.zone !== undefined && !EXCLUDED_IDS.has(station.id)
+  );
   if (cleanedStations.length !== pinnedStations.length) {
     useUserPreferencesStore.setState({ pinnedStations: cleanedStations });
   }
@@ -154,6 +158,15 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           validateStationZoneCache(state.pinnedStations);
+          
+          // Also clean up onboarding store's pinned stations if they contain excluded IDs
+          const onboardingPinned = useOnboardingStore.getState().pinnedStations;
+          const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
+          const cleanedOnboarding = onboardingPinned.filter(s => !EXCLUDED_IDS.has(s.id));
+          if (cleanedOnboarding.length !== onboardingPinned.length) {
+            useOnboardingStore.setState({ pinnedStations: cleanedOnboarding });
+          }
+
           state.setHasHydrated(true);
         }
       },

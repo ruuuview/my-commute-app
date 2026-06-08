@@ -90,6 +90,7 @@
     "@types/react": "~19.1.0",
     "eslint": "9.25.0",
     "eslint-config-expo": "10.0.0",
+    "ruflo": "latest",
     "typescript": "~5.9.2"
   },
   "private": true,

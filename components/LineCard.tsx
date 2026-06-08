@@ -291,8 +291,7 @@ const styles = StyleSheet.create({
   },
   lineName: {
     fontSize: 14,
-    fontWeight: '700',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255, 255, 255, 0.95)',
   },
   statusSubRow: {
@@ -307,8 +306,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '600',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.55)',
   },
   checkBadge: {

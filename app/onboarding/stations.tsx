@@ -99,6 +99,7 @@ export default function StationsScreen() {
   const [isFocused, setIsFocused] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [footerHeight, setFooterHeight] = useState(140);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -348,7 +349,9 @@ export default function StationsScreen() {
     );
   }, [pinnedIds, handleToggleStation]);
 
-  const searchFocusedStyle = isFocused ? { borderColor: 'rgba(255,255,255,0.40)' } : { borderColor: 'rgba(255,255,255,0.14)' };
+  const searchFocusedStyle = isFocused 
+    ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' } 
+    : { borderWidth: 0, borderColor: 'transparent', backgroundColor: 'rgba(255, 255, 255, 0.06)' };
 
   const isShowRecents = query === '' && isSearching && recentStations.length > 0;
 
@@ -359,13 +362,13 @@ export default function StationsScreen() {
       {/* Volumetric Bloom Layers */}
       <View style={styles.topBloomContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(0, 80, 255, 0.30)', 'rgba(0, 80, 255, 0)']}
+          colors={['rgba(0, 163, 255, 0.38)', 'rgba(0, 163, 255, 0)']}
           style={StyleSheet.absoluteFillObject}
         />
       </View>
       <View style={styles.midBloomContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
+          colors={['rgba(99, 102, 241, 0.28)', 'rgba(99, 102, 241, 0)']}
           style={StyleSheet.absoluteFillObject}
         />
       </View>
@@ -407,12 +410,10 @@ export default function StationsScreen() {
 
           {/* Title Header Container */}
           <View style={styles.headerContainer}>
-            <View style={styles.headerTopRow}>
-              <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
-              <ProgressDots total={2} current={2} />
-            </View>
+            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
+            <ProgressDots total={2} current={2} />
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
-              Your stations
+              Where do you catch your train?
             </Text>
           </View>
 
@@ -529,11 +530,26 @@ export default function StationsScreen() {
           </View>
         </View>
 
+        {/* Bottom Fade Overlay for scroll affordance */}
+        {!isSearching && (
+          <LinearGradient
+            colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.85)']}
+            style={[styles.bottomFade, { bottom: footerHeight }]}
+            pointerEvents="none"
+          />
+        )}
+
         {/* Sticky CTA Footer */}
         {!isSearching && (
           <BlurView
             intensity={28}
             tint="dark"
+            onLayout={(e) => {
+              const { height } = e.nativeEvent.layout;
+              if (height > 0) {
+                setFooterHeight(height);
+              }
+            }}
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
           >
             {maxPinsToast && (
@@ -570,13 +586,6 @@ export default function StationsScreen() {
           </BlurView>
         )}
       </KeyboardAvoidingView>
-
-      {/* Bottom Fade Overlay for scroll affordance */}
-      <LinearGradient
-        colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.85)']}
-        style={styles.bottomFade}
-        pointerEvents="none"
-      />
     </View>
   );
 }
@@ -614,7 +623,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navBackText: {
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
     color: 'rgba(255,255,255,0.70)',
     marginLeft: 4,
@@ -623,34 +632,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 6,
   },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   eyebrow: {
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255,255,255,0.30)',
     letterSpacing: 1.8,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 26,
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
-    letterSpacing: -1,
+    letterSpacing: -0.8,
     marginTop: 4,
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
+    marginTop: -1,
     marginBottom: 8,
     height: 48,
     borderRadius: 14,
     paddingHorizontal: 14,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
   },
   searchIcon: {
     marginRight: 8,
@@ -662,6 +665,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 14,
     height: '100%',
     color: '#FFFFFF',
@@ -694,13 +698,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
     marginTop: 8,
   },
   emptySubText: {
     fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255,255,255,0.22)',
     textAlign: 'center',
     marginTop: 4,
@@ -740,14 +745,14 @@ const styles = StyleSheet.create({
   },
   recentsLabel: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_700Bold',
     letterSpacing: 0.8,
     color: 'rgba(255,255,255,0.28)',
     textTransform: 'uppercase',
   },
   recentsClearBtn: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255,255,255,0.35)',
   },
   recentListContent: {
@@ -770,7 +775,7 @@ const styles = StyleSheet.create({
   },
   recentSearchText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.90)',
     flex: 1,
   },
@@ -795,7 +800,7 @@ const styles = StyleSheet.create({
   },
   maxPinsToastText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: '#DC2626',
   },
   ctaPressable: {
@@ -810,8 +815,7 @@ const styles = StyleSheet.create({
   },
   ctaButtonText: {
     fontSize: 15,
-    fontFamily: 'System',
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: '#07103a',
   },
   skipPressable: {
@@ -820,6 +824,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.35)',
     textDecorationLine: 'underline',
   },

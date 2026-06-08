@@ -311,13 +311,13 @@ export default function LinesScreen() {
       {/* Volumetric Bloom Layers */}
       <View style={styles.topBloomContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(0, 80, 255, 0.30)', 'rgba(0, 80, 255, 0)']}
+          colors={['rgba(0, 163, 255, 0.38)', 'rgba(0, 163, 255, 0)']}
           style={StyleSheet.absoluteFillObject}
         />
       </View>
       <View style={styles.midBloomContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(99, 102, 241, 0.22)', 'rgba(99, 102, 241, 0)']}
+          colors={['rgba(99, 102, 241, 0.28)', 'rgba(99, 102, 241, 0)']}
           style={StyleSheet.absoluteFillObject}
         />
       </View>
@@ -336,10 +336,8 @@ export default function LinesScreen() {
 
       {/* Header zone */}
       <View style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 4 }]}>
-        <View style={styles.headerTopRow}>
-          <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
-          <ProgressDots total={2} current={1} />
-        </View>
+        <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
+        <ProgressDots total={2} current={1} />
         
         <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
           Your lines
@@ -443,20 +441,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 4,
   },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   eyebrow: {
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255,255,255,0.30)',
     letterSpacing: 1.8,
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: -0.8,
     marginTop: 4,
@@ -467,7 +460,7 @@ const styles = StyleSheet.create({
   },
   counterText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255, 255, 255, 0.55)',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -502,8 +495,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontSize: 16,
-    fontFamily: 'System',
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   skipPressable: {
     alignItems: 'center',
@@ -511,6 +503,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.35)',
     textDecorationLine: 'underline',
   },
@@ -525,7 +518,7 @@ const styles = StyleSheet.create({
   },
   maxLinesToastText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: '#DC2626',
   },
 });

@@ -2,9 +2,10 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, withRepeat, useReducedMotion } from 'react-native-reanimated';
 import { FULL_STATIONS } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
+import { IMMINENT_BLUE } from '../theme/colors';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -35,14 +36,48 @@ interface DepartureCardProps {
 }
 
 const getDepTimeStyle = (minutes: number | 'now') => {
-  if (minutes === 'now' || minutes === 0) {
-    return { color: '#22C55E', fontWeight: '700' as const };
+  if (minutes === 0 || minutes === 'now') {
+    return { color: IMMINENT_BLUE, fontWeight: '700' as const };
   }
   if (typeof minutes === 'number' && minutes <= 2) {
-    return { color: '#F59E0B', fontWeight: '700' as const };
+    return { color: IMMINENT_BLUE, fontWeight: '700' as const };
   }
-  return { color: 'rgba(255,255,255,0.9)', fontWeight: '700' as const };
+  if (typeof minutes === 'number' && minutes <= 9) {
+    return { color: 'rgba(255,255,255,0.90)', fontWeight: '700' as const };
+  }
+  return { color: 'rgba(255,255,255,0.45)', fontWeight: '700' as const };
 };
+
+function ImminentCountdown({ text, color, style }: { text: string; color: string; style?: any }) {
+  const opacity = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    opacity.value = withRepeat(
+      withTiming(0.4, { duration: 600 }),
+      -1,
+      true
+    );
+  }, [reducedMotion, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.Text
+      style={[
+        style,
+        { color },
+        animatedStyle,
+      ]}
+      numberOfLines={1}
+    >
+      {text}
+    </Animated.Text>
+  );
+}
 
 const COLLAPSED_HEIGHT = 56;
 
@@ -189,9 +224,17 @@ export default function DepartureCard({
 
             {!isEditing && (
               <View style={styles.headerRight}>
-                <Text style={styles.nextTimeText}>
-                  {nextTimeText}
-                </Text>
+                {arrivals.length > 0 && arrivals[0].minutesAway <= 2 ? (
+                  <ImminentCountdown
+                    text={nextTimeText}
+                    color={IMMINENT_BLUE}
+                    style={styles.nextTimeText}
+                  />
+                ) : (
+                  <Text style={styles.nextTimeText}>
+                    {nextTimeText}
+                  </Text>
+                )}
                 <Animated.View style={chevronStyle}>
                   <Ionicons
                     name="chevron-down"
@@ -230,6 +273,7 @@ export default function DepartureCard({
             arrivals.slice(0, 3).map((a, i) => {
               const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
               const depStyle = getDepTimeStyle(depVal);
+              const isImminent = depVal === 'now' || (typeof depVal === 'number' && depVal <= 2);
               return (
                 <View
                   key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
@@ -242,9 +286,17 @@ export default function DepartureCard({
                   <Text style={styles.arrivalDest} numberOfLines={1}>
                     {a.destination}
                   </Text>
-                  <Text style={[styles.arrivalTime, depStyle]}>
-                    {depVal === 'now' ? 'Due' : `${depVal} min`}
-                  </Text>
+                  {isImminent ? (
+                    <ImminentCountdown
+                      text={depVal === 'now' ? 'Due' : `${depVal} min`}
+                      color={IMMINENT_BLUE}
+                      style={styles.arrivalTime}
+                    />
+                  ) : (
+                    <Text style={[styles.arrivalTime, depStyle]}>
+                      {depVal === 'now' ? 'Due' : `${depVal} min`}
+                    </Text>
+                  )}
                 </View>
               );
             })

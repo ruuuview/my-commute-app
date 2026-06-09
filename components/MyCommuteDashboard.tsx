@@ -50,7 +50,7 @@ import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { resolveTflStopId } from '../utils/resolveTflStopId';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -380,13 +380,37 @@ const MyCommuteDashboard: React.FC = () => {
       if (Array.isArray(selectedStations) && selectedStations.length > 0) {
         const stationPromises = selectedStations.map(async (st: any) => {
           try {
-            const resolvedId = resolveTflStopId(st.id);
-            const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${resolvedId}`, { signal });
-            if (!res.ok) return null;
-            const sData = await res.json();
-            
+            const resolvedIds = resolveTflStopIds(st.id);
+            const responses = await Promise.all(
+              resolvedIds.map(id =>
+                fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`, { signal })
+                  .then(res => (res.ok ? res.json() : null))
+                  .catch(() => null)
+              )
+            );
+
+            const allRawDepartures: any[] = [];
+            responses.forEach(sData => {
+              if (sData && Array.isArray(sData.departures)) {
+                allRawDepartures.push(...sData.departures);
+              }
+            });
+
+            const dedupedRaw: any[] = [];
+            const seenKeys = new Set<string>();
+
+            allRawDepartures.forEach(dep => {
+              const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                dedupedRaw.push(dep);
+              }
+            });
+
+            dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+
             // Map arrivals
-            const arrivals = (sData.departures || []).map((dep: any) => {
+            const arrivals = dedupedRaw.map((dep: any) => {
               const rawLineId = String(dep.line || '').toLowerCase().replace(' line', '').trim();
               const cleanLineId = rawLineId.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
               return {

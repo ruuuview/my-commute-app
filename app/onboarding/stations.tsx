@@ -11,6 +11,7 @@ import {
   FlatList,
   InteractionManager,
   Image,
+  Keyboard,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -36,7 +37,6 @@ import { ProgressDots } from '../../components/ProgressDots';
 import { StationCard } from '../../components/StationCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
-import { LINE_COLORS } from '../../constants/lineColors';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -229,6 +229,7 @@ export default function StationsScreen() {
         useUserPreferencesStore.getState().addRecentSearch(station.id);
         
         // Immediate clean dismiss
+        Keyboard.dismiss();
         setQuery('');
         setIsSearching(false);
 
@@ -323,8 +324,6 @@ export default function StationsScreen() {
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = pinnedIds.has(item.id);
-    const primaryLine = item.lines[0] || 'central';
-    const primaryLineColor = LINE_COLORS[primaryLine] || '#888';
 
     const rightElement = (
       <View style={isPinned ? styles.addedCircle : styles.addCircle}>
@@ -339,7 +338,6 @@ export default function StationsScreen() {
     return (
       <StationCard
         station={item}
-        primaryLineColor={primaryLineColor}
         rightElement={rightElement}
         onPress={() => handleToggleStation(item)}
         selected={isPinned}

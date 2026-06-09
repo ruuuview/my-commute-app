@@ -13,7 +13,7 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 import { cleanDisplayStationName } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
-import { resolveTflStopId } from '../utils/resolveTflStopId';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { IMMINENT_BLUE } from '../theme/colors';
 
 export interface Departure {
@@ -32,7 +32,6 @@ interface StationCardProps {
     lines: string[];
     zone?: number;
   };
-  primaryLineColor: string;
   rightElement?: React.ReactNode;
   onPress?: () => void;
   disabled?: boolean;
@@ -218,7 +217,6 @@ function ImminentCountdown({ text, color }: { text: string; color: string }) {
 
 export function StationCard({
   station,
-  primaryLineColor,
   rightElement,
   onPress,
   disabled = false,
@@ -240,13 +238,38 @@ export function StationCard({
     let active = true;
     const fetchLive = async () => {
       try {
-        const resolvedId = resolveTflStopId(station.id);
-        const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${resolvedId}`);
-        if (!res.ok) return;
-        const sData = await res.json();
+        const resolvedIds = resolveTflStopIds(station.id);
+        const responses = await Promise.all(
+          resolvedIds.map(id =>
+            fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+              .then(res => (res.ok ? res.json() : null))
+              .catch(() => null)
+          )
+        );
+
         if (!active) return;
 
-        const mapped: Departure[] = (sData.departures || []).map((dep: any) => {
+        const allRawDepartures: any[] = [];
+        responses.forEach(sData => {
+          if (sData && Array.isArray(sData.departures)) {
+            allRawDepartures.push(...sData.departures);
+          }
+        });
+
+        const dedupedRaw: any[] = [];
+        const seenKeys = new Set<string>();
+
+        allRawDepartures.forEach(dep => {
+          const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            dedupedRaw.push(dep);
+          }
+        });
+
+        dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+
+        const mapped: Departure[] = dedupedRaw.map((dep: any) => {
           const rawLineId = String(dep.line || '').toLowerCase().replace(' line', '').trim();
           const cleanLineId = rawLineId.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
           return {
@@ -279,26 +302,23 @@ export function StationCard({
     return (departures ?? liveDepartures ?? generateMockDepartures(station.id, station.lines, 3)).slice(0, 3);
   }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
 
-  const isNorthern = primaryLineColor === LINE_COLORS.northern;
-
   const activeBorderColor = useMemo(() => {
     if (mode === 'onboarding' && selected) {
-      // Northern line is near-black (#1A1A1A) — use white fallback
-      return isNorthern ? 'rgba(255, 255, 255, 0.55)' : `${primaryLineColor}66`;
+      return 'rgba(255, 255, 255, 0.65)';
     }
     return 'rgba(255, 255, 255, 0.13)';
-  }, [mode, selected, primaryLineColor, isNorthern]);
+  }, [mode, selected]);
 
   const selectedGlowStyle = useMemo(() => {
     if (mode !== 'onboarding' || !selected) return null;
     return {
-      shadowColor: isNorthern ? 'rgba(255,255,255,0.4)' : primaryLineColor,
+      shadowColor: '#FFFFFF',
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: isNorthern ? 0.9 : 0.45,
-      shadowRadius: isNorthern ? 12 : 8,
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
       elevation: 4,
     };
-  }, [mode, selected, primaryLineColor, isNorthern]);
+  }, [mode, selected]);
 
   const handlePress = () => {
     if (disabled) return;
@@ -383,10 +403,10 @@ export function StationCard({
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
         />
 
-        {/* Brand color tint overlay for selected state (Apple pill design) */}
+        {/* Neutral selection tint overlay for selected state */}
         {mode === 'onboarding' && selected && (
           <View style={[StyleSheet.absoluteFillObject, {
-            backgroundColor: isNorthern ? 'rgba(255,255,255,0.08)' : `${primaryLineColor}1A`,
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
           }]} />
         )}
 
@@ -473,9 +493,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginBottom: 6,
     borderWidth: 1,
-    // minHeight: 56 applies only to no-ledger (collapsed) state.
+    // minHeight: 68 applies only to no-ledger (collapsed) state.
     // Cards with departures naturally expand to ~118px.
-    minHeight: 56,
+    minHeight: 68,
     position: 'relative',
     // NOTE: overflow: 'hidden' removed here so iOS shadow (glow) renders.
     // cardInner has its own overflow: 'hidden' + borderRadius to clip blur/tint.

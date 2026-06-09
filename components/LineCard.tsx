@@ -105,16 +105,17 @@ interface LineCardProps {
   disabled?: boolean;
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error';
   statusLabel: string;
+  cardHeight?: number;
 }
 
 function getPillColors(lineId: string, brandColor: string) {
   // Dark/low-contrast lines — resolve readable variants
   if (lineId === 'northern') {
     return {
-      borderColor: 'rgba(255,255,255,0.25)',
-      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderColor: '#000000',
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
       dotColor: '#FFFFFF',
-      textColor: 'rgba(255,255,255,0.80)',
+      textColor: '#FFFFFF',
     };
   }
   if (lineId === 'piccadilly') {
@@ -141,6 +142,22 @@ function getPillColors(lineId: string, brandColor: string) {
       textColor: '#FFFFFF',
     };
   }
+  if (lineId === 'circle') {
+    return {
+      borderColor: '#FFD30066',
+      backgroundColor: '#FFD3001A',
+      dotColor: '#FFD300',
+      textColor: '#FFFFFF',
+    };
+  }
+  if (lineId === 'hammersmith-city') {
+    return {
+      borderColor: '#F3A9BB66',
+      backgroundColor: '#F3A9BB1A',
+      dotColor: '#F3A9BB',
+      textColor: '#FFFFFF',
+    };
+  }
   // All other lines — brand color direct with 10% opacity
   return {
     borderColor: `${brandColor}66`,
@@ -157,6 +174,7 @@ export function LineCard({
   disabled = false,
   statusType,
   statusLabel,
+  cardHeight = ONBOARDING_CARD_HEIGHT,
 }: LineCardProps) {
   const opacityVal = useSharedValue(0);
 
@@ -176,18 +194,23 @@ export function LineCard({
   const isJubilee = line.id === 'jubilee';
   const colors = getPillColors(line.id, line.color);
 
-  const selectedStyle = selected ? {
+  // Border style is applied to cardInner (so it aligns with rounded glass clipping)
+  const selectedBorderStyle = selected ? {
     borderWidth: 1.5,
     borderColor: colors.borderColor,
-    shadowColor: colors.borderColor,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: isNorthern ? 0.9 : isJubilee ? 0.7 : 0.55,
-    shadowRadius: isNorthern ? 12 : isJubilee ? 10 : 8,
-    elevation: 6,
   } : {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
   };
+
+  // Glow style is applied to outerCard wrapper (since it has NO overflow: 'hidden')
+  const selectedGlowStyle = selected ? {
+    shadowColor: isNorthern ? '#000000' : colors.borderColor,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: isNorthern ? 0.95 : isJubilee ? 0.7 : 0.55,
+    shadowRadius: isNorthern ? 14 : isJubilee ? 10 : 8,
+    elevation: 6,
+  } : null;
 
   const reducedMotion = useReducedMotion();
   const configKey = selected ? 'line_deselect' : 'line_select';
@@ -238,7 +261,12 @@ export function LineCard({
       onPressIn={pressAnim.onPressIn}
       onPressOut={pressAnim.onPressOut}
       disabled={disabled}
-      style={({ pressed }) => [styles.outerCard, pressed && { opacity: 0.65 }]}
+      style={({ pressed }) => [
+        styles.outerCard,
+        { height: cardHeight },
+        selectedGlowStyle,
+        pressed && { opacity: 0.65 }
+      ]}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${line.name} line, status: ${statusLabel}${selected ? ', selected' : ''}`}
@@ -246,7 +274,7 @@ export function LineCard({
       <Animated.View
         style={[
           styles.cardInner,
-          selectedStyle,
+          selectedBorderStyle,
           !reducedMotion && pressAnim.animatedStyle
         ]}
       >
@@ -265,11 +293,15 @@ export function LineCard({
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.backgroundColor }]} />
         )}
 
-        {/* Accent bar — centred 36px vertically, 3px wide, rounded, placed 14px from left */}
-        <View style={[styles.accentBar, { backgroundColor: line.color }, barGlowStyle]} />
+        {/* Accent bar — centred vertically, 3px wide, rounded, placed 14px from left */}
+        <View style={[
+          styles.accentBar,
+          { backgroundColor: line.color, top: (cardHeight - 36) / 2 },
+          barGlowStyle
+        ]} />
 
         {/* Content */}
-        <View style={[styles.cardContent, { paddingLeft: 22, paddingRight: 12 }]}>
+        <View style={[styles.cardContent, { paddingLeft: 22, paddingRight: 8 }]}>
           <Text
             style={styles.lineName}
             numberOfLines={1}
@@ -291,6 +323,17 @@ export function LineCard({
             )}
           </View>
         </View>
+
+        {/* Right selection badge consistent with StationCard.tsx */}
+        <View style={styles.rightBadgeContainer}>
+          <View style={selected ? styles.addedCircle : styles.addCircle}>
+            <Ionicons
+              name={selected ? 'checkmark' : 'add'}
+              size={12}
+              color={selected ? '#0044EE' : '#FFFFFF'}
+            />
+          </View>
+        </View>
       </Animated.View>
     </Pressable>
   );
@@ -299,14 +342,13 @@ export function LineCard({
 const styles = StyleSheet.create({
   outerCard: {
     flex: 1,
-    height: ONBOARDING_CARD_HEIGHT,
-    borderRadius: 26, // Fully rounded capsule pill shape (52 / 2 = 26)
+    borderRadius: 18,
   },
   cardInner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 26, // Fully rounded capsule pill shape (52 / 2 = 26)
+    borderRadius: 18,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -316,9 +358,8 @@ const styles = StyleSheet.create({
   accentBar: {
     position: 'absolute',
     left: 14,
-    top: 12, // Centred in 52px height: (52 - 28) / 2 = 12
     width: 3,
-    height: 28, // Height reduced to fit 52px card
+    height: 36, // Vertical height centered bar (strictly 36px)
     borderRadius: 2,
   },
   cardContent: {
@@ -346,5 +387,31 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.55)',
   },
+  rightBadgeContainer: {
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addedCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: 'rgba(0,0,0,0.12)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+  },
 });
-

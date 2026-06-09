@@ -32,7 +32,6 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LINE_COLORS } from '../../constants/lineColors';
 import {
-  ONBOARDING_CARD_HEIGHT,
   SCREEN_PADDING,
   COLUMN_GAP,
 } from '../../constants/layout';
@@ -69,7 +68,26 @@ export default function LinesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const { width } = useWindowDimensions();
+  const { width, height: screenHeight } = useWindowDimensions();
+
+  // Dynamic card height calculation to fill viewport on all devices with zero scroll
+  const dynamicCardHeight = React.useMemo(() => {
+    // headerHeight: eyebrow (12) + dots (10) + title (32) + padding/margins (~104px total)
+    const headerHeight = insets.top + 4 + 104; 
+    // footerHeight: CTA button (52) + skip button (40) + margin/padding (~92px total)
+    const footerHeight = Math.max(insets.bottom, 16) + 92;
+    // margins/padding of list area and safe margins
+    const safetyMargin = 32; 
+    const availableHeight = screenHeight - headerHeight - footerHeight - safetyMargin;
+    
+    const gap = 8;
+    const rows = 7;
+    // Calculate and clamp between 56px and 84px
+    return Math.max(56, Math.min(84, (availableHeight - (rows - 1) * gap) / rows));
+  }, [screenHeight, insets]);
+
+  const isScrollable = dynamicCardHeight <= 56;
+  const listPaddingBottom = isScrollable ? insets.bottom + 110 : 12;
 
   // Dynamic card width for paired 2-column layouts
   const cardWidth = (width - SCREEN_PADDING * 2 - COLUMN_GAP) / 2;
@@ -292,13 +310,14 @@ export default function LinesScreen() {
     const isSelected = selectedLines.includes(item.id);
     const { statusType, statusLabel } = resolveLineStatus(item.id);
     return (
-      <View style={{ width: cardWidth, height: ONBOARDING_CARD_HEIGHT }}>
+      <View style={{ width: cardWidth, height: dynamicCardHeight }}>
         <LineCard
           line={item}
           selected={isSelected}
           onPress={() => handleToggleLine(item.id)}
           statusType={statusType}
           statusLabel={statusLabel}
+          cardHeight={dynamicCardHeight}
         />
       </View>
     );
@@ -372,9 +391,10 @@ export default function LinesScreen() {
           removeClippedSubviews={true}
           contentContainerStyle={[
             styles.listContainer,
-            { paddingBottom: insets.bottom + 120 },
+            { paddingBottom: listPaddingBottom },
           ]}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={isScrollable}
         />
       </View>
 

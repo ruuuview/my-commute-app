@@ -6,6 +6,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, wit
 import { FULL_STATIONS } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
 import { IMMINENT_BLUE } from '../theme/colors';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -103,11 +104,36 @@ export default function DepartureCard({
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async () => {
     try {
-      const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${stationId}`);
-      if (!res.ok) return;
+      const resolvedIds = resolveTflStopIds(stationId);
+      const responses = await Promise.all(
+        resolvedIds.map(id =>
+          fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+            .then(res => (res.ok ? res.json() : null))
+            .catch(() => null)
+        )
+      );
 
-      const sData = await res.json();
-      const mappedArrivals = (sData.departures || []).map((dep: any) => {
+      const allRawDepartures: any[] = [];
+      responses.forEach(sData => {
+        if (sData && Array.isArray(sData.departures)) {
+          allRawDepartures.push(...sData.departures);
+        }
+      });
+
+      const dedupedRaw: any[] = [];
+      const seenKeys = new Set<string>();
+
+      allRawDepartures.forEach(dep => {
+        const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          dedupedRaw.push(dep);
+        }
+      });
+
+      dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+
+      const mappedArrivals = dedupedRaw.map((dep: any) => {
         const lineKey = String(dep.line || '').toLowerCase().replace(' line', '').trim();
         const cleanLineKey = lineKey.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
         return {

@@ -38,7 +38,6 @@ import { StationCard } from '../../components/StationCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const MAX_PINS = 5;
 
@@ -97,7 +96,6 @@ export default function StationsScreen() {
   const [isFocused, setIsFocused] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [footerHeight, setFooterHeight] = useState(140);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -355,20 +353,6 @@ export default function StationsScreen() {
     <View style={styles.root}>
       <OnboardingGradient />
 
-      {/* Volumetric Bloom Layers */}
-      <View style={styles.topBloomContainer} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(0, 163, 255, 0.38)', 'rgba(0, 163, 255, 0)']}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </View>
-      <View style={styles.midBloomContainer} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(99, 102, 241, 0.28)', 'rgba(99, 102, 241, 0)']}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </View>
-
       {/* Grain Overlay */}
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         <Image
@@ -452,12 +436,6 @@ export default function StationsScreen() {
 
           {/* Main List Area */}
           <View style={styles.listArea}>
-            {/* Top Fade Overlay for scroll affordance */}
-            <LinearGradient
-              colors={['#0A1550', 'rgba(10, 21, 80, 0)']}
-              style={styles.topFade}
-              pointerEvents="none"
-            />
             {loading ? (
               <View style={styles.loadingListContainer}>
                 {[1, 2, 3, 4, 5].map((idx) => (
@@ -506,10 +484,7 @@ export default function StationsScreen() {
                 keyExtractor={(item) => item.id}
                 initialNumToRender={12}
                 windowSize={5}
-                removeClippedSubviews={true}
-                contentContainerStyle={[
-                  styles.listContainer,
-                ]}
+                contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
@@ -534,26 +509,9 @@ export default function StationsScreen() {
           </View>
         </View>
 
-        {/* Bottom Fade Overlay for scroll affordance */}
-        {!isSearching && (
-          <LinearGradient
-            colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.25)']}
-            style={[styles.bottomFade, { bottom: footerHeight }]}
-            pointerEvents="none"
-          />
-        )}
-
         {/* Sticky CTA Footer */}
         {!isSearching && (
-          <BlurView
-            intensity={45}
-            tint="dark"
-            onLayout={(e) => {
-              const { height } = e.nativeEvent.layout;
-              if (height > 0) {
-                setFooterHeight(height);
-              }
-            }}
+          <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
           >
             {maxPinsToast && (
@@ -587,7 +545,7 @@ export default function StationsScreen() {
                 <Text style={styles.skipText}>Skip for now</Text>
               </Pressable>
             )}
-          </BlurView>
+          </View>
         )}
       </KeyboardAvoidingView>
     </View>
@@ -601,20 +559,6 @@ const styles = StyleSheet.create({
   },
   flex1: {
     flex: 1,
-  },
-  topBloomContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-  },
-  midBloomContainer: {
-    position: 'absolute',
-    top: 180,
-    left: -40,
-    right: -40,
-    height: 320,
   },
   navHeader: {
     flexDirection: 'row',
@@ -765,7 +709,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   recentCardBlur: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   recentSearchText: {
     fontSize: 15,
@@ -781,7 +725,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     overflow: 'hidden',
-    backgroundColor: 'rgba(4, 8, 16, 0.25)',
   },
   maxPinsToast: {
     backgroundColor: 'rgba(220, 38, 38, 0.12)',
@@ -830,20 +773,5 @@ const styles = StyleSheet.create({
   },
   backButtonPressed: {
     backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  bottomFade: {
-    position: 'absolute',
-    bottom: 110,
-    left: 0,
-    right: 0,
-    height: 80,
-  },
-  topFade: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 24,
-    zIndex: 10,
   },
 });

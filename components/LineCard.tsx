@@ -8,6 +8,10 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
+  FadeIn,
+  FadeOut,
+  ZoomIn,
+  ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import * as Haptics from 'expo-haptics';
@@ -38,9 +42,9 @@ function StatusSkeleton() {
     <Animated.View
       style={[
         {
-          width: 7,
-          height: 7,
-          borderRadius: 3.5,
+          width: 8,
+          height: 8,
+          borderRadius: 4,
           backgroundColor: 'rgba(255,255,255,0.12)',
         },
         style
@@ -84,9 +88,9 @@ const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: st
       accessibilityLabel={`Status: ${statusType}`}
       style={[
         {
-          width: 7,
-          height: 7,
-          borderRadius: 3.5,
+          width: 8,
+          height: 8,
+          borderRadius: 4,
           backgroundColor: color,
         },
         animatedStyle,
@@ -132,38 +136,20 @@ export function LineCard({
     opacity: opacityVal.value,
   }));
 
-  const isNorthern = line.id === 'northern';
-  const isJubilee = line.id === 'jubilee';
   const colors = getPillColors(line.id, line.color);
 
-  // Selected border color (60% brand color opacity, with safe fallback colors for custom lines)
-  const getSelectedBorderColor = () => {
-    if (line.id === 'northern') return 'rgba(255, 255, 255, 0.55)';
-    if (line.id === 'piccadilly') return '#60A5FA99';
-    if (line.id === 'bakerloo') return '#F59E0B99';
-    if (line.id === 'jubilee') return '#C8CDD199';
-    if (line.id === 'circle') return '#FFD30099';
-    if (line.id === 'hammersmith-city') return '#F3A9BB99';
-    return `${line.color}99`;
-  };
-
-  // Border style is applied to cardInner (so it aligns with rounded glass clipping)
-  const selectedBorderStyle = selected ? {
-    borderWidth: 1.5,
-    borderColor: getSelectedBorderColor(),
-  } : {
-    borderWidth: 1,
+  // Uniform hairline border — no state change, no brand color bleed
+  const selectedBorderStyle = {
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.18)',
   };
 
-  // Glow style is applied to outerCard wrapper (since it has NO overflow: 'hidden')
-  const selectedGlowStyle = selected ? {
-    shadowColor: isNorthern ? 'rgba(255, 255, 255, 0.55)' : line.color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: isNorthern ? 0.6 : isJubilee ? 0.65 : 0.5,
-    shadowRadius: isNorthern ? 10 : isJubilee ? 10 : 8,
-    elevation: 5,
-  } : null;
+  // Glow explicitly zeroed — prevents iOS shadow residual and Android elevation diff
+  const selectedGlowStyle = {
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  };
 
   const reducedMotion = useReducedMotion();
   const configKey = selected ? 'line_deselect' : 'line_select';
@@ -207,6 +193,11 @@ export function LineCard({
     shadowRadius: 3,
     elevation: 2,
   } : null;
+
+  let statusTextColor = 'rgba(255, 255, 255, 0.55)';
+  if (statusType === 'good') statusTextColor = '#4CAF50';
+  if (statusType === 'minor') statusTextColor = '#F2A002';
+  if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') statusTextColor = '#E32017';
 
   return (
     <Pressable
@@ -269,7 +260,7 @@ export function LineCard({
             ) : (
               <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
                 <StatusDot statusType={statusType} />
-                <Text style={styles.statusText} numberOfLines={1}>
+                <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
                   {abbreviateStatus(statusLabel)}
                 </Text>
               </Animated.View>
@@ -279,15 +270,21 @@ export function LineCard({
 
         {/* Right selection badge consistent with StationCard.tsx */}
         {selected && (
-          <View style={styles.rightBadgeContainer}>
-            <View style={styles.addedCircle}>
-              <Ionicons
-                name="checkmark"
-                size={12}
-                color="#0044EE"
-              />
-            </View>
-          </View>
+          <Animated.View
+            entering={FadeIn.duration(150)}
+            exiting={FadeOut.duration(100)}
+            style={styles.rightBadgeContainer}
+          >
+            <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
+              <View style={styles.addedCircle}>
+                <Ionicons
+                  name="checkmark"
+                  size={12}
+                  color="#0044EE"
+                />
+              </View>
+            </Animated.View>
+          </Animated.View>
         )}
       </Animated.View>
     </Pressable>
@@ -338,7 +335,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.55)',
   },

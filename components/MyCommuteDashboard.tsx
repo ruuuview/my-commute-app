@@ -407,7 +407,8 @@ const MyCommuteDashboard: React.FC = () => {
               if (dest.includes('DELETE') || dest.includes('⚠️')) {
                 return;
               }
-              const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+              // Deduplicate by line, destination, and minutes_away to prevent duplicate-looking rows
+              const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
               if (!seenKeys.has(key)) {
                 seenKeys.add(key);
                 dedupedRaw.push(dep);

@@ -92,7 +92,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
   while (departures.length < count && index < 15) {
     const lineId = linesList[index % linesList.length];
     const minHeadway = headwayMins[lineId] ?? 3;
-    
+
     const lastVal = lastMinsForLineDirection[lineId];
     let mins = 0;
     if (lastVal === undefined) {
@@ -100,7 +100,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
     } else {
       mins = lastVal + minHeadway + ((seed + index) % 3);
     }
-    
+
     lastMinsForLineDirection[lineId] = mins;
 
     const shortName = LINE_SHORT_NAMES[lineId] || lineId;
@@ -146,11 +146,7 @@ function ImminentCountdown({ text, color }: { text: string; color: string }) {
 
   return (
     <Animated.Text
-      style={[
-        styles.ledgerTimeText,
-        { color },
-        animatedStyle,
-      ]}
+      style={[styles.ledgerTimeText, { color }, animatedStyle]}
       numberOfLines={1}
     >
       {text}
@@ -204,10 +200,9 @@ export function StationCard({
 
         allRawDepartures.forEach(dep => {
           const dest = String(dep.destination || '');
-          if (dest.includes('DELETE') || dest.includes('⚠️')) {
-            return;
-          }
-          const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+          if (dest.includes('DELETE') || dest.includes('⚠️')) return;
+          // Deduplicate by line, destination, and minutes_away to prevent duplicate-looking rows
+          const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
             dedupedRaw.push(dep);
@@ -222,7 +217,9 @@ export function StationCard({
             lineId,
             lineColor: LINE_COLORS[cleanLineId] || '#888',
             lineName: LINE_SHORT_NAMES[cleanLineId] || dep.line,
-            destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
+            destination: String(dep.destination || '')
+              .replace(' Underground Station', '')
+              .replace(' DLR Station', ''),
             timeText: `${dep.minutes_away} min`,
             isImminent: dep.minutes_away <= 2,
           };
@@ -235,48 +232,17 @@ export function StationCard({
     };
 
     fetchLive();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [station.id, showLedger, departures, mode]);
 
   const displayDepartures = useMemo(() => {
-    const isDashboardMode = mode === 'dashboard';
-    const shouldShow = showLedger || isDashboardMode;
+    const shouldShow = showLedger || mode === 'dashboard';
     if (!shouldShow) return [];
     return (departures ?? liveDepartures ?? generateMockDepartures(station.id, station.lines, 3)).slice(0, 3);
   }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
 
-  const activeBorderColor = useMemo(() => {
-    if (mode === 'onboarding' && selected) {
-      return 'rgba(255, 255, 255, 0.55)';
-    }
-    return 'rgba(255, 255, 255, 0.18)';
-  }, [mode, selected]);
-
-  const selectedGlowStyle = useMemo(() => {
-    if (mode !== 'onboarding' || !selected) return null;
-    return {
-      shadowColor: '#FFFFFF',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 4,
-    };
-  }, [mode, selected]);
-
-  const handlePress = () => {
-    if (disabled) return;
-    onPress?.();
-  };
-
-  const getDepTimeColor = (minutes: number) => {
-    if (minutes <= 9) {
-      return 'rgba(255,255,255,0.90)';
-    }
-    return 'rgba(255,255,255,0.45)';
-  };
+  const getDepTimeColor = (minutes: number) =>
+    minutes <= 9 ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.45)';
 
   const renderLinePills = () => {
     if (!station.lines || station.lines.length === 0) return null;
@@ -301,9 +267,7 @@ export function StationCard({
                 <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
                 <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
                 <View style={[styles.pillDot, { backgroundColor: colors.dotColor }]} />
-                <Text style={[styles.pillText, { color: colors.textColor }]}>
-                  {shortName}
-                </Text>
+                <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
               </View>
             );
           })}
@@ -317,12 +281,12 @@ export function StationCard({
     );
   };
 
-  const isDashboardMode = mode === 'dashboard';
   const hasLedger = displayDepartures.length > 0;
+  const isDashboardMode = mode === 'dashboard';
 
   return (
-    <Pressable 
-      onPress={handlePress} 
+    <Pressable
+      onPress={disabled ? undefined : onPress}
       onPressIn={pressAnim.onPressIn}
       onPressOut={pressAnim.onPressOut}
       disabled={disabled}
@@ -331,51 +295,29 @@ export function StationCard({
       accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.outerCard,
-        { borderColor: activeBorderColor },
-        selectedGlowStyle,
         pressed && styles.outerCardPressed,
       ]}
     >
-      <Animated.View
-        style={[
-          styles.cardInner,
-          !reducedMotion && pressAnim.animatedStyle,
-        ]}
-      >
-        {/* Frosted glass background layer with Android fallback */}
+      <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
+        {/* Dark smoked glass background */}
         <BlurView
-          intensity={45}
+          intensity={80}
           tint="dark"
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
         />
 
-        {/* Neutral selection tint overlay for selected state */}
-        {mode === 'onboarding' && selected && (
-          <View style={[StyleSheet.absoluteFillObject, {
-            backgroundColor: 'rgba(255, 255, 255, 0.10)',
-          }]} />
-        )}
-
-        {/* Content Area */}
         <View style={styles.cardContent}>
-          {/* Header Row */}
           <View style={styles.cardHeaderRow}>
             <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
               {cleanName}
             </Text>
-            
-            {/* Right Element (Onboarding selection controls or widgets) */}
             {!isDashboardMode && rightElement && (
-              <View style={styles.rightContainer}>
-                {rightElement}
-              </View>
+              <View style={styles.rightContainer}>{rightElement}</View>
             )}
           </View>
 
-          {/* Line Pills Row */}
           {renderLinePills()}
 
-          {/* Departure divider and rows */}
           {hasLedger && (
             <>
               <View style={styles.divider} />
@@ -387,22 +329,15 @@ export function StationCard({
 
                   return (
                     <View key={idx} style={styles.ledgerRow}>
-                      {/* Column 1: Identity (flex: 2) */}
                       <View style={styles.columnIdentity}>
                         <View style={[styles.ledgerDot, { backgroundColor: dep.lineColor }]} />
-                        <Text style={styles.ledgerLineText} numberOfLines={1}>
-                          {dep.lineName}
-                        </Text>
+                        <Text style={styles.ledgerLineText} numberOfLines={1}>{dep.lineName}</Text>
                       </View>
-
-                      {/* Column 2: Destination (flex: 3) */}
                       <View style={styles.columnDestination}>
                         <Text style={styles.ledgerDestText} numberOfLines={1} ellipsizeMode="tail">
                           {dep.destination}
                         </Text>
                       </View>
-
-                      {/* Column 3: Countdown (flex: 0, fixed width: 38) */}
                       <View style={styles.columnCountdown}>
                         {isImminent ? (
                           <ImminentCountdown
@@ -410,13 +345,7 @@ export function StationCard({
                             color={timeColor}
                           />
                         ) : (
-                          <Text 
-                            style={[
-                              styles.ledgerTimeText, 
-                              { color: timeColor }
-                            ]} 
-                            numberOfLines={1}
-                          >
+                          <Text style={[styles.ledgerTimeText, { color: timeColor }]} numberOfLines={1}>
                             {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
                           </Text>
                         )}
@@ -438,13 +367,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     borderRadius: 18,
     marginBottom: 6,
-    borderWidth: 1,
-    // minHeight: 68 applies only to no-ledger (collapsed) state.
-    // Cards with departures naturally expand to ~118px.
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     minHeight: 68,
-    position: 'relative',
-    // NOTE: overflow: 'hidden' removed here so iOS shadow (glow) renders.
-    // cardInner has its own overflow: 'hidden' + borderRadius to clip blur/tint.
   },
   outerCardPressed: {
     opacity: 0.65,
@@ -455,7 +380,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurBackground: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(0, 0, 0, 0.20)',
   },
   cardContent: {
     paddingHorizontal: 12,

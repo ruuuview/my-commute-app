@@ -1,5 +1,3 @@
-// app/onboarding/lines.tsx — Screen 1: Line Selection (v5)
-
 import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
@@ -28,8 +26,6 @@ import { ProgressDots } from '../../components/ProgressDots';
 import { LineCard } from '../../components/LineCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { LINE_COLORS } from '../../constants/lineColors';
 import {
   SCREEN_PADDING,
@@ -72,10 +68,10 @@ export default function LinesScreen() {
 
   // Dynamic card height calculation to fill viewport on all devices with zero scroll
   const dynamicCardHeight = React.useMemo(() => {
-    // headerHeight: eyebrow (12) + dots (10) + title (32) + padding/margins (~104px total)
-    const headerHeight = insets.top + 4 + 104; 
-    // footerHeight: CTA button (52) + skip button (40) + margin/padding (~92px total)
-    const footerHeight = Math.max(insets.bottom, 16) + 92;
+    // headerHeight: dots (10) + title (32) + padding/margins (~80px total)
+    const headerHeight = insets.top + 4 + 88; 
+    // footerHeight: CTA button (52) + margin/padding (~52px total)
+    const footerHeight = Math.max(insets.bottom, 16) + 52;
     // safetyMargin: 32px safety buffer to account for FlatList top padding (12px) 
     // and layout flex tolerances on smaller iOS devices (e.g. iPhone SE).
     const safetyMargin = 32; 
@@ -330,19 +326,14 @@ export default function LinesScreen() {
     <View style={styles.root}>
       <OnboardingGradient />
 
-      {/* Volumetric Bloom Layers */}
-      <View style={styles.topBloomContainer} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(0, 163, 255, 0.38)', 'rgba(0, 163, 255, 0)']}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </View>
-      <View style={styles.midBloomContainer} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(99, 102, 241, 0.28)', 'rgba(99, 102, 241, 0)']}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </View>
+      {/* Skip — absolute top-right, outside header flow */}
+      <Pressable
+        onPress={handleSkip}
+        style={[styles.skipAbsolute, { top: insets.top + 12 }]}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.skipAbsoluteText}>Skip</Text>
+      </Pressable>
 
       {/* Grain Overlay */}
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
@@ -358,31 +349,22 @@ export default function LinesScreen() {
 
       {/* Header zone */}
       <View style={[styles.headerContainer, { paddingTop: insets.top + 4, paddingBottom: 2 }]}>
-        <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
-        <View style={{ marginBottom: 6 }}>
+        <View style={{ marginBottom: 12 }}>
           <ProgressDots total={2} current={1} />
         </View>
-        
-        <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
-          Your lines
-        </Text>
 
         <Animated.View style={counterAnimStyle}>
-          <Text style={[styles.counterText, { marginTop: 4 }]}>
-            {selectedLines.length} lines selected
+          <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
+            Your lines
+            {selectedLines.length > 0 && (
+              <Text style={styles.counterInline}> · {selectedLines.length} selected</Text>
+            )}
           </Text>
         </Animated.View>
       </View>
 
       {/* Main Content Area */}
       <View style={styles.listArea}>
-        {/* Top Fade Overlay for scroll affordance */}
-        <LinearGradient
-          colors={['#0A1550', 'rgba(10, 21, 80, 0)']}
-          style={styles.topFade}
-          pointerEvents="none"
-        />
-
         {/* Max lines toast */}
         {maxLinesToast && (
           <Animated.View style={[styles.maxLinesToast, maxLinesShakeStyle]}>
@@ -395,29 +377,23 @@ export default function LinesScreen() {
           renderItem={renderItem}
           keyExtractor={item => item.id}
           numColumns={2}
-          columnWrapperStyle={{ gap: 8, marginBottom: 8 }}
+          columnWrapperStyle={{ gap: 8 }}
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           initialNumToRender={14}
           removeClippedSubviews={true}
           contentContainerStyle={[
             styles.listContainer,
-            { paddingBottom: listPaddingBottom },
+            { 
+              paddingBottom: listPaddingBottom,
+            },
           ]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={isScrollable}
         />
-
-        {/* Bottom Fade Overlay for scroll affordance */}
-        <LinearGradient
-          colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.25)']}
-          style={styles.bottomFade}
-          pointerEvents="none"
-        />
       </View>
 
       {/* Sticky CTA Footer */}
-      <BlurView
-        intensity={45}
-        tint="dark"
+      <View
         style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
       >
         <Pressable
@@ -447,11 +423,7 @@ export default function LinesScreen() {
             </Text>
           </Animated.View>
         </Pressable>
-        
-        <Pressable onPress={handleSkip} style={styles.skipPressable}>
-          <Text style={styles.skipText}>Skip setup</Text>
-        </Pressable>
-      </BlurView>
+      </View>
     </View>
   );
 }
@@ -461,29 +433,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  topBloomContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-  },
-  midBloomContainer: {
-    position: 'absolute',
-    top: 180,
-    left: -40,
-    right: -40,
-    height: 320,
-  },
   headerContainer: {
     paddingHorizontal: 16,
     paddingBottom: 4,
-  },
-  eyebrow: {
-    fontSize: 9,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: 'rgba(255,255,255,0.30)',
-    letterSpacing: 1.8,
   },
   title: {
     fontSize: 22,
@@ -492,19 +444,25 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     marginTop: 2,
   },
+  counterInline: {
+    fontSize: 22,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: -0.8,
+  },
+  skipAbsolute: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 20,
+  },
+  skipAbsoluteText: {
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255, 255, 255, 0.30)',
+  },
   listArea: {
     flex: 1,
     backgroundColor: 'transparent',
-  },
-  counterText: {
-    fontSize: 10,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: 'rgba(255, 255, 255, 0.55)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   listContainer: {
     paddingHorizontal: SCREEN_PADDING,
@@ -519,7 +477,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     overflow: 'hidden',
-    backgroundColor: 'rgba(4, 8, 16, 0.25)',
   },
   ctaPressable: {
     width: '100%',
@@ -534,16 +491,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'SpaceGrotesk_700Bold',
   },
-  skipPressable: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  skipText: {
-    fontSize: 12,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.35)',
-    textDecorationLine: 'underline',
-  },
   maxLinesToast: {
     backgroundColor: 'rgba(220, 38, 38, 0.12)',
     borderRadius: 8,
@@ -557,21 +504,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#DC2626',
-  },
-  topFade: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 24,
-    zIndex: 10,
-  },
-  bottomFade: {
-    position: 'absolute',
-    bottom: 110,
-    left: 0,
-    right: 0,
-    height: 80,
-    zIndex: 10,
   },
 });

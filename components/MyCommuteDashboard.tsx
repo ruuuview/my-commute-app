@@ -50,6 +50,8 @@ import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { resolveTflStopId } from '../utils/resolveTflStopId';
+import { LINE_COLORS } from '../constants/lineColors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -106,11 +108,16 @@ function worstSeverity(lines: LineData[]): Severity {
 
 // ─── Smart Heartbeat Dot ─────────────────────────────────────────
 const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
-  const opacity = useSharedValue(0.3);
+  const opacity = useSharedValue(0.8);
+  const reducedMotion = useReducedMotion();
 
   const color = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#FF9500' : '#34C759';
 
   useEffect(() => {
+    if (reducedMotion) {
+      opacity.value = 0.8;
+      return;
+    }
     const duration = severity === 'severe' ? 600 : severity === 'minor' ? 1200 : 2400;
     opacity.value = withRepeat(
       withSequence(
@@ -119,7 +126,7 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
       ),
       -1, true
     );
-  }, [severity, opacity]);
+  }, [severity, opacity, reducedMotion]);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
@@ -128,13 +135,6 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 NetworkHealthDot.displayName = 'NetworkHealthDot';
 
 // ─── Status configuration removed in favor of direct styling in LinePill
-
-const TFL_COLORS: Record<string, string> = {
-  bakerloo: '#B36305', central: '#E32017', circle: '#FFD300', district: '#00782A',
-  'hammersmith-city': '#F3A9BB', jubilee: '#C8CDD1', metropolitan: '#9B0056',
-  northern: '#1A1A1A', piccadilly: '#003688', victoria: '#0098D4', 'waterloo-city': '#95CDBA',
-  elizabeth: '#6950A1', overground: '#EE7C0E', dlr: '#00A4A7',
-};
 
 
 // ─── Jiggle Hook (Sinusoidal) ─────────────────────────
@@ -190,11 +190,11 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
 const pill = StyleSheet.create({
   container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8 },
   colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
-  name: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: '#FFFFFF' },
+  name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   spacer: { flex: 1 },
-  statusText: { fontFamily: 'SpaceGrotesk-Medium', fontSize: 12, marginRight: 8 },
+  statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  chevron: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
+  chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
   deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
   deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
@@ -217,7 +217,7 @@ const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd
 );
 const section = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 11, letterSpacing: 0.1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' },
+  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' },
 });
 
 // ─── Stale Status Text ──────────────────────────────────────────────
@@ -371,7 +371,7 @@ const MyCommuteDashboard: React.FC = () => {
       const freshLines = raw.map((item: any) => ({
         id: String(item?.id ?? ''),
         name: String(item?.name ?? ''),
-        color: TFL_COLORS[String(item?.id ?? '')] || '#888',
+        color: LINE_COLORS[String(item?.id ?? '')] || '#888',
         status: String(item?.status ?? ''),
       }));
 
@@ -380,19 +380,24 @@ const MyCommuteDashboard: React.FC = () => {
       if (Array.isArray(selectedStations) && selectedStations.length > 0) {
         const stationPromises = selectedStations.map(async (st: any) => {
           try {
-            const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${st.id}`, { signal });
+            const resolvedId = resolveTflStopId(st.id);
+            const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${resolvedId}`, { signal });
             if (!res.ok) return null;
             const sData = await res.json();
             
             // Map arrivals
-            const arrivals = (sData.departures || []).map((dep: any) => ({
-              lineId: String(dep.line || '').toLowerCase().replace(' line', '').trim(),
-              lineName: dep.line,
-              lineColor: TFL_COLORS[String(dep.line || '').toLowerCase().replace(' line', '').replace(' & ', '-').replace(' ', '-').trim()] || '#888',
-              minutesAway: dep.minutes_away,
-              destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-              expectedArrival: dep.expected_arrival
-            }));
+            const arrivals = (sData.departures || []).map((dep: any) => {
+              const rawLineId = String(dep.line || '').toLowerCase().replace(' line', '').trim();
+              const cleanLineId = rawLineId.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
+              return {
+                lineId: rawLineId,
+                lineName: dep.line,
+                lineColor: LINE_COLORS[cleanLineId] || '#888',
+                minutesAway: dep.minutes_away,
+                destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
+                expectedArrival: dep.expected_arrival
+              };
+            });
 
             return {
               id: st.id,
@@ -647,37 +652,37 @@ const dash = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  titleMain: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
+  titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
   titleSecondRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleSub: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
+  titleSub: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: { height: 32, paddingHorizontal: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  headerBtnText: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: '#FFFFFF' },
+  headerBtnText: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   addBtn: { width: 32, paddingHorizontal: 0, backgroundColor: '#0098D4' },
-  addBtnText: { fontFamily: 'SpaceGrotesk-Light', fontSize: 22, color: '#FFFFFF', lineHeight: 28 },
+  addBtnText: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 22, color: '#FFFFFF', lineHeight: 28 },
   subheadingArea: { marginTop: 4 },
-  disruptedLinesText: { fontFamily: 'SpaceGrotesk-Medium', fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
-  staleText: { fontFamily: 'SpaceGrotesk-Medium', fontSize: 12, color: '#64B5F6' },
+  disruptedLinesText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
+  staleText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, color: '#64B5F6' },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },
   section: { marginBottom: 24 },
   premiumEmptyState: { marginTop: 60, alignItems: 'center', paddingHorizontal: 16 },
   emptyVisual: { marginBottom: 32 },
-  emptyTitle: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 18, color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginBottom: 32 },
+  emptyTitle: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 18, color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginBottom: 32 },
   primaryBtn: { height: 56, width: '100%', borderRadius: 16, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  primaryBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk-Bold', color: '#0A0A0F' },
+  primaryBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', color: '#0A0A0F' },
   ghostBtn: { height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' },
-  ghostBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk-SemiBold', color: 'rgba(255,255,255,0.6)' },
+  ghostBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', color: 'rgba(255,255,255,0.6)' },
   promptScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   promptCard: { backgroundColor: '#141424', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 24, width: '100%', maxWidth: 340, alignItems: 'center' },
   promptIcon: { marginBottom: 16 },
-  promptTitle: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 20, color: '#FFFFFF', textAlign: 'center', marginBottom: 12 },
-  promptText: { fontFamily: 'SpaceGrotesk-Regular', fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  promptTitle: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 20, color: '#FFFFFF', textAlign: 'center', marginBottom: 12 },
+  promptText: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   promptActions: { width: '100%', gap: 12 },
   promptBtn: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
   promptBtnPrimary: { backgroundColor: '#FFFFFF' },
-  promptBtnTextPrimary: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 15, color: '#0A0A0F' },
-  promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk-SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
+  promptBtnTextPrimary: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 15, color: '#0A0A0F' },
+  promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
   addStationCard: {
     alignSelf: 'stretch',
     borderRadius: 18,
@@ -700,8 +705,7 @@ const dash = StyleSheet.create({
   addCardText: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.50)',
-    fontWeight: '600',
-    fontFamily: 'SpaceGrotesk-SemiBold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
 });
 

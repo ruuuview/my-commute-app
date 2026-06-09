@@ -109,10 +109,11 @@ export default function DepartureCard({
       const sData = await res.json();
       const mappedArrivals = (sData.departures || []).map((dep: any) => {
         const lineKey = String(dep.line || '').toLowerCase().replace(' line', '').trim();
+        const cleanLineKey = lineKey.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
         return {
           lineId: lineKey,
           lineName: dep.line,
-          lineColor: LINE_COLORS[lineKey] || '#888',
+          lineColor: LINE_COLORS[cleanLineKey] || '#888',
           minutesAway: dep.minutes_away,
           destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
           expectedArrival: dep.expected_arrival,
@@ -294,7 +295,7 @@ export default function DepartureCard({
                     />
                   ) : (
                     <Text style={[styles.arrivalTime, depStyle]}>
-                      {depVal === 'now' ? 'Due' : `${depVal} min`}
+                      {`${depVal} min`}
                     </Text>
                   )}
                 </View>

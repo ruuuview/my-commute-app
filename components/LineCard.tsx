@@ -34,7 +34,7 @@ function StatusSkeleton() {
   }));
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         {
           width: 7,
@@ -74,8 +74,8 @@ const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: st
   });
 
   let color = '#9CA3AF';
-  if (statusType === 'good')                                    color = '#4CAF50';
-  if (statusType === 'minor')                                   color = '#F2A002';
+  if (statusType === 'good') color = '#4CAF50';
+  if (statusType === 'minor') color = '#F2A002';
   if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') color = '#E32017';
 
   return (
@@ -107,6 +107,49 @@ interface LineCardProps {
   statusLabel: string;
 }
 
+function getPillColors(lineId: string, brandColor: string) {
+  // Dark/low-contrast lines — resolve readable variants
+  if (lineId === 'northern') {
+    return {
+      borderColor: 'rgba(255,255,255,0.25)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      dotColor: '#FFFFFF',
+      textColor: 'rgba(255,255,255,0.80)',
+    };
+  }
+  if (lineId === 'piccadilly') {
+    return {
+      borderColor: '#60A5FA66',
+      backgroundColor: '#60A5FA1A',
+      dotColor: '#003688',
+      textColor: '#60A5FA',
+    };
+  }
+  if (lineId === 'bakerloo') {
+    return {
+      borderColor: '#F59E0B66',
+      backgroundColor: '#F59E0B1A',
+      dotColor: '#B36305',
+      textColor: '#F59E0B',
+    };
+  }
+  if (lineId === 'jubilee') {
+    return {
+      borderColor: '#C8CDD166',
+      backgroundColor: '#C8CDD11A',
+      dotColor: '#868F98',
+      textColor: '#FFFFFF',
+    };
+  }
+  // All other lines — brand color direct with 10% opacity
+  return {
+    borderColor: `${brandColor}66`,
+    backgroundColor: `${brandColor}1A`,
+    dotColor: brandColor,
+    textColor: brandColor,
+  };
+}
+
 export function LineCard({
   line,
   selected,
@@ -116,7 +159,7 @@ export function LineCard({
   statusLabel,
 }: LineCardProps) {
   const opacityVal = useSharedValue(0);
-  
+
   React.useEffect(() => {
     if (statusType !== 'loading') {
       opacityVal.value = withTiming(1, { duration: 200 });
@@ -131,23 +174,12 @@ export function LineCard({
 
   const isNorthern = line.id === 'northern';
   const isJubilee = line.id === 'jubilee';
-
-  const selectedBorderColor = isNorthern 
-    ? 'rgba(255, 255, 255, 0.70)' 
-    : isJubilee 
-    ? '#C8CDD1' 
-    : line.color;
-
-  const selectedGlowColor = isNorthern 
-    ? '#000000' 
-    : isJubilee 
-    ? '#A0A5A9' 
-    : line.color;
+  const colors = getPillColors(line.id, line.color);
 
   const selectedStyle = selected ? {
-    borderWidth: 2,
-    borderColor: selectedBorderColor,
-    shadowColor: selectedGlowColor,
+    borderWidth: 1.5,
+    borderColor: colors.borderColor,
+    shadowColor: colors.borderColor,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: isNorthern ? 0.9 : isJubilee ? 0.7 : 0.55,
     shadowRadius: isNorthern ? 12 : isJubilee ? 10 : 8,
@@ -163,10 +195,10 @@ export function LineCard({
 
   const handlePress = () => {
     if (disabled) return;
-    
+
     const timestamp = Date.now();
     console.log(`[AUDIO_TRIGGER] playSound at ${timestamp} (selected: ${selected})`);
-    
+
     if (selected) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       playSound('deselect', 0.35);
@@ -174,12 +206,20 @@ export function LineCard({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       playSound('select', 0.45);
     }
-    
+
     onPress();
   };
 
   const abbreviateStatus = (label: string): string => {
-    return STATUS_SHORT[label] ?? label;
+    if (!label) return '';
+    const cleanLabel = label.trim();
+    const lowerLabel = cleanLabel.toLowerCase();
+    for (const key of Object.keys(STATUS_SHORT)) {
+      if (key.toLowerCase() === lowerLabel) {
+        return STATUS_SHORT[key];
+      }
+    }
+    return cleanLabel;
   };
 
   // Add a subtle outer glow for dark lines (e.g. Northern)
@@ -192,9 +232,6 @@ export function LineCard({
     elevation: 2,
   } : null;
 
-  // Conditionally apply right padding to avoid checkmark badge collision when selected
-  const contentPaddingRight = selected ? 28 : 12;
-
   return (
     <Pressable
       onPress={handlePress}
@@ -206,10 +243,10 @@ export function LineCard({
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${line.name} line, status: ${statusLabel}${selected ? ', selected' : ''}`}
     >
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.cardInner, 
-          selectedStyle, 
+          styles.cardInner,
+          selectedStyle,
           !reducedMotion && pressAnim.animatedStyle
         ]}
       >
@@ -218,22 +255,29 @@ export function LineCard({
           intensity={30}
           tint="dark"
           style={[
-            StyleSheet.absoluteFillObject, 
+            StyleSheet.absoluteFillObject,
             styles.blurBackground,
-            selected && isNorthern && { backgroundColor: 'rgba(0, 0, 0, 0.60)' },
-            selected && isJubilee && { backgroundColor: 'rgba(160, 165, 169, 0.12)' },
           ]}
         />
 
+        {/* Brand color tint overlay for selected state (Apple pill design) */}
+        {selected && (
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.backgroundColor }]} />
+        )}
+
         {/* Accent bar — centred 36px vertically, 3px wide, rounded, placed 14px from left */}
         <View style={[styles.accentBar, { backgroundColor: line.color }, barGlowStyle]} />
-        
+
         {/* Content */}
-        <View style={[styles.cardContent, { paddingRight: contentPaddingRight }]}>
-          <Text style={styles.lineName} numberOfLines={1} ellipsizeMode="tail">
+        <View style={[styles.cardContent, { paddingLeft: 22, paddingRight: 12 }]}>
+          <Text
+            style={styles.lineName}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {line.name}
           </Text>
-          
+
           <View style={styles.statusSubRow}>
             {statusType === 'loading' ? (
               <StatusSkeleton />
@@ -247,13 +291,6 @@ export function LineCard({
             )}
           </View>
         </View>
-        
-        {/* Selected check badge — 18px white circle, dark check */}
-        {selected && (
-          <View style={styles.checkBadge}>
-            <Ionicons name="checkmark" size={12} color="#0A0F3C" />
-          </View>
-        )}
       </Animated.View>
     </Pressable>
   );
@@ -263,13 +300,13 @@ const styles = StyleSheet.create({
   outerCard: {
     flex: 1,
     height: ONBOARDING_CARD_HEIGHT,
-    borderRadius: 18,
+    borderRadius: 26, // Fully rounded capsule pill shape (52 / 2 = 26)
   },
   cardInner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
+    borderRadius: 26, // Fully rounded capsule pill shape (52 / 2 = 26)
     position: 'relative',
     overflow: 'hidden',
   },
@@ -279,9 +316,9 @@ const styles = StyleSheet.create({
   accentBar: {
     position: 'absolute',
     left: 14,
-    top: 16, // Centred in 68px height: (68 - 36) / 2 = 16
+    top: 12, // Centred in 52px height: (52 - 28) / 2 = 12
     width: 3,
-    height: 36,
+    height: 28, // Height reduced to fit 52px card
     borderRadius: 2,
   },
   cardContent: {
@@ -309,15 +346,5 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.55)',
   },
-  checkBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });
+

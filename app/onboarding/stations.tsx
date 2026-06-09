@@ -390,7 +390,7 @@ export default function StationsScreen() {
       >
         <View style={styles.flex1}>
           {/* Navigation header fixed crown area */}
-          <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
+          <View style={[styles.navHeader, { paddingTop: insets.top + 4 }]}>
             <Pressable
               onPress={handleBack}
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -411,7 +411,9 @@ export default function StationsScreen() {
           {/* Title Header Container */}
           <View style={styles.headerContainer}>
             <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
-            <ProgressDots total={2} current={2} />
+            <View style={{ marginBottom: 6 }}>
+              <ProgressDots total={2} current={2} />
+            </View>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
               Where do you catch your train?
             </Text>
@@ -630,7 +632,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 6,
+    paddingBottom: 2,
   },
   eyebrow: {
     fontSize: 9,
@@ -639,19 +641,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: -0.8,
-    marginTop: 4,
+    marginTop: 2,
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
     marginTop: -1,
-    marginBottom: 8,
-    height: 48,
+    marginBottom: 6,
+    height: 44,
     borderRadius: 14,
     paddingHorizontal: 14,
   },
@@ -675,7 +677,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 130,
   },
   loadingListContainer: {
@@ -786,8 +788,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   maxPinsToast: {

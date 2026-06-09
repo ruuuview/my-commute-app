@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   tabLabel: {
-    fontFamily: 'SpaceGrotesk-SemiBold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'white',
     fontSize: 14,
   }

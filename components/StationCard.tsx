@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -13,6 +13,7 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 import { cleanDisplayStationName } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
+import { resolveTflStopId } from '../utils/resolveTflStopId';
 import { IMMINENT_BLUE } from '../theme/colors';
 
 export interface Departure {
@@ -69,6 +70,65 @@ function getSeedOffset(stationId: string): number {
     sum += stationId.charCodeAt(i);
   }
   return sum % 5;
+}
+
+function getPillColors(lineId: string, brandColor: string) {
+  // Dark/low-contrast lines — resolve readable variants
+  if (lineId === 'northern') {
+    return {
+      borderColor: 'rgba(255,255,255,0.25)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      dotColor: '#FFFFFF',
+      textColor: 'rgba(255,255,255,0.80)',
+    };
+  }
+  if (lineId === 'piccadilly') {
+    return {
+      borderColor: '#60A5FA66',
+      backgroundColor: '#60A5FA1A',
+      dotColor: '#003688',
+      textColor: '#60A5FA',
+    };
+  }
+  if (lineId === 'bakerloo') {
+    return {
+      borderColor: '#F59E0B66',
+      backgroundColor: '#F59E0B1A',
+      dotColor: '#B36305',
+      textColor: '#F59E0B',
+    };
+  }
+  if (lineId === 'jubilee') {
+    return {
+      borderColor: '#C8CDD166',
+      backgroundColor: '#C8CDD11A',
+      dotColor: '#868F98',
+      textColor: '#FFFFFF',
+    };
+  }
+  if (lineId === 'circle') {
+    return {
+      borderColor: '#FFD30066',
+      backgroundColor: '#FFD3001A',
+      dotColor: '#FFD300',
+      textColor: '#FFFFFF',
+    };
+  }
+  if (lineId === 'hammersmith-city') {
+    return {
+      borderColor: '#F3A9BB66',
+      backgroundColor: '#F3A9BB1A',
+      dotColor: '#F3A9BB',
+      textColor: '#FFFFFF',
+    };
+  }
+  // All other lines — brand color direct
+  return {
+    borderColor: `${brandColor}66`,
+    backgroundColor: `${brandColor}1A`,
+    dotColor: brandColor,
+    textColor: brandColor,
+  };
 }
 
 function generateMockDepartures(stationId: string, lines: string[], count = 3): Departure[] {
@@ -172,30 +232,80 @@ export function StationCard({
 
   const cleanName = tflCapitalise(cleanDisplayStationName(station.name));
 
+  const [liveDepartures, setLiveDepartures] = useState<Departure[] | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'onboarding' || !showLedger || departures) return;
+
+    let active = true;
+    const fetchLive = async () => {
+      try {
+        const resolvedId = resolveTflStopId(station.id);
+        const res = await fetch(`https://my-commute-backend.vercel.app/api/stations/${resolvedId}`);
+        if (!res.ok) return;
+        const sData = await res.json();
+        if (!active) return;
+
+        const mapped: Departure[] = (sData.departures || []).map((dep: any) => {
+          const rawLineId = String(dep.line || '').toLowerCase().replace(' line', '').trim();
+          const cleanLineId = rawLineId.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
+          return {
+            lineId: rawLineId,
+            lineColor: LINE_COLORS[cleanLineId] || '#888',
+            lineName: LINE_SHORT_NAMES[cleanLineId] || dep.line,
+            destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
+            timeText: `${dep.minutes_away} min`,
+            isImminent: dep.minutes_away <= 2,
+          };
+        });
+
+        setLiveDepartures(mapped);
+      } catch (e) {
+        console.log('Error fetching live departures in onboarding card:', e);
+      }
+    };
+
+    fetchLive();
+
+    return () => {
+      active = false;
+    };
+  }, [station.id, showLedger, departures, mode]);
+
   const displayDepartures = useMemo(() => {
     const isDashboardMode = mode === 'dashboard';
     const shouldShow = showLedger || isDashboardMode;
     if (!shouldShow) return [];
-    return (departures ?? generateMockDepartures(station.id, station.lines, 3)).slice(0, 3);
-  }, [station.id, station.lines, showLedger, departures, mode]);
+    return (departures ?? liveDepartures ?? generateMockDepartures(station.id, station.lines, 3)).slice(0, 3);
+  }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
+
+  const isNorthern = primaryLineColor === LINE_COLORS.northern;
 
   const activeBorderColor = useMemo(() => {
     if (mode === 'onboarding' && selected) {
-      return 'rgba(255, 255, 255, 0.55)';
+      // Northern line is near-black (#1A1A1A) — use white fallback
+      return isNorthern ? 'rgba(255, 255, 255, 0.55)' : `${primaryLineColor}66`;
     }
     return 'rgba(255, 255, 255, 0.13)';
-  }, [mode, selected]);
+  }, [mode, selected, primaryLineColor, isNorthern]);
+
+  const selectedGlowStyle = useMemo(() => {
+    if (mode !== 'onboarding' || !selected) return null;
+    return {
+      shadowColor: isNorthern ? 'rgba(255,255,255,0.4)' : primaryLineColor,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: isNorthern ? 0.9 : 0.45,
+      shadowRadius: isNorthern ? 12 : 8,
+      elevation: 4,
+    };
+  }, [mode, selected, primaryLineColor, isNorthern]);
 
   const handlePress = () => {
     if (disabled) return;
     onPress?.();
   };
 
-  const getDepTimeColor = (timeStr: string) => {
-    const minutes = parseInt(timeStr) || 0;
-    if (minutes <= 2) {
-      return IMMINENT_BLUE;
-    }
+  const getDepTimeColor = (minutes: number) => {
     if (minutes <= 9) {
       return 'rgba(255,255,255,0.90)';
     }
@@ -213,16 +323,19 @@ export function StationCard({
           {visibleLines.map((lineId) => {
             const shortName = LINE_SHORT_NAMES[lineId] || lineId;
             const brandColor = LINE_COLORS[lineId] || '#888';
+            const colors = getPillColors(lineId, brandColor);
 
             return (
               <View
                 key={lineId}
-                style={styles.pillItem}
+                style={[styles.pillItem, { borderColor: colors.borderColor }]}
                 accessibilityLabel={`${shortName} line`}
                 accessibilityRole="text"
               >
-                <View style={[styles.pillDot, { backgroundColor: brandColor }]} />
-                <Text style={styles.pillText}>
+                <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
+                <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
+                <View style={[styles.pillDot, { backgroundColor: colors.dotColor }]} />
+                <Text style={[styles.pillText, { color: colors.textColor }]}>
                   {shortName}
                 </Text>
               </View>
@@ -253,6 +366,7 @@ export function StationCard({
       style={({ pressed }) => [
         styles.outerCard,
         { borderColor: activeBorderColor },
+        selectedGlowStyle,
         pressed && styles.outerCardPressed,
       ]}
     >
@@ -268,6 +382,13 @@ export function StationCard({
           tint="dark"
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
         />
+
+        {/* Brand color tint overlay for selected state (Apple pill design) */}
+        {mode === 'onboarding' && selected && (
+          <View style={[StyleSheet.absoluteFillObject, {
+            backgroundColor: isNorthern ? 'rgba(255,255,255,0.08)' : `${primaryLineColor}1A`,
+          }]} />
+        )}
 
         {/* Content Area */}
         <View style={styles.cardContent}>
@@ -295,7 +416,8 @@ export function StationCard({
               <View style={styles.ledgerTable}>
                 {displayDepartures.map((dep, idx) => {
                   const minutesVal = parseInt(dep.timeText) || 0;
-                  const timeColor = getDepTimeColor(dep.timeText);
+                  const isImminent = minutesVal <= 2;
+                  const timeColor = isImminent ? IMMINENT_BLUE : getDepTimeColor(minutesVal);
 
                   return (
                     <View key={idx} style={styles.ledgerRow}>
@@ -316,7 +438,7 @@ export function StationCard({
 
                       {/* Column 3: Countdown (flex: 0, fixed width: 38) */}
                       <View style={styles.columnCountdown}>
-                        {minutesVal <= 2 ? (
+                        {isImminent ? (
                           <ImminentCountdown
                             text={minutesVal === 0 ? 'Due' : `${minutesVal} min`}
                             color={timeColor}
@@ -349,11 +471,14 @@ const styles = StyleSheet.create({
   outerCard: {
     alignSelf: 'stretch',
     borderRadius: 18,
-    marginBottom: 9,
+    marginBottom: 6,
     borderWidth: 1,
-    minHeight: 68,
+    // minHeight: 56 applies only to no-ledger (collapsed) state.
+    // Cards with departures naturally expand to ~118px.
+    minHeight: 56,
     position: 'relative',
-    overflow: 'hidden',
+    // NOTE: overflow: 'hidden' removed here so iOS shadow (glow) renders.
+    // cardInner has its own overflow: 'hidden' + borderRadius to clip blur/tint.
   },
   outerCardPressed: {
     opacity: 0.65,
@@ -367,18 +492,17 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.07)',
   },
   cardContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   stationName: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: 'System',
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255, 255, 255, 0.95)',
     flex: 1,
   },
@@ -389,8 +513,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pillsRowWrapper: {
-    marginTop: 5,
-    marginBottom: 8,
+    marginTop: 2,
+    marginBottom: 4,
   },
   pillsContainer: {
     flexDirection: 'row',
@@ -400,7 +524,15 @@ const styles = StyleSheet.create({
   pillItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  pillColorLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   pillDot: {
     width: 9,
@@ -410,8 +542,7 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 10,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   overflowBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
@@ -424,13 +555,12 @@ const styles = StyleSheet.create({
   overflowText: {
     fontSize: 9,
     color: 'rgba(255, 255, 255, 0.45)',
-    fontWeight: '700',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   divider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    marginBottom: 9,
+    marginBottom: 6,
   },
   ledgerTable: {
     gap: 0,
@@ -438,7 +568,7 @@ const styles = StyleSheet.create({
   ledgerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 7,
+    marginBottom: 5,
   },
   columnIdentity: {
     flex: 2,
@@ -454,7 +584,7 @@ const styles = StyleSheet.create({
   ledgerLineText: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.45)',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   columnDestination: {
     flex: 3,
@@ -463,7 +593,7 @@ const styles = StyleSheet.create({
   ledgerDestText: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.65)',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   columnCountdown: {
     width: 38,
@@ -471,8 +601,7 @@ const styles = StyleSheet.create({
   },
   ledgerTimeText: {
     fontSize: 12,
-    fontWeight: '700',
-    fontFamily: 'System',
+    fontFamily: 'SpaceGrotesk_700Bold',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },

@@ -335,9 +335,11 @@ export default function LinesScreen() {
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
       {/* Header zone */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 8, paddingBottom: 4 }]}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 4, paddingBottom: 2 }]}>
         <Text style={styles.eyebrow}>SETUP · STEP 1 OF 2</Text>
-        <ProgressDots total={2} current={1} />
+        <View style={{ marginBottom: 6 }}>
+          <ProgressDots total={2} current={1} />
+        </View>
         
         <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
           Your lines
@@ -365,7 +367,7 @@ export default function LinesScreen() {
           renderItem={renderItem}
           keyExtractor={item => item.id}
           numColumns={2}
-          columnWrapperStyle={{ gap: COLUMN_GAP, marginBottom: COLUMN_GAP }}
+          columnWrapperStyle={{ gap: 8, marginBottom: 8 }}
           initialNumToRender={14}
           removeClippedSubviews={true}
           contentContainerStyle={[
@@ -448,11 +450,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: -0.8,
-    marginTop: 4,
+    marginTop: 2,
   },
   listArea: {
     flex: 1,
@@ -480,8 +482,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   ctaPressable: {

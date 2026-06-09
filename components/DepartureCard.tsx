@@ -7,6 +7,7 @@ import { FULL_STATIONS } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
 import { IMMINENT_BLUE } from '../theme/colors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
+import { normaliseLineId } from '../utils/normaliseLineId';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -102,7 +103,7 @@ export default function DepartureCard({
   const arrivalsOpacity = useSharedValue(autoExpand ? 1 : 0);
 
   // Fetch arrivals for this station
-  const fetchArrivals = useCallback(async () => {
+  const fetchArrivals = useCallback(async (active: { current: boolean }) => {
     try {
       const resolvedIds = resolveTflStopIds(stationId);
       const responses = await Promise.all(
@@ -112,6 +113,8 @@ export default function DepartureCard({
             .catch(() => null)
         )
       );
+
+      if (!active.current) return;
 
       const allRawDepartures: any[] = [];
       responses.forEach(sData => {
@@ -124,6 +127,10 @@ export default function DepartureCard({
       const seenKeys = new Set<string>();
 
       allRawDepartures.forEach(dep => {
+        const dest = String(dep.destination || '');
+        if (dest.includes('DELETE') || dest.includes('⚠️')) {
+          return;
+        }
         const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -134,18 +141,18 @@ export default function DepartureCard({
       dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
 
       const mappedArrivals = dedupedRaw.map((dep: any) => {
-        const lineKey = String(dep.line || '').toLowerCase().replace(' line', '').trim();
-        const cleanLineKey = lineKey.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
+        const { lineId, cleanLineId } = normaliseLineId(dep.line);
         return {
-          lineId: lineKey,
+          lineId,
           lineName: dep.line,
-          lineColor: LINE_COLORS[cleanLineKey] || '#888',
+          lineColor: LINE_COLORS[cleanLineId] || '#888',
           minutesAway: dep.minutes_away,
           destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
           expectedArrival: dep.expected_arrival,
         };
       });
 
+      if (!active.current) return;
       setArrivals(mappedArrivals);
       setLoading(false);
     } catch (err) {
@@ -154,10 +161,14 @@ export default function DepartureCard({
   }, [stationId]);
 
   useEffect(() => {
-    fetchArrivals();
+    const active = { current: true };
+    fetchArrivals(active);
     // Poll arrivals every 30 seconds
-    const interval = setInterval(fetchArrivals, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => fetchArrivals(active), 30000);
+    return () => {
+      active.current = false;
+      clearInterval(interval);
+    };
   }, [fetchArrivals]);
 
   // Format clean station name

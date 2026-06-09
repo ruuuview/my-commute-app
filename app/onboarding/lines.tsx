@@ -76,7 +76,8 @@ export default function LinesScreen() {
     const headerHeight = insets.top + 4 + 104; 
     // footerHeight: CTA button (52) + skip button (40) + margin/padding (~92px total)
     const footerHeight = Math.max(insets.bottom, 16) + 92;
-    // margins/padding of list area and safe margins
+    // safetyMargin: 32px safety buffer to account for FlatList top padding (12px) 
+    // and layout flex tolerances on smaller iOS devices (e.g. iPhone SE).
     const safetyMargin = 32; 
     const availableHeight = screenHeight - headerHeight - footerHeight - safetyMargin;
     
@@ -250,16 +251,18 @@ export default function LinesScreen() {
 
   const getLineStatus = (severity: number, desc: string) => {
     const d = desc.toLowerCase();
+    // Aligned with useLineData.ts locked spec: {20: suspended, 9: severe, 5: minor, 1: good}
     if (severity === 10)                          return { statusType: 'good' as const,      label: 'Good service' };
-    if (severity === 9)                           return { statusType: 'minor' as const,     label: 'Minor delays' };
+    if (severity === 9)                           return { statusType: 'severe' as const,    label: desc || 'Severe delays' };
     if (severity === 8 || severity === 7)         return { statusType: 'minor' as const,     label: desc || 'Reduced service' };
     if (severity === 6)                           return { statusType: 'severe' as const,    label: desc || 'Severe delays' };
-    if (severity === 5 || severity === 11)        return { statusType: 'suspended' as const, label: desc || 'Part suspended' };
-    if (severity === 4 || severity === 3)         return { statusType: 'closure' as const,   label: desc || 'Planned closure' };
-    if (severity === 20 || severity === 0)        return { statusType: 'closure' as const,   label: 'Not running' };
-    if (d.includes('closure') || d.includes('closed')) return { statusType: 'closure' as const, label: desc };
-    if (d.includes('suspend'))                    return { statusType: 'suspended' as const, label: desc };
-    return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+    if (severity === 5)                           return { statusType: 'minor' as const,     label: desc || 'Minor delays' };
+    if (severity === 4 || severity === 3)         return { statusType: 'suspended' as const, label: desc || 'Planned closure' };
+    if (severity === 20 || severity === 0)        return { statusType: 'suspended' as const, label: desc || 'Suspended' };
+    if (severity === 11)                          return { statusType: 'suspended' as const, label: desc || 'Part suspended' };
+    if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };
+    if (d.includes('severe') || d.includes('delay')) return { statusType: 'severe' as const, label: desc };
+    return { statusType: 'minor' as const, label: desc || 'Minor delays' };
   };
 
   const resolveLineStatus = (lineId: string) => {
@@ -373,6 +376,12 @@ export default function LinesScreen() {
 
       {/* Main Content Area */}
       <View style={styles.listArea}>
+        {/* Top Fade Overlay for scroll affordance */}
+        <LinearGradient
+          colors={['#0A1550', 'rgba(10, 21, 80, 0)']}
+          style={styles.topFade}
+          pointerEvents="none"
+        />
 
         {/* Max lines toast */}
         {maxLinesToast && (
@@ -396,11 +405,18 @@ export default function LinesScreen() {
           showsVerticalScrollIndicator={false}
           scrollEnabled={isScrollable}
         />
+
+        {/* Bottom Fade Overlay for scroll affordance */}
+        <LinearGradient
+          colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.25)']}
+          style={styles.bottomFade}
+          pointerEvents="none"
+        />
       </View>
 
       {/* Sticky CTA Footer */}
       <BlurView
-        intensity={28}
+        intensity={45}
         tint="dark"
         style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
       >
@@ -503,6 +519,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     overflow: 'hidden',
+    backgroundColor: 'rgba(4, 8, 16, 0.25)',
   },
   ctaPressable: {
     width: '100%',
@@ -540,5 +557,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#DC2626',
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 24,
+    zIndex: 10,
+  },
+  bottomFade: {
+    position: 'absolute',
+    bottom: 110,
+    left: 0,
+    right: 0,
+    height: 80,
+    zIndex: 10,
   },
 });

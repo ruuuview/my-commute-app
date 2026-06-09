@@ -48,6 +48,7 @@ import { GradientBackground } from './GradientBackground';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
+import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
@@ -142,7 +143,7 @@ const useJiggle = (isEditing: boolean) => {
   const rotation = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isEditing && !reducedMotion) {
       rotation.value = -1.5;
       rotation.value = withRepeat(
@@ -291,6 +292,8 @@ const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactN
 });
 StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 
+const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
+
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -400,6 +403,10 @@ const MyCommuteDashboard: React.FC = () => {
             const seenKeys = new Set<string>();
 
             allRawDepartures.forEach(dep => {
+              const dest = String(dep.destination || '');
+              if (dest.includes('DELETE') || dest.includes('⚠️')) {
+                return;
+              }
               const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
               if (!seenKeys.has(key)) {
                 seenKeys.add(key);
@@ -411,10 +418,9 @@ const MyCommuteDashboard: React.FC = () => {
 
             // Map arrivals
             const arrivals = dedupedRaw.map((dep: any) => {
-              const rawLineId = String(dep.line || '').toLowerCase().replace(' line', '').trim();
-              const cleanLineId = rawLineId.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
+              const { lineId, cleanLineId } = normaliseLineId(dep.line);
               return {
-                lineId: rawLineId,
+                lineId,
                 lineName: dep.line,
                 lineColor: LINE_COLORS[cleanLineId] || '#888',
                 minutesAway: dep.minutes_away,
@@ -475,12 +481,11 @@ const MyCommuteDashboard: React.FC = () => {
 
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
-  const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
-  const sortedLines = [...myLines].sort((a, b) => {
+  const sortedLines = useMemo(() => [...myLines].sort((a, b) => {
     const sevA = parseSeverity(a.status);
     const sevB = parseSeverity(b.status);
     return (SEVERITY_ORDER[sevA] ?? 4) - (SEVERITY_ORDER[sevB] ?? 4);
-  });
+  }), [myLines]);
 
   return (
     <View style={dash.root}>

@@ -15,6 +15,8 @@ import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { IMMINENT_BLUE } from '../theme/colors';
+import { getPillColors } from '../utils/pillColors';
+import { normaliseLineId } from '../utils/normaliseLineId';
 
 export interface Departure {
   lineId: string;
@@ -69,65 +71,6 @@ function getSeedOffset(stationId: string): number {
     sum += stationId.charCodeAt(i);
   }
   return sum % 5;
-}
-
-function getPillColors(lineId: string, brandColor: string) {
-  // Dark/low-contrast lines — resolve readable variants
-  if (lineId === 'northern') {
-    return {
-      borderColor: 'rgba(255,255,255,0.25)',
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      dotColor: '#FFFFFF',
-      textColor: 'rgba(255,255,255,0.80)',
-    };
-  }
-  if (lineId === 'piccadilly') {
-    return {
-      borderColor: '#60A5FA66',
-      backgroundColor: '#60A5FA1A',
-      dotColor: '#003688',
-      textColor: '#60A5FA',
-    };
-  }
-  if (lineId === 'bakerloo') {
-    return {
-      borderColor: '#F59E0B66',
-      backgroundColor: '#F59E0B1A',
-      dotColor: '#B36305',
-      textColor: '#F59E0B',
-    };
-  }
-  if (lineId === 'jubilee') {
-    return {
-      borderColor: '#C8CDD166',
-      backgroundColor: '#C8CDD11A',
-      dotColor: '#868F98',
-      textColor: '#FFFFFF',
-    };
-  }
-  if (lineId === 'circle') {
-    return {
-      borderColor: '#FFD30066',
-      backgroundColor: '#FFD3001A',
-      dotColor: '#FFD300',
-      textColor: '#FFFFFF',
-    };
-  }
-  if (lineId === 'hammersmith-city') {
-    return {
-      borderColor: '#F3A9BB66',
-      backgroundColor: '#F3A9BB1A',
-      dotColor: '#F3A9BB',
-      textColor: '#FFFFFF',
-    };
-  }
-  // All other lines — brand color direct
-  return {
-    borderColor: `${brandColor}66`,
-    backgroundColor: `${brandColor}1A`,
-    dotColor: brandColor,
-    textColor: brandColor,
-  };
 }
 
 function generateMockDepartures(stationId: string, lines: string[], count = 3): Departure[] {
@@ -260,6 +203,10 @@ export function StationCard({
         const seenKeys = new Set<string>();
 
         allRawDepartures.forEach(dep => {
+          const dest = String(dep.destination || '');
+          if (dest.includes('DELETE') || dest.includes('⚠️')) {
+            return;
+          }
           const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
@@ -270,10 +217,9 @@ export function StationCard({
         dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
 
         const mapped: Departure[] = dedupedRaw.map((dep: any) => {
-          const rawLineId = String(dep.line || '').toLowerCase().replace(' line', '').trim();
-          const cleanLineId = rawLineId.replace(/\s*&\s*/g, '-').replace(/\s+/g, '-');
+          const { lineId, cleanLineId } = normaliseLineId(dep.line);
           return {
-            lineId: rawLineId,
+            lineId,
             lineColor: LINE_COLORS[cleanLineId] || '#888',
             lineName: LINE_SHORT_NAMES[cleanLineId] || dep.line,
             destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
@@ -304,9 +250,9 @@ export function StationCard({
 
   const activeBorderColor = useMemo(() => {
     if (mode === 'onboarding' && selected) {
-      return 'rgba(255, 255, 255, 0.65)';
+      return 'rgba(255, 255, 255, 0.55)';
     }
-    return 'rgba(255, 255, 255, 0.13)';
+    return 'rgba(255, 255, 255, 0.18)';
   }, [mode, selected]);
 
   const selectedGlowStyle = useMemo(() => {
@@ -398,7 +344,7 @@ export function StationCard({
       >
         {/* Frosted glass background layer with Android fallback */}
         <BlurView
-          intensity={30}
+          intensity={45}
           tint="dark"
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
         />
@@ -406,7 +352,7 @@ export function StationCard({
         {/* Neutral selection tint overlay for selected state */}
         {mode === 'onboarding' && selected && (
           <View style={[StyleSheet.absoluteFillObject, {
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            backgroundColor: 'rgba(255, 255, 255, 0.10)',
           }]} />
         )}
 
@@ -509,7 +455,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurBackground: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.06)',
   },
   cardContent: {
     paddingHorizontal: 12,

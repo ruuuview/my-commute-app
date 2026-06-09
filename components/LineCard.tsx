@@ -15,6 +15,7 @@ import { playSound } from '../utils/sound';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
+import { getPillColors } from '../utils/pillColors';
 
 function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
@@ -108,65 +109,6 @@ interface LineCardProps {
   cardHeight?: number;
 }
 
-function getPillColors(lineId: string, brandColor: string) {
-  // Dark/low-contrast lines — resolve readable variants
-  if (lineId === 'northern') {
-    return {
-      borderColor: '#000000',
-      backgroundColor: 'rgba(0, 0, 0, 0.55)',
-      dotColor: '#FFFFFF',
-      textColor: '#FFFFFF',
-    };
-  }
-  if (lineId === 'piccadilly') {
-    return {
-      borderColor: '#60A5FA66',
-      backgroundColor: '#60A5FA1A',
-      dotColor: '#003688',
-      textColor: '#60A5FA',
-    };
-  }
-  if (lineId === 'bakerloo') {
-    return {
-      borderColor: '#F59E0B66',
-      backgroundColor: '#F59E0B1A',
-      dotColor: '#B36305',
-      textColor: '#F59E0B',
-    };
-  }
-  if (lineId === 'jubilee') {
-    return {
-      borderColor: '#C8CDD166',
-      backgroundColor: '#C8CDD11A',
-      dotColor: '#868F98',
-      textColor: '#FFFFFF',
-    };
-  }
-  if (lineId === 'circle') {
-    return {
-      borderColor: '#FFD30066',
-      backgroundColor: '#FFD3001A',
-      dotColor: '#FFD300',
-      textColor: '#FFFFFF',
-    };
-  }
-  if (lineId === 'hammersmith-city') {
-    return {
-      borderColor: '#F3A9BB66',
-      backgroundColor: '#F3A9BB1A',
-      dotColor: '#F3A9BB',
-      textColor: '#FFFFFF',
-    };
-  }
-  // All other lines — brand color direct with 10% opacity
-  return {
-    borderColor: `${brandColor}66`,
-    backgroundColor: `${brandColor}1A`,
-    dotColor: brandColor,
-    textColor: brandColor,
-  };
-}
-
 export function LineCard({
   line,
   selected,
@@ -194,10 +136,21 @@ export function LineCard({
   const isJubilee = line.id === 'jubilee';
   const colors = getPillColors(line.id, line.color);
 
+  // Selected border color (60% brand color opacity, with safe fallback colors for custom lines)
+  const getSelectedBorderColor = () => {
+    if (line.id === 'northern') return 'rgba(255, 255, 255, 0.55)';
+    if (line.id === 'piccadilly') return '#60A5FA99';
+    if (line.id === 'bakerloo') return '#F59E0B99';
+    if (line.id === 'jubilee') return '#C8CDD199';
+    if (line.id === 'circle') return '#FFD30099';
+    if (line.id === 'hammersmith-city') return '#F3A9BB99';
+    return `${line.color}99`;
+  };
+
   // Border style is applied to cardInner (so it aligns with rounded glass clipping)
   const selectedBorderStyle = selected ? {
     borderWidth: 1.5,
-    borderColor: colors.borderColor,
+    borderColor: getSelectedBorderColor(),
   } : {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
@@ -205,11 +158,11 @@ export function LineCard({
 
   // Glow style is applied to outerCard wrapper (since it has NO overflow: 'hidden')
   const selectedGlowStyle = selected ? {
-    shadowColor: isNorthern ? '#000000' : colors.borderColor,
+    shadowColor: isNorthern ? 'rgba(255, 255, 255, 0.55)' : line.color,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: isNorthern ? 0.95 : isJubilee ? 0.7 : 0.55,
-    shadowRadius: isNorthern ? 14 : isJubilee ? 10 : 8,
-    elevation: 6,
+    shadowOpacity: isNorthern ? 0.6 : isJubilee ? 0.65 : 0.5,
+    shadowRadius: isNorthern ? 10 : isJubilee ? 10 : 8,
+    elevation: 5,
   } : null;
 
   const reducedMotion = useReducedMotion();
@@ -280,7 +233,7 @@ export function LineCard({
       >
         {/* Frosted glass background layer with opaque fallback styling */}
         <BlurView
-          intensity={30}
+          intensity={45}
           tint="dark"
           style={[
             StyleSheet.absoluteFillObject,
@@ -301,7 +254,7 @@ export function LineCard({
         ]} />
 
         {/* Content */}
-        <View style={[styles.cardContent, { paddingLeft: 22, paddingRight: 8 }]}>
+        <View style={[styles.cardContent, { paddingRight: 8 }]}>
           <Text
             style={styles.lineName}
             numberOfLines={1}
@@ -325,15 +278,17 @@ export function LineCard({
         </View>
 
         {/* Right selection badge consistent with StationCard.tsx */}
-        <View style={styles.rightBadgeContainer}>
-          <View style={selected ? styles.addedCircle : styles.addCircle}>
-            <Ionicons
-              name={selected ? 'checkmark' : 'add'}
-              size={12}
-              color={selected ? '#0044EE' : '#FFFFFF'}
-            />
+        {selected && (
+          <View style={styles.rightBadgeContainer}>
+            <View style={styles.addedCircle}>
+              <Ionicons
+                name="checkmark"
+                size={12}
+                color="#0044EE"
+              />
+            </View>
           </View>
-        </View>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -353,7 +308,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurBackground: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   accentBar: {
     position: 'absolute',
@@ -391,16 +346,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  addCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   addedCircle: {
     width: 24,

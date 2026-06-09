@@ -9,7 +9,7 @@ import fullStationsData from '../data/tflStationsFull.json';
 const EXPLICIT_MAP: Record<string, string[]> = {
   // HUB → NaPTANs
   HUBBAN: ['940GZZLUBNK', '940GZZDLBNK'],       // Bank (Underground + DLR)
-  HUBCAW: ['940GZZLUCYF', '940GZZLNCWY', '940GZZLUECX'], // Canary Wharf (Jubilee + DLR + Elizabeth)
+  HUBCAW: ['940GZZLUCYF', '940GZZDLCAN', '910GCANWHRF'], // Canary Wharf (Jubilee + DLR + Elizabeth)
   HUBWAT: ['940GZZLUWLO'],                      // Waterloo
   HUBPAD: ['940GZZLUPAD', '940GZZLUHAC'],       // Paddington (Bakerloo/District/Circle/Elizabeth + H&C/Circle)
   HUBLST: ['940GZZLULVT'],                      // Liverpool Street
@@ -40,7 +40,7 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'bank':            ['940GZZLUBNK', '940GZZDLBNK'],
   'bank-monument':   ['940GZZLUBNK', '940GZZDLBNK'],
   'monument':        ['940GZZLUMMT'],
-  'canary-wharf':    ['940GZZLUCYF', '940GZZLNCWY', '940GZZLUECX'],
+  'canary-wharf':    ['940GZZLUCYF', '940GZZDLCAN', '910GCANWHRF'],
   'london-waterloo': ['940GZZLUWLO'],
   'london-bridge':   ['940GZZLULBG'],
   'stratford':       ['940GZZLUSTD', '910GSTFD'],

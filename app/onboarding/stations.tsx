@@ -73,11 +73,9 @@ export default function StationsScreen() {
 
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
 
-  const selectedLines = useMemo(() => {
-    return hasCompletedOnboarding 
-      ? useUserPreferencesStore.getState().selectedLines 
-      : useOnboardingStore.getState().selectedLines;
-  }, [hasCompletedOnboarding]);
+  const selectedLinesFromPrefs = useUserPreferencesStore(s => s.selectedLines);
+  const selectedLinesFromOnboarding = useOnboardingStore(s => s.selectedLines);
+  const selectedLines = hasCompletedOnboarding ? selectedLinesFromPrefs : selectedLinesFromOnboarding;
 
   const pinnedFromPrefs = useUserPreferencesStore(s => s.pinnedStations);
   const pinnedFromOnboarding = useOnboardingStore(s => s.pinnedStations);
@@ -325,15 +323,15 @@ export default function StationsScreen() {
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = pinnedIds.has(item.id);
 
-    const rightElement = (
-      <View style={isPinned ? styles.addedCircle : styles.addCircle}>
+    const rightElement = isPinned ? (
+      <View style={styles.addedCircle}>
         <Ionicons
-          name={isPinned ? 'checkmark' : 'add'}
+          name="checkmark"
           size={12}
-          color={isPinned ? '#0044EE' : '#FFFFFF'}
+          color="#0044EE"
         />
       </View>
-    );
+    ) : null;
 
     return (
       <StationCard
@@ -454,6 +452,12 @@ export default function StationsScreen() {
 
           {/* Main List Area */}
           <View style={styles.listArea}>
+            {/* Top Fade Overlay for scroll affordance */}
+            <LinearGradient
+              colors={['#0A1550', 'rgba(10, 21, 80, 0)']}
+              style={styles.topFade}
+              pointerEvents="none"
+            />
             {loading ? (
               <View style={styles.loadingListContainer}>
                 {[1, 2, 3, 4, 5].map((idx) => (
@@ -474,11 +478,11 @@ export default function StationsScreen() {
                   keyExtractor={(item) => `recent-${item.id}`}
                   renderItem={({ item }) => (
                     <Pressable
-                      onPress={() => handleRecentPress(item)}
-                      style={styles.recentSearchCard}
+                       onPress={() => handleRecentPress(item)}
+                       style={styles.recentSearchCard}
                     >
                       <BlurView
-                        intensity={20}
+                        intensity={45}
                         tint="dark"
                         style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
                       />
@@ -533,7 +537,7 @@ export default function StationsScreen() {
         {/* Bottom Fade Overlay for scroll affordance */}
         {!isSearching && (
           <LinearGradient
-            colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.85)']}
+            colors={['rgba(4, 8, 16, 0)', 'rgba(4, 8, 16, 0.25)']}
             style={[styles.bottomFade, { bottom: footerHeight }]}
             pointerEvents="none"
           />
@@ -542,7 +546,7 @@ export default function StationsScreen() {
         {/* Sticky CTA Footer */}
         {!isSearching && (
           <BlurView
-            intensity={28}
+            intensity={45}
             tint="dark"
             onLayout={(e) => {
               const { height } = e.nativeEvent.layout;
@@ -710,20 +714,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  addCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   addedCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -763,7 +757,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -771,7 +765,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   recentCardBlur: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.12)',
   },
   recentSearchText: {
     fontSize: 15,
@@ -787,6 +781,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     overflow: 'hidden',
+    backgroundColor: 'rgba(4, 8, 16, 0.25)',
   },
   maxPinsToast: {
     backgroundColor: 'rgba(220, 38, 38, 0.12)',
@@ -842,5 +837,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 80,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 24,
+    zIndex: 10,
   },
 });

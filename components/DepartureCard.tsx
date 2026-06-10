@@ -29,11 +29,10 @@ interface Arrival {
 interface DepartureCardProps {
   stationId: string;
   stationName: string;
-  role?: 'home' | 'work' | 'other';
   isEditing?: boolean;
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
-  autoExpand?: boolean;
+  defaultExpanded?: boolean;
   hideCard?: boolean;
 }
 
@@ -86,22 +85,21 @@ const COLLAPSED_HEIGHT = 56;
 export default function DepartureCard({
   stationId,
   stationName,
-  role,
   isEditing = false,
   onDelete,
   onLongPress,
-  autoExpand = true,
+  defaultExpanded = false,
   hideCard = false,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(autoExpand);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   
   const [contentHeight, setContentHeight] = useState(160);
-  const heightVal = useSharedValue(autoExpand ? 160 : COLLAPSED_HEIGHT);
-  const chevronRotation = useSharedValue(autoExpand ? 180 : 0);
-  const arrivalsOpacity = useSharedValue(autoExpand ? 1 : 0);
+  const heightVal = useSharedValue(defaultExpanded ? 160 : COLLAPSED_HEIGHT);
+  const chevronRotation = useSharedValue(defaultExpanded ? 180 : 0);
+  const arrivalsOpacity = useSharedValue(defaultExpanded ? 1 : 0);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async (active: { current: boolean }) => {

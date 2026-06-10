@@ -44,7 +44,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
-import { GradientBackground } from './GradientBackground';
+import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
@@ -113,14 +113,28 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
   const opacity = useSharedValue(0.8);
   const reducedMotion = useReducedMotion();
 
-  const color = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#FF9500' : '#34C759';
+  let color = '#4CAF50';
+  let duration = 2400;
+  
+  if (severity === 'minor') {
+    color = '#F2A002';
+    duration = 1200;
+  } else if (severity === 'severe') {
+    color = '#E32017';
+    duration = 600;
+  } else if (severity === 'suspended') {
+    color = '#E32017';
+    duration = 300;
+  } else if (severity === 'offline' || severity === 'unknown') {
+    color = '#9CA3AF';
+    duration = 2400;
+  }
 
   useEffect(() => {
     if (reducedMotion) {
       opacity.value = 0.8;
       return;
     }
-    const duration = severity === 'severe' ? 600 : severity === 'minor' ? 1200 : 2400;
     opacity.value = withRepeat(
       withSequence(
         withTiming(1, { duration, easing: Easing.inOut(Easing.ease) }),
@@ -128,11 +142,11 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
       ),
       -1, true
     );
-  }, [severity, opacity, reducedMotion]);
+  }, [severity, opacity, reducedMotion, duration]);
 
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
-  return <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }, animStyle]} />;
+  return <Animated.View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, animStyle]} />;
 });
 NetworkHealthDot.displayName = 'NetworkHealthDot';
 
@@ -321,41 +335,19 @@ function getDayOfYear(): number {
   return Math.floor(diff / oneDay);
 }
 
-function getGreeting(hour: number, seed: number): string {
-  const greetings = [
-    ["Wakey wakey.", "Oi, you're up early.", "Rise and grind, yeah?", "Early doors innit."],
-    ["Alright?", "You good?", "Sorted?", "How's it going, yeah?"],
-    ["Home time.", "Leg it.", "Sack it off, let's go.", "Time to bounce."],
-    ["Bit late innit.", "Burning the midnight oil?", "Still going? Mad one.", "Night owl ting."]
-  ];
-  
-  let index = 3;
-  if (hour >= 5 && hour < 10) {
-    index = 0;
-  } else if (hour >= 10 && hour < 17) {
-    index = 1;
-  } else if (hour >= 17 && hour < 21) {
-    index = 2;
-  }
-  
-  const list = greetings[index];
-  return list[seed % list.length];
-}
-
 function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], seed: number): string {
   const allGood = [
     "Tube's peng today.",
     "No dramas, all running sweet.",
     "Bare smooth out there.",
-    "Wagwan, all clear.",
-    "Innit — no delays today.",
-    "Sorted. Get on it."
+    "Sorted. Get on it.",
+    "All clear, wagwan."
   ];
   
   const minor = [
     "[Line]'s a bit dodge.",
-    "[Line]'s dragging its feet.",
     "Slight faff on the [Line].",
+    "[Line]'s dragging its feet.",
     "[Line]'s being a bit snakey.",
     "Don't hold your breath on [Line]."
   ];
@@ -363,17 +355,16 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
   const severe = [
     "[Line]'s having a proper mare.",
     "[Line]'s cooked.",
-    "[Line]'s gone full muppet.",
-    "Rah, [Line]'s a shambles today.",
-    "[Line]'s butters right now."
+    "Rah, [Line]'s a shambles.",
+    "[Line]'s butters right now.",
+    "[Line]'s gone full muppet."
   ];
   
   const suspended = [
     "[Line]'s dead. Swerve it.",
-    "[Line]'s gone AWOL.",
     "Nah fam, [Line]'s finished.",
-    "[Line]'s a write-off today.",
-    "Forget [Line]. It's cooked."
+    "Forget [Line]. It's cooked.",
+    "[Line]'s gone AWOL."
   ];
   
   const stationDisrupted = [
@@ -385,14 +376,14 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
   
   const bothDisrupted = [
     "[Line]'s cooked and [Station]'s chaos. Detour szn.",
-    "Rough one — [Line]'s a mare and [Station]'s hectic."
+    "Rough one — [Line]'s a mare and [Station]'s peak."
   ];
   
   if (disruptedLines.length > 0 && disruptedStations.length > 0) {
     const line = disruptedLines[0].name;
-    const station = disruptedStations[0].name;
+    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
     const list = bothDisrupted;
-    const template = list[(seed + 3) % list.length];
+    const template = list[seed % list.length];
     return template.replace('[Line]', line).replace('[Station]', station);
   }
   
@@ -406,14 +397,14 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
     } else if (sev === 'severe') {
       list = severe;
     }
-    const template = list[(seed + 5) % list.length];
+    const template = list[seed % list.length];
     return template.replace('[Line]', line);
   }
   
   if (disruptedStations.length > 0) {
-    const station = disruptedStations[0].name;
+    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
     const list = stationDisrupted;
-    const template = list[(seed + 7) % list.length];
+    const template = list[seed % list.length];
     return template.replace('[Station]', station);
   }
   
@@ -430,10 +421,6 @@ const MyCommuteDashboard: React.FC = () => {
   const reducedMotion = useReducedMotion();
 
   const daySeed = useMemo(() => getDayOfYear(), []);
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    return getGreeting(hour, daySeed);
-  }, [daySeed]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -645,7 +632,7 @@ const MyCommuteDashboard: React.FC = () => {
 
   return (
     <View style={dash.root}>
-      <GradientBackground lines={selectedLines} status={networkSeverity as StatusLevel} />
+      <DashboardGradient severity={networkSeverity} />
       <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
         {/* ── Content ── */}
         <ScrollView
@@ -657,7 +644,7 @@ const MyCommuteDashboard: React.FC = () => {
           {/* ── Global header ── */}
           <View style={[dash.header, { paddingHorizontal: 4 }]}>
             <View style={dash.titleRow}>
-              <Text style={dash.titleMain}>{greeting}</Text>
+              <Text style={dash.titleMain}>My Commute</Text>
               <View style={dash.headerActions}>
                 {hasContent && (
                   <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
@@ -667,6 +654,7 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
             </View>
             <View style={dash.subheadingArea}>
+              {hasContent && <NetworkHealthDot severity={networkSeverity} />}
               <Text style={dash.statusTextText}>{subtitle}</Text>
               <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
             </View>
@@ -732,11 +720,10 @@ const MyCommuteDashboard: React.FC = () => {
                     <DepartureCard
                       stationId={station.id}
                       stationName={station.name}
-                      role={station.role}
                       isEditing={isEditing}
                       onDelete={removeStation}
                       onLongPress={handleEdit}
-                      autoExpand={true}
+                      defaultExpanded={true}
                     />
                   </StaggeredCardWrapper>
                 ))
@@ -849,7 +836,7 @@ const dash = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)'
   },
-  subheadingArea: { marginTop: 4 },
+  subheadingArea: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   statusTextText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.6)' },
   staleText: {
     fontFamily: 'SpaceGrotesk_500Medium',

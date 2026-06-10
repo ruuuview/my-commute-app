@@ -10,15 +10,20 @@ import { Ionicons } from '@expo/vector-icons';
 
 const tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { key: 'dashboard', icon: 'home', label: 'Dashboard' },
-  { key: 'status', icon: 'information-circle', label: 'Status' },
+  { key: 'status', icon: 'notifications-outline', label: 'Alerts' },
   { key: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
 const TabsLayout = () => {
   const router = useRouter();
   const pathname = usePathname();
-  // Hardcoded activeKey to 'dashboard' for now since we're on the dashboard index
-  const activeKey = 'dashboard';
+  
+  // Calculate activeKey dynamically using pathname prefixes to support nested routes
+  const activeKey = pathname.startsWith('/settings')
+    ? 'settings'
+    : pathname.startsWith('/journeyPlanner')
+      ? 'status'
+      : 'dashboard';
 
   // Dismiss native splash now that the dashboard has fully painted
   useEffect(() => {
@@ -72,6 +77,8 @@ const TabsLayout = () => {
               router.push('/settings');
             } else if (key === 'status') {
               router.push('/journeyPlanner');
+            } else if (key === 'dashboard') {
+              router.push('/(tabs)');
             }
           }} 
         />

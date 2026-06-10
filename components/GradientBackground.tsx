@@ -16,6 +16,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withRepeat,
+  Easing,
   runOnJS,
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -26,14 +28,14 @@ import { DASHBOARD_OVERLAY_GRADIENT } from '../theme/colors';
 // ─── Gradient palette (v4.6 overhaul) ─────────────────────────────────────────
 // Top color shifts with traffic-light status, bleeding elegantly down into the UNIFIED_DARK_GRADIENT pitch-black base.
 const STATUS_GRADIENTS: Record<StatusLevel, readonly [string, string, string, string]> = {
-  good:      ['#1A6B3A', '#0A3D20', '#020307', '#000000'],
-  minor:     ['#D4820A', '#7A4A00', '#020307', '#000000'],
-  severe:    ['#C0392B', '#7B1A1A', '#020307', '#000000'],
-  suspended: ['#8B0000', '#3A0000', '#020307', '#000000'],
-  unknown:   ['#001E6B', '#001245', '#00091E', '#000000'],
+  good:      ['rgba(26, 107, 58, 0.45)', 'rgba(10, 61, 32, 0.15)', '#020307', '#000000'],
+  minor:     ['rgba(212, 130, 10, 0.45)', 'rgba(122, 74, 0, 0.15)', '#020307', '#000000'],
+  severe:    ['rgba(192, 57, 43, 0.45)', 'rgba(123, 26, 26, 0.15)', '#020307', '#000000'],
+  suspended: ['rgba(139, 0, 0, 0.45)', 'rgba(58, 0, 0, 0.15)', '#020307', '#000000'],
+  unknown:   ['rgba(0, 30, 107, 0.45)', 'rgba(0, 18, 69, 0.15)', '#020307', '#000000'],
 } as const;
 
-const GRADIENT_LOCATIONS = [0, 0.42, 0.75, 1.0] as const;
+const GRADIENT_LOCATIONS = [0, 0.18, 0.45, 1.0] as const;
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 interface Props {
@@ -82,6 +84,28 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
     opacity: crossfadeOpacity.value,
   }));
 
+  // Slow pulsing / breathing animation for the volumetric status light leak
+  const breatheValue = useSharedValue(0.65);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      breatheValue.value = 0.75;
+      return;
+    }
+    breatheValue.value = withRepeat(
+      withTiming(0.85, {
+        duration: 5000,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+  }, [reducedMotion, breatheValue]);
+
+  const breatheStyle = useAnimatedStyle(() => ({
+    opacity: breatheValue.value,
+  }));
+
   return (
     <View
       style={StyleSheet.absoluteFillObject}
@@ -90,24 +114,26 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
       accessibilityElementsHidden={true}
       importantForAccessibility="no-hide-descendants"
     >
-      {/* Bottom layer — current / outgoing gradient */}
-      <LinearGradient
-        colors={STATUS_GRADIENTS[layers[0]]}
-        style={StyleSheet.absoluteFillObject}
-        locations={GRADIENT_LOCATIONS}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-
-      {/* Top layer — incoming gradient, cross-fades in over 800ms */}
-      <Animated.View style={[StyleSheet.absoluteFillObject, topLayerStyle]}>
+      <Animated.View style={[StyleSheet.absoluteFillObject, breatheStyle]}>
+        {/* Bottom layer — current / outgoing gradient */}
         <LinearGradient
-          colors={STATUS_GRADIENTS[layers[1]]}
+          colors={STATUS_GRADIENTS[layers[0]]}
           style={StyleSheet.absoluteFillObject}
           locations={GRADIENT_LOCATIONS}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
         />
+
+        {/* Top layer — incoming gradient, cross-fades in over 800ms */}
+        <Animated.View style={[StyleSheet.absoluteFillObject, topLayerStyle]}>
+          <LinearGradient
+            colors={STATUS_GRADIENTS[layers[1]]}
+            style={StyleSheet.absoluteFillObject}
+            locations={GRADIENT_LOCATIONS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+        </Animated.View>
       </Animated.View>
 
       {/* Universal Dashboard Edge Overlay */}

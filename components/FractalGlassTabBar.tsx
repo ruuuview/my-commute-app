@@ -4,7 +4,7 @@ import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 interface TabBarProps {
@@ -15,16 +15,25 @@ interface TabBarProps {
 
 const TabButton = memo(({ tab, isActive, onPress }: { tab: any; isActive: boolean; onPress: () => void }) => {
   const scale = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   const handlePressIn = () => {
+    if (reducedMotion) {
+      scale.value = 1;
+      return;
+    }
     scale.value = withSpring(0.82, { damping: 10, stiffness: 220 });
   };
 
   const handlePressOut = () => {
+    if (reducedMotion) {
+      scale.value = 1;
+      return;
+    }
     scale.value = withSpring(1.0, { damping: 10, stiffness: 220 });
   };
 
@@ -47,7 +56,7 @@ const TabButton = memo(({ tab, isActive, onPress }: { tab: any; isActive: boolea
         <Ionicons 
           name={tab.icon} 
           size={24} 
-          color={isActive ? "#FFFFFF" : "rgba(255,255,255,0.4)"} 
+          color={isActive ? "#FFFFFF" : "rgba(255,255,255,0.35)"} 
         />
         {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
       </Animated.View>

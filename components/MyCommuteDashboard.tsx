@@ -53,6 +53,7 @@ import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
+import { TFL_STATIONS, FULL_STATIONS } from '../data/tflStations';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -172,6 +173,7 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
   return (
     <Animated.View style={[jiggleStyle, animatedStyle]}>
       <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
@@ -189,7 +191,7 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
 };
 
 const pill = StyleSheet.create({
-  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 8 },
+  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', borderRadius: 12, marginBottom: 8, overflow: 'hidden', position: 'relative' },
   colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
   name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   spacer: { flex: 1 },
@@ -203,22 +205,39 @@ const pill = StyleSheet.create({
 // ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
 // ─── Section header ───────────────────────────────────────────────
-const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd?: () => void }> = ({ title, icon, onPressAdd }) => (
+const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd?: () => void; isEditing: boolean }> = ({ title, icon, onPressAdd, isEditing }) => (
   <View style={section.row}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
       {icon}
       <Text style={section.title}>{title}</Text>
     </View>
-    {onPressAdd && (
-      <Pressable onPress={onPressAdd} hitSlop={8}>
-        <Ionicons name="add" size={18} color="rgba(255,255,255,0.6)" />
+    {onPressAdd && !isEditing && (
+      <Pressable onPress={onPressAdd} style={section.addBtn} hitSlop={8}>
+        <Text style={section.addBtnText}>+</Text>
       </Pressable>
     )}
   </View>
 );
 const section = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' },
+  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.45)' },
+  addBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  addBtnText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
 });
 
 // ─── Stale Status Text ──────────────────────────────────────────────
@@ -294,6 +313,113 @@ StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 
 const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
 
+function getDayOfYear(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  return Math.floor(diff / oneDay);
+}
+
+function getGreeting(hour: number, seed: number): string {
+  const greetings = [
+    ["Wakey wakey.", "Oi, you're up early.", "Rise and grind, yeah?", "Early doors innit."],
+    ["Alright?", "You good?", "Sorted?", "How's it going, yeah?"],
+    ["Home time.", "Leg it.", "Sack it off, let's go.", "Time to bounce."],
+    ["Bit late innit.", "Burning the midnight oil?", "Still going? Mad one.", "Night owl ting."]
+  ];
+  
+  let index = 3;
+  if (hour >= 5 && hour < 10) {
+    index = 0;
+  } else if (hour >= 10 && hour < 17) {
+    index = 1;
+  } else if (hour >= 17 && hour < 21) {
+    index = 2;
+  }
+  
+  const list = greetings[index];
+  return list[seed % list.length];
+}
+
+function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], seed: number): string {
+  const allGood = [
+    "Tube's peng today.",
+    "No dramas, all running sweet.",
+    "Bare smooth out there.",
+    "Wagwan, all clear.",
+    "Innit — no delays today.",
+    "Sorted. Get on it."
+  ];
+  
+  const minor = [
+    "[Line]'s a bit dodge.",
+    "[Line]'s dragging its feet.",
+    "Slight faff on the [Line].",
+    "[Line]'s being a bit snakey.",
+    "Don't hold your breath on [Line]."
+  ];
+  
+  const severe = [
+    "[Line]'s having a proper mare.",
+    "[Line]'s cooked.",
+    "[Line]'s gone full muppet.",
+    "Rah, [Line]'s a shambles today.",
+    "[Line]'s butters right now."
+  ];
+  
+  const suspended = [
+    "[Line]'s dead. Swerve it.",
+    "[Line]'s gone AWOL.",
+    "Nah fam, [Line]'s finished.",
+    "[Line]'s a write-off today.",
+    "Forget [Line]. It's cooked."
+  ];
+  
+  const stationDisrupted = [
+    "[Station]'s a bit hectic right now.",
+    "Might wanna swerve [Station] today.",
+    "[Station]'s doing the most.",
+    "Check before you roll up to [Station]."
+  ];
+  
+  const bothDisrupted = [
+    "[Line]'s cooked and [Station]'s chaos. Detour szn.",
+    "Rough one — [Line]'s a mare and [Station]'s hectic."
+  ];
+  
+  if (disruptedLines.length > 0 && disruptedStations.length > 0) {
+    const line = disruptedLines[0].name;
+    const station = disruptedStations[0].name;
+    const list = bothDisrupted;
+    const template = list[(seed + 3) % list.length];
+    return template.replace('[Line]', line).replace('[Station]', station);
+  }
+  
+  if (disruptedLines.length > 0) {
+    const worstLine = disruptedLines[0];
+    const line = worstLine.name;
+    const sev = parseSeverity(worstLine.status);
+    let list = minor;
+    if (sev === 'suspended') {
+      list = suspended;
+    } else if (sev === 'severe') {
+      list = severe;
+    }
+    const template = list[(seed + 5) % list.length];
+    return template.replace('[Line]', line);
+  }
+  
+  if (disruptedStations.length > 0) {
+    const station = disruptedStations[0].name;
+    const list = stationDisrupted;
+    const template = list[(seed + 7) % list.length];
+    return template.replace('[Station]', station);
+  }
+  
+  return allGood[seed % allGood.length];
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -302,6 +428,12 @@ const MyCommuteDashboard: React.FC = () => {
   const revealScale = useSharedValue(0.88);
   const revealOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
+
+  const daySeed = useMemo(() => getDayOfYear(), []);
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    return getGreeting(hour, daySeed);
+  }, [daySeed]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -333,6 +465,29 @@ const MyCommuteDashboard: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+
+  const subtitle = useMemo(() => {
+    const myLines = data.lines.filter(l => selectedLines.includes(l.id));
+    const disruptedSelected = myLines.filter(l => parseSeverity(l.status) !== 'good');
+    
+    const severityOrder = ['suspended', 'severe', 'minor'];
+    const sortedDisruptedSelected = [...disruptedSelected].sort((a, b) => {
+      const sevA = parseSeverity(a.status);
+      const sevB = parseSeverity(b.status);
+      return severityOrder.indexOf(sevA) - severityOrder.indexOf(sevB);
+    });
+    
+    const disruptedStationsList = selectedStations.filter((st: any) => {
+      const dbStation = FULL_STATIONS.find(s => s.id === st.id) || TFL_STATIONS.find(s => s.id === st.id);
+      const linesForStation = dbStation ? dbStation.lines : [];
+      return linesForStation.some(lineId => {
+        const lineObj = data.lines.find(l => l.id === lineId);
+        return lineObj && parseSeverity(lineObj.status) !== 'good';
+      });
+    });
+    
+    return getSubtitleText(sortedDisruptedSelected, disruptedStationsList, daySeed);
+  }, [data, selectedLines, selectedStations, daySeed]);
 
   // ✅ Deferred Permission Trigger System (Phase 6)
   const {
@@ -502,29 +657,17 @@ const MyCommuteDashboard: React.FC = () => {
           {/* ── Global header ── */}
           <View style={[dash.header, { paddingHorizontal: 4 }]}>
             <View style={dash.titleRow}>
-              <NetworkHealthDot severity={networkSeverity} />
-              <Text style={dash.titleMain}>MY</Text>
-            </View>
-            <View style={dash.titleSecondRow}>
-              <Text style={dash.titleSub}>COMMUTE</Text>
+              <Text style={dash.titleMain}>{greeting}</Text>
               <View style={dash.headerActions}>
                 {hasContent && (
                   <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
                     <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
                   </Pressable>
                 )}
-                {/* ✅ + Button opens modal directly */}
-                <Pressable onPress={() => setModalVisible(true)} style={[dash.headerBtn, dash.addBtn]} hitSlop={8}>
-                  <Text style={dash.addBtnText}>+</Text>
-                </Pressable>
               </View>
             </View>
             <View style={dash.subheadingArea}>
-              {networkSeverity !== 'good' && networkSeverity !== 'unknown' && (
-                <Text style={dash.disruptedLinesText}>
-                  {sortedLines.filter(l => parseSeverity(l.status) !== 'good').map(l => l.name).join(', ')}
-                </Text>
-              )}
+              <Text style={dash.statusTextText}>{subtitle}</Text>
               <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
             </View>
           </View>
@@ -550,7 +693,12 @@ const MyCommuteDashboard: React.FC = () => {
 
           {sortedLines.length > 0 && (
             <View style={dash.section}>
-              <SectionHeader title="MY LINES" icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} />
+              <SectionHeader 
+                title="My lines" 
+                icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                onPressAdd={() => setModalVisible(true)}
+                isEditing={isEditing}
+              />
               {sortedLines.map((line) => (
                 <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} />
               ))}
@@ -560,9 +708,10 @@ const MyCommuteDashboard: React.FC = () => {
           {sortedLines.length > 0 && (
             <View style={dash.section}>
               <SectionHeader 
-                title="MY STATIONS" 
+                title="My stations" 
                 icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
                 onPressAdd={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                isEditing={isEditing}
               />
               {selectedStations.length === 0 ? (
                 <Pressable
@@ -587,6 +736,7 @@ const MyCommuteDashboard: React.FC = () => {
                       isEditing={isEditing}
                       onDelete={removeStation}
                       onLongPress={handleEdit}
+                      autoExpand={true}
                     />
                   </StaggeredCardWrapper>
                 ))
@@ -681,18 +831,32 @@ const MyCommuteDashboard: React.FC = () => {
 const dash = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
-  titleSecondRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleSub: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerBtn: { height: 32, paddingHorizontal: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  headerBtnText: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
-  addBtn: { width: 32, paddingHorizontal: 0, backgroundColor: '#0098D4' },
-  addBtnText: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 22, color: '#FFFFFF', lineHeight: 28 },
+  headerBtn: {
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerBtnText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)'
+  },
   subheadingArea: { marginTop: 4 },
-  disruptedLinesText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
-  staleText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, color: '#64B5F6' },
+  statusTextText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.6)' },
+  staleText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: '#FF9500',
+    marginTop: 4,
+  },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },
   section: { marginBottom: 24 },

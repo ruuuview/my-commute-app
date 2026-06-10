@@ -1,0 +1,18 @@
+{
+  "agents": {
+    "agent-1781107854789-linfyc": {
+      "agentId": "agent-1781107854789-linfyc",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic"
+      },
+      "createdAt": "2026-06-10T16:10:54.789Z",
+      "model": "sonnet",
+      "modelRoutedBy": "default"
+    }
+  },
+  "version": "3.0.0"
+}

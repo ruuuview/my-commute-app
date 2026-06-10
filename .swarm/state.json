@@ -1,41 +1,9 @@
 {
-  "swarmId": "swarm-moriz9d6",
-  "objective": "Build app/onboarding/lines.tsx. Use a #050505 background. Map the official TfL colors (Bakerloo brown, Central red, Northern black with a subtle border). Add React Native Reanimated jiggle physics to the selected line pill, and sync the state to store/userPreferencesStore.ts.",
+  "id": "swarm-1781105781125-cq61j6",
+  "topology": "hierarchical-mesh",
+  "maxAgents": 15,
   "strategy": "development",
-  "status": "initialized",
-  "agents": 8,
-  "agentPlan": [
-    {
-      "role": "Coordinator",
-      "type": "coordinator",
-      "count": 1,
-      "purpose": "Orchestrate workflow"
-    },
-    {
-      "role": "Architect",
-      "type": "architect",
-      "count": 1,
-      "purpose": "System design"
-    },
-    {
-      "role": "Coder",
-      "type": "coder",
-      "count": 3,
-      "purpose": "Implementation"
-    },
-    {
-      "role": "Tester",
-      "type": "tester",
-      "count": 2,
-      "purpose": "Quality assurance"
-    },
-    {
-      "role": "Reviewer",
-      "type": "reviewer",
-      "count": 1,
-      "purpose": "Code review"
-    }
-  ],
-  "startedAt": "2026-05-04T18:20:51.118Z",
-  "parallel": true
+  "v3Mode": true,
+  "initializedAt": "2026-06-10T15:36:21.125Z",
+  "status": "ready"
 }

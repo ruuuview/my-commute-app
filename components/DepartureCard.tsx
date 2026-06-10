@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, withRepeat, useReducedMotion } from 'react-native-reanimated';
-import { FULL_STATIONS } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
 import { IMMINENT_BLUE } from '../theme/colors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
@@ -90,9 +90,10 @@ export default function DepartureCard({
   isEditing = false,
   onDelete,
   onLongPress,
-  autoExpand = false,
+  autoExpand = true,
   hideCard = false,
 }: DepartureCardProps) {
+  const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(autoExpand);
@@ -188,13 +189,7 @@ export default function DepartureCard({
     }
   };
 
-  // Determine line color dot for the collapsed view
-  const activeLineColor = useMemo(() => {
-    if (arrivals.length > 0) return arrivals[0].lineColor;
-    const st = FULL_STATIONS.find(s => s.id === stationId);
-    const firstLine = st?.lines?.[0];
-    return firstLine ? (LINE_COLORS[firstLine] ?? '#888') : '#888';
-  }, [arrivals, stationId]);
+
 
   // Format next time string for the collapsed view
   const nextTimeText = useMemo(() => {
@@ -206,20 +201,26 @@ export default function DepartureCard({
 
   useEffect(() => {
     const targetHeight = hideCard ? 0 : (isExpanded ? contentHeight : COLLAPSED_HEIGHT);
-    heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
-    chevronRotation.value = withSpring(isExpanded && !hideCard ? 180 : 0, { damping: 22, stiffness: 240 });
-    
-    if (isExpanded && !hideCard) {
-      arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
+    if (reducedMotion) {
+      heightVal.value = targetHeight;
+      chevronRotation.value = isExpanded && !hideCard ? 180 : 0;
+      arrivalsOpacity.value = isExpanded && !hideCard ? 1 : 0;
     } else {
-      arrivalsOpacity.value = withTiming(0, { duration: 100 });
+      heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
+      chevronRotation.value = withSpring(isExpanded && !hideCard ? 180 : 0, { damping: 22, stiffness: 240 });
+      
+      if (isExpanded && !hideCard) {
+        arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
+      } else {
+        arrivalsOpacity.value = withTiming(0, { duration: 100 });
+      }
     }
-  }, [isExpanded, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard]);
+  }, [isExpanded, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard, reducedMotion]);
 
   const containerStyle = useAnimatedStyle(() => {
-    const opacityVal = withTiming(hideCard ? 0 : 1, { duration: 150 });
-    const marginVal = withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
-    const borderVal = withTiming(hideCard ? 0 : 1, { duration: 100 });
+    const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
+    const marginVal = reducedMotion ? (hideCard ? 0 : 12) : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
+    const borderVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 100 });
 
     return {
       height: heightVal.value,
@@ -240,6 +241,7 @@ export default function DepartureCard({
 
   return (
     <Animated.View style={[styles.container, containerStyle]}>
+      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
       <View onLayout={onInnerLayout} style={styles.innerContent}>
         <Pressable
           onPress={handlePress}
@@ -247,17 +249,10 @@ export default function DepartureCard({
           style={styles.headerPressable}
         >
           <View style={styles.header}>
-            <View style={[styles.arrivalDot, { backgroundColor: activeLineColor, width: 10, height: 10, borderRadius: 5 }]} />
-            
             <View style={styles.titleColumn}>
               <Text style={styles.stationName} numberOfLines={1}>
                 {cleanName}
               </Text>
-              {role && !isExpanded && (
-                <Text style={styles.roleBadge}>
-                  {role.toUpperCase()}
-                </Text>
-              )}
             </View>
 
             {!isEditing && (
@@ -347,7 +342,7 @@ export default function DepartureCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 14,

@@ -19,7 +19,7 @@ import {
   Modal
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+
 import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
@@ -437,18 +437,17 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
     removeLine: s.toggleLine,
     removeStation: s.unpinStation,
-    setLines: s.reorderLines,
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
   })));
 
-  const router = useRouter();
+
   const [linesModalVisible, setLinesModalVisible] = useState(false);
   const [stationsModalVisible, setStationsModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });

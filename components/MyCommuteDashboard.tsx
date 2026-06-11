@@ -42,8 +42,8 @@ import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
-// ✅ Modal now managed HERE, not upstream
-import AddManageModal from '../app/AddManageModal';
+import { ManageLinesModal } from './ManageLinesModal';
+import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -449,7 +449,8 @@ const MyCommuteDashboard: React.FC = () => {
   })));
 
   const router = useRouter();
-  const [modalVisible, setModalVisible] = useState(false);
+  const [linesModalVisible, setLinesModalVisible] = useState(false);
+  const [stationsModalVisible, setStationsModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -616,11 +617,7 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing((v) => !v);
   }, []);
 
-  // ✅ The exact fix for the "onSave is undefined" bug
-  const handleModalSave = useCallback((lines: string[], _stations: string[]) => {
-    setLines(lines);
-    setModalVisible(false);
-  }, [setLines]);
+
 
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
@@ -669,7 +666,7 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
               <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
 
-              <BouncyPressable onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
+              <BouncyPressable onPress={() => setLinesModalVisible(true)} style={dash.primaryBtn}>
                 <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
               </BouncyPressable>
 
@@ -684,7 +681,7 @@ const MyCommuteDashboard: React.FC = () => {
               <SectionHeader 
                 title="My lines" 
                 icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => setModalVisible(true)}
+                onPressAdd={() => setLinesModalVisible(true)}
                 isEditing={isEditing}
               />
               {sortedLines.map((line) => (
@@ -698,12 +695,12 @@ const MyCommuteDashboard: React.FC = () => {
               <SectionHeader 
                 title="My stations" 
                 icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                onPressAdd={() => setStationsModalVisible(true)}
                 isEditing={isEditing}
               />
               {selectedStations.length === 0 ? (
                 <Pressable
-                  onPress={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                  onPress={() => setStationsModalVisible(true)}
                   style={dash.addStationCard}
                 >
                   <BlurView
@@ -732,13 +729,14 @@ const MyCommuteDashboard: React.FC = () => {
           )}
         </ScrollView>
 
-        {/* ✅ Modal rendered HERE with all props correctly wired */}
-        <AddManageModal
-          visible={modalVisible}
-          onClose={() => setModalVisible(false)}
-          savedLines={selectedLines}
-          savedStations={selectedStations}
-          onSave={handleModalSave}
+        {/* ✅ Modals rendered HERE with immediate state sync */}
+        <ManageLinesModal
+          visible={linesModalVisible}
+          onClose={() => setLinesModalVisible(false)}
+        />
+        <ManageStationsModal
+          visible={stationsModalVisible}
+          onClose={() => setStationsModalVisible(false)}
         />
 
         {/* Deferred Notification Modal */}

@@ -8,6 +8,8 @@ import {
   Pressable,
   FlatList,
   Keyboard,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -45,6 +47,15 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const recentSearchIds = useUserPreferencesStore(s => s.recentSearches);
   const addRecentSearch = useUserPreferencesStore(s => s.addRecentSearch);
   const clearRecentSearches = useUserPreferencesStore(s => s.clearRecentSearches);
+
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [visible]);
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -94,8 +105,10 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     return fuse.search(query.toLowerCase().trim()).map(r => r.item);
   }, [query, fuse]);
 
+  const showResults = isSearching && query.trim() !== '';
+
   useEffect(() => {
-    if (query.trim() && results.length === 0) {
+    if (query.trim().length >= 4 && results.length === 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       playSound('error');
     }
@@ -119,7 +132,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         unpinStation(station.id);
       } else {
         if (pinnedStations.length >= MAX_PINS) {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           triggerMaxPinsShake();
           setMaxPinsToast(true);
           setTimeout(() => setMaxPinsToast(false), 1500);
@@ -210,7 +223,10 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
           <View style={styles.dragHandle} />
         </View>
 
-        <View style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.container}
+        >
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
@@ -311,7 +327,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
             ) : (
               /* Pinned Stations (when not searching) or Search Results */
               <FlatList
-                data={isSearching ? results : pinnedStations.map(p => ({
+                data={showResults ? results : pinnedStations.map(p => ({
                   id: p.id,
                   name: p.name,
                   lines: p.lines,
@@ -329,7 +345,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={() => {
-                  if (isSearching) {
+                  if (showResults) {
                     return (
                       <View style={styles.emptyState}>
                         <Ionicons name="search-outline" size={32} color="rgba(255,255,255,0.20)" />
@@ -347,7 +363,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
               />
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </BlurView>
     </Modal>
   );

@@ -1,0 +1,85 @@
+# Agent Instructions & Project Design Specifications
+
+This document captures the locked UI specs, architectural conventions, reference implementations, and platform gotchas for the **My Commute** React Native application. 
+
+AI agents (including Fable and Antigravity) must read this file before writing or modifying any components to ensure alignment on the first pass.
+
+---
+
+## 1. Visual & UI Design System
+
+### Frosted Glassmorphism (Level 1 & 2)
+* **Background texture**: Cards and panels utilize `BlurView` with `intensity={45}` and `tint="dark"` overlayed with a translucent white background (e.g., `rgba(255, 255, 255, 0.06)`).
+* **Modals & Overlays (Level 3)**: Use a darker glass overlay: `BlurView` with `intensity={80}` and `tint="dark"`.
+* **Translucent Borders**: Standard cards and panels must use a hairline border: `borderWidth: StyleSheet.hairlineWidth`, `borderColor: 'rgba(255, 255, 255, 0.18)'`.
+
+### Interactive Buttons & Touch Targets
+* **Standard Edit/Done Pills**:
+  * Background: `rgba(255, 255, 255, 0.12)`
+  * Border: `rgba(255, 255, 255, 0.30)` (borderWidth: 1)
+  * Text: `rgba(255, 255, 255, 0.80)`
+  * Border Radius: `16`
+  * Padding: Horizontal `14`, Vertical `6` (or `16` and `7` for primary buttons). Avoid fixed heights.
+* **Section Add (`+`) Buttons**:
+  * Shape: 28x28 circular hitboxes (`width: 28`, `height: 28`, `borderRadius: 14`).
+  * Background: `rgba(255, 255, 255, 0.12)`
+  * Border: `rgba(255, 255, 255, 0.30)` (borderWidth: 1)
+  * Icon (`+`): Color `#FFFFFF` (full white), centered.
+* **Primary CTAs**:
+  * Shape: Capsule shape (e.g., `borderRadius: 26`, `height: 52`).
+  * Background: Solid white/translucent white.
+  * Text: Color `#07103a` (navy) for active, or translucent when disabled.
+
+---
+
+## 2. Animation & Navigation Conventions
+
+### Modals & Bottom Sheets
+* **iOS Blur View Preservation**: iOS native `presentationStyle="pageSheet"` overrides local `BlurView` overlays with a solid system color. To preserve glassmorphism, modals must be configured with:
+  * `presentationStyle="overFullScreen"`
+  * `transparent={true}`
+* **Transition**: Use `animationType="slide"`.
+* **Visual Anchors**: Include a drag handle wrap at the top of bottom sheets:
+  * Handle: `width: 40`, `height: 4`, `borderRadius: 2`, `backgroundColor: 'rgba(255, 255, 255, 0.25)'`.
+
+### Press Animations
+* Every interactive button/card must use the custom hook `usePressAnimation(configKey, disabled)`.
+* **Haptics & Audio Feedback**:
+  * Selecting/Adding: `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)` + `playSound('select', 0.45)`.
+  * Deselecting/Removing: `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)` + `playSound('deselect', 0.35)`.
+  * Errors/Limits: `Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)` + `playSound('error')`.
+
+---
+
+## 3. Reference Implementations
+
+### Line Subscription & TfL Status Mapping
+* **Locked reference file**: [components/ManageLinesModal.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/ManageLinesModal.tsx).
+* **TfL Severity Mapping**:
+  * Map severity code `10` → `good` (Good service).
+  * Map severity code `9` and `6` → `severe` (Severe delays).
+  * Map severity code `8`, `7`, `5` → `minor` (Minor delays / Reduced service).
+  * Map severity codes `4`, `3`, `20`, `0`, `11` → `suspended` (Planned closure / Suspended).
+* **Overground Branch Aggregation**:
+  * London Overground operates on multiple sub-branches: `liberty`, `lioness`, `mildmay`, `suffragette`, `weaver`, and `windrush`.
+  * The status for `'overground'` must be aggregated across all active branches, resolving to the **worst status severity** (lowest severity number) among them.
+
+### Station Selection & Fuzzy Match Search
+* **Locked reference file**: [components/ManageStationsModal.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/ManageStationsModal.tsx).
+* **Fuzzy Matching Options (Fuse.js)**:
+  * Keys: `['name']`
+  * Threshold: `0.2`
+  * Minimum Match Char Length: `4`
+  * Search Distance: `60`
+* **Station Deduplication**:
+  * Always group `FULL_STATIONS` from `data/tflStations` by lowercase cleaned names (`station.name.toLowerCase().trim()`) to deduplicate platforms and branches before search.
+
+### Immediate Sync State
+* Dashboard preferences must update **immediately on tap** (writing directly to `useUserPreferencesStore`), eliminating "Save" buttons in bottom sheets.
+
+---
+
+## 4. Known Gotchas & Platform Quirks
+* **iOS Blur Backgrounds**: Modals that require frosted glass overlays must never use `pageSheet` style.
+* **TfL Stop IDs**: Elizabeth Line arrivals route differently because NaPTAN IDs starting with `910G` represent National Rail interchange points. Use the backend fallback endpoint `/api/stations/...` rather than querying National Rail endpoints directly.
+* **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (68px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.

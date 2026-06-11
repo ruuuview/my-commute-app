@@ -8,13 +8,20 @@ import {
   Pressable,
   useWindowDimensions,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { LineCard } from './LineCard';
 import { LINE_COLORS } from '../constants/lineColors';
-import { SCREEN_PADDING, COLUMN_GAP } from '../constants/layout';
+import { SCREEN_PADDING, COLUMN_GAP, ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 
 const MAX_LINES = 5;
 
@@ -71,6 +78,8 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
   const [loadingStatuses, setLoadingStatuses] = useState(true);
   const [maxLinesToast, setMaxLinesToast] = useState(false);
 
+  const maxLinesShakeTranslationX = useSharedValue(0);
+
   const cardWidth = (width - SCREEN_PADDING * 2 - COLUMN_GAP) / 2;
 
   useEffect(() => {
@@ -104,6 +113,21 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
       active = false;
     };
   }, [visible]);
+
+  // Ported from app/onboarding/lines.tsx
+  const triggerMaxLinesShake = useCallback(() => {
+    maxLinesShakeTranslationX.value = withSequence(
+      withTiming(-8, { duration: 60, easing: Easing.linear }),
+      withTiming(8, { duration: 60, easing: Easing.linear }),
+      withTiming(-6, { duration: 60, easing: Easing.linear }),
+      withTiming(6, { duration: 60, easing: Easing.linear }),
+      withTiming(0, { duration: 60, easing: Easing.linear })
+    );
+  }, [maxLinesShakeTranslationX]);
+
+  const maxLinesShakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: maxLinesShakeTranslationX.value }],
+  }));
 
   const resolveLineStatus = (lineId: string): { statusType: StatusType; statusLabel: string } => {
     let statusType: StatusType = 'loading';
@@ -152,6 +176,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
       const isSelected = selectedLines.includes(id);
       if (!isSelected && selectedLines.length >= MAX_LINES) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        triggerMaxLinesShake();
         setMaxLinesToast(true);
         setTimeout(() => setMaxLinesToast(false), 1500);
         return;
@@ -159,20 +184,21 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
       // Saves immediately — store persists via MMKV
       toggleLine(id);
     },
-    [selectedLines, toggleLine]
+    [selectedLines, toggleLine, triggerMaxLinesShake]
   );
 
   const renderItem = ({ item }: { item: typeof TFL_LINES[0] }) => {
     const isSelected = selectedLines.includes(item.id);
     const { statusType, statusLabel } = resolveLineStatus(item.id);
     return (
-      <View style={{ width: cardWidth }}>
+      <View style={{ width: cardWidth, height: ONBOARDING_CARD_HEIGHT }}>
         <LineCard
           line={item}
           selected={isSelected}
           onPress={() => handleToggleLine(item.id)}
           statusType={statusType}
           statusLabel={statusLabel}
+          cardHeight={ONBOARDING_CARD_HEIGHT}
         />
       </View>
     );
@@ -183,11 +209,16 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
       visible={visible}
       transparent={true}
       presentationStyle="overFullScreen"
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-        <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+        {/* Drag handle */}
+        <View style={[styles.dragHandleWrap, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.dragHandle} />
+        </View>
+
+        <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
@@ -198,6 +229,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             </Text>
             <Pressable
               onPress={onClose}
+              style={({ pressed }) => [styles.donePill, pressed && { opacity: 0.65 }]}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
               accessibilityLabel="Done, close manage lines"
@@ -208,9 +240,9 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
           {/* Max lines toast */}
           {maxLinesToast && (
-            <View style={styles.maxLinesToast}>
+            <Animated.View style={[styles.maxLinesToast, maxLinesShakeStyle]}>
               <Text style={styles.maxLinesToastText}>Maximum 5 lines</Text>
-            </View>
+            </Animated.View>
           )}
 
           {/* 2-column line grid */}
@@ -222,7 +254,6 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             columnWrapperStyle={{ gap: COLUMN_GAP }}
             ItemSeparatorComponent={() => <View style={{ height: COLUMN_GAP }} />}
             initialNumToRender={14}
-            removeClippedSubviews={true}
             contentContainerStyle={[
               styles.listContainer,
               { paddingBottom: insets.bottom + 24 },
@@ -238,6 +269,16 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  dragHandleWrap: {
+    alignItems: 'center',
+    paddingBottom: 12,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   header: {
     flexDirection: 'row',
@@ -258,8 +299,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.6)',
     letterSpacing: -0.8,
   },
+  // Frosted tint pill — matches dashboard Edit button spec
+  donePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
   doneText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
   },

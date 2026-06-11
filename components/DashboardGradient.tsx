@@ -12,12 +12,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { Severity } from './MyCommuteDashboard';
 
 const STATUS_GRADIENTS: Record<Severity, readonly [string, string]> = {
-  good: ['#0d5c2e', '#051a0e'],
-  minor: ['#7a4a00', '#1f1200'],
-  severe: ['#7a0e0e', '#1f0404'],
-  suspended: ['#5c0a0a', '#180303'],
-  offline: ['#1a1a2e', '#040810'],
-  unknown: ['#1a1a2e', '#040810'],
+  good: ['#0d5c2e', '#000000'],
+  minor: ['#7a4a00', '#000000'],
+  severe: ['#7a0e0e', '#000000'],
+  suspended: ['#5c0a0a', '#000000'],
+  offline: ['#1a1a2e', '#000000'],
+  unknown: ['#1a1a2e', '#000000'],
 } as const;
 
 interface Props {

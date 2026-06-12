@@ -15,12 +15,7 @@ export const useWidgetSync = (rawData: any) => {
       } catch (error) {
         console.error("Widget Hook Error:", error);
         
-        const errorPayload = [{
-          id: "error",
-          name: "Sync Error",
-          status: "Failed",
-          color: "#FF3B30"
-        }];
+        const errorPayload = ['error'];
         
         await syncToWidget(errorPayload);
       }

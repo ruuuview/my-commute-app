@@ -1,12 +1,12 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
-const backgroundStorage = new MMKV({ id: 'background-storage' });
+const backgroundStorage = createMMKV({ id: 'background-storage' });
 
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {

@@ -1,6 +1,6 @@
 # ARCHITECTURE & EXECUTION PLAN
 ## My Commute — Onboarding Architecture & Execution Plan
-### v4.7 — Production Audit Pass Complete (20 Issues Resolved, ESLint Clean)
+### v4.8 — Onboarding Permissions Screen & Calendar Scheduler Service (Phase 11)
 
 ---
 
@@ -174,8 +174,16 @@ Absolute fill overlay: `Image` component rendering `assets/images/grain.png`, ti
 
 ---
 
-### STEP 5: Screen 3 — The Superpowers (Permissions & Personalization) — ✅ COMPLETED
+### STEP 5: Screen 3 — The Superpowers (Permissions & Personalization) — ⏳ IN PROGRESS
 **File:** `app/onboarding/permissions.tsx`
+
+**Required Details:**
+- Render `ProgressDots` with `total={3} current={3}`.
+- First card requests Calendar permission using `requestCalendarPermission()` (preceded by verbatim disclosure text).
+- Second card requests Notification permission using `requestNotificationPermission()`.
+- Bottom secondary button "Maybe later" (min height 44pt) allows skipping, calling `completeOnboarding()` to trigger the Grand Reveal transition to the dashboard.
+- Set explicit VoiceOver accessibility ordering.
+- Enable back swipe gesture back to stations.
 
 **Permission order — Calendar FIRST, then Notifications:**
 
@@ -262,6 +270,33 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
   - `'tfl-delayed'` if data is loaded successfully but the server's update timestamp age is greater than 10 minutes.
 - Exposed `staleState` and `staleMinutes` to `MyCommuteDashboard.tsx`.
 - Render `StaleStatusText` below the list of disrupted lines inside the status area (never replace the disrupted list). Pulse opacity (`0.4` to `0.9` at 3000ms duration) for active warning states, or static 0.7 when `useReducedMotion()` is `true`.
+
+---
+
+### STEP 10: Calendar & Notification Background Scheduler — ⏳ IN PROGRESS
+**Files:** `services/calendarScheduler.ts`, `components/MyCommuteDashboard.tsx`
+
+**Action 1: Calendar Event Fetching & Substring Matching**
+- Implement `scheduleCalendarCommuteAlerts()` inside `services/calendarScheduler.ts`.
+- Check calendar permission via `expo-calendar`. Fetch events for the next 24 hours.
+- Scan event location strings and substring match them against the 471 supported stations in `FULL_STATIONS` (matching longer names first for precision).
+- If a station matches, identify the user's primary pinned station (origin) from `userPreferencesStore`.
+
+**Action 2: Travel Duration Query & Offline Caching**
+- Query Vercel backend `${BACKEND_URL}/api/journey-planner` with `from_station` and `to_station` to fetch transit duration.
+- Cache the duration locally in MMKV (e.g. `commute_duration_${origin}_${dest}`) to ensure offline resiliency.
+- If offline or backend is down, fall back to the MMKV cache, or use a default of 30 minutes. If no station matches, fall back to 30 minutes.
+
+**Action 3: Leave-By Alert Scheduling**
+- Calculate leave-by trigger: `event.startDate - travelTime - 15 minutes` warning.
+- If the alert time is in the future, schedule a local notification using `expo-notifications`: *"Time to leave for {event.title}"* showing the leave-by time and travel duration.
+- Cancel previous notifications before scheduling new ones to prevent duplication.
+
+**Action 4: Dashboard Wiring**
+- Import and call `scheduleCalendarCommuteAlerts()` inside a mount `useEffect` on the dashboard (if permissions are active) and on app foreground transitions.
+
+> **↑ Strategy Reference — Master Plan: "The Zero-Open Lifecycle (Dynamic Island)" + "Offline & Stale-Data Architecture"**
+> The calendar parser is a crucial component of the zero-open experience. Caching duration in MMKV ensures 100% offline-safe leave-by calculation even on the Tube.
 
 ---
 

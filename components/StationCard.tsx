@@ -2,11 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
   useReducedMotion,
-  withRepeat,
-  withTiming,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { tflCapitalise } from '../utils/tflCapitalise';
@@ -14,7 +10,6 @@ import { cleanDisplayStationName } from '../data/tflStations';
 import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { IMMINENT_BLUE } from '../theme/colors';
 import { getPillColors } from '../utils/pillColors';
 import { normaliseLineId } from '../utils/normaliseLineId';
 

@@ -16,7 +16,9 @@ import {
   UIManager,
   View,
   RefreshControl,
-  Modal
+  Modal,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -54,6 +56,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { TFL_STATIONS, FULL_STATIONS } from '../data/tflStations';
+import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -437,7 +440,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -445,6 +448,7 @@ const MyCommuteDashboard: React.FC = () => {
     removeStation: s.unpinStation,
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
+    calendarGranted: s.calendarGranted,
   })));
 
 
@@ -502,6 +506,23 @@ const MyCommuteDashboard: React.FC = () => {
       return () => clearTimeout(t);
     }
   }, [hasContent, shouldShowNotificationPrompt, shouldShowCalendarPrompt]);
+
+  // Calendar commute alert scheduler trigger (Phase 11)
+  useEffect(() => {
+    if (calendarGranted) {
+      scheduleCalendarCommuteAlerts();
+    }
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && calendarGranted) {
+        scheduleCalendarCommuteAlerts();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [calendarGranted]);
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {

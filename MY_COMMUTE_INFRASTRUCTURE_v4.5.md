@@ -1,6 +1,6 @@
 # INFRASTRUCTURE & SERVICES
 ## My Commute — Stack, Free Tiers, Upgrade Triggers & Cost Tracking
-### v4.7 — Production Audit Pass Complete (Synced with Execution, UX, Master Plan)
+### v4.8 — Calendar & Notification Caching Boundaries (Phase 11)
 
 ---
 
@@ -65,6 +65,21 @@ The app is entirely dependent on the TfL Unified API. TfL goes down regularly.
 
 > **↑ Strategy Reference — Master Plan: "Offline & Stale-Data Architecture"**
 > This backend cache is the server-side complement to the client-side stale-data UI rules in the Master Plan. The stale-data detection in client-side hook (`useTflPoller`) monitors fetch timeout (8000ms), network availability, and HTTP errors to show accurate status messages in real-time. When the cache is stale, `useWorstStatus` must propagate a `stale: true` flag upstream to trigger the warning state and stale UI.
+
+### 2.5. Client-Side Journey Duration Caching (MMKV)
+
+To protect user battery, reduce API requests, and guarantee 100% offline functionality (e.g. while deep in the London Underground), the client must cache journey durations locally.
+
+**Mechanism:**
+- **Storage Engine:** MMKV via `react-native-mmkv`.
+- **Cache Key Schema:** `commute_duration_${origin_station_id}_${destination_station_id}`
+- **Cache Validity:** 24 hours. If a cached value exists and is less than 24 hours old, it must be returned without making a network request to the backend.
+- **Backend Fallback:** If offline or the API request to `${BACKEND_URL}/api/journey-planner` fails/times out, look up the duration in the MMKV cache. If no cached value exists, fall back to a default duration of 30 minutes.
+- **Storage Limits:** Keep only the most recent 100 station-to-station commute durations. Evict oldest entries when this limit is exceeded to prevent MMKV storage bloat.
+
+**Client-Side Execution Boundaries:**
+- Native permissions (`expo-calendar` and `expo-notifications`) must be audited prior to executing background operations.
+- Background processes must catch and gracefully handle permission revocation at runtime without crashing.
 
 ---
 

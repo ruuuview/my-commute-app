@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, withRepeat, useReducedMotion } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, useReducedMotion } from 'react-native-reanimated';
 import { LINE_COLORS } from '../constants/lineColors';
-import { IMMINENT_BLUE } from '../theme/colors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 
@@ -155,13 +154,7 @@ export default function DepartureCard({
 
 
 
-  // Format next time string for the collapsed view
-  const nextTimeText = useMemo(() => {
-    if (loading) return '...';
-    if (arrivals.length === 0) return 'No departures';
-    const a = arrivals[0];
-    return a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`;
-  }, [loading, arrivals]);
+
 
   useEffect(() => {
     const targetHeight = hideCard ? 0 : (isExpanded ? contentHeight : COLLAPSED_HEIGHT);

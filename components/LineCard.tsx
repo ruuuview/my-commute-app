@@ -19,7 +19,6 @@ import { playSound } from '../utils/sound';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
-import { getPillColors } from '../utils/pillColors';
 
 function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
@@ -135,8 +134,6 @@ export function LineCard({
   const animatedStatusStyle = useAnimatedStyle(() => ({
     opacity: opacityVal.value,
   }));
-
-  const colors = getPillColors(line.id, line.color);
 
   // Uniform hairline border — no state change, no brand color bleed
   const selectedBorderStyle = {

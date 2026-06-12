@@ -1,7 +1,7 @@
 # My Commute
-## Master Plan v2.2
+## Master Plan v2.5
 ### Full Strategic, Product, GTM, Technical, Fundraising, and Founder Blueprint
-### v2.3 — Fully Synchronized with UX, Execution, and Infrastructure Specs v4.7
+### v2.5 — Fully Synchronized with UX, Execution, and Infrastructure Specs v4.8
 
 ---
 
@@ -9,9 +9,9 @@
 > This is the **strategic authority document**. It owns all *decisions* — the why, the what, and the non-negotiables. Every detail across all other documents traces back to a section here. When a decision changes, it changes here first. All linked documents inherit the update.
 >
 > **Linked Documents (full suite):**
-> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md` (Updated in-file to v4.7)
-> - UX/UI authority: `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.7)
-> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.7)
+> - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN_v4.5.md` (Updated in-file to v4.8)
+> - UX/UI authority: `MY_COMMUTE_UX_PLAN_v4.5.md` (Updated in-file to v4.8)
+> - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE_v4.5.md` (Updated in-file to v4.8)
 >
 > **Sync Protocol:** Any change to a locked decision in this document must trigger a simultaneous audit of all three linked documents. Each section's bridge callout below identifies which documents and sections are affected.
 
@@ -80,7 +80,7 @@ The app relies on a strict Live Activity lifecycle to protect battery and delive
 * **The Stop Trigger:** The Live Activity automatically terminates the moment the user reaches their destination geofence, or exactly **15 minutes after** the linked calendar event has started.
 
 > **→ Execution Bridge**
-> The calendar trigger depends on `calendarGranted` state wired in **Execution Step 5** (Screen 3 — Permissions). The geofence origin depends on `pinnedStations` schema wired in **Execution Step 1**. The Live Activity implementation itself is post-launch scope and does not appear in v4.6 of the Execution Plan — it must be added as Step 10 in the next Execution Plan revision.
+> The calendar trigger depends on `calendarGranted` state wired in **Execution Step 5** (Screen 3 — Permissions). The geofence origin depends on `pinnedStations` schema wired in **Execution Step 1**. The Live Activity implementation itself is post-launch scope; however, the local calendar events query, travel-time matching, and leave-by notification alert scheduling are implemented in **Execution Step 10**.
 
 ---
 
@@ -159,8 +159,9 @@ The strongest founder story is not "I am a genius engineer." It is:
 3. **Production audit pass (20 issues resolved).** — ✅ COMPLETED (v4.7)
 4. Wire up RevenueCat for the 10-commute trial and degraded UI states.
 5. Build the offline/stale-data UI (Step 9). — ✅ COMPLETED
-6. Draft App Store Optimisation (ASO) metadata and legal documents.
-7. Ship to TestFlight Beta.
+6. Implement the native Calendar & Notification background scheduler (Step 10). — ⏳ IN PROGRESS
+7. Draft App Store Optimisation (ASO) metadata and legal documents.
+8. Ship to TestFlight Beta.
 
 > **→ Execution Bridge**
 > This sequence maps directly to the Execution Plan step order: Items 1–2 → Steps 0–5, Item 3 → Steps 1 & 8, Item 4 → Step 7 & Step 9 (extended with stale-data logic), Item 5 → Step 8 legal links. Item 6 is the gate that requires all P0 compliance items from the Compliance section above to be closed.

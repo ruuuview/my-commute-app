@@ -77,10 +77,25 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.compactCardContent}>
-          <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
-            {cleanName}
-          </Text>
-          
+          <View style={styles.compactMainRow}>
+            <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
+              {cleanName}
+            </Text>
+            
+            {/* Fix 4: Add Button / Checkmark on the far right */}
+            <View style={styles.compactAddBtnContainer}>
+              {selected ? (
+                <View style={styles.compactCheckmarkBadge}>
+                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                </View>
+              ) : (
+                <View style={styles.compactAddBtn}>
+                  <Ionicons name="add" size={14} color="#FFFFFF" />
+                </View>
+              )}
+            </View>
+          </View>
+
           <View style={styles.compactPillsContainer}>
             {visibleLines.map((lineId) => {
               const shortName = LINE_SHORT_NAMES[lineId] || lineId;
@@ -104,19 +119,6 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
               </View>
             )}
           </View>
-
-          {/* Fix 4: Add Button / Checkmark on the far right */}
-          <View style={styles.compactAddBtnContainer}>
-            {selected ? (
-              <View style={styles.compactCheckmarkBadge}>
-                <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-              </View>
-            ) : (
-              <View style={styles.compactAddBtn}>
-                <Ionicons name="add" size={14} color="#FFFFFF" />
-              </View>
-            )}
-          </View>
         </View>
       </Animated.View>
     </Pressable>
@@ -130,7 +132,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation = useUserPreferencesStore(s => s.pinStation);
-  const selectedLines = useUserPreferencesStore(s => s.selectedLines);
 
   useEffect(() => {
     if (visible) {
@@ -201,21 +202,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     }
   }, [unpinnedResults.length, query]);
 
-  const selectedLinesSet = useMemo(() => new Set(selectedLines), [selectedLines]);
 
-  const popularStationsFiltered = useMemo(() => {
-    const POPULAR_NAMES = ['bank', 'canary wharf', "king's cross st. pancras", 'waterloo', 'liverpool street'];
-    return cleanFullStations.filter(st => {
-      const stName = st.name.toLowerCase();
-      const isPopular = POPULAR_NAMES.some(pName => stName.includes(pName));
-      if (!isPopular) return false;
-
-      const servesSelectedLine = st.lines.some(l => selectedLinesSet.has(l));
-      if (!servesSelectedLine) return false;
-
-      return !pinnedIds.has(st.id);
-    });
-  }, [cleanFullStations, selectedLinesSet, pinnedIds]);
 
   const handleToggleStation = useCallback(
     async (station: TfLStation) => {
@@ -533,7 +520,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.18)',
-    height: 52,
+    minHeight: 62,
   },
   compactCardInner: {
     flex: 1,
@@ -542,10 +529,17 @@ const styles = StyleSheet.create({
   },
   compactCardContent: {
     flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  compactMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    width: '100%',
   },
   compactStationName: {
     fontSize: 14,

@@ -6,9 +6,18 @@ export default function Index() {
   const hasCompletedOnboarding = useUserPreferencesStore(
     (state) => state.hasCompletedOnboarding
   );
+  const onboardingStep = useUserPreferencesStore(
+    (state) => state.onboardingStep
+  );
 
   if (!hasCompletedOnboarding) {
-    return <Redirect href="/onboarding/lines" />;
+    if (onboardingStep === 1) {
+      return <Redirect href={"/onboarding/stations" as any} />;
+    }
+    if (onboardingStep === 2) {
+      return <Redirect href={"/onboarding/permissions" as any} />;
+    }
+    return <Redirect href={"/onboarding/lines" as any} />;
   }
 
   return <Redirect href="/(tabs)" />;

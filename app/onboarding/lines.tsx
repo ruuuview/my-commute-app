@@ -223,6 +223,7 @@ export default function LinesScreen() {
     const timestamp = Date.now();
     console.log(`[AUDIO_TRIGGER] playSound pushing from lines at ${timestamp}`);
 
+    useUserPreferencesStore.setState({ onboardingStep: 1 });
     useOnboardingStore.getState().setNavigationDirection('forward');
     
     requestAnimationFrame(() => {
@@ -350,7 +351,7 @@ export default function LinesScreen() {
       {/* Header zone */}
       <View style={[styles.headerContainer, { paddingTop: insets.top + 4, paddingBottom: 2 }]}>
         <View style={{ marginBottom: 12 }}>
-          <ProgressDots total={2} current={1} />
+          <ProgressDots total={3} current={1} />
         </View>
 
         <Animated.View style={counterAnimStyle}>

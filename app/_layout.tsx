@@ -22,6 +22,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const router = useRouter();
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
+  const onboardingStep = useUserPreferencesStore(s => s.onboardingStep);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
 
   // Preload UI sounds and configure audio ducking
@@ -147,11 +148,17 @@ export default function RootLayout() {
       hasAnimatedReveal.current = false;
       atHydrationCompletedOnboarding.current = false;
       const t = setTimeout(() => {
-        router.replace('/onboarding/lines');
+        let targetPath = '/onboarding/lines';
+        if (onboardingStep === 1) {
+          targetPath = '/onboarding/stations';
+        } else if (onboardingStep === 2) {
+          targetPath = '/onboarding/permissions';
+        }
+        router.replace(targetPath as any);
       }, 100);
       return () => clearTimeout(t);
     }
-  }, [_hasHydrated, hasCompletedOnboarding, router]);
+  }, [_hasHydrated, hasCompletedOnboarding, onboardingStep, router]);
 
   const whiteOverlayStyle = useAnimatedStyle(() => ({
     opacity: whiteOverlayOpacity.value,

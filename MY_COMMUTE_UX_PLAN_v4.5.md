@@ -1,7 +1,7 @@
 # UX & UI MASTER PLAN
 ## My Commute — London Transport Dashboard
 ### "Fractal Glass — Ambient Status Refraction" — Complete Specification
-### v4.7 — Production Audit Pass Complete (20 Issues Resolved, ESLint Clean)
+### v4.8 — Onboarding Permissions Screen (Phase 11)
 
 ---
 
@@ -186,6 +186,32 @@ When `entitlementActive === false`:
 ---
 
 ### 17.6 Screen 3 — Permissions ("The Superpowers")
+
+**Layout & Structure:**
+- Back swipe gesture to return to Onboarding Screen 2 (Stations) must be active and state-preserving.
+- Sticky bottom area containing:
+  - `ProgressDots` component (`total={3} current={3}`) centered.
+  - Secondary "Maybe later" skip button below progress dots, styled as a subtle text link with a minimum touch target height of 44pt.
+- Page Content:
+  - Header: Headline ("Get Commute Alerts") in size 32-34 SpaceGrotesk Bold.
+  - Subtitle/Description text introducing permissions.
+  - Two card containers structured vertically:
+    1. **Calendar Access Card:**
+       - Verbatim pre-disclosure: *"We read departure times alongside your calendar — all on your device. Nothing leaves your phone."* must be rendered in high contrast before the native trigger.
+       - Button "Allow Calendar Access" styled in pure solid color (solid accent, e.g. white or high contrast pill) matching "The Foyer" visual theme.
+    2. **Notifications Card:**
+       - Description explaining what notifications are sent (leave-by alerts 15 minutes before travel).
+       - Button "Enable Alerts" styled in solid high-contrast theme.
+
+**Visual Language ("The Foyer"):**
+- Linear Option C gradient background (`['#070714', '#0A1128', '#001040', '#000810']` at `[0, 0.38, 0.65, 1]`) with 3% photographic grain overlay.
+- NO frosted glass (glassmorphism is forbidden in "The Foyer" to prevent performance lag and visual inconsistency before the Grand Reveal).
+- Use high-contrast solid pills/elements.
+
+**VoiceOver Accessibility (CRITICAL):**
+- Use explicit `accessibilityElements` array or `importantForAccessibility` to guide the screen reader sequentially from the Title -> Calendar Disclosure -> Calendar CTA Button -> Notifications Card -> Notifications CTA Button -> Progress Dots -> "Maybe later" button. This prevents random reading orders.
+- Set `accessibilityLanguage="en-GB"` on the root container.
+- Verbatim calendar disclosure copy must be read immediately before the user selects the "Allow Calendar Access" button.
 
 **CALENDAR PERMISSION FIRST (Apple Requirement):**
 Disclosure card must explicitly state verbatim: *"We read departure times alongside your calendar — all on your device. Nothing leaves your phone."*

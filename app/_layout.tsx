@@ -16,6 +16,8 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import { Audio, InterruptionModeIOS } from 'expo-av';
 import { preloadSounds } from '../utils/sound';
+import { registerBackgroundFetchAsync } from '../services/backgroundTask';
+import { syncToWidget } from '../utils/widgetSync';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -73,6 +75,21 @@ export default function RootLayout() {
       useUserPreferencesStore.setState(updates);
     }
   }, [_hasHydrated]);
+
+  // Register background task once store hydrates
+  useEffect(() => {
+    if (_hasHydrated) {
+      registerBackgroundFetchAsync();
+    }
+  }, [_hasHydrated]);
+
+  // Synchronize with iOS Widget when selectedLines changes
+  const selectedLines = useUserPreferencesStore(s => s.selectedLines);
+  useEffect(() => {
+    if (_hasHydrated) {
+      syncToWidget(selectedLines);
+    }
+  }, [_hasHydrated, selectedLines]);
 
   // Track active background-to-foreground transitions to increment sessionCount
   useEffect(() => {

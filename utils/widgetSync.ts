@@ -1,38 +1,32 @@
-import type { MMKV as MMKVType } from 'react-native-mmkv';
-const { MMKV } = require('react-native-mmkv');
+import { NativeModules, Platform } from 'react-native';
+import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 
-// We use the Type here for safety
-let widgetStorage: MMKVType | null = null;
+const { WidgetModule } = NativeModules;
 
-export const syncToWidget = (data: any) => {
+export const syncToWidget = (selectedLines: string[]) => {
+  if (Platform.OS !== 'ios') return;
+
   try {
-    if (!widgetStorage) {
-      // We use the Value here to actually build the car
-      widgetStorage = new MMKV({
-        id: 'widget-storage',
-        appGroup: 'group.com.mycommute.app',
-      });
+    if (!selectedLines || !Array.isArray(selectedLines)) {
+      console.log('⚠️ Widget Sync: No selected lines array provided.');
+      return;
     }
 
-    const linesArray: any[] = Array.isArray(data) 
-      ? data 
-      : data?.myLines ?? data?.lines ?? [];
+    // Map selected lines to the structure expected by the Swift widget: SavedLine[]
+    const savedLines = selectedLines.map(id => ({
+      id,
+      name: LINE_SHORT_NAMES[id] || (id.charAt(0).toUpperCase() + id.slice(1)),
+    }));
 
-    const widgetData = {
-      lastUpdated: new Date().toISOString(),
-      items: linesArray.slice(0, 6).map((item: any) => ({
-        id: String(item.id || item.stationId || 'unknown'),
-        title: String(item.name || item.routeName || 'Unknown'),
-        status: String(item.status || 'On Time'),
-        color: String(item.color || '#007AFF'),
-      })),
-    };
+    const jsonString = JSON.stringify(savedLines);
 
-    // Re-enabled after App Group provisioning confirmed
-    widgetStorage?.set('widgetKey', JSON.stringify(widgetData));
-    console.log('✅ Widget Sync Succeeded:', widgetData.items.length);
-
+    if (WidgetModule && typeof WidgetModule.reloadWidget === 'function') {
+      WidgetModule.reloadWidget(jsonString);
+      console.log('✅ Widget Sync Succeeded:', savedLines.length, 'lines.');
+    } else {
+      console.warn('⚠️ Widget Sync: WidgetModule.reloadWidget is not available.');
+    }
   } catch (error) {
-    console.error('❌ Widget Sync Failed (Likely App Group Provisioning):', error);
+    console.error('❌ Widget Sync Failed:', error);
   }
 };

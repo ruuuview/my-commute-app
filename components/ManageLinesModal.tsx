@@ -60,7 +60,8 @@ const getLineStatus = (severity: number, desc: string) => {
   if (severity === 20 || severity === 0)        return { statusType: 'suspended' as const, label: desc || 'Suspended' };
   if (severity === 11)                          return { statusType: 'suspended' as const, label: desc || 'Part suspended' };
   if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };
-  if (d.includes('severe') || d.includes('delay')) return { statusType: 'severe' as const, label: desc };
+  if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
+  if (d.includes('delay')) return { statusType: 'minor' as const, label: desc };
   return { statusType: 'minor' as const, label: desc || 'Minor delays' };
 };
 

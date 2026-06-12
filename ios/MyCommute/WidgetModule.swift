@@ -9,6 +9,7 @@ class WidgetModule: NSObject {
   func reloadWidget(_ jsonString: String) {
     // 1. Force Write to Shared Group
     if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app") {
+      userDefaults.set(jsonString, forKey: "myLines")
       userDefaults.set(jsonString, forKey: "widget_data_json")
       userDefaults.synchronize()
     }

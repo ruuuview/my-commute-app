@@ -104,6 +104,19 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
               </View>
             )}
           </View>
+
+          {/* Fix 4: Add Button / Checkmark on the far right */}
+          <View style={styles.compactAddBtnContainer}>
+            {selected ? (
+              <View style={styles.compactCheckmarkBadge}>
+                <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+              </View>
+            ) : (
+              <View style={styles.compactAddBtn}>
+                <Ionicons name="add" size={14} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
         </View>
       </Animated.View>
     </Pressable>
@@ -240,11 +253,11 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     return (
       <CompactStationCard
         station={item}
-        selected={false}
+        selected={pinnedIds.has(item.id)}
         onPress={() => handleToggleStation(item)}
       />
     );
-  }, [handleToggleStation]);
+  }, [handleToggleStation, pinnedIds]);
 
   const searchFocusedStyle = isFocused
     ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' }
@@ -330,7 +343,8 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 onChangeText={(text) => {
                   setQuery(text);
                 }}
-                placeholder={`Search ${cleanFullStations.length} stations...`}
+                selectionColor="rgba(255,255,255,0.6)"
+                placeholder="Search 358 stations..."
                 placeholderTextColor="rgba(255, 255, 255, 0.30)"
                 autoCorrect={false}
                 autoCapitalize="none"
@@ -348,7 +362,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
             {/* Main List Area */}
             <View style={styles.listArea}>
               <FlatList
-                data={query.trim() === '' ? popularStationsFiltered : unpinnedResults}
+                data={query.trim() === '' ? [] : unpinnedResults}
                 renderItem={renderStationItem}
                 keyExtractor={(item) => item.id}
                 initialNumToRender={12}
@@ -581,5 +595,30 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: 'rgba(255, 255, 255, 0.45)',
     fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  compactAddBtnContainer: {
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactAddBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  compactCheckmarkBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
 });

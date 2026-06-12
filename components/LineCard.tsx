@@ -234,7 +234,7 @@ export function LineCard({
 
         {/* Brand color tint overlay for selected state (Apple pill design) */}
         {selected && (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.backgroundColor }]} />
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: `${line.color}1A` }]} />
         )}
 
         {/* Accent bar — centred vertically, 3px wide, rounded, placed 14px from left */}
@@ -280,7 +280,7 @@ export function LineCard({
                 <Ionicons
                   name="checkmark"
                   size={12}
-                  color="#0044EE"
+                  color="#07103a"
                 />
               </View>
             </Animated.View>

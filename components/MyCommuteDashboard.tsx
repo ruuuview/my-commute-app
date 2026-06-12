@@ -381,7 +381,7 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
   
   if (disruptedLines.length > 0 && disruptedStations.length > 0) {
     const line = disruptedLines[0].name;
-    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
+    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim() + " station";
     const list = bothDisrupted;
     const template = list[seed % list.length];
     return template.replace('[Line]', line).replace('[Station]', station);
@@ -402,7 +402,7 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
   }
   
   if (disruptedStations.length > 0) {
-    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
+    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim() + " station";
     const list = stationDisrupted;
     const template = list[seed % list.length];
     return template.replace('[Station]', station);

@@ -127,32 +127,15 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
   });
 }
 
-function ImminentCountdown({ text, color }: { text: string; color: string }) {
-  const opacity = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
-
-  React.useEffect(() => {
-    if (reducedMotion) return;
-    opacity.value = withRepeat(
-      withTiming(0.4, { duration: 600 }),
-      -1,
-      true
-    );
-  }, [reducedMotion, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.Text
-      style={[styles.ledgerTimeText, { color }, animatedStyle]}
-      numberOfLines={1}
-    >
-      {text}
-    </Animated.Text>
-  );
-}
+const getDepTimeStyle = (minutes: number) => {
+  if (minutes === 0) {
+    return { color: '#FFFFFF', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
+  }
+  if (minutes <= 2) {
+    return { color: 'rgba(255,255,255,0.85)', fontWeight: '500' as const };
+  }
+  return { color: 'rgba(255,255,255,0.55)', fontWeight: '500' as const };
+};
 
 export function StationCard({
   station,
@@ -241,8 +224,7 @@ export function StationCard({
     return (departures ?? liveDepartures ?? generateMockDepartures(station.id, station.lines, 3)).slice(0, 3);
   }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
 
-  const getDepTimeColor = (minutes: number) =>
-    minutes <= 9 ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.45)';
+
 
   const renderLinePills = () => {
     if (!station.lines || station.lines.length === 0) return null;
@@ -324,8 +306,7 @@ export function StationCard({
               <View style={styles.ledgerTable}>
                 {displayDepartures.map((dep, idx) => {
                   const minutesVal = parseInt(dep.timeText) || 0;
-                  const isImminent = minutesVal <= 2;
-                  const timeColor = isImminent ? IMMINENT_BLUE : getDepTimeColor(minutesVal);
+                  const depStyle = getDepTimeStyle(minutesVal);
 
                   return (
                     <View key={idx} style={styles.ledgerRow}>
@@ -339,16 +320,9 @@ export function StationCard({
                         </Text>
                       </View>
                       <View style={styles.columnCountdown}>
-                        {isImminent ? (
-                          <ImminentCountdown
-                            text={minutesVal === 0 ? 'Due' : `${minutesVal} min`}
-                            color={timeColor}
-                          />
-                        ) : (
-                          <Text style={[styles.ledgerTimeText, { color: timeColor }]} numberOfLines={1}>
-                            {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
-                          </Text>
-                        )}
+                        <Text style={[styles.ledgerTimeText, depStyle]} numberOfLines={1}>
+                          {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
+                        </Text>
                       </View>
                     </View>
                   );
@@ -383,8 +357,8 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(0, 0, 0, 0.20)',
   },
   cardContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   cardHeaderRow: {
     flexDirection: 'row',

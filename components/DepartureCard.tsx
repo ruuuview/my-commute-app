@@ -38,49 +38,15 @@ interface DepartureCardProps {
 
 const getDepTimeStyle = (minutes: number | 'now') => {
   if (minutes === 0 || minutes === 'now') {
-    return { color: IMMINENT_BLUE, fontWeight: '700' as const };
+    return { color: '#FFFFFF', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
   }
   if (typeof minutes === 'number' && minutes <= 2) {
-    return { color: IMMINENT_BLUE, fontWeight: '700' as const };
+    return { color: 'rgba(255,255,255,0.85)', fontWeight: '500' as const };
   }
-  if (typeof minutes === 'number' && minutes <= 9) {
-    return { color: 'rgba(255,255,255,0.90)', fontWeight: '700' as const };
-  }
-  return { color: 'rgba(255,255,255,0.45)', fontWeight: '700' as const };
+  return { color: 'rgba(255,255,255,0.55)', fontWeight: '500' as const };
 };
 
-function ImminentCountdown({ text, color, style }: { text: string; color: string; style?: any }) {
-  const opacity = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    opacity.value = withRepeat(
-      withTiming(0.4, { duration: 600 }),
-      -1,
-      true
-    );
-  }, [reducedMotion, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.Text
-      style={[
-        style,
-        { color },
-        animatedStyle,
-      ]}
-      numberOfLines={1}
-    >
-      {text}
-    </Animated.Text>
-  );
-}
-
-const COLLAPSED_HEIGHT = 56;
+const COLLAPSED_HEIGHT = 40;
 
 export default function DepartureCard({
   stationId,
@@ -255,17 +221,6 @@ export default function DepartureCard({
 
             {!isEditing && (
               <View style={styles.headerRight}>
-                {arrivals.length > 0 && arrivals[0].minutesAway <= 2 ? (
-                  <ImminentCountdown
-                    text={nextTimeText}
-                    color={IMMINENT_BLUE}
-                    style={styles.nextTimeText}
-                  />
-                ) : (
-                  <Text style={styles.nextTimeText}>
-                    {nextTimeText}
-                  </Text>
-                )}
                 <Animated.View style={chevronStyle}>
                   <Ionicons
                     name="chevron-down"
@@ -304,7 +259,6 @@ export default function DepartureCard({
             arrivals.slice(0, 3).map((a, i) => {
               const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
               const depStyle = getDepTimeStyle(depVal);
-              const isImminent = depVal === 'now' || (typeof depVal === 'number' && depVal <= 2);
               return (
                 <View
                   key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
@@ -317,17 +271,9 @@ export default function DepartureCard({
                   <Text style={styles.arrivalDest} numberOfLines={1}>
                     {a.destination}
                   </Text>
-                  {isImminent ? (
-                    <ImminentCountdown
-                      text={depVal === 'now' ? 'Due' : `${depVal} min`}
-                      color={IMMINENT_BLUE}
-                      style={styles.arrivalTime}
-                    />
-                  ) : (
-                    <Text style={[styles.arrivalTime, depStyle]}>
-                      {`${depVal} min`}
-                    </Text>
-                  )}
+                  <Text style={[styles.arrivalTime, depStyle]}>
+                    {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
+                  </Text>
                 </View>
               );
             })
@@ -344,7 +290,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 0,
     marginBottom: 12,
     overflow: 'hidden', // Accordion clip!
@@ -353,8 +299,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerPressable: {
-    height: COLLAPSED_HEIGHT,
-    justifyContent: 'center',
+    paddingVertical: 10,
     width: '100%',
   },
   header: {
@@ -399,8 +344,8 @@ const styles = StyleSheet.create({
   },
   arrivalsContainer: {
     marginTop: 0,
-    paddingTop: 8,
-    paddingBottom: 14,
+    paddingTop: 6,
+    paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },

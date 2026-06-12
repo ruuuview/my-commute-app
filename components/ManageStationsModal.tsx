@@ -112,7 +112,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
 
 export function ManageStationsModal({ visible, onClose }: ManageStationsModalProps) {
   const insets = useSafeAreaInsets();
-  const { width, height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
   const inputRef = useRef<TextInput>(null);
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
@@ -129,7 +129,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   }, [visible]);
 
   const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
 
@@ -220,7 +219,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
       // Immediate clean dismiss
       Keyboard.dismiss();
       setQuery('');
-      setIsSearching(false);
 
       const role = pinnedStations.length === 0
         ? 'home'
@@ -255,7 +253,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   // Clean modal onClose to reset search state
   const handleClose = () => {
     setQuery('');
-    setIsSearching(false);
     onClose();
   };
 
@@ -326,17 +323,12 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 value={query}
                 onFocus={() => {
                   setIsFocused(true);
-                  setIsSearching(true);
                 }}
                 onBlur={() => {
                   setIsFocused(false);
-                  if (query === '') {
-                    setIsSearching(false);
-                  }
                 }}
                 onChangeText={(text) => {
                   setQuery(text);
-                  setIsSearching(true);
                 }}
                 placeholder={`Search ${cleanFullStations.length} stations...`}
                 placeholderTextColor="rgba(255, 255, 255, 0.30)"

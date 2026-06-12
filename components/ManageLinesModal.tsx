@@ -25,6 +25,8 @@ import { SCREEN_PADDING, COLUMN_GAP, ONBOARDING_CARD_HEIGHT } from '../constants
 
 const MAX_LINES = 5;
 
+const SHEET_HEIGHT_RATIO = 0.78;
+
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
 const TFL_LINES = [
@@ -69,7 +71,7 @@ interface ManageLinesModalProps {
 
 export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height: screenHeight } = useWindowDimensions();
 
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);
   const toggleLine = useUserPreferencesStore(s => s.toggleLine);
@@ -80,6 +82,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
   const maxLinesShakeTranslationX = useSharedValue(0);
 
+  const sheetHeight = screenHeight * SHEET_HEIGHT_RATIO;
   const cardWidth = (width - SCREEN_PADDING * 2 - COLUMN_GAP) / 2;
 
   useEffect(() => {
@@ -212,13 +215,24 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-        {/* Drag handle */}
-        <View style={[styles.dragHandleWrap, { paddingTop: insets.top + 8 }]}>
-          <View style={styles.dragHandle} />
-        </View>
+      <View style={styles.root}>
+        {/* Transparent dismissible backdrop — covers the area above the sheet */}
+        <Pressable
+          style={styles.backdrop}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss manage lines"
+        />
 
-        <View style={styles.container}>
+        {/* Bottom sheet — 78% of screen height */}
+        <View style={[styles.sheet, { height: sheetHeight }]}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+
+          {/* Drag handle */}
+          <View style={styles.dragHandleWrap}>
+            <View style={styles.dragHandle} />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
@@ -254,6 +268,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             columnWrapperStyle={{ gap: COLUMN_GAP }}
             ItemSeparatorComponent={() => <View style={{ height: COLUMN_GAP }} />}
             initialNumToRender={14}
+            scrollEnabled={true}
             contentContainerStyle={[
               styles.listContainer,
               { paddingBottom: insets.bottom + 24 },
@@ -261,17 +276,30 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             showsVerticalScrollIndicator={false}
           />
         </View>
-      </BlurView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
+  },
+  backdrop: {
+    flex: 1,
+  },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
   },
   dragHandleWrap: {
     alignItems: 'center',
+    paddingTop: 10,
     paddingBottom: 12,
   },
   dragHandle: {
@@ -302,16 +330,16 @@ const styles = StyleSheet.create({
   // Frosted tint pill — matches dashboard Edit button spec
   donePill: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.30)',
-    borderRadius: 16,
+    borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
   doneText: {
     fontSize: 14,
     fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
+    color: 'rgba(255, 255, 255, 0.80)',
   },
   listContainer: {
     paddingHorizontal: SCREEN_PADDING,

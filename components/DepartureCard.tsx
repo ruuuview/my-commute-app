@@ -211,7 +211,7 @@ export default function DepartureCard({
 
   useEffect(() => {
     deleteScale.value = withSpring(isEditing ? 1 : 0, { damping: 15, stiffness: 180 });
-  }, [isEditing]);
+  }, [isEditing, deleteScale]);
 
   const deleteBadgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: deleteScale.value }],

@@ -244,7 +244,7 @@ const LinePill: React.FC<{
 
   useEffect(() => {
     deleteScale.value = withSpring(isEditing ? 1 : 0, { damping: 15, stiffness: 180 });
-  }, [isEditing]);
+  }, [isEditing, deleteScale]);
 
   const deleteBadgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: deleteScale.value }],
@@ -255,7 +255,7 @@ const LinePill: React.FC<{
     <Animated.View
       layout={isActive ? undefined : LinearTransition.duration(150)}
       exiting={FadeOut.duration(150)}
-      style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
+      style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle, animatedStyle]}
     >
       <Pressable
         onPressIn={onPressIn}
@@ -424,8 +424,6 @@ const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactN
   );
 });
 StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
-
-const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
 
 function getDayOfYear(): number {
   const now = new Date();

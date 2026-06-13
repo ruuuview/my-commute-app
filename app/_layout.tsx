@@ -166,10 +166,8 @@ export default function RootLayout() {
       atHydrationCompletedOnboarding.current = false;
       const t = setTimeout(() => {
         let targetPath = '/onboarding/lines';
-        if (onboardingStep === 1) {
+        if (onboardingStep === 1 || onboardingStep === 2) {
           targetPath = '/onboarding/stations';
-        } else if (onboardingStep === 2) {
-          targetPath = '/onboarding/permissions';
         }
         router.replace(targetPath as any);
       }, 100);

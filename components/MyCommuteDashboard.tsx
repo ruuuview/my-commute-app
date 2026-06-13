@@ -770,15 +770,6 @@ const MyCommuteDashboard: React.FC = () => {
       <View style={dash.root}>
         <DashboardGradient severity={networkSeverity} />
         <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]} pointerEvents="box-none">
-          {/* Layer 1: Backdrop Dismissal Target */}
-          {isEditing && (
-            <Pressable
-              style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
-              pointerEvents="box-only"
-              onPress={handleBackdropPress}
-            />
-          )}
-
           {/* ── Content ── */}
           <NestableScrollContainer
             style={dash.scroll}
@@ -787,8 +778,23 @@ const MyCommuteDashboard: React.FC = () => {
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
             pointerEvents="box-none"
           >
+            {/* Layer 1: Backdrop Dismissal Target */}
+            {isEditing && (
+              <Pressable
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  {
+                    left: -16,
+                    right: -16,
+                    bottom: -200,
+                  }
+                ]}
+                onPress={handleBackdropPress}
+              />
+            )}
+
             {/* ── Global header ── */}
-            <View style={[dash.header, { paddingHorizontal: 4, zIndex: 1 }]} pointerEvents="auto">
+            <View style={[dash.header, { paddingHorizontal: 4, zIndex: 1 }]} pointerEvents="box-none">
               <View style={dash.titleRow}>
                 <Text style={dash.titleMain}>My Commute</Text>
                 <View style={dash.headerActions}>
@@ -826,7 +832,7 @@ const MyCommuteDashboard: React.FC = () => {
             )}
 
             {sortedLines.length > 0 && (
-              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="auto">
+              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
                 <SectionHeader 
                   title="My lines" 
                   icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
@@ -863,7 +869,7 @@ const MyCommuteDashboard: React.FC = () => {
             )}
 
             {sortedLines.length > 0 && (
-              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="auto">
+              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
                 <SectionHeader 
                   title="My stations" 
                   icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 

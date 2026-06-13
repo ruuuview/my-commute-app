@@ -429,7 +429,7 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
   
   const bothDisrupted = [
     "[Line]'s cooked and [Station]'s chaos. Detour szn.",
-    "Rough one — [Line]'s a mare and [Station]'s peak."
+    "Rough one — [Line]'s a mare and [Station]'s a mess."
   ];
   
   if (disruptedLines.length > 0 && disruptedStations.length > 0) {

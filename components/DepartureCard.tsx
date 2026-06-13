@@ -80,7 +80,7 @@ export default function DepartureCard({
   const chevronRotation = useSharedValue(defaultExpanded ? 180 : 0);
   const arrivalsOpacity = useSharedValue(defaultExpanded ? 1 : 0);
 
-  const jiggleStyle = useJiggle(isEditing, index, isActive);
+  const jiggleStyle = useJiggle(index, isEditing, isActive);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async (active: { current: boolean }) => {

@@ -3,17 +3,25 @@ import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from '
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+  useReducedMotion,
+  LinearTransition,
+  FadeOut
+} from 'react-native-reanimated';
 import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
+import { useJiggle } from './MyCommuteDashboard';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
 const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
-
-
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 interface Arrival {
@@ -33,6 +41,9 @@ interface DepartureCardProps {
   onLongPress?: () => void;
   defaultExpanded?: boolean;
   hideCard?: boolean;
+  drag?: () => void;
+  isActive?: boolean;
+  index?: number;
 }
 
 const getDepTimeStyle = (minutes: number | 'now') => {
@@ -55,6 +66,9 @@ export default function DepartureCard({
   onLongPress,
   defaultExpanded = false,
   hideCard = false,
+  drag,
+  isActive = false,
+  index = 0,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
@@ -65,6 +79,8 @@ export default function DepartureCard({
   const heightVal = useSharedValue(defaultExpanded ? 160 : COLLAPSED_HEIGHT);
   const chevronRotation = useSharedValue(defaultExpanded ? 180 : 0);
   const arrivalsOpacity = useSharedValue(defaultExpanded ? 1 : 0);
+
+  const jiggleStyle = useJiggle(isEditing, index, isActive);
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async (active: { current: boolean }) => {
@@ -152,10 +168,6 @@ export default function DepartureCard({
     }
   };
 
-
-
-
-
   useEffect(() => {
     const targetHeight = hideCard ? 0 : (isExpanded ? contentHeight : COLLAPSED_HEIGHT);
     if (reducedMotion) {
@@ -191,88 +203,107 @@ export default function DepartureCard({
     transform: [{ rotate: `${chevronRotation.value}deg` }],
   }));
 
-
   const arrivalsStyle = useAnimatedStyle(() => ({
     opacity: arrivalsOpacity.value,
   }));
 
+  const deleteScale = useSharedValue(isEditing ? 1 : 0);
+
+  useEffect(() => {
+    deleteScale.value = withSpring(isEditing ? 1 : 0, { damping: 15, stiffness: 180 });
+  }, [isEditing]);
+
+  const deleteBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: deleteScale.value }],
+    opacity: deleteScale.value,
+  }));
+
   return (
-    <Animated.View style={[styles.container, containerStyle]}>
-      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-      <View onLayout={onInnerLayout} style={styles.innerContent}>
-        <Pressable
-          onPress={handlePress}
-          onLongPress={onLongPress}
-          style={styles.headerPressable}
-        >
-          <View style={styles.header}>
-            <View style={styles.titleColumn}>
-              <Text style={styles.stationName} numberOfLines={1}>
-                {cleanName}
-              </Text>
-            </View>
-
-            {!isEditing && (
-              <View style={styles.headerRight}>
-                <Animated.View style={chevronStyle}>
-                  <Ionicons
-                    name="chevron-down"
-                    size={16}
-                    color="rgba(255,255,255,0.3)"
-                  />
-                </Animated.View>
+    <Animated.View
+      layout={isActive ? undefined : LinearTransition.duration(250)}
+      exiting={FadeOut.duration(200)}
+      style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
+    >
+      <Animated.View style={[styles.container, containerStyle]}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View onLayout={onInnerLayout} style={styles.innerContent}>
+          <Pressable
+            onPress={handlePress}
+            onLongPress={onLongPress}
+            delayLongPress={300}
+            style={styles.headerPressable}
+          >
+            <View style={styles.header}>
+              <View style={styles.titleColumn}>
+                <Text style={styles.stationName} numberOfLines={1}>
+                  {cleanName}
+                </Text>
               </View>
-            )}
 
-            {isEditing && onDelete && (
-              <Pressable
-                style={styles.deleteBadge}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onDelete(stationId);
-                }}
-              >
-                <Text style={styles.deleteIcon}>−</Text>
-              </Pressable>
-            )}
-          </View>
-        </Pressable>
-
-        <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-              <Text style={styles.loadingText}>Fetching departures...</Text>
-            </View>
-          ) : arrivals.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
-            </View>
-          ) : (
-            arrivals.slice(0, 3).map((a, i) => {
-              const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
-              const depStyle = getDepTimeStyle(depVal);
-              return (
-                <View
-                  key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
-                  style={styles.arrivalRow}
-                >
-                  <View style={[styles.arrivalDot, { backgroundColor: a.lineColor }]} />
-                  <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
-                    {a.lineName}
-                  </Text>
-                  <Text style={styles.arrivalDest} numberOfLines={1}>
-                    {a.destination}
-                  </Text>
-                  <Text style={[styles.arrivalTime, depStyle]}>
-                    {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
-                  </Text>
+              {!isEditing && (
+                <View style={styles.headerRight}>
+                  <Animated.View style={chevronStyle}>
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color="rgba(255,255,255,0.3)"
+                    />
+                  </Animated.View>
                 </View>
-              );
-            })
-          )}
-        </Animated.View>
-      </View>
+              )}
+            </View>
+          </Pressable>
+
+          <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+                <Text style={styles.loadingText}>Fetching departures...</Text>
+              </View>
+            ) : arrivals.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
+              </View>
+            ) : (
+              arrivals.slice(0, 3).map((a, i) => {
+                const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
+                const depStyle = getDepTimeStyle(depVal);
+                return (
+                  <View
+                    key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
+                    style={styles.arrivalRow}
+                  >
+                    <View style={[styles.arrivalDot, { backgroundColor: a.lineColor }]} />
+                    <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
+                      {a.lineName}
+                    </Text>
+                    <Text style={styles.arrivalDest} numberOfLines={1}>
+                      {a.destination}
+                    </Text>
+                    <Text style={[styles.arrivalTime, depStyle]}>
+                      {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+          </Animated.View>
+        </View>
+      </Animated.View>
+
+      <Animated.View style={[styles.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>
+        <Pressable
+          style={styles.deleteBadge}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (onDelete) {
+              onDelete(stationId);
+            }
+          }}
+        >
+          <Text style={styles.deleteIcon}>−</Text>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -285,7 +316,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 0,
-    marginBottom: 12,
     overflow: 'hidden', // Accordion clip!
   },
   innerContent: {
@@ -394,10 +424,13 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
-  deleteBadge: {
+  deleteBadgeContainer: {
     position: 'absolute',
     top: -6,
     left: -6,
+    zIndex: 10,
+  },
+  deleteBadge: {
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -414,4 +447,3 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 });
-

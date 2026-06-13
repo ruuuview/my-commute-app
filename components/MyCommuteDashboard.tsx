@@ -10,7 +10,6 @@ import {
   LayoutAnimation,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   UIManager,
@@ -33,9 +32,22 @@ import Animated, {
   useReducedMotion,
   cancelAnimation,
   withSpring,
-  withDelay
+  withDelay,
+  LinearTransition,
+  FadeOut
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+
+import {
+  LongPressGestureHandler,
+  TapGestureHandler,
+  State,
+} from 'react-native-gesture-handler';
+
+import {
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+} from 'react-native-draggable-flatlist';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -153,43 +165,105 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 });
 NetworkHealthDot.displayName = 'NetworkHealthDot';
 
-// ─── Status configuration removed in favor of direct styling in LinePill
-
 
 // ─── Jiggle Hook (Sinusoidal) ─────────────────────────
-const useJiggle = (isEditing: boolean) => {
+export const useJiggle = (isEditing: boolean, index: number, isDraggingActive?: boolean) => {
   const rotation = useSharedValue(0);
+  const translationX = useSharedValue(0);
+  const translationY = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
+  const phaseDelay = (index * 23) % 150;
+
   useEffect(() => {
-    if (isEditing && !reducedMotion) {
+    if (isEditing && !reducedMotion && !isDraggingActive) {
       rotation.value = -1.5;
-      rotation.value = withRepeat(
-        withTiming(1.5, { duration: 140, easing: Easing.inOut(Easing.sin) }),
-        -1,
-        true
+      rotation.value = withDelay(
+        phaseDelay,
+        withRepeat(
+          withTiming(1.5, { duration: 140, easing: Easing.inOut(Easing.sin) }),
+          -1,
+          true
+        )
+      );
+
+      translationX.value = -1;
+      translationX.value = withDelay(
+        phaseDelay + 30,
+        withRepeat(
+          withTiming(1, { duration: 120, easing: Easing.inOut(Easing.sin) }),
+          -1,
+          true
+        )
+      );
+
+      translationY.value = -1;
+      translationY.value = withDelay(
+        phaseDelay + 60,
+        withRepeat(
+          withTiming(1, { duration: 130, easing: Easing.inOut(Easing.sin) }),
+          -1,
+          true
+        )
       );
     } else {
       cancelAnimation(rotation);
-      rotation.value = withTiming(0, { duration: 150 });
+      cancelAnimation(translationX);
+      cancelAnimation(translationY);
+      rotation.value = 0;
+      translationX.value = 0;
+      translationY.value = 0;
     }
-  }, [isEditing, reducedMotion, rotation]);
+  }, [isEditing, reducedMotion, rotation, translationX, translationY, phaseDelay, isDraggingActive]);
 
   return useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }]
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { translateX: translationX.value },
+      { translateY: translationY.value }
+    ]
   }));
 };
 
 // ─── LinePill ───────────────────────────────────────────────────
-const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ line, isEditing, onDelete, onLongPress }) => {
-  const jiggleStyle = useJiggle(isEditing);
+const LinePill: React.FC<{
+  line: LineData;
+  isEditing: boolean;
+  onDelete: (id: string) => void;
+  onLongPress?: () => void;
+  index: number;
+  drag: () => void;
+  isActive: boolean;
+}> = ({ line, isEditing, onDelete, onLongPress, index, drag, isActive }) => {
+  const jiggleStyle = useJiggle(isEditing, index, isActive);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
 
+  const deleteScale = useSharedValue(isEditing ? 1 : 0);
+
+  useEffect(() => {
+    deleteScale.value = withSpring(isEditing ? 1 : 0, { damping: 15, stiffness: 180 });
+  }, [isEditing]);
+
+  const deleteBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: deleteScale.value }],
+    opacity: deleteScale.value,
+  }));
+
   return (
-    <Animated.View style={[jiggleStyle, animatedStyle]}>
-      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
+    <Animated.View
+      layout={isActive ? undefined : LinearTransition.duration(150)}
+      exiting={FadeOut.duration(150)}
+      style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
+    >
+      <Pressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onLongPress={onLongPress}
+        delayLongPress={300}
+        style={pill.container}
+      >
         <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
@@ -197,12 +271,19 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
         <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
         <View style={[pill.dot, { backgroundColor: statusColor }]} />
         <Text style={pill.chevron}>›</Text>
-        {isEditing && (
-          <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
-            <Text style={pill.deleteIcon}>−</Text>
-          </Pressable>
-        )}
       </Pressable>
+
+      <Animated.View style={[pill.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>
+        <Pressable
+          style={pill.deleteBadge}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onDelete(line.id);
+          }}
+        >
+          <Text style={pill.deleteIcon}>−</Text>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 };
@@ -215,23 +296,38 @@ const pill = StyleSheet.create({
   statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
-  deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
+  deleteBadgeContainer: { position: 'absolute', top: -6, left: -6, zIndex: 10 },
+  deleteBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
   deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
 
-// ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
 // ─── Section header ───────────────────────────────────────────────
-const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd?: () => void; isEditing: boolean }> = ({ title, icon, onPressAdd, isEditing }) => (
+const SectionHeader: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  onPressAdd?: () => void;
+  isEditing: boolean;
+  plusRef?: React.RefObject<any>;
+}> = ({ title, icon, onPressAdd, isEditing, plusRef }) => (
   <View style={section.row}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
       {icon}
       <Text style={section.title}>{title}</Text>
     </View>
     {onPressAdd && !isEditing && (
-      <Pressable onPress={onPressAdd} style={section.addBtn} hitSlop={8}>
-        <Text style={section.addBtnText}>+</Text>
-      </Pressable>
+      <TapGestureHandler
+        ref={plusRef}
+        onHandlerStateChange={(e) => {
+          if (e.nativeEvent.state === State.ACTIVE) {
+            onPressAdd();
+          }
+        }}
+      >
+        <Animated.View style={section.addBtn}>
+          <Text style={section.addBtnText}>+</Text>
+        </Animated.View>
+      </TapGestureHandler>
     )}
   </View>
 );
@@ -310,7 +406,8 @@ const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactN
       opacity.value = 1;
       return;
     }
-    const delay = 120 + index * 60;
+    const phaseDelay = (index * 23) % 150;
+    const delay = 120 + phaseDelay;
     translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
     opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
   }, [index, reducedMotion, translateY, opacity]);
@@ -440,7 +537,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderLines, reorderStations } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -449,13 +546,19 @@ const MyCommuteDashboard: React.FC = () => {
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
     calendarGranted: s.calendarGranted,
+    reorderLines: s.reorderLines,
+    reorderStations: s.reorderStations,
   })));
-
 
   const [linesModalVisible, setLinesModalVisible] = useState(false);
   const [stationsModalVisible, setStationsModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+
+  const linesPlusRef = React.useRef<any>(null);
+  const stationsPlusRef = React.useRef<any>(null);
+  const rootLongPressRef = React.useRef<any>(null);
+  const isDragging = useSharedValue(false);
 
   const subtitle = useMemo(() => {
     const myLines = data.lines.filter(l => selectedLines.includes(l.id));
@@ -637,199 +740,263 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing((v) => !v);
   }, []);
 
-
-
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
-  const sortedLines = useMemo(() => [...myLines].sort((a, b) => {
-    const sevA = parseSeverity(a.status);
-    const sevB = parseSeverity(b.status);
-    return (SEVERITY_ORDER[sevA] ?? 4) - (SEVERITY_ORDER[sevB] ?? 4);
-  }), [myLines]);
+  const sortedLines = useMemo(() => {
+    const list = data.lines.filter(l => selectedLines.includes(l.id));
+    return [...list].sort((a, b) => {
+      const indexA = selectedLines.indexOf(a.id);
+      const indexB = selectedLines.indexOf(b.id);
+      return indexA - indexB;
+    });
+  }, [data.lines, selectedLines]);
+
+  const handleBackdropPress = () => {
+    if (isDragging.value) return;
+    setIsEditing(false);
+  };
+
+  const onBackgroundLongPress = (event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      handleEdit();
+    }
+  };
 
   return (
-    <View style={dash.root}>
-      <DashboardGradient severity={networkSeverity} />
-      <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
-        {/* ── Content ── */}
-        <ScrollView
-          style={dash.scroll}
-          contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
-        >
-          {/* ── Global header ── */}
-          <View style={[dash.header, { paddingHorizontal: 4 }]}>
-            <View style={dash.titleRow}>
-              <Text style={dash.titleMain}>My Commute</Text>
-              <View style={dash.headerActions}>
-                {hasContent && (
-                  <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
-                    <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+    <LongPressGestureHandler
+      ref={rootLongPressRef}
+      onHandlerStateChange={onBackgroundLongPress}
+      minDurationMs={600}
+      waitFor={[linesPlusRef, stationsPlusRef]}
+    >
+      <View style={dash.root}>
+        <DashboardGradient severity={networkSeverity} />
+        <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]} pointerEvents="box-none">
+          {/* Layer 1: Backdrop Dismissal Target */}
+          {isEditing && (
+            <Pressable
+              style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
+              pointerEvents="box-only"
+              onPress={handleBackdropPress}
+            />
+          )}
+
+          {/* ── Content ── */}
+          <NestableScrollContainer
+            style={dash.scroll}
+            contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
+            pointerEvents="box-none"
+          >
+            {/* ── Global header ── */}
+            <View style={[dash.header, { paddingHorizontal: 4, zIndex: 1 }]} pointerEvents="auto">
+              <View style={dash.titleRow}>
+                <Text style={dash.titleMain}>My Commute</Text>
+                <View style={dash.headerActions}>
+                  {hasContent && (
+                    <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
+                      <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+              <View style={dash.subheadingArea}>
+                {hasContent && <NetworkHealthDot severity={networkSeverity} />}
+                <Text style={dash.statusTextText}>{subtitle}</Text>
+                <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
+              </View>
+            </View>
+            {!hasContent && (
+              <View style={dash.premiumEmptyState}>
+                <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
+                  <DashboardSkeleton />
+                </View>
+                <View style={dash.emptyVisual}>
+                  <LivingDot color="rgba(255,255,255,0.8)" size={48} />
+                </View>
+                <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
+
+                <BouncyPressable onPress={() => setLinesModalVisible(true)} style={dash.primaryBtn}>
+                  <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
+                </BouncyPressable>
+
+                <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
+                  <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
+                </BouncyPressable>
+              </View>
+            )}
+
+            {sortedLines.length > 0 && (
+              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="auto">
+                <SectionHeader 
+                  title="My lines" 
+                  icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                  onPressAdd={() => setLinesModalVisible(true)}
+                  isEditing={isEditing}
+                  plusRef={linesPlusRef}
+                />
+                <NestableDraggableFlatList
+                  data={sortedLines}
+                  keyExtractor={(item) => item.id}
+                  onDragBegin={() => {
+                    isDragging.value = true;
+                  }}
+                  onDragEnd={({ data }) => {
+                    isDragging.value = false;
+                    reorderLines(data.map((l) => l.id));
+                  }}
+                  renderItem={({ item, drag, isActive, index }) => (
+                    <LinePill
+                      line={item}
+                      isEditing={isEditing}
+                      onDelete={removeLine}
+                      onLongPress={isEditing ? drag : handleEdit}
+                      index={index ?? 0}
+                      drag={drag}
+                      isActive={isActive}
+                    />
+                  )}
+                />
+              </View>
+            )}
+
+            {sortedLines.length > 0 && (
+              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="auto">
+                <SectionHeader 
+                  title="My stations" 
+                  icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                  onPressAdd={() => setStationsModalVisible(true)}
+                  isEditing={isEditing}
+                  plusRef={stationsPlusRef}
+                />
+                {selectedStations.length === 0 ? (
+                  <Pressable
+                    onPress={() => setStationsModalVisible(true)}
+                    style={dash.addStationCard}
+                  >
+                    <BlurView
+                      intensity={20}
+                      tint="dark"
+                      style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                    />
+                    <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
+                    <Text style={dash.addCardText}>Add your first station</Text>
                   </Pressable>
+                ) : (
+                  <NestableDraggableFlatList
+                    data={selectedStations}
+                    keyExtractor={(item) => item.id}
+                    onDragBegin={() => {
+                      isDragging.value = true;
+                    }}
+                    onDragEnd={({ data }) => {
+                      isDragging.value = false;
+                      reorderStations(data);
+                    }}
+                    renderItem={({ item, drag, isActive, index }) => (
+                      <StaggeredCardWrapper index={index ?? 0}>
+                        <DepartureCard
+                          stationId={item.id}
+                          stationName={item.name}
+                          isEditing={isEditing}
+                          onDelete={removeStation}
+                          onLongPress={isEditing ? drag : handleEdit}
+                          drag={drag}
+                          isActive={isActive}
+                          index={index ?? 0}
+                          defaultExpanded={true}
+                        />
+                      </StaggeredCardWrapper>
+                    )}
+                  />
                 )}
               </View>
-            </View>
-            <View style={dash.subheadingArea}>
-              {hasContent && <NetworkHealthDot severity={networkSeverity} />}
-              <Text style={dash.statusTextText}>{subtitle}</Text>
-              <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
-            </View>
-          </View>
-          {!hasContent && (
-            <View style={dash.premiumEmptyState}>
-              <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
-                <DashboardSkeleton />
-              </View>
-              <View style={dash.emptyVisual}>
-                <LivingDot color="rgba(255,255,255,0.8)" size={48} />
-              </View>
-              <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
+            )}
+          </NestableScrollContainer>
 
-              <BouncyPressable onPress={() => setLinesModalVisible(true)} style={dash.primaryBtn}>
-                <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
-              </BouncyPressable>
+          {/* ✅ Modals rendered HERE with immediate state sync */}
+          <ManageLinesModal
+            visible={linesModalVisible}
+            onClose={() => setLinesModalVisible(false)}
+          />
+          <ManageStationsModal
+            visible={stationsModalVisible}
+            onClose={() => setStationsModalVisible(false)}
+          />
 
-              <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
-                <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
-              </BouncyPressable>
-            </View>
-          )}
-
-          {sortedLines.length > 0 && (
-            <View style={dash.section}>
-              <SectionHeader 
-                title="My lines" 
-                icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => setLinesModalVisible(true)}
-                isEditing={isEditing}
-              />
-              {sortedLines.map((line) => (
-                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} />
-              ))}
-            </View>
-          )}
-
-          {sortedLines.length > 0 && (
-            <View style={dash.section}>
-              <SectionHeader 
-                title="My stations" 
-                icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => setStationsModalVisible(true)}
-                isEditing={isEditing}
-              />
-              {selectedStations.length === 0 ? (
-                <Pressable
-                  onPress={() => setStationsModalVisible(true)}
-                  style={dash.addStationCard}
-                >
-                  <BlurView
-                    intensity={20}
-                    tint="dark"
-                    style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                  />
-                  <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
-                  <Text style={dash.addCardText}>Add your first station</Text>
-                </Pressable>
-              ) : (
-                selectedStations.map((station: any, index: number) => (
-                  <StaggeredCardWrapper key={station.id} index={index}>
-                    <DepartureCard
-                      stationId={station.id}
-                      stationName={station.name}
-                      isEditing={isEditing}
-                      onDelete={removeStation}
-                      onLongPress={handleEdit}
-                      defaultExpanded={true}
-                    />
-                  </StaggeredCardWrapper>
-                ))
-              )}
-            </View>
-          )}
-        </ScrollView>
-
-        {/* ✅ Modals rendered HERE with immediate state sync */}
-        <ManageLinesModal
-          visible={linesModalVisible}
-          onClose={() => setLinesModalVisible(false)}
-        />
-        <ManageStationsModal
-          visible={stationsModalVisible}
-          onClose={() => setStationsModalVisible(false)}
-        />
-
-        {/* Deferred Notification Modal */}
-        <Modal
-          visible={showNotifPrompt}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowNotifPrompt(false)}
-        >
-          <View style={dash.promptScrim}>
-            <View style={dash.promptCard}>
-              <Ionicons name="notifications-outline" size={32} color="#F2A002" style={dash.promptIcon} />
-              <Text style={dash.promptTitle}>Don&apos;t get stuck.</Text>
-              <Text style={dash.promptText}>
-                TfL lines have delays right now. Want an alert next time?
-              </Text>
-              <View style={dash.promptActions}>
-                <Pressable
-                  style={[dash.promptBtn, dash.promptBtnPrimary]}
-                  onPress={async () => {
-                    await requestNotificationPermission();
-                    setShowNotifPrompt(false);
-                  }}
-                >
-                  <Text style={dash.promptBtnTextPrimary}>Notify me</Text>
-                </Pressable>
-                <Pressable
-                  style={dash.promptBtn}
-                  onPress={() => setShowNotifPrompt(false)}
-                >
-                  <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
-                </Pressable>
+          {/* Deferred Notification Modal */}
+          <Modal
+            visible={showNotifPrompt}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowNotifPrompt(false)}
+          >
+            <View style={dash.promptScrim}>
+              <View style={dash.promptCard}>
+                <Ionicons name="notifications-outline" size={32} color="#F2A002" style={dash.promptIcon} />
+                <Text style={dash.promptTitle}>Don&apos;t get stuck.</Text>
+                <Text style={dash.promptText}>
+                  TfL lines have delays right now. Want an alert next time?
+                </Text>
+                <View style={dash.promptActions}>
+                  <Pressable
+                    style={[dash.promptBtn, dash.promptBtnPrimary]}
+                    onPress={async () => {
+                      await requestNotificationPermission();
+                      setShowNotifPrompt(false);
+                    }}
+                  >
+                    <Text style={dash.promptBtnTextPrimary}>Notify me</Text>
+                  </Pressable>
+                  <Pressable
+                    style={dash.promptBtn}
+                    onPress={() => setShowNotifPrompt(false)}
+                  >
+                    <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        {/* Deferred Calendar Modal */}
-        <Modal
-          visible={showCalPrompt}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowCalPrompt(false)}
-        >
-          <View style={dash.promptScrim}>
-            <View style={dash.promptCard}>
-              <Ionicons name="calendar-outline" size={32} color="#0098D4" style={dash.promptIcon} />
-              <Text style={dash.promptTitle}>Know before you leave.</Text>
-              <Text style={dash.promptText}>
-                Your calendar stays on your device. We match your schedule to live departures.
-              </Text>
-              <View style={dash.promptActions}>
-                <Pressable
-                  style={[dash.promptBtn, dash.promptBtnPrimary]}
-                  onPress={async () => {
-                    await requestCalendarPermission();
-                    setShowCalPrompt(false);
-                  }}
-                >
-                  <Text style={dash.promptBtnTextPrimary}>Allow Calendar Access</Text>
-                </Pressable>
-                <Pressable
-                  style={dash.promptBtn}
-                  onPress={() => setShowCalPrompt(false)}
-                >
-                  <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
-                </Pressable>
+          {/* Deferred Calendar Modal */}
+          <Modal
+            visible={showCalPrompt}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowCalPrompt(false)}
+          >
+            <View style={dash.promptScrim}>
+              <View style={dash.promptCard}>
+                <Ionicons name="calendar-outline" size={32} color="#0098D4" style={dash.promptIcon} />
+                <Text style={dash.promptTitle}>Know before you leave.</Text>
+                <Text style={dash.promptText}>
+                  Your calendar stays on your device. We match your schedule to live departures.
+                </Text>
+                <View style={dash.promptActions}>
+                  <Pressable
+                    style={[dash.promptBtn, dash.promptBtnPrimary]}
+                    onPress={async () => {
+                      await requestCalendarPermission();
+                      setShowCalPrompt(false);
+                    }}
+                  >
+                    <Text style={dash.promptBtnTextPrimary}>Allow Calendar Access</Text>
+                  </Pressable>
+                  <Pressable
+                    style={dash.promptBtn}
+                    onPress={() => setShowCalPrompt(false)}
+                  >
+                    <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
-      </Animated.View>
-    </View>
+          </Modal>
+        </Animated.View>
+      </View>
+    </LongPressGestureHandler>
   );
 };
 

@@ -52,6 +52,7 @@ import {
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore, UserPreferencesState } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
+import { useJiggle } from '../hooks/useJiggle';
 import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
@@ -166,64 +167,7 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 NetworkHealthDot.displayName = 'NetworkHealthDot';
 
 
-// ─── Jiggle Hook (Sinusoidal) ─────────────────────────
-export const useJiggle = (isEditing: boolean, index: number, isDraggingActive?: boolean) => {
-  const rotation = useSharedValue(0);
-  const translationX = useSharedValue(0);
-  const translationY = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
 
-  const phaseDelay = (index * 23) % 150;
-
-  useEffect(() => {
-    if (isEditing && !reducedMotion && !isDraggingActive) {
-      rotation.value = -1.5;
-      rotation.value = withDelay(
-        phaseDelay,
-        withRepeat(
-          withTiming(1.5, { duration: 140, easing: Easing.inOut(Easing.sin) }),
-          -1,
-          true
-        )
-      );
-
-      translationX.value = -1;
-      translationX.value = withDelay(
-        phaseDelay + 30,
-        withRepeat(
-          withTiming(1, { duration: 120, easing: Easing.inOut(Easing.sin) }),
-          -1,
-          true
-        )
-      );
-
-      translationY.value = -1;
-      translationY.value = withDelay(
-        phaseDelay + 60,
-        withRepeat(
-          withTiming(1, { duration: 130, easing: Easing.inOut(Easing.sin) }),
-          -1,
-          true
-        )
-      );
-    } else {
-      cancelAnimation(rotation);
-      cancelAnimation(translationX);
-      cancelAnimation(translationY);
-      rotation.value = 0;
-      translationX.value = 0;
-      translationY.value = 0;
-    }
-  }, [isEditing, reducedMotion, rotation, translationX, translationY, phaseDelay, isDraggingActive]);
-
-  return useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${rotation.value}deg` },
-      { translateX: translationX.value },
-      { translateY: translationY.value }
-    ]
-  }));
-};
 
 // ─── LinePill ───────────────────────────────────────────────────
 const LinePill: React.FC<{
@@ -232,10 +176,8 @@ const LinePill: React.FC<{
   onDelete: (id: string) => void;
   onLongPress?: () => void;
   index: number;
-  drag: () => void;
-  isActive: boolean;
-}> = ({ line, isEditing, onDelete, onLongPress, index, drag, isActive }) => {
-  const jiggleStyle = useJiggle(isEditing, index, isActive);
+}> = ({ line, isEditing, onDelete, onLongPress, index }) => {
+  const jiggleStyle = useJiggle(index, isEditing, false);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
@@ -253,7 +195,7 @@ const LinePill: React.FC<{
 
   return (
     <Animated.View
-      layout={isActive ? undefined : LinearTransition.duration(150)}
+      layout={LinearTransition.springify().mass(0.8).damping(15)}
       exiting={FadeOut.duration(150)}
       style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle, animatedStyle]}
     >
@@ -268,14 +210,19 @@ const LinePill: React.FC<{
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
-        <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-        <View style={[pill.dot, { backgroundColor: statusColor }]} />
-        <Text style={pill.chevron}>›</Text>
+        {!isEditing && (
+          <>
+            <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
+            <View style={[pill.dot, { backgroundColor: statusColor }]} />
+            <Text style={pill.chevron}>›</Text>
+          </>
+        )}
       </Pressable>
 
       <Animated.View style={[pill.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>
         <Pressable
           style={pill.deleteBadge}
+          hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onDelete(line.id);
@@ -296,9 +243,18 @@ const pill = StyleSheet.create({
   statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
-  deleteBadgeContainer: { position: 'absolute', top: -6, left: -6, zIndex: 10 },
-  deleteBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
-  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
+  deleteBadgeContainer: { position: 'absolute', right: 12, top: '50%', marginTop: -11, zIndex: 10 },
+  deleteBadge: { 
+    width: 22, 
+    height: 22, 
+    borderRadius: 11, 
+    backgroundColor: 'rgba(255, 59, 48, 0.25)', 
+    borderColor: 'rgba(255, 59, 48, 0.60)', 
+    borderWidth: 1.5,
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  deleteIcon: { color: '#FF3B30', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
 
 
@@ -535,7 +491,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderLines, reorderStations } = useUserPreferencesStore(useShallow((s: UserPreferencesState) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderStations } = useUserPreferencesStore(useShallow((s: UserPreferencesState) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -544,7 +500,6 @@ const MyCommuteDashboard: React.FC = () => {
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
     calendarGranted: s.calendarGranted,
-    reorderLines: s.reorderLines,
     reorderStations: s.reorderStations,
   })));
 
@@ -742,11 +697,7 @@ const MyCommuteDashboard: React.FC = () => {
 
   const sortedLines = useMemo(() => {
     const list = data.lines.filter(l => selectedLines.includes(l.id));
-    return [...list].sort((a, b) => {
-      const indexA = selectedLines.indexOf(a.id);
-      const indexB = selectedLines.indexOf(b.id);
-      return indexA - indexB;
-    });
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
   }, [data.lines, selectedLines]);
 
   const handleBackdropPress = () => {
@@ -840,31 +791,16 @@ const MyCommuteDashboard: React.FC = () => {
                   isEditing={isEditing}
                   plusRef={linesPlusRef}
                 />
-                <NestableDraggableFlatList
-                  data={sortedLines}
-                  keyExtractor={(item) => item.id}
-                  onDragBegin={() => {
-                    isDragging.value = true;
-                  }}
-                  onDragEnd={({ data }) => {
-                    isDragging.value = false;
-                    reorderLines(data.map((l) => l.id));
-                  }}
-                  renderItem={({ item, drag, isActive, getIndex }) => {
-                    const index = getIndex();
-                    return (
-                      <LinePill
-                        line={item}
-                        isEditing={isEditing}
-                        onDelete={removeLine}
-                        onLongPress={isEditing ? drag : handleEdit}
-                        index={index ?? 0}
-                        drag={drag}
-                        isActive={isActive}
-                      />
-                    );
-                  }}
-                />
+                {sortedLines.map((item, index) => (
+                  <LinePill
+                    key={item.id}
+                    line={item}
+                    isEditing={isEditing}
+                    onDelete={removeLine}
+                    onLongPress={handleEdit}
+                    index={index}
+                  />
+                ))}
               </View>
             )}
 

@@ -16,7 +16,7 @@ import Animated, {
 import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
-import { useJiggle } from './MyCommuteDashboard';
+import { useJiggle } from '../hooks/useJiggle';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -157,6 +157,7 @@ export default function DepartureCard({
     .trim();
 
   const handlePress = () => {
+    if (isEditing) return; // Accordion Lock
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsExpanded(prev => !prev);
   };
@@ -169,22 +170,26 @@ export default function DepartureCard({
   };
 
   useEffect(() => {
-    const targetHeight = hideCard ? 0 : (isExpanded ? contentHeight : COLLAPSED_HEIGHT);
+    const targetHeight = hideCard ? 0 : ((isExpanded || isEditing) ? contentHeight : COLLAPSED_HEIGHT);
+    const targetOpacity = isEditing ? 0.3 : (isExpanded && !hideCard ? 1 : 0);
+
     if (reducedMotion) {
       heightVal.value = targetHeight;
-      chevronRotation.value = isExpanded && !hideCard ? 180 : 0;
-      arrivalsOpacity.value = isExpanded && !hideCard ? 1 : 0;
+      chevronRotation.value = isExpanded && !hideCard && !isEditing ? 180 : 0;
+      arrivalsOpacity.value = targetOpacity;
     } else {
       heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
-      chevronRotation.value = withSpring(isExpanded && !hideCard ? 180 : 0, { damping: 22, stiffness: 240 });
+      chevronRotation.value = withSpring(isExpanded && !hideCard && !isEditing ? 180 : 0, { damping: 22, stiffness: 240 });
       
-      if (isExpanded && !hideCard) {
+      if (isEditing) {
+        arrivalsOpacity.value = withTiming(0.3, { duration: 150 });
+      } else if (isExpanded && !hideCard) {
         arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
       } else {
         arrivalsOpacity.value = withTiming(0, { duration: 100 });
       }
     }
-  }, [isExpanded, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard, reducedMotion]);
+  }, [isExpanded, isEditing, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard, reducedMotion]);
 
   const containerStyle = useAnimatedStyle(() => {
     const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
@@ -220,7 +225,7 @@ export default function DepartureCard({
 
   return (
     <Animated.View
-      layout={isActive ? undefined : LinearTransition.duration(250)}
+      layout={isActive ? undefined : LinearTransition.springify().mass(0.8).damping(15)}
       exiting={FadeOut.duration(200)}
       style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
     >
@@ -294,6 +299,7 @@ export default function DepartureCard({
       <Animated.View style={[styles.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>
         <Pressable
           style={styles.deleteBadge}
+          hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             if (onDelete) {
@@ -426,22 +432,23 @@ const styles = StyleSheet.create({
   },
   deleteBadgeContainer: {
     position: 'absolute',
-    top: -6,
-    left: -6,
+    right: 12,
+    top: '50%',
+    marginTop: -11,
     zIndex: 10,
   },
   deleteBadge: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#FF3B30',
+    backgroundColor: 'rgba(255, 59, 48, 0.25)',
+    borderColor: 'rgba(255, 59, 48, 0.60)',
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#1E1E1E',
   },
   deleteIcon: {
-    color: '#fff',
+    color: '#FF3B30',
     fontSize: 14,
     fontWeight: 'bold',
     marginTop: -2,

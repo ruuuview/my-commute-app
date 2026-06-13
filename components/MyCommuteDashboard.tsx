@@ -243,22 +243,21 @@ const pill = StyleSheet.create({
   statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
-  deleteBadgeContainer: { position: 'absolute', right: 12, top: '50%', marginTop: -11, zIndex: 10 },
+  deleteBadgeContainer: { position: 'absolute', top: -6, right: -6, zIndex: 10 },
   deleteBadge: { 
     width: 22, 
     height: 22, 
     borderRadius: 11, 
-    backgroundColor: 'rgba(255, 59, 48, 0.25)', 
-    borderColor: 'rgba(255, 59, 48, 0.60)', 
-    borderWidth: 1.5,
+    backgroundColor: '#FF3B30', 
     alignItems: 'center', 
-    justifyContent: 'center' 
+    justifyContent: 'center', 
+    borderWidth: 2, 
+    borderColor: '#1E1E1E' 
   },
-  deleteIcon: { color: '#FF3B30', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
+  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });
 
 
-// ─── Section header ───────────────────────────────────────────────
 const SectionHeader: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -266,12 +265,12 @@ const SectionHeader: React.FC<{
   isEditing: boolean;
   plusRef?: React.RefObject<any>;
 }> = ({ title, icon, onPressAdd, isEditing, plusRef }) => (
-  <View style={section.row}>
+  <View style={[section.row, isEditing && { marginBottom: 20 }]}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
       {icon}
       <Text style={section.title}>{title}</Text>
     </View>
-    {onPressAdd && !isEditing && (
+    {onPressAdd && (
       <TapGestureHandler
         ref={plusRef}
         onHandlerStateChange={(e) => {
@@ -280,7 +279,7 @@ const SectionHeader: React.FC<{
           }
         }}
       >
-        <Animated.View style={section.addBtn}>
+        <Animated.View style={[section.addBtn, isEditing && { marginRight: 12 }]}>
           <Text style={section.addBtnText}>+</Text>
         </Animated.View>
       </TapGestureHandler>

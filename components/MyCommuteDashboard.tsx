@@ -50,7 +50,7 @@ import {
 } from 'react-native-draggable-flatlist';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useUserPreferencesStore, UserPreferencesState } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
@@ -535,7 +535,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderLines, reorderStations } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderLines, reorderStations } = useUserPreferencesStore(useShallow((s: UserPreferencesState) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -844,17 +844,20 @@ const MyCommuteDashboard: React.FC = () => {
                     isDragging.value = false;
                     reorderLines(data.map((l) => l.id));
                   }}
-                  renderItem={({ item, drag, isActive, index }) => (
-                    <LinePill
-                      line={item}
-                      isEditing={isEditing}
-                      onDelete={removeLine}
-                      onLongPress={isEditing ? drag : handleEdit}
-                      index={index ?? 0}
-                      drag={drag}
-                      isActive={isActive}
-                    />
-                  )}
+                  renderItem={({ item, drag, isActive, getIndex }) => {
+                    const index = getIndex();
+                    return (
+                      <LinePill
+                        line={item}
+                        isEditing={isEditing}
+                        onDelete={removeLine}
+                        onLongPress={isEditing ? drag : handleEdit}
+                        index={index ?? 0}
+                        drag={drag}
+                        isActive={isActive}
+                      />
+                    );
+                  }}
                 />
               </View>
             )}
@@ -892,21 +895,24 @@ const MyCommuteDashboard: React.FC = () => {
                       isDragging.value = false;
                       reorderStations(data);
                     }}
-                    renderItem={({ item, drag, isActive, index }) => (
-                      <StaggeredCardWrapper index={index ?? 0}>
-                        <DepartureCard
-                          stationId={item.id}
-                          stationName={item.name}
-                          isEditing={isEditing}
-                          onDelete={removeStation}
-                          onLongPress={isEditing ? drag : handleEdit}
-                          drag={drag}
-                          isActive={isActive}
-                          index={index ?? 0}
-                          defaultExpanded={true}
-                        />
-                      </StaggeredCardWrapper>
-                    )}
+                    renderItem={({ item, drag, isActive, getIndex }) => {
+                      const index = getIndex();
+                      return (
+                        <StaggeredCardWrapper index={index ?? 0}>
+                          <DepartureCard
+                            stationId={item.id}
+                            stationName={item.name}
+                            isEditing={isEditing}
+                            onDelete={removeStation}
+                            onLongPress={isEditing ? drag : handleEdit}
+                            drag={drag}
+                            isActive={isActive}
+                            index={index ?? 0}
+                            defaultExpanded={true}
+                          />
+                        </StaggeredCardWrapper>
+                      );
+                    }}
                   />
                 )}
               </View>

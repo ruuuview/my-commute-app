@@ -375,9 +375,11 @@ const StaggeredCardWrapper = memo(
       }));
 
       return (
-        <Animated.View ref={ref} style={animatedStyle}>
-          {children}
-        </Animated.View>
+        <View ref={ref}>
+          <Animated.View style={animatedStyle}>
+            {children}
+          </Animated.View>
+        </View>
       );
     }
   )

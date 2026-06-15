@@ -216,7 +216,9 @@ export function StationCard({
   const displayDepartures = useMemo(() => {
     const shouldShow = showLedger || mode === 'dashboard';
     if (!shouldShow) return [];
-    return (departures ?? liveDepartures ?? generateMockDepartures(station.id, station.lines, 3)).slice(0, 3);
+    const hasLive = liveDepartures && liveDepartures.length > 0;
+    const resolved = departures ?? (hasLive ? liveDepartures : null) ?? generateMockDepartures(station.id, station.lines, 3);
+    return resolved.slice(0, 3);
   }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
 
 

@@ -356,7 +356,15 @@ export default function StationsScreen() {
           color="#0044EE"
         />
       </View>
-    ) : null;
+    ) : (
+      <View style={styles.addCircle}>
+        <Ionicons
+          name="add"
+          size={14}
+          color="#FFFFFF"
+        />
+      </View>
+    );
 
     return (
       <StationCard
@@ -696,6 +704,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
     shadowRadius: 3,
+  },
+  addCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   recentsContainer: {
     flex: 1,

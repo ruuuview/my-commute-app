@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+// app/(lineStack)/lineDetail.tsx — Line Detail Screen (v2)
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,36 +8,50 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  Layout,
+  useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
+import * as Clipboard from 'expo-clipboard';
+import * as Location from 'expo-location';
 
 import { useLine, useLines, useLineLoading } from '../../store/lineDataStore';
 import { useLineData } from '../../hooks/useLineData';
+import { useUserPreferencesStore } from '../../store/userPreferencesStore';
+import { playSound } from '../../utils/sound';
+import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { APP_CONFIG } from '../../config/app.config';
+import INTERCHANGE_COORDINATES_DATA from '../../data/interchangeCoordinates.json';
 
-const LINE_ALTERNATIVES: { [key: string]: string[] } = {
-  'central': ['elizabeth', 'district'],
-  'northern': ['victoria', 'jubilee'],
-  'victoria': ['northern', 'piccadilly'],
-  'piccadilly': ['victoria', 'northern'],
-  'district': ['central', 'circle', 'hammersmith-city'],
-  'circle': ['district', 'hammersmith-city', 'metropolitan'],
-  'hammersmith-city': ['circle', 'district', 'metropolitan'],
-  'metropolitan': ['circle', 'hammersmith-city'],
-  'bakerloo': ['jubilee', 'northern'],
-  'jubilee': ['northern', 'metropolitan'],
-  'waterloo-city': ['northern', 'bakerloo'],
-  'dlr': ['jubilee', 'elizabeth'],
-  'elizabeth': ['central', 'dlr'],
-  'liberty': ['jubilee', 'northern', 'elizabeth'],
-  'lioness': ['jubilee', 'northern', 'bakerloo'],
-  'mildmay': ['jubilee', 'northern', 'victoria'],
-  'suffragette': ['jubilee', 'central', 'elizabeth'],
-  'weaver': ['jubilee', 'central', 'elizabeth'],
-  'windrush': ['jubilee', 'northern', 'dlr'],
+const INTERCHANGE_COORDINATES = INTERCHANGE_COORDINATES_DATA as Record<
+  string,
+  { id: string; name: string; lat: number; lon: number }
+>;
+
+const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371000; // Radius of the Earth in meters
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
 interface InterchangeStation {
@@ -224,60 +239,62 @@ const COMPLETE_INTERCHANGE_DB: { [key: string]: ConnectionData } = {
   'weaver-windrush': [],
 };
 
-const getTrialDaysRemaining = (trialStartDate: string): number => {
-  if (!trialStartDate) return 0;
-  const startDate = new Date(trialStartDate);
-  const currentDate = new Date();
-  const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.max(0, 45 - daysSinceStart);
+const getConnectionData = (line1Id: string, line2Id: string): ConnectionData | null => {
+  const key = [line1Id, line2Id].sort().join('-');
+  const data = COMPLETE_INTERCHANGE_DB[key];
+  if (Array.isArray(data) && data.length === 0) return null;
+  return data || null;
 };
-
-const hasProAccess = (isPro: boolean, trialDaysRemaining: number): boolean => {
-  return isPro || trialDaysRemaining > 0;
-};
-
-interface UserPreferences {
-  is_pro: boolean;
-  trial_start_date: string;
-  saved_stations: string[];
-  saved_lines: string[];
-}
 
 export default function LineDetailScreen() {
   const params = useLocalSearchParams();
-  const { push, back, canGoBack } = useRouter();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const lineId = params.lineId as string;
-  const fromLineId = params.fromLineId as string | undefined;
-  const fromLineName = params.fromLineName as string | undefined;
-
-  const [formattedTime, setFormattedTime] = useState('');
-
-  const userPrefs = useRef<UserPreferences>({
-    is_pro: false,
-    trial_start_date: '',
-    saved_stations: [],
-    saved_lines: [],
-  });
-
-  useEffect(() => {
-    const loadUserPrefs = async () => {
-      try {
-        const prefsData = await AsyncStorage.getItem('user_preferences');
-        if (prefsData) {
-          userPrefs.current = JSON.parse(prefsData);
-        }
-      } catch (error) {
-        console.error('Error loading user preferences:', error);
-      }
-    };
-    loadUserPrefs();
-  }, []);
 
   const lineData = useLine(lineId);
   const allLinesMap = useLines();
   const loading = useLineLoading();
   const { fetchAllLines } = useLineData();
 
+  const pinnedStations = useUserPreferencesStore((s) => s.pinnedStations);
+  const selectedLines = useUserPreferencesStore((s) => s.selectedLines);
+
+  const [copied, setCopied] = useState(false);
+  const [stationDepartures, setStationDepartures] = useState<Record<string, any[]>>({});
+  const [loadingDepartures, setLoadingDepartures] = useState(false);
+  const [stationCoordsMap, setStationCoordsMap] = useState<Record<string, { lat: number; lon: number }>>({});
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Filter pinned stations to find those serving the current line
+  const lineStations = useMemo(() => {
+    return pinnedStations.filter((s) => s.lines.includes(lineId));
+  }, [pinnedStations, lineId]);
+
+  const locationGranted = useUserPreferencesStore((s) => s.locationGranted);
+
+  // Fetch live user location on mount if permitted
+  useEffect(() => {
+    const fetchLocation = async () => {
+      if (!locationGranted) return;
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync({});
+        if (lastKnown) {
+          setUserLocation({ lat: lastKnown.coords.latitude, lon: lastKnown.coords.longitude });
+        } else {
+          const current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocation({ lat: current.coords.latitude, lon: current.coords.longitude });
+        }
+      } catch (e) {
+        console.log('Error fetching location:', e);
+      }
+    };
+    fetchLocation();
+  }, [locationGranted]);
+
+  // Fetch all lines on mount if missing
   useEffect(() => {
     const loadData = async () => {
       if (!lineData || Object.keys(allLinesMap).length === 0) {
@@ -287,474 +304,798 @@ export default function LineDetailScreen() {
     loadData();
   }, [lineId, allLinesMap, fetchAllLines, lineData]);
 
+  // Fetch departures for nominal view & coordinates mapping
+  const fetchDepartures = useCallback(async () => {
+    if (lineStations.length === 0) return;
+    try {
+      setLoadingDepartures(true);
+      const ids = lineStations.map(s => s.id).join(',');
+      const res = await fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/batch?ids=${ids}`);
+      if (res.ok) {
+        const data = await res.json();
+        const departuresMap: Record<string, any[]> = {};
+        const coordsMap: Record<string, { lat: number; lon: number }> = {};
+        Object.keys(data.stations || {}).forEach(sid => {
+          const sData = data.stations[sid];
+          if (sData) {
+            if (Array.isArray(sData.departures)) {
+              // Filter departures to only match this line
+              departuresMap[sid] = sData.departures.filter(
+                (d: any) => d.line_id === lineId
+              );
+            }
+            if (sData.lat !== undefined && sData.lon !== undefined && sData.lat !== null && sData.lon !== null) {
+              coordsMap[sid] = { lat: Number(sData.lat), lon: Number(sData.lon) };
+            }
+          }
+        });
+        setStationDepartures(departuresMap);
+        setStationCoordsMap(coordsMap);
+      }
+    } catch (e) {
+      console.log('Error fetching line station departures:', e);
+    } finally {
+      setLoadingDepartures(false);
+    }
+  }, [lineStations, lineId]);
+
   useEffect(() => {
-    if (lineData && (lineData as any).updated_at) {
-      setFormattedTime(new Date((lineData as any).updated_at).toLocaleTimeString());
+    if (lineData && lineData.status_severity === 1) {
+      fetchDepartures();
+      const interval = setInterval(fetchDepartures, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [lineData?.status_severity, fetchDepartures]);
+
+  // Dynamic Trust Badge Logic
+  const dataFreshness = useMemo(() => {
+    if (!lineData || !(lineData as any).updated_at) {
+      return { badgeColor: '#6B7280', label: 'Feed delayed', timeText: 'No timestamp' };
+    }
+    const updatedTime = new Date((lineData as any).updated_at).getTime();
+    const ageMins = Math.max(0, Math.floor((Date.now() - updatedTime) / 60000));
+
+    if (ageMins < 5) {
+      return {
+        badgeColor: '#D14343',
+        label: 'LIVE',
+        timeText: ageMins === 0 ? 'just now' : `${ageMins}m ago`,
+      };
+    } else if (ageMins <= 10) {
+      return {
+        badgeColor: '#FFB020',
+        label: 'Updating...',
+        timeText: `${ageMins}m ago`,
+      };
+    } else {
+      return {
+        badgeColor: '#6B7280',
+        label: 'Feed delayed',
+        timeText: `${ageMins}m ago`,
+      };
     }
   }, [lineData]);
 
-  const getAlternativeLines = () => {
-    if (!lineData || lineData.status_severity <= 2) {
-      return [];
+  // Get anchor coordinates (User Location OR serving pinned station coordinates)
+  const anchorCoords = useMemo(() => {
+    if (userLocation) return userLocation;
+    const pinnedWithCoords = lineStations.find(s => stationCoordsMap[s.id]);
+    if (pinnedWithCoords) {
+      return stationCoordsMap[pinnedWithCoords.id];
     }
-    const potentialAlternatives = LINE_ALTERNATIVES[lineId] || [];
-    return potentialAlternatives.reduce((acc: any[], altLineId) => {
-      const altLine = allLinesMap[altLineId];
-      if (altLine && altLine.status_severity <= 2) {
-        acc.push(altLine);
+    return null;
+  }, [userLocation, lineStations, stationCoordsMap]);
+
+  // Filter and sort alternatives for state A
+  const alternatives = useMemo(() => {
+    if (!lineData || lineData.status_severity <= 1) return [];
+
+    const activeAlts: any[] = [];
+    Object.keys(allLinesMap).forEach((altLineId) => {
+      if (altLineId === lineId) return;
+      const connection = getConnectionData(lineId, altLineId);
+      if (connection) {
+        const altLine = allLinesMap[altLineId];
+        if (altLine) activeAlts.push(altLine);
       }
-      return acc;
-    }, []);
-  };
+    });
 
-  const getConnectionData = (line1Id: string, line2Id: string): ConnectionData | null => {
-    const key = [line1Id, line2Id].sort().join('-');
-    const data = COMPLETE_INTERCHANGE_DB[key];
-    if (Array.isArray(data) && data.length === 0) return null;
-    return data || null;
-  };
-
-  const showUpgradeModal = () => {
-    Alert.alert(
-      'Premium Feature',
-      'Live departure times for unsaved stations will be available in the upcoming Pro version.',
-      [{ text: 'OK', style: 'cancel' }]
-    );
-  };
-
-  const handleStationTap = (tappedStationId: string) => {
-    const trialDaysRemaining = getTrialDaysRemaining(userPrefs.current.trial_start_date);
-    if (hasProAccess(userPrefs.current.is_pro, trialDaysRemaining) || userPrefs.current.saved_stations.includes(tappedStationId)) {
-      push(`/stationDetail?stationId=${tappedStationId}`);
-    } else {
-      showUpgradeModal();
-    }
-  };
-
-  const alternatives = getAlternativeLines();
+    // Sort by: Minimum Friction (Severity ASC -> Distance ASC -> Saved Status DESC)
+    return activeAlts.sort((a, b) => {
+      // 1. Severity ASC
+      if (a.status_severity !== b.status_severity) {
+        return a.status_severity - b.status_severity;
+      }
+      // 2. Distance ASC
+      let distA = Infinity;
+      let distB = Infinity;
+      if (anchorCoords) {
+        const connA = getConnectionData(lineId, a.id);
+        const connB = getConnectionData(lineId, b.id);
+        if (connA && Array.isArray(connA)) {
+          connA.forEach(s => {
+            const coords = INTERCHANGE_COORDINATES[s.id];
+            if (coords) {
+              const dist = haversineDistance(anchorCoords.lat, anchorCoords.lon, coords.lat, coords.lon);
+              if (dist < distA) distA = dist;
+            }
+          });
+        }
+        if (connB && Array.isArray(connB)) {
+          connB.forEach(s => {
+            const coords = INTERCHANGE_COORDINATES[s.id];
+            if (coords) {
+              const dist = haversineDistance(anchorCoords.lat, anchorCoords.lon, coords.lat, coords.lon);
+              if (dist < distB) distB = dist;
+            }
+          });
+        }
+      }
+      if (distA !== distB) {
+        return distA - distB;
+      }
+      // 3. Saved Status DESC
+      const savedA = selectedLines.includes(a.id) ? 1 : 0;
+      const savedB = selectedLines.includes(b.id) ? 1 : 0;
+      return savedB - savedA;
+    });
+  }, [lineData, lineId, allLinesMap, selectedLines, anchorCoords]);
 
   const handleBack = () => {
-    if (canGoBack()) {
-      back();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    playSound('pop', 0.32);
+    if (router.canGoBack()) {
+      router.back();
     } else {
-      push('/');
+      router.replace('/(tabs)');
     }
   };
+
+  const handleShare = async () => {
+    if (!lineData) return;
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    playSound('select', 0.45);
+
+    const statusText = lineData.reason;
+    const payload = statusText
+      ? `${lineData.name} is ${lineData.status}. ${statusText.length > 120 ? statusText.slice(0, 120) + '...' : statusText}`
+      : `${lineData.name} is ${lineData.status}.`;
+
+    await Clipboard.setStringAsync(payload);
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+    }, 1500);
+  };
+
+  const shareLabel = copied
+    ? 'Copied!'
+    : (lineData && lineData.status_severity > 1 ? 'Share disruption' : 'Share line status');
+
+  const backAnim = usePressAnimation('back_btn');
+  const ctaBtnAnim = usePressAnimation('continue_btn');
+
+  const isDisrupted = lineData ? lineData.status_severity > 1 : false;
+
+  const disruptionProgress = useDerivedValue(() => {
+    return withTiming(isDisrupted ? 1 : 0, { duration: 300 });
+  });
+
+  const stateAStyle = useAnimatedStyle(() => {
+    return {
+      opacity: disruptionProgress.value,
+      position: isDisrupted ? 'relative' : 'absolute',
+      width: '100%',
+      top: 0,
+      left: 0,
+    };
+  }, [isDisrupted]);
+
+  const stateBStyle = useAnimatedStyle(() => {
+    return {
+      opacity: 1 - disruptionProgress.value,
+      position: !isDisrupted ? 'relative' : 'absolute',
+      width: '100%',
+      top: 0,
+      left: 0,
+    };
+  }, [isDisrupted]);
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading line details…</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={styles.loadingText}>Loading line details…</Text>
+      </View>
     );
   }
 
   if (!lineData) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#E74C3C" />
-          <Text style={styles.errorText}>Failed to load line details</Text>
-          <Pressable style={styles.retryButton} onPress={() => fetchAllLines(true)} accessibilityLabel="Retry loading line details" accessibilityRole="button">
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={48} color="#D14343" />
+        <Text style={styles.errorText}>Failed to load line details</Text>
+        <Pressable
+          style={styles.retryButton}
+          onPress={() => fetchAllLines(true)}
+          accessibilityLabel="Retry loading line status"
+          accessibilityRole="button"
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </Pressable>
+      </View>
     );
   }
 
+  // Header parameters
+  const leftBarColor = lineId === 'northern' ? '#000000' : lineData.color;
+  const isNorthern = lineId === 'northern';
+  const lineNameFormatted = lineData.name.toLowerCase().endsWith(' line') ? lineData.name : `${lineData.name} line`;
+
+  // Status semantic color mapping
+  const statusColor = lineData.status_severity === 1 ? '#10B981' : 
+                      lineData.status_severity < 9 ? '#FFB020' : '#D14343';
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: lineData.color }]}>
-        <Pressable style={styles.backButton} onPress={handleBack} accessibilityLabel="Go back" accessibilityRole="button">
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+    <View style={styles.root}>
+      {/* 1. THE FIXED DESTINATION HEADER */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Pressable
+          style={styles.backButton}
+          onPress={handleBack}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Animated.View style={[styles.backIconContainer, backAnim.animatedStyle]}>
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          </Animated.View>
         </Pressable>
-        <Text style={styles.lineTitle}>{lineData.name}</Text>
+
+        <View style={styles.headerTitleContainer}>
+          <View style={styles.titleRow}>
+            {/* Left Accent Bar */}
+            <View
+              style={[
+                styles.leftAccentBar,
+                { backgroundColor: leftBarColor },
+                isNorthern && styles.northernAccentBarBorder,
+              ]}
+            />
+            <Text style={styles.lineTitle} numberOfLines={1}>
+              {lineNameFormatted}
+            </Text>
+          </View>
+          <Text style={[styles.statusLabel, { color: statusColor }]}>
+            {lineData.status}
+          </Text>
+        </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[
-          styles.statusCard,
+      {/* 2. MAIN CONTENT SCROLL CONTAINER */}
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={[
+          styles.scrollContent,
           {
-            borderLeftColor: lineData.status_severity >= 7 ? '#D32F2F' : 
-                             lineData.status_severity >= 3 ? '#FFA000' : '#388E3C',
-            borderLeftWidth: 6,
-          }
-        ]}>
-          <Text style={styles.statusTitle}>{lineData.status}</Text>
-          {lineData.reason && <Text style={styles.statusDescription}>{lineData.reason}</Text>}
-          {formattedTime ? (
-            <Text style={styles.statusTimestamp}>
-              Updated: {formattedTime}
-            </Text>
-          ) : null}
-        </View>
-
-        {fromLineId && fromLineName && (() => {
-          const connectionData = getConnectionData(fromLineId, lineId);
-          
-          if (connectionData && 'sharedTrack' in connectionData) {
-            return (
-              <View style={styles.keyConnectionsCard}>
-                <View style={styles.keyConnectionsHeader}>
-                  <Ionicons name="git-branch" size={24} color="#007AFF" />
-                  <Text style={styles.keyConnectionsTitle}>Key Connections with {fromLineName}</Text>
-                </View>
-                <Text style={styles.sharedTrackMessage}>{connectionData.sharedTrack}</Text>
-              </View>
-            );
-          }
-          
-          if (connectionData && Array.isArray(connectionData) && connectionData.length > 0) {
-            return (
-              <View style={styles.keyConnectionsCard}>
-                <View style={styles.keyConnectionsHeader}>
-                  <Ionicons name="swap-horizontal" size={24} color="#007AFF" />
-                  <Text style={styles.keyConnectionsTitle}>Key Connections with {fromLineName}</Text>
-                </View>
-                <Text style={styles.keyConnectionsSubtitle}>
-                  Switch between these lines at the following stations:
+            paddingTop: insets.top + 76,
+            paddingBottom: insets.bottom + 92,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.transitionContainer}>
+          {/* 🔴 STATE A: DISRUPTED VIEW */}
+          <Animated.View
+            style={[styles.stateAWrapper, stateAStyle]}
+            pointerEvents={isDisrupted ? 'auto' : 'none'}
+          >
+            {/* Live Feed Tray */}
+            <View style={styles.liveFeedTray}>
+              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <View style={styles.liveFeedContent}>
+                <Text style={styles.disruptionText}>
+                  {lineData.reason || `${lineData.name}: Service is currently disrupted.`}
                 </Text>
-                <View style={styles.connectionStationsList}>
-                  {connectionData.map((station, index) => (
-                    <Pressable 
-                      key={station.id || station.name} 
-                      style={styles.connectionStationItem}
-                      onPress={() => handleStationTap(station.id)}
-                    >
-                      <Ionicons name="locate" size={20} color="#007AFF" />
-                      <Text style={styles.connectionStationName}>{station.name}</Text>
-                      <Ionicons name="chevron-forward" size={20} color="#999" />
-                    </Pressable>
-                  ))}
-                </View>
-                <Text style={styles.keyConnectionsNote}>
-                  💡 Tap a station in your &quot;Stations&quot; list for live departure times
-                </Text>
-              </View>
-            );
-          }
-          
-          return (
-            <View style={styles.keyConnectionsCard}>
-              <View style={styles.keyConnectionsHeader}>
-                <Ionicons name="swap-horizontal" size={24} color="#007AFF" />
-                <Text style={styles.keyConnectionsTitle}>Find Connections with {fromLineName}</Text>
-              </View>
-              <Text style={styles.keyConnectionsSubtitle}>
-                Use our Journey Planner to find the best interchange stations between these lines.
-              </Text>
-              <Pressable 
-                style={styles.journeyPlannerButton}
-                onPress={() => push('/journeyPlanner')}
-              >
-                <Text style={styles.journeyPlannerButtonText}>Open Journey Planner</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </Pressable>
-            </View>
-          );
-        })()}
-
-        {fromLineId && fromLineName && (
-          <View style={styles.journeyPlannerCard}>
-            <Text style={styles.journeyPlannerTitle}>Need to plan another route?</Text>
-            <Pressable 
-              style={styles.planJourneyButton}
-              onPress={() => push('/journeyPlanner')}
-            >
-              <Text style={styles.planJourneyButtonText}>Plan Journey</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </Pressable>
-          </View>
-        )}
-
-        {lineData.status_severity > 2 && alternatives.length > 0 && (
-          <View style={styles.alternativesCard}>
-            <Text style={styles.alternativesTitle}>✨ Try These Alternatives</Text>
-            {alternatives.map((altLine) => (
-              <Pressable
-                key={altLine.id}
-                style={styles.alternativeItem}
-                onPress={() => {
-                  push({
-                    pathname: '/lineDetail',
-                    params: {
-                      lineId: altLine.id,
-                      lineName: altLine.name,
-                      lineColor: altLine.color,
-                      fromLineId: lineData.id,
-                      fromLineName: lineData.name,
-                      fromLineColor: lineData.color
-                    }
-                  });
-                }}
-              >
-                <View style={[styles.lineColorSwatch, { backgroundColor: altLine.color }]} />
-                <View style={styles.alternativeContent}>
-                  <Text style={styles.alternativeLineName}>{altLine.name}</Text>
-                  <View style={styles.alternativeStatusRow}>
-                    <Ionicons name="checkmark-circle" size={18} color="#00B04F" />
-                    <Text style={styles.alternativeStatusText}>{altLine.status}</Text>
+                {/* Dynamic Trust Badge & Timestamp */}
+                <View style={styles.trustBadgeContainer}>
+                  <View style={[styles.trustBadge, { backgroundColor: dataFreshness.badgeColor }]}>
+                    <Text style={styles.trustBadgeLabel}>{dataFreshness.label}</Text>
                   </View>
+                  <Text style={styles.relativeTimeText}>{dataFreshness.timeText}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
-              </Pressable>
-            ))}
-          </View>
-        )}
+              </View>
+            </View>
+
+            {/* Alternative Routes Section */}
+            <View style={styles.alternativesSection}>
+              <Text style={styles.sectionHeader}>Alternative routes</Text>
+              {alternatives.length > 0 ? (
+                <View style={styles.alternativeDeck}>
+                  {alternatives.map((altLine) => {
+                    const connection = getConnectionData(lineId, altLine.id);
+                    let connectionStationName = 'nearest interchange';
+                    let walkTimeVal: number | null = null;
+                    let hasWalkTimeVal = false;
+
+                    if (connection) {
+                      if (Array.isArray(connection) && connection.length > 0) {
+                        let nearest = connection[0];
+                        if (anchorCoords) {
+                          let minDistance = Infinity;
+                          connection.forEach((station) => {
+                            const coords = INTERCHANGE_COORDINATES[station.id];
+                            if (coords) {
+                              const dist = haversineDistance(anchorCoords.lat, anchorCoords.lon, coords.lat, coords.lon);
+                              if (dist < minDistance) {
+                                minDistance = dist;
+                                nearest = station;
+                              }
+                            }
+                          });
+                        }
+                        connectionStationName = nearest.name;
+
+                        // Calculate walk time if coordinates are available
+                        if (anchorCoords) {
+                          const nearestCoords = INTERCHANGE_COORDINATES[nearest.id];
+                          if (nearestCoords) {
+                            const distMeters = haversineDistance(
+                              anchorCoords.lat,
+                              anchorCoords.lon,
+                              nearestCoords.lat,
+                              nearestCoords.lon
+                            );
+                            walkTimeVal = Math.ceil(distMeters / 80);
+                            hasWalkTimeVal = true;
+                          }
+                        }
+                      } else if ('sharedTrack' in connection) {
+                        connectionStationName = 'shared track';
+                      }
+                    }
+
+                    const routeText = connectionStationName === 'shared track'
+                      ? 'Shared track'
+                      : hasWalkTimeVal && walkTimeVal !== null
+                        ? `Change at ${connectionStationName} · ${walkTimeVal} min walk`
+                        : `Change at ${connectionStationName}`;
+
+                    const altStatusColor = altLine.status_severity === 1 ? '#10B981' :
+                                           altLine.status_severity < 9 ? '#FFB020' : '#D14343';
+
+                    return (
+                      <Pressable
+                        key={altLine.id}
+                        style={styles.altCard}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          playSound('push', 0.38);
+                          router.push({
+                            pathname: '/lineDetail',
+                            params: { lineId: altLine.id },
+                          });
+                        }}
+                      >
+                        <View style={styles.altCardContent}>
+                          <View style={styles.altCardHeader}>
+                            <View style={[styles.altLineColorBar, { backgroundColor: altLine.color }]} />
+                            <Text style={styles.altLineName}>{altLine.name}</Text>
+                            <View style={[styles.statusDot, { backgroundColor: altStatusColor }]} />
+                          </View>
+                          <Text style={styles.altRouteText}>
+                            {routeText}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                /* Honest Empty State */
+                <Text style={styles.honestEmptyText}>
+                  No clear alternatives right now.
+                </Text>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* 🟢 STATE B: NOMINAL VIEW */}
+          <Animated.View
+            style={[styles.stateBWrapper, stateBStyle]}
+            pointerEvents={!isDisrupted ? 'auto' : 'none'}
+          >
+            {/* Demoted Timestamp */}
+            <Text style={styles.demotedTimestamp}>
+              Last updated: {dataFreshness.timeText}
+            </Text>
+
+            {/* Pinned Station Arrivals Deck */}
+            {lineStations.length > 0 ? (
+              <Animated.View
+                entering={SlideInDown.springify().damping(15).stiffness(150)}
+                layout={Layout}
+                style={styles.arrivalsDeck}
+              >
+                {lineStations.map((station) => {
+                  const departures = stationDepartures[station.id] || [];
+                  return (
+                    <View key={station.id} style={styles.stationArrivalCard}>
+                      <Text style={styles.arrivalsStationName}>{station.name}</Text>
+                      {loadingDepartures && departures.length === 0 ? (
+                        <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={styles.deckLoader} />
+                      ) : departures.length > 0 ? (
+                        <View style={styles.arrivalsRowsContainer}>
+                          {departures.slice(0, 3).map((dep, index) => (
+                            <View key={`${station.id}-dep-${index}`} style={styles.arrivalRow}>
+                              <View style={styles.arrivalLeftFrame}>
+                                <Text style={styles.arrivalPlatform} numberOfLines={1}>
+                                  {dep.platform || 'Platform info unavailable'}
+                                </Text>
+                                <Text style={styles.arrivalDestination} numberOfLines={1}>
+                                  to {dep.destination}
+                                </Text>
+                              </View>
+                              <Text style={styles.arrivalMins}>
+                                {dep.minutes_away === 0 ? 'Arriving' : `${dep.minutes_away} min`}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.emptyDeckText}>No upcoming departures found</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </Animated.View>
+            ) : (
+              <View style={styles.emptyDeckPrompt}>
+                <Ionicons name="bookmark-outline" size={36} color="rgba(255, 255, 255, 0.25)" />
+                <Text style={styles.emptyDeckPromptText}>
+                  Pin stations along this line to view live departures here.
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* 3. THE PINNED BOTTOM ACTION PILL */}
+      <View style={[styles.bottomPillContainer, { bottom: insets.bottom + 16 }]}>
+        <Pressable
+          onPress={handleShare}
+          onPressIn={ctaBtnAnim.onPressIn}
+          onPressOut={ctaBtnAnim.onPressOut}
+          style={styles.pillPressable}
+        >
+          <Animated.View style={[styles.actionPill, ctaBtnAnim.animatedStyle]}>
+            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Text style={styles.pillText}>{shareLabel}</Text>
+          </Animated.View>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#F4F6F9',
+    backgroundColor: '#000000', // OLED Black base layer
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
-  },
-  lineTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  content: {
+  flex1: {
     flex: 1,
-  },
-  statusCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 12,
-    padding: 20,
-    ...Platform.select({
-      ios: { boxShadow: '0 3px 10px rgba(0,0,0,0.12)' },
-      android: { elevation: 5 },
-    }),
-  },
-  statusTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
-  },
-  statusDescription: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#666',
-    marginBottom: 16,
-  },
-  statusTimestamp: {
-    fontSize: 13,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  keyConnectionsCard: {
-    backgroundColor: '#E3F2FD',
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 12,
-    padding: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-    ...Platform.select({
-      ios: { boxShadow: '0 2px 8px rgba(0,122,255,0.15)' },
-      android: { elevation: 4 },
-    }),
-  },
-  keyConnectionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  keyConnectionsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginLeft: 12,
-    flex: 1,
-  },
-  keyConnectionsSubtitle: {
-    fontSize: 15,
-    color: '#555',
-    marginBottom: 16,
-  },
-  connectionStationsList: {
-    gap: 12,
-  },
-  connectionStationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    ...Platform.select({
-      ios: { boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-      android: { elevation: 2 },
-    }),
-  },
-  connectionStationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginLeft: 12,
-  },
-  keyConnectionsNote: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 16,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  sharedTrackMessage: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 24,
-    marginTop: 8,
-  },
-  journeyPlannerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    marginTop: 16,
-    gap: 10,
-  },
-  journeyPlannerButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  alternativesCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 12,
-    padding: 20,
-    ...Platform.select({
-      ios: { boxShadow: '0 3px 10px rgba(0,0,0,0.12)' },
-      android: { elevation: 5 },
-    }),
-  },
-  alternativesTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 16,
-  },
-  alternativeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
-  },
-  lineColorSwatch: {
-    width: 4,
-    height: 48,
-    borderRadius: 2,
-    marginRight: 16,
-  },
-  alternativeContent: {
-    flex: 1,
-  },
-  alternativeLineName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  alternativeStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  alternativeStatusText: {
-    fontSize: 14,
-    color: '#00B04F',
-    fontWeight: '500',
-  },
-  journeyPlannerCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 24,
-    borderRadius: 12,
-    padding: 20,
-    ...Platform.select({
-      ios: { boxShadow: '0 3px 10px rgba(0,0,0,0.12)' },
-      android: { elevation: 5 },
-    }),
-  },
-  journeyPlannerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-  },
-  planJourneyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    gap: 8,
-  },
-  planJourneyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 16,
-    color: '#666',
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 16,
   },
   errorContainer: {
     flex: 1,
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
   errorText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 18,
-    color: '#E74C3C',
+    color: '#D14343',
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 24,
   },
   retryButtonText: {
-    color: '#fff',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: '#000000',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  backIconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  leftAccentBar: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    marginRight: 10,
+  },
+  northernAccentBarBorder: {
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  lineTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 22,
+    color: 'rgba(255, 255, 255, 0.95)',
+    letterSpacing: -0.5,
+  },
+  statusLabel: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+  },
+  stateAWrapper: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  liveFeedTray: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 24,
+  },
+  liveFeedContent: {
+    padding: 16,
+    paddingBottom: 44, // Room for absolute Badge
+  },
+  disruptionText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 15,
+    color: '#FFFFFF',
+    lineHeight: 21, // 1.4 line-height
+  },
+  trustBadgeContainer: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trustBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trustBadgeLabel: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 9,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  relativeTimeText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+  transitionContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  alternativesSection: {
+    marginTop: 8,
+  },
+  sectionHeader: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.55)',
+    marginBottom: 12,
+  },
+  alternativeDeck: {
+    gap: 10,
+  },
+  altCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  altCardContent: {
+    padding: 14,
+  },
+  altCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  altLineColorBar: {
+    width: 3,
+    height: 14,
+    borderRadius: 1.5,
+    marginRight: 8,
+  },
+  altLineName: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  altRouteText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.55)',
+  },
+  honestEmptyText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.25,
+    marginTop: 8,
+  },
+  stateBWrapper: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  demotedTimestamp: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.35)',
+    alignSelf: 'flex-end',
+    marginBottom: 12,
+  },
+  arrivalsDeck: {
+    gap: 16,
+  },
+  stationArrivalCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  arrivalsStationName: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  arrivalsRowsContainer: {
+    marginTop: 4,
+  },
+  arrivalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  arrivalLeftFrame: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  arrivalPlatform: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: 2,
+  },
+  arrivalDestination: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  arrivalMins: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  deckLoader: {
+    marginVertical: 16,
+  },
+  emptyDeckText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.35)',
+    textAlign: 'center',
+    marginVertical: 8,
+  },
+  emptyDeckPrompt: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
+    paddingHorizontal: 24,
+  },
+  emptyDeckPromptText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.35)',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  bottomPillContainer: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    zIndex: 100,
+  },
+  pillPressable: {
+    width: '100%',
+  },
+  actionPill: {
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  pillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 });

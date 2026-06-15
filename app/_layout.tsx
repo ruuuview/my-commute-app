@@ -14,7 +14,7 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import { Audio, InterruptionModeIOS } from 'expo-av';
+import { setAudioModeAsync } from 'expo-audio';
 import { preloadSounds } from '../utils/sound';
 import { registerBackgroundFetchAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
@@ -32,10 +32,10 @@ export default function RootLayout() {
   useEffect(() => {
     async function initAudio() {
       try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: false,
-          staysActiveInBackground: false,
-          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        await setAudioModeAsync({
+          playsInSilentMode: false,
+          shouldPlayInBackground: false,
+          interruptionMode: 'doNotMix',
         });
         await preloadSounds();
       } catch (e) {

@@ -1,7 +1,7 @@
 // utils/sound.ts
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
 
-const cache: Record<string, Audio.Sound> = {};
+const cache: Record<string, ReturnType<typeof createAudioPlayer>> = {};
 
 export async function preloadSounds() {
   const files = {
@@ -17,8 +17,8 @@ export async function preloadSounds() {
   
   for (const [key, source] of Object.entries(files)) {
     try {
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: false });
-      cache[key] = sound;
+      const player = createAudioPlayer(source);
+      cache[key] = player;
     } catch (e) {
       console.log(`Failed to preload sound ${key}:`, e);
     }
@@ -27,11 +27,11 @@ export async function preloadSounds() {
 
 export async function playSound(name: keyof typeof cache, volume = 1.0) {
   try {
-    const sound = cache[name];
-    if (!sound) return;
-    await sound.setVolumeAsync(volume);
-    await sound.setPositionAsync(0);
-    await sound.playAsync();
+    const player = cache[name];
+    if (!player) return;
+    player.volume = volume;
+    player.seekTo(0);
+    player.play();
   } catch (e) {
     console.log(`Error playing sound ${name}:`, e);
   }

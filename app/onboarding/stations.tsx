@@ -291,19 +291,12 @@ export default function StationsScreen() {
         hasCompletedOnboarding: true,
         onboardingStep: 3,
       });
-
-      requestAnimationFrame(() => {
-        router.replace('/');
-      });
     }
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     useUserPreferencesStore.getState().completeOnboarding();
-    requestAnimationFrame(() => {
-      router.replace('/');
-    });
   };
 
   const handleRecentPress = (station: TfLStation) => {

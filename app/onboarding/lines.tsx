@@ -238,10 +238,6 @@ export default function LinesScreen() {
       hasCompletedOnboarding: true,
       onboardingStep: 3,
     });
-
-    requestAnimationFrame(() => {
-      router.replace('/');
-    });
   };
 
   const ctaLabel = getCtaLabel(selectedLines.length);

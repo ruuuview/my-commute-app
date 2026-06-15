@@ -109,7 +109,7 @@ function parseSeverity(statusText: string): Severity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
   if (text.includes('minor')) return 'minor';
-  if (text.includes('suspended') || text.includes('closure')) return 'suspended';
+  if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
   return 'good';
 }

@@ -144,7 +144,13 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
           if (apiStatuses[branchId]) {
             foundAny = true;
             const statusData = apiStatuses[branchId];
-            if (statusData.severity < worstSeverity) {
+            const getRank = (s: number) => {
+              if (s === 10 || s === 18) return 0;
+              if (s === 9 || s === 14 || s === 19) return 1;
+              if (s === 6 || s === 7 || s === 8 || s === 17) return 2;
+              return 3;
+            };
+            if (getRank(statusData.severity) > getRank(worstSeverity)) {
               worstSeverity = statusData.severity;
               worstDescription = statusData.description;
             }

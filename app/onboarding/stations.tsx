@@ -180,9 +180,9 @@ export default function StationsScreen() {
   );
 
   const results = useMemo<TfLStation[]>(() => {
-    if (!query.trim()) return popularStations;
+    if (!query.trim()) return [];
     return fuse.search(query.toLowerCase().trim()).map(r => r.item);
-  }, [query, popularStations, fuse]);
+  }, [query, fuse]);
 
   useEffect(() => {
     if (query.trim() && results.length === 0) {
@@ -516,7 +516,7 @@ export default function StationsScreen() {
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={() => {
-                  if (isSearching) {
+                  if (query.trim() !== '') {
                     return (
                       <View style={styles.emptyState}>
                         <Ionicons name="search-outline" size={32} color="rgba(255,255,255,0.20)" />

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, AccessibilityInfo, AppState } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -23,6 +23,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const segments = useSegments();
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
   const onboardingStep = useUserPreferencesStore(s => s.onboardingStep);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
@@ -164,16 +165,22 @@ export default function RootLayout() {
     if (_hasHydrated && !hasCompletedOnboarding) {
       hasAnimatedReveal.current = false;
       atHydrationCompletedOnboarding.current = false;
-      const t = setTimeout(() => {
-        let targetPath = '/onboarding/lines';
-        if (onboardingStep === 1 || onboardingStep === 2) {
-          targetPath = '/onboarding/stations';
-        }
-        router.replace(targetPath as any);
-      }, 100);
-      return () => clearTimeout(t);
+      
+      const inOnboarding = segments[0] === 'onboarding';
+      const onRootIndex = segments.length === 0 || segments[0] === 'index';
+      
+      if (!inOnboarding && !onRootIndex) {
+        const t = setTimeout(() => {
+          let targetPath = '/onboarding/lines';
+          if (onboardingStep === 1 || onboardingStep === 2) {
+            targetPath = '/onboarding/stations';
+          }
+          router.replace(targetPath as any);
+        }, 100);
+        return () => clearTimeout(t);
+      }
     }
-  }, [_hasHydrated, hasCompletedOnboarding, onboardingStep, router]);
+  }, [_hasHydrated, hasCompletedOnboarding, onboardingStep, router, segments]);
 
   const whiteOverlayStyle = useAnimatedStyle(() => ({
     opacity: whiteOverlayOpacity.value,

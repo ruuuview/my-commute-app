@@ -305,7 +305,7 @@ export default function StationsScreen() {
         onboardingStep: 2,
       });
 
-      router.push('/onboarding/permissions');
+      router.push('/onboarding/permissions' as any);
     }
   };
 

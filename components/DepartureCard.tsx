@@ -17,6 +17,7 @@ import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { useJiggle } from '../hooks/useJiggle';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -71,6 +72,7 @@ export default function DepartureCard({
   index = 0,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
+  const lastKnownData = useUserPreferencesStore(state => state.lastKnownData || []);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -81,6 +83,17 @@ export default function DepartureCard({
   const arrivalsOpacity = useSharedValue(defaultExpanded ? 1 : 0);
 
   const jiggleStyle = useJiggle(index, isEditing, isActive);
+
+  const visibleArrivals = arrivals.filter((a) => {
+    const lineObj = lastKnownData.find((l) => l.id === a.lineId);
+    if (lineObj) {
+      const statusText = String(lineObj.status || '').toLowerCase();
+      if (!statusText.includes('part') && (statusText.includes('closed') || statusText.includes('closure') || statusText.includes('suspended'))) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // Fetch arrivals for this station
   const fetchArrivals = useCallback(async (active: { current: boolean }) => {
@@ -265,12 +278,12 @@ export default function DepartureCard({
                 <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
                 <Text style={styles.loadingText}>Fetching departures...</Text>
               </View>
-            ) : arrivals.length === 0 ? (
+            ) : visibleArrivals.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
               </View>
             ) : (
-              arrivals.slice(0, 3).map((a, i) => {
+              visibleArrivals.slice(0, 3).map((a, i) => {
                 const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
                 const depStyle = getDepTimeStyle(depVal);
                 return (

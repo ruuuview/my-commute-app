@@ -27,7 +27,7 @@ import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../../data/tflStations';
@@ -69,6 +69,7 @@ export default function StationsScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ openSearch?: string }>();
   const openSearch = params.openSearch;
+  const navigation = useNavigation();
 
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
 
@@ -291,12 +292,32 @@ export default function StationsScreen() {
         hasCompletedOnboarding: true,
         onboardingStep: 3,
       });
+
+      const parentNav = navigation.getParent();
+      if (parentNav) {
+        (parentNav as any).reset({
+          index: 0,
+          routes: [{ name: '(tabs)' }],
+        });
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     useUserPreferencesStore.getState().completeOnboarding();
+
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      (parentNav as any).reset({
+        index: 0,
+        routes: [{ name: '(tabs)' }],
+      });
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   const handleRecentPress = (station: TfLStation) => {

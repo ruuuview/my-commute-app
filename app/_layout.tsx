@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, AccessibilityInfo, AppState } from 'react-native';
-import { Stack, useRouter, useSegments, useNavigation } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,7 +24,6 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const navigation = useNavigation();
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
   const onboardingStep = useUserPreferencesStore(s => s.onboardingStep);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
@@ -131,13 +130,6 @@ export default function RootLayout() {
     }
   }, [_hasHydrated, hasCompletedOnboarding]);
 
-  const navigateToDashboard = useCallback(() => {
-    (navigation as any).reset({
-      index: 0,
-      routes: [{ name: '(tabs)' }],
-    });
-  }, [navigation]);
-
   useEffect(() => {
     // Only fire if they just completed it in this session (i.e. they were not completed at hydration)
     if (_hasHydrated && hasCompletedOnboarding) {
@@ -155,15 +147,13 @@ export default function RootLayout() {
             duration: 350,
             easing: Easing.out(Easing.poly(3)),
           });
-
-          navigateToDashboard();
         }
       } else {
         // If they completed it in a prior session, mark as revealed instantly without animations
         hasAnimatedReveal.current = true;
       }
     }
-  }, [_hasHydrated, hasCompletedOnboarding, navigateToDashboard, whiteOverlayOpacity]);
+  }, [_hasHydrated, hasCompletedOnboarding, whiteOverlayOpacity]);
 
   useEffect(() => {
     if (_hasHydrated && !hasCompletedOnboarding) {

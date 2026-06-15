@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { StyleSheet, AccessibilityInfo, AppState } from 'react-native';
+import { StyleSheet, AccessibilityInfo, AppState, LogBox } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -20,6 +20,9 @@ import { registerBackgroundFetchAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
 
 SplashScreen.preventAutoHideAsync();
+LogBox.ignoreLogs([
+  'ref.measureLayout must be called with a ref to a native component',
+]);
 
 export default function RootLayout() {
   const router = useRouter();

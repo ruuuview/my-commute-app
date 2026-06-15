@@ -5,7 +5,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useCallback, useEffect, useState, useMemo, memo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, memo, forwardRef } from 'react';
 import {
   LayoutAnimation,
   Platform,
@@ -350,34 +350,38 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 };
 
 // ─── Staggered Card Wrapper ──────────────────────────────────────
-const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactNode; index: number }) => {
-  const translateY = useSharedValue(16);
-  const opacity = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
+const StaggeredCardWrapper = memo(
+  forwardRef<View, { children: React.ReactNode; index: number }>(
+    ({ children, index }, ref) => {
+      const translateY = useSharedValue(16);
+      const opacity = useSharedValue(0);
+      const reducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    if (reducedMotion) {
-      translateY.value = 0;
-      opacity.value = 1;
-      return;
+      useEffect(() => {
+        if (reducedMotion) {
+          translateY.value = 0;
+          opacity.value = 1;
+          return;
+        }
+        const phaseDelay = (index * 23) % 150;
+        const delay = 120 + phaseDelay;
+        translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
+        opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
+      }, [index, reducedMotion, translateY, opacity]);
+
+      const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: translateY.value }],
+        opacity: opacity.value,
+      }));
+
+      return (
+        <Animated.View ref={ref} style={animatedStyle}>
+          {children}
+        </Animated.View>
+      );
     }
-    const phaseDelay = (index * 23) % 150;
-    const delay = 120 + phaseDelay;
-    translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
-    opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
-  }, [index, reducedMotion, translateY, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      {children}
-    </Animated.View>
-  );
-});
+  )
+);
 StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 
 function getDayOfYear(): number {

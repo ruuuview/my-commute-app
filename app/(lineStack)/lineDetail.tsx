@@ -1,5 +1,5 @@
 // app/(lineStack)/lineDetail.tsx — Line Detail Screen (v2)
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,13 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, {
-  FadeIn,
-  FadeOut,
   SlideInDown,
   Layout,
-  useSharedValue,
   useDerivedValue,
   useAnimatedStyle,
   withTiming,
@@ -339,13 +335,15 @@ export default function LineDetailScreen() {
     }
   }, [lineStations, lineId]);
 
+  const statusSeverity = lineData?.status_severity;
+
   useEffect(() => {
-    if (lineData && lineData.status_severity === 1) {
+    if (statusSeverity === 1) {
       fetchDepartures();
       const interval = setInterval(fetchDepartures, 30000);
       return () => clearInterval(interval);
     }
-  }, [lineData?.status_severity, fetchDepartures]);
+  }, [statusSeverity, fetchDepartures]);
 
   // Dynamic Trust Badge Logic
   const dataFreshness = useMemo(() => {

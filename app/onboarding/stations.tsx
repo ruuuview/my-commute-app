@@ -160,14 +160,6 @@ export default function StationsScreen() {
     return Object.values(map);
   }, []);
 
-  const popularStations = useMemo(() => {
-    const POPULAR_NAMES = ['bank', 'canary wharf', "king's cross st. pancras", 'waterloo', 'liverpool street'];
-    const filtered = cleanFullStations.filter(st => {
-      const stName = st.name.toLowerCase();
-      return POPULAR_NAMES.some(pName => stName.includes(pName));
-    });
-    return filtered.filter(st => st.lines.some(l => selectedLines.includes(l)));
-  }, [selectedLines, cleanFullStations]);
 
   const fuse = useMemo(
     () => new Fuse(cleanFullStations, { 

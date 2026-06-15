@@ -1,21 +1,14 @@
 // app/onboarding/permissions.tsx — Screen 3: Permissions (v1)
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  Platform,
   Image,
   ScrollView,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-  useReducedMotion,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +29,6 @@ export default function PermissionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const reducedMotion = useReducedMotion();
 
   const {
     calendarGranted,

@@ -3,34 +3,34 @@
   "startedAt": "2026-06-10T16:01:33.366Z",
   "workers": {
     "map": {
-      "runCount": 190,
-      "successCount": 190,
+      "runCount": 191,
+      "successCount": 191,
       "failureCount": 0,
-      "averageDurationMs": 3.0842105263157906,
+      "averageDurationMs": 3.0837696335078544,
       "isRunning": false,
       "nextRun": "2026-06-15T14:44:56.445Z",
-      "lastStartedAt": "2026-06-15T14:31:41.801Z",
-      "lastRun": "2026-06-15T14:31:41.802Z"
+      "lastStartedAt": "2026-06-15T14:32:29.427Z",
+      "lastRun": "2026-06-15T14:32:29.430Z"
     },
     "audit": {
-      "runCount": 267,
-      "successCount": 267,
+      "runCount": 268,
+      "successCount": 268,
       "failureCount": 0,
-      "averageDurationMs": 11409.239700374532,
+      "averageDurationMs": 11401.15671641791,
       "isRunning": false,
       "nextRun": "2026-06-15T14:34:56.460Z",
-      "lastStartedAt": "2026-06-15T14:31:41.635Z",
-      "lastRun": "2026-06-15T14:31:59.552Z"
+      "lastStartedAt": "2026-06-15T14:34:56.442Z",
+      "lastRun": "2026-06-15T14:35:05.685Z"
     },
     "optimize": {
-      "runCount": 196,
-      "successCount": 196,
+      "runCount": 197,
+      "successCount": 197,
       "failureCount": 0,
-      "averageDurationMs": 10932.34183673469,
+      "averageDurationMs": 10910.06091370558,
       "isRunning": false,
       "nextRun": "2026-06-15T14:44:56.446Z",
-      "lastStartedAt": "2026-06-15T14:31:41.801Z",
-      "lastRun": "2026-06-15T14:31:59.528Z"
+      "lastStartedAt": "2026-06-15T14:32:29.431Z",
+      "lastRun": "2026-06-15T14:32:35.974Z"
     },
     "consolidate": {
       "runCount": 96,
@@ -43,14 +43,14 @@
       "lastRun": "2026-06-15T14:31:41.805Z"
     },
     "testgaps": {
-      "runCount": 139,
-      "successCount": 139,
+      "runCount": 140,
+      "successCount": 140,
       "failureCount": 0,
-      "averageDurationMs": 10964.892086330936,
+      "averageDurationMs": 10944.764285714286,
       "isRunning": false,
       "nextRun": "2026-06-15T14:44:56.446Z",
-      "lastStartedAt": "2026-06-15T14:31:41.802Z",
-      "lastRun": "2026-06-15T14:31:59.426Z"
+      "lastStartedAt": "2026-06-15T14:32:29.450Z",
+      "lastRun": "2026-06-15T14:32:37.597Z"
     },
     "predict": {
       "runCount": 0,
@@ -136,5 +136,5 @@
       }
     ]
   },
-  "savedAt": "2026-06-15T14:31:59.552Z"
+  "savedAt": "2026-06-15T14:35:05.685Z"
 }

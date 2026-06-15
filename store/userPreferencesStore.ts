@@ -28,6 +28,7 @@ export interface UserPreferencesState {
   pinnedStations: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[];
   notificationsGranted: boolean;
   calendarGranted: boolean;
+  locationGranted: boolean;
   entitlementActive: boolean;
   trialStartDate: string | null;
   lastKnownStatus: StatusLevel;
@@ -38,6 +39,7 @@ export interface UserPreferencesState {
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
   setNotificationsGranted: (granted: boolean) => void;
+  setLocationGranted: (granted: boolean) => void;
   setEntitlementActive: (active: boolean) => void;
   completeOnboarding: () => void;
   toggleLine: (id: string) => void;
@@ -52,7 +54,7 @@ export interface UserPreferencesState {
   setLastKnown: (status: StatusLevel, data: any[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches'> = {
   schemaVersion: 1,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -60,6 +62,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   pinnedStations: [],
   notificationsGranted: false,
   calendarGranted: false,
+  locationGranted: false,
   entitlementActive: false,
   trialStartDate: null,
   lastKnownStatus: 'unknown',
@@ -100,6 +103,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       setCalendarGranted: (granted) => set({ calendarGranted: granted }),
       setNotificationsGranted: (granted) => set({ notificationsGranted: granted }),
+      setLocationGranted: (granted) => set({ locationGranted: granted }),
       setEntitlementActive: (active) => set({ entitlementActive: active }),
       completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 3 }),
       resetOnboarding: () => set({ hasCompletedOnboarding: false, onboardingStep: 0, selectedLines: [], pinnedStations: [] }),
@@ -152,7 +156,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       version: 1,
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setEntitlementActive, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

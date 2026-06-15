@@ -167,8 +167,10 @@ export default function RootLayout() {
       if (!inOnboarding && !onRootIndex) {
         const t = setTimeout(() => {
           let targetPath = '/onboarding/lines';
-          if (onboardingStep === 1 || onboardingStep === 2) {
+          if (onboardingStep === 1) {
             targetPath = '/onboarding/stations';
+          } else if (onboardingStep === 2) {
+            targetPath = '/onboarding/permissions';
           }
           router.replace(targetPath as any);
         }, 100);

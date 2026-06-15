@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { useShallow } from 'zustand/react/shallow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
@@ -10,15 +11,19 @@ export function useDeferredPermissionTriggers() {
     sessionCount,
     calendarGranted,
     notificationsGranted,
+    locationGranted,
     setCalendarGranted,
     setNotificationsGranted,
+    setLocationGranted,
   } = useUserPreferencesStore(
     useShallow((s) => ({
       sessionCount: s.sessionCount,
       calendarGranted: s.calendarGranted,
       notificationsGranted: s.notificationsGranted,
+      locationGranted: s.locationGranted,
       setCalendarGranted: s.setCalendarGranted,
       setNotificationsGranted: s.setNotificationsGranted,
+      setLocationGranted: s.setLocationGranted,
     }))
   );
 
@@ -64,11 +69,25 @@ export function useDeferredPermissionTriggers() {
     }
   }, [setNotificationsGranted]);
 
+  const requestLocationPermission = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      const granted = status === 'granted';
+      setLocationGranted(granted);
+      return granted;
+    } catch (err) {
+      console.log('Error requesting location permissions:', err);
+      return false;
+    }
+  }, [setLocationGranted]);
+
   return {
     shouldShowNotificationPrompt,
     shouldShowCalendarPrompt,
     requestCalendarPermission,
     requestNotificationPermission,
+    requestLocationPermission,
     sessionCount,
+    locationGranted,
   };
 }

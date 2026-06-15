@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
 
 import { useLine, useLines, useLineLoading } from '../../store/lineDataStore';
@@ -458,12 +459,7 @@ export default function LineDetailScreen() {
       ? `${lineData.name} is ${lineData.status}. ${statusText.length > 120 ? statusText.slice(0, 120) + '...' : statusText}`
       : `${lineData.name} is ${lineData.status}.`;
 
-    try {
-      const Clipboard = require('expo-clipboard');
-      await Clipboard.setStringAsync(payload);
-    } catch (e) {
-      console.warn('Clipboard is not supported or linked in this build:', e);
-    }
+    await Clipboard.setStringAsync(payload);
     setCopied(true);
     setTimeout(() => {
       setCopied(false);

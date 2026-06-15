@@ -725,7 +725,7 @@ const MyCommuteDashboard: React.FC = () => {
     >
       <View style={dash.root}>
         <DashboardGradient severity={networkSeverity} />
-        <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]} pointerEvents="box-none">
+        <Animated.View collapsable={false} style={[{ flex: 1, paddingTop: insets.top }, revealStyle]} pointerEvents="box-none">
           {/* ── Content ── */}
           <NestableScrollContainer
             style={dash.scroll}

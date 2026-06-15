@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, AccessibilityInfo, AppState } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, useNavigation } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,6 +24,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
+  const navigation = useNavigation();
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
   const onboardingStep = useUserPreferencesStore(s => s.onboardingStep);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
@@ -131,8 +132,11 @@ export default function RootLayout() {
   }, [_hasHydrated, hasCompletedOnboarding]);
 
   const navigateToDashboard = useCallback(() => {
-    router.replace('/');
-  }, [router]);
+    (navigation as any).reset({
+      index: 0,
+      routes: [{ name: '(tabs)' }],
+    });
+  }, [navigation]);
 
   useEffect(() => {
     // Only fire if they just completed it in this session (i.e. they were not completed at hydration)

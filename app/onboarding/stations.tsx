@@ -258,13 +258,20 @@ export default function StationsScreen() {
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     playSound('pop', 0.32);
-    if (!hasCompletedOnboarding) {
-      useOnboardingStore.getState().setNavigationDirection('backward');
-    }
-    if (router.canGoBack()) {
-      router.back();
+    if (hasCompletedOnboarding) {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
     } else {
-      router.replace('/');
+      useOnboardingStore.getState().setNavigationDirection('backward');
+      useUserPreferencesStore.setState({ onboardingStep: 0 });
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/onboarding/lines');
+      }
     }
   };
 

@@ -166,8 +166,9 @@ export default function RootLayout() {
       hasAnimatedReveal.current = false;
       atHydrationCompletedOnboarding.current = false;
       
-      const inOnboarding = segments[0] === 'onboarding';
-      const onRootIndex = segments.length === 0 || segments[0] === 'index';
+      const pathSegments = segments as string[];
+      const inOnboarding = pathSegments[0] === 'onboarding';
+      const onRootIndex = pathSegments.length === 0 || pathSegments[0] === 'index';
       
       if (!inOnboarding && !onRootIndex) {
         const t = setTimeout(() => {

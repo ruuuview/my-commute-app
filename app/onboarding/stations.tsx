@@ -250,6 +250,13 @@ export default function StationsScreen() {
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     playSound('pop', 0.32);
+    if (query.trim() !== '' || isSearching) {
+      setQuery('');
+      setIsSearching(false);
+      setIsFocused(false);
+      Keyboard.dismiss();
+      return;
+    }
     if (hasCompletedOnboarding) {
       if (router.canGoBack()) {
         router.back();
@@ -294,10 +301,19 @@ export default function StationsScreen() {
       useUserPreferencesStore.setState({
         selectedLines,
         pinnedStations: mappedStations,
+        hasCompletedOnboarding: true,
         onboardingStep: 2,
       });
 
-      router.push('/onboarding/permissions' as any);
+      const parentNav = navigation.getParent();
+      if (parentNav) {
+        (parentNav as any).reset({
+          index: 0,
+          routes: [{ name: '(tabs)' }],
+        });
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   };
 
@@ -365,7 +381,7 @@ export default function StationsScreen() {
     ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' } 
     : { borderWidth: 0, borderColor: 'transparent', backgroundColor: 'rgba(255, 255, 255, 0.06)' };
 
-  const isShowRecents = query === '' && isSearching && recentStations.length > 0;
+  const isShowRecents = query === '' && isFocused && recentStations.length > 0;
 
   return (
     <View style={styles.root}>
@@ -408,9 +424,9 @@ export default function StationsScreen() {
 
           {/* Title Header Container */}
           <View style={styles.headerContainer}>
-            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 3</Text>
+            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
             <View style={{ marginBottom: 6 }}>
-              <ProgressDots total={3} current={2} />
+              <ProgressDots total={2} current={2} />
             </View>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
               Where do you catch your train?
@@ -425,17 +441,19 @@ export default function StationsScreen() {
               value={query}
               onFocus={() => {
                 setIsFocused(true);
-                setIsSearching(true);
+                if (query.trim() !== '') {
+                  setIsSearching(true);
+                }
               }}
               onBlur={() => {
                 setIsFocused(false);
-                if (query === '') {
+                if (query.trim() === '') {
                   setIsSearching(false);
                 }
               }}
               onChangeText={(text) => {
                 setQuery(text);
-                setIsSearching(true);
+                setIsSearching(text.trim() !== '');
               }}
               placeholder={`Search ${cleanFullStations.length} stations...`}
               placeholderTextColor="rgba(255, 255, 255, 0.30)"
@@ -446,7 +464,7 @@ export default function StationsScreen() {
               accessibilityLabel="Search stations"
             />
             {query.length > 0 && (
-              <Pressable onPress={() => { setQuery(''); }} hitSlop={8}>
+              <Pressable onPress={() => { setQuery(''); setIsSearching(false); Keyboard.dismiss(); }} hitSlop={8}>
                 <Ionicons name="close-circle" size={16} style={styles.clearIcon} />
               </Pressable>
             )}
@@ -497,7 +515,7 @@ export default function StationsScreen() {
             ) : (
               /* Pinned / Search Results Main Timetable */
               <FlatList
-                data={isSearching ? results : pinnedStations}
+                data={query.trim() !== '' ? results : pinnedStations}
                 renderItem={renderStationItem}
                 keyExtractor={(item) => item.id}
                 initialNumToRender={12}

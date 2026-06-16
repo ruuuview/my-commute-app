@@ -237,7 +237,7 @@ export default function LinesScreen() {
     
     useUserPreferencesStore.setState({
       hasCompletedOnboarding: true,
-      onboardingStep: 3,
+      onboardingStep: 2,
     });
 
     const parentNav = navigation.getParent();
@@ -361,7 +361,7 @@ export default function LinesScreen() {
       {/* Header zone */}
       <View style={[styles.headerContainer, { paddingTop: insets.top + 4, paddingBottom: 2 }]}>
         <View style={{ marginBottom: 12 }}>
-          <ProgressDots total={3} current={1} />
+          <ProgressDots total={2} current={1} />
         </View>
 
         <Animated.View style={counterAnimStyle}>

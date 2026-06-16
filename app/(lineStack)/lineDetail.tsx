@@ -23,7 +23,7 @@ import { BlurView } from 'expo-blur';
 import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
 
-import { useLine, useLines, useLineLoading } from '../../store/lineDataStore';
+import { useLine, useLines, useLineLoading, LineStatus } from '../../store/lineDataStore';
 import { useLineData } from '../../hooks/useLineData';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { playSound } from '../../utils/sound';
@@ -267,7 +267,7 @@ export default function LineDetailScreen() {
   // Fallback: if in-memory store is empty (cold start / API down),
   // use the MMKV-persisted lastKnownData from the dashboard
   const lastKnownData = useUserPreferencesStore((s) => s.lastKnownData);
-  const lineData = storeLineData ?? lastKnownData?.find((l: any) => l.id === lineId) ?? null;
+  const lineData = storeLineData ?? lastKnownData?.find((l: LineStatus) => l.id === lineId) ?? null;
 
   const pinnedStations = useUserPreferencesStore((s) => s.pinnedStations);
   const selectedLines = useUserPreferencesStore((s) => s.selectedLines);
@@ -410,7 +410,7 @@ export default function LineDetailScreen() {
       const connection = getConnectionData(lineId, altLineId);
       if (connection) {
         const altLine = allLinesMap[altLineId];
-        if (altLine) activeAlts.push(altLine);
+        if (altLine && altLine.status_severity < 9) activeAlts.push(altLine);
       }
     });
 
@@ -490,6 +490,7 @@ export default function LineDetailScreen() {
   const ctaBtnAnim = usePressAnimation('continue_btn');
 
   const isDisrupted = lineData ? lineData.status_severity > 1 : false;
+  const severity = useMemo(() => severityFromNumber(lineData?.status_severity), [lineData?.status_severity]);
 
   const disruptionProgress = useDerivedValue(() => {
     return withTiming(isDisrupted ? 1 : 0, { duration: 300 });
@@ -518,6 +519,7 @@ export default function LineDetailScreen() {
   if (loading && !lineData) {
     return (
       <View style={styles.loadingContainer}>
+        <DashboardGradient severity="unknown" />
         <Pressable style={styles.backButtonFloating} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
         </Pressable>
@@ -530,6 +532,7 @@ export default function LineDetailScreen() {
   if (!lineData) {
     return (
       <View style={styles.errorContainer}>
+        <DashboardGradient severity="unknown" />
         <Pressable style={styles.backButtonFloating} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
         </Pressable>
@@ -558,38 +561,50 @@ export default function LineDetailScreen() {
 
   return (
     <View style={styles.root}>
+      <DashboardGradient severity={severity} />
       {/* 1. THE FIXED DESTINATION HEADER */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Pressable
-          style={styles.backButton}
-          onPress={handleBack}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
+      <BlurView intensity={80} tint="dark" style={styles.header}>
+        <View
+          style={{
+            paddingTop: insets.top + 12,
+            paddingBottom: 12,
+            paddingHorizontal: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            width: '100%',
+          }}
         >
-          <Animated.View style={[styles.backIconContainer, backAnim.animatedStyle]}>
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-          </Animated.View>
-        </Pressable>
+          <Pressable
+            style={styles.backButton}
+            onPress={handleBack}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Animated.View style={[styles.backIconContainer, backAnim.animatedStyle]}>
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </Animated.View>
+          </Pressable>
 
-        <View style={styles.headerTitleContainer}>
-          <View style={styles.titleRow}>
-            {/* Left Accent Bar */}
-            <View
-              style={[
-                styles.leftAccentBar,
-                { backgroundColor: leftBarColor },
-                isNorthern && styles.northernAccentBarBorder,
-              ]}
-            />
-            <Text style={styles.lineTitle} numberOfLines={1}>
-              {lineNameFormatted}
+          <View style={styles.headerTitleContainer}>
+            <View style={styles.titleRow}>
+              {/* Left Accent Bar */}
+              <View
+                style={[
+                  styles.leftAccentBar,
+                  { backgroundColor: leftBarColor },
+                  isNorthern && styles.northernAccentBarBorder,
+                ]}
+              />
+              <Text style={styles.lineTitle} numberOfLines={1}>
+                {lineNameFormatted}
+              </Text>
+            </View>
+            <Text style={[styles.statusLabel, { color: statusColor }]}>
+              {lineData.status}
             </Text>
           </View>
-          <Text style={[styles.statusLabel, { color: statusColor }]}>
-            {lineData.status}
-          </Text>
         </View>
-      </View>
+      </BlurView>
 
       {/* 2. MAIN CONTENT SCROLL CONTAINER */}
       <ScrollView
@@ -631,7 +646,7 @@ export default function LineDetailScreen() {
               <Text style={styles.sectionHeader}>Alternative routes</Text>
               {alternatives.length > 0 ? (
                 <View style={styles.alternativeDeck}>
-                  {alternatives.map((altLine) => {
+                  {alternatives.slice(0, 3).map((altLine) => {
                     const connection = getConnectionData(lineId, altLine.id);
                     let connectionStationName = 'nearest interchange';
                     let walkTimeVal: number | null = null;
@@ -691,11 +706,12 @@ export default function LineDetailScreen() {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           playSound('push', 0.38);
                           router.push({
-                            pathname: '/lineDetail',
+                            pathname: '/(lineStack)/lineDetail',
                             params: { lineId: altLine.id },
                           });
                         }}
                       >
+                        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
                         <View style={styles.altCardContent}>
                           <View style={styles.altCardHeader}>
                             <View style={[styles.altLineColorBar, { backgroundColor: altLine.color }]} />
@@ -740,30 +756,33 @@ export default function LineDetailScreen() {
                   const departures = stationDepartures[station.id] || [];
                   return (
                     <View key={station.id} style={styles.stationArrivalCard}>
-                      <Text style={styles.arrivalsStationName}>{station.name}</Text>
-                      {loadingDepartures && departures.length === 0 ? (
-                        <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={styles.deckLoader} />
-                      ) : departures.length > 0 ? (
-                        <View style={styles.arrivalsRowsContainer}>
-                          {departures.slice(0, 3).map((dep, index) => (
-                            <View key={`${station.id}-dep-${index}`} style={styles.arrivalRow}>
-                              <View style={styles.arrivalLeftFrame}>
-                                <Text style={styles.arrivalPlatform} numberOfLines={1}>
-                                  {dep.platform || 'Platform info unavailable'}
-                                </Text>
-                                <Text style={styles.arrivalDestination} numberOfLines={1}>
-                                  to {dep.destination}
+                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                      <View style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+                        <Text style={styles.arrivalsStationName}>{station.name}</Text>
+                        {loadingDepartures && departures.length === 0 ? (
+                          <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={styles.deckLoader} />
+                        ) : departures.length > 0 ? (
+                          <View style={styles.arrivalsRowsContainer}>
+                            {departures.slice(0, 3).map((dep, index) => (
+                              <View key={`${station.id}-dep-${index}`} style={styles.arrivalRow}>
+                                <View style={styles.arrivalLeftFrame}>
+                                  <Text style={styles.arrivalPlatform} numberOfLines={1}>
+                                    {dep.platform || 'Platform info unavailable'}
+                                  </Text>
+                                  <Text style={styles.arrivalDestination} numberOfLines={1}>
+                                    to {dep.destination}
+                                  </Text>
+                                </View>
+                                <Text style={styles.arrivalMins}>
+                                  {dep.minutes_away === 0 ? 'Arriving' : `${dep.minutes_away} min`}
                                 </Text>
                               </View>
-                              <Text style={styles.arrivalMins}>
-                                {dep.minutes_away === 0 ? 'Arriving' : `${dep.minutes_away} min`}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text style={styles.emptyDeckText}>No upcoming departures found</Text>
-                      )}
+                            ))}
+                          </View>
+                        ) : (
+                          <Text style={styles.emptyDeckText}>No upcoming departures found</Text>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -801,7 +820,7 @@ export default function LineDetailScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000', // OLED Black base layer
+    backgroundColor: 'transparent',
   },
   flex1: {
     flex: 1,
@@ -820,7 +839,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -832,7 +851,7 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -862,11 +881,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -924,7 +938,7 @@ const styles = StyleSheet.create({
   liveFeedTray: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
     position: 'relative',
     marginBottom: 24,
@@ -968,6 +982,7 @@ const styles = StyleSheet.create({
   transitionContainer: {
     position: 'relative',
     width: '100%',
+    minHeight: 200,
   },
   alternativesSection: {
     marginTop: 8,
@@ -984,12 +999,13 @@ const styles = StyleSheet.create({
   altCard: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   altCardContent: {
     padding: 14,
+    position: 'relative',
+    zIndex: 1,
   },
   altCardHeader: {
     flexDirection: 'row',
@@ -1040,11 +1056,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   stationArrivalCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    overflow: 'hidden',
+    position: 'relative',
   },
   arrivalsStationName: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -1120,7 +1137,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',

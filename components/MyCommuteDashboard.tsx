@@ -375,7 +375,7 @@ const StaggeredCardWrapper = memo(
       }));
 
       return (
-        <View ref={ref}>
+        <View ref={ref} collapsable={false}>
           <Animated.View style={animatedStyle}>
             {children}
           </Animated.View>

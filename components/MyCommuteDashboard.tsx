@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo, memo, forwardRef } from 'react';
+import { useRouter } from 'expo-router';
 import {
   LayoutAnimation,
   Platform,
@@ -175,8 +176,9 @@ const LinePill: React.FC<{
   isEditing: boolean;
   onDelete: (id: string) => void;
   onLongPress?: () => void;
+  onPress?: () => void;
   index: number;
-}> = ({ line, isEditing, onDelete, onLongPress, index }) => {
+}> = ({ line, isEditing, onDelete, onLongPress, onPress, index }) => {
   const jiggleStyle = useJiggle(index, isEditing, false);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
@@ -200,6 +202,7 @@ const LinePill: React.FC<{
       style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle, animatedStyle]}
     >
       <Pressable
+        onPress={isEditing ? undefined : onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onLongPress={onLongPress}
@@ -473,6 +476,7 @@ function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], s
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   // Premium scale-up center reveal for dashboard transition
   const revealScale = useSharedValue(0.88);
@@ -803,6 +807,7 @@ const MyCommuteDashboard: React.FC = () => {
                     isEditing={isEditing}
                     onDelete={removeLine}
                     onLongPress={handleEdit}
+                    onPress={() => router.push({ pathname: '/(lineStack)/lineDetail', params: { lineId: item.id } })}
                     index={index}
                   />
                 ))}

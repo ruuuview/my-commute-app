@@ -248,10 +248,15 @@ export default function LineDetailScreen() {
   const insets = useSafeAreaInsets();
   const lineId = params.lineId as string;
 
-  const lineData = useLine(lineId);
+  const storeLineData = useLine(lineId);
   const allLinesMap = useLines();
   const loading = useLineLoading();
   const { fetchAllLines } = useLineData();
+
+  // Fallback: if in-memory store is empty (cold start / API down),
+  // use the MMKV-persisted lastKnownData from the dashboard
+  const lastKnownData = useUserPreferencesStore((s) => s.lastKnownData);
+  const lineData = storeLineData ?? lastKnownData?.find((l: any) => l.id === lineId) ?? null;
 
   const pinnedStations = useUserPreferencesStore((s) => s.pinnedStations);
   const selectedLines = useUserPreferencesStore((s) => s.selectedLines);
@@ -499,9 +504,12 @@ export default function LineDetailScreen() {
     };
   }, [isDisrupted]);
 
-  if (loading) {
+  if (loading && !lineData) {
     return (
       <View style={styles.loadingContainer}>
+        <Pressable style={styles.backButtonFloating} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        </Pressable>
         <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>Loading line details…</Text>
       </View>
@@ -511,6 +519,9 @@ export default function LineDetailScreen() {
   if (!lineData) {
     return (
       <View style={styles.errorContainer}>
+        <Pressable style={styles.backButtonFloating} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        </Pressable>
         <Ionicons name="alert-circle" size={48} color="#D14343" />
         <Text style={styles.errorText}>Failed to load line details</Text>
         <Pressable
@@ -783,6 +794,18 @@ const styles = StyleSheet.create({
   },
   flex1: {
     flex: 1,
+  },
+  backButtonFloating: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,

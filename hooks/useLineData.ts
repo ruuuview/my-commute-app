@@ -12,7 +12,9 @@ export const useLineData = () => {
     if (!forceRefresh && lastFetchTime > 0 && (Date.now() - lastFetchTime) < 30000) return;
 
     try {
-      setLoading(true);
+      // Only show loading spinner on first-ever fetch, not background refreshes
+      const hasExistingData = Object.keys(useLineDataStore.getState().lines).length > 0;
+      if (!hasExistingData) setLoading(true);
       const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },

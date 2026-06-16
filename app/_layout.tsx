@@ -26,15 +26,19 @@ LogBox.ignoreLogs([
 
 // Suppress the upstream react-native-draggable-flatlist measureLayout warning
 // from flooding the Metro console. This is a known library bug with no upstream fix.
+// React 19 sends these as format strings ("Warning: %s") so we must check ALL args.
+const MEASURE_MSG = 'ref.measureLayout must be called with a ref to a native component';
 const _origConsoleError = console.error;
+const _origConsoleWarn = console.warn;
+const _isMeasureLayoutWarning = (...args: any[]) =>
+  args.some((a) => typeof a === 'string' && a.includes(MEASURE_MSG));
 console.error = (...args: any[]) => {
-  if (
-    typeof args[0] === 'string' &&
-    args[0].includes('ref.measureLayout must be called with a ref to a native component')
-  ) {
-    return; // silently drop
-  }
+  if (_isMeasureLayoutWarning(...args)) return;
   _origConsoleError(...args);
+};
+console.warn = (...args: any[]) => {
+  if (_isMeasureLayoutWarning(...args)) return;
+  _origConsoleWarn(...args);
 };
 
 export default function RootLayout() {

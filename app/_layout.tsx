@@ -24,6 +24,19 @@ LogBox.ignoreLogs([
   'ref.measureLayout must be called with a ref to a native component',
 ]);
 
+// Suppress the upstream react-native-draggable-flatlist measureLayout warning
+// from flooding the Metro console. This is a known library bug with no upstream fix.
+const _origConsoleError = console.error;
+console.error = (...args: any[]) => {
+  if (
+    typeof args[0] === 'string' &&
+    args[0].includes('ref.measureLayout must be called with a ref to a native component')
+  ) {
+    return; // silently drop
+  }
+  _origConsoleError(...args);
+};
+
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();

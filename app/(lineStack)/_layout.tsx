@@ -5,6 +5,8 @@ export default function LineStackLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        contentStyle: { backgroundColor: 'transparent' },
+        animation: 'fade',
       }}
     />
   );

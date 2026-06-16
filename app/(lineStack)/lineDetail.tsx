@@ -30,6 +30,8 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { APP_CONFIG } from '../../config/app.config';
 import INTERCHANGE_COORDINATES_DATA from '../../data/interchangeCoordinates.json';
+import { DashboardGradient } from '../../components/DashboardGradient';
+import type { Severity } from '../../components/MyCommuteDashboard';
 
 const INTERCHANGE_COORDINATES = INTERCHANGE_COORDINATES_DATA as Record<
   string,
@@ -48,6 +50,15 @@ const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+};
+
+const severityFromNumber = (n: number | undefined): Severity => {
+  if (n === undefined) return 'unknown';
+  if (n === 1) return 'good';
+  if (n >= 2 && n <= 8) return 'minor';
+  if (n === 20) return 'suspended';
+  if (n >= 9) return 'severe';
+  return 'unknown';
 };
 
 interface InterchangeStation {

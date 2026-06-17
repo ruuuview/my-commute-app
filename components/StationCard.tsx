@@ -124,7 +124,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
 
 const getDepTimeStyle = (minutes: number) => {
   if (minutes === 0) {
-    return { color: '#FFFFFF', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
+    return { color: '#30D158', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
   }
   if (minutes <= 2) {
     return { color: 'rgba(255,255,255,0.85)', fontWeight: '500' as const };
@@ -367,6 +367,7 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255, 255, 255, 0.95)',
     flex: 1,
+    marginBottom: 8,
   },
   rightContainer: {
     flexShrink: 0,
@@ -438,14 +439,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ledgerDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    marginRight: 6,
+    width: 3,
+    height: 12,
+    borderRadius: 1.5,
+    marginRight: 8,
   },
   ledgerLineText: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.45)',
+    color: 'rgba(255, 255, 255, 0.4)',
     fontFamily: 'SpaceGrotesk_500Medium',
   },
   columnDestination: {

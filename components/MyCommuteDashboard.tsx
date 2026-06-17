@@ -63,6 +63,8 @@ import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
+import { StatusBezel } from './StatusBezel';
+import { STATUS_SHORT } from '../constants/statusLabels';
 import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
@@ -125,51 +127,6 @@ function worstSeverity(lines: LineData[]): Severity {
   return 'good';
 }
 
-// ─── Smart Heartbeat Dot ─────────────────────────────────────────
-const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
-  const opacity = useSharedValue(0.8);
-  const reducedMotion = useReducedMotion();
-
-  let color = '#4CAF50';
-  let duration = 2400;
-  
-  if (severity === 'minor') {
-    color = '#F2A002';
-    duration = 1200;
-  } else if (severity === 'severe') {
-    color = '#E32017';
-    duration = 600;
-  } else if (severity === 'suspended') {
-    color = '#E32017';
-    duration = 300;
-  } else if (severity === 'offline' || severity === 'unknown') {
-    color = '#9CA3AF';
-    duration = 2400;
-  }
-
-  useEffect(() => {
-    if (reducedMotion) {
-      opacity.value = 0.8;
-      return;
-    }
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.3, { duration, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1, true
-    );
-  }, [severity, opacity, reducedMotion, duration]);
-
-  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  return <Animated.View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, animStyle]} />;
-});
-NetworkHealthDot.displayName = 'NetworkHealthDot';
-
-
-
-
 // ─── LinePill ───────────────────────────────────────────────────
 const LinePill: React.FC<{
   line: LineData;
@@ -182,7 +139,14 @@ const LinePill: React.FC<{
   const jiggleStyle = useJiggle(index, isEditing, false);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
-  const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
+
+  let statusColor = '#636366';
+  if (severity === 'good') statusColor = '#30D158';
+  else if (severity === 'minor') statusColor = '#FF9F0A';
+  else if (severity === 'severe') statusColor = '#FF3B30';
+  else if (severity === 'suspended' || severity === 'closure') statusColor = '#636366';
+
+  const statusLabel = STATUS_SHORT[line.status] || line.status;
 
   const deleteScale = useSharedValue(isEditing ? 1 : 0);
 
@@ -215,9 +179,10 @@ const LinePill: React.FC<{
         <View style={pill.spacer} />
         {!isEditing && (
           <>
-            <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-            <View style={[pill.dot, { backgroundColor: statusColor }]} />
-            <Text style={pill.chevron}>›</Text>
+            <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>
+              {statusLabel}
+            </Text>
+            <StatusBezel statusType={line.status} style={{ marginRight: 14 }} />
           </>
         )}
       </Pressable>
@@ -263,14 +228,12 @@ const pill = StyleSheet.create({
 
 const SectionHeader: React.FC<{
   title: string;
-  icon: React.ReactNode;
   onPressAdd?: () => void;
   isEditing: boolean;
   plusRef?: React.RefObject<any>;
-}> = ({ title, icon, onPressAdd, isEditing, plusRef }) => (
+}> = ({ title, onPressAdd, isEditing, plusRef }) => (
   <View style={[section.row, isEditing && { marginBottom: 20 }]}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-      {icon}
+    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
       <Text style={section.title}>{title}</Text>
     </View>
     {onPressAdd && (
@@ -289,68 +252,23 @@ const SectionHeader: React.FC<{
     )}
   </View>
 );
+
 const section = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.45)' },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginTop: 4 },
+  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.58)' },
   addBtn: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   addBtnText: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 18,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
   },
 });
-
-// ─── Stale Status Text ──────────────────────────────────────────────
-const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: number }> = ({ staleState, staleMinutes }) => {
-  const opacity = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
-  const [displayText, setDisplayText] = useState('');
-
-  useEffect(() => {
-    if (staleState === 'offline') setDisplayText(`Offline · Data is ${staleMinutes}m old`);
-    else if (staleState === 'tfl-error') setDisplayText(`TfL unavailable · Last updated ${staleMinutes}m ago`);
-    else if (staleState === 'tfl-delayed') setDisplayText(`TfL data delayed · Last updated ${staleMinutes}m ago`);
-  }, [staleState, staleMinutes]);
-
-  useEffect(() => {
-    if (staleState !== null) {
-      if (reducedMotion) {
-        opacity.value = 0.7;
-      } else {
-        opacity.value = 0.4;
-        opacity.value = withRepeat(
-          withTiming(0.9, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
-          -1,
-          true
-        );
-      }
-    } else {
-      cancelAnimation(opacity);
-      opacity.value = withTiming(0, { duration: 300 });
-    }
-  }, [staleState, reducedMotion, opacity]);
-
-  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  if (!displayText) return null;
-
-  return (
-    <Animated.Text style={[dash.staleText, animStyle]}>
-      {displayText}
-    </Animated.Text>
-  );
-};
 
 // ─── Staggered Card Wrapper ──────────────────────────────────────
 const StaggeredCardWrapper = memo(
@@ -389,89 +307,7 @@ const StaggeredCardWrapper = memo(
 );
 StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 
-function getDayOfYear(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const oneDay = 1000 * 60 * 60 * 24;
-  return Math.floor(diff / oneDay);
-}
 
-function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], seed: number): string {
-  const allGood = [
-    "Tube's peng today.",
-    "No dramas, all running sweet.",
-    "Bare smooth out there.",
-    "Sorted. Get on it.",
-    "All clear, wagwan."
-  ];
-  
-  const minor = [
-    "[Line]'s a bit dodge.",
-    "Slight faff on the [Line].",
-    "[Line]'s dragging its feet.",
-    "[Line]'s being a bit snakey.",
-    "Don't hold your breath on [Line]."
-  ];
-  
-  const severe = [
-    "[Line]'s having a proper mare.",
-    "[Line]'s cooked.",
-    "Rah, [Line]'s a shambles.",
-    "[Line]'s butters right now.",
-    "[Line]'s gone full muppet."
-  ];
-  
-  const suspended = [
-    "[Line]'s dead. Swerve it.",
-    "Nah fam, [Line]'s finished.",
-    "Forget [Line]. It's cooked.",
-    "[Line]'s gone AWOL."
-  ];
-  
-  const stationDisrupted = [
-    "[Station]'s a bit hectic right now.",
-    "Might wanna swerve [Station] today.",
-    "[Station]'s doing the most.",
-    "Check before you roll up to [Station]."
-  ];
-  
-  const bothDisrupted = [
-    "[Line]'s cooked and [Station]'s chaos. Detour szn.",
-    "Rough one — [Line]'s a mare and [Station]'s a mess."
-  ];
-  
-  if (disruptedLines.length > 0 && disruptedStations.length > 0) {
-    const line = disruptedLines[0].name;
-    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim() + " station";
-    const list = bothDisrupted;
-    const template = list[seed % list.length];
-    return template.replace('[Line]', line).replace('[Station]', station);
-  }
-  
-  if (disruptedLines.length > 0) {
-    const worstLine = disruptedLines[0];
-    const line = worstLine.name;
-    const sev = parseSeverity(worstLine.status);
-    let list = minor;
-    if (sev === 'suspended') {
-      list = suspended;
-    } else if (sev === 'severe') {
-      list = severe;
-    }
-    const template = list[seed % list.length];
-    return template.replace('[Line]', line);
-  }
-  
-  if (disruptedStations.length > 0) {
-    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim() + " station";
-    const list = stationDisrupted;
-    const template = list[seed % list.length];
-    return template.replace('[Station]', station);
-  }
-  
-  return allGood[seed % allGood.length];
-}
 
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
@@ -482,8 +318,6 @@ const MyCommuteDashboard: React.FC = () => {
   const revealScale = useSharedValue(0.88);
   const revealOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
-
-  const daySeed = useMemo(() => getDayOfYear(), []);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -522,28 +356,7 @@ const MyCommuteDashboard: React.FC = () => {
   const rootLongPressRef = React.useRef<any>(null);
   const isDragging = useSharedValue(false);
 
-  const subtitle = useMemo(() => {
-    const myLines = data.lines.filter(l => selectedLines.includes(l.id));
-    const disruptedSelected = myLines.filter(l => parseSeverity(l.status) !== 'good');
-    
-    const severityOrder = ['suspended', 'severe', 'minor'];
-    const sortedDisruptedSelected = [...disruptedSelected].sort((a, b) => {
-      const sevA = parseSeverity(a.status);
-      const sevB = parseSeverity(b.status);
-      return severityOrder.indexOf(sevA) - severityOrder.indexOf(sevB);
-    });
-    
-    const disruptedStationsList = selectedStations.filter((st: any) => {
-      const dbStation = FULL_STATIONS.find(s => s.id === st.id) || TFL_STATIONS.find(s => s.id === st.id);
-      const linesForStation = dbStation ? dbStation.lines : [];
-      return linesForStation.some(lineId => {
-        const lineObj = data.lines.find(l => l.id === lineId);
-        return lineObj && parseSeverity(lineObj.status) !== 'good';
-      });
-    });
-    
-    return getSubtitleText(sortedDisruptedSelected, disruptedStationsList, daySeed);
-  }, [data, selectedLines, selectedStations, daySeed]);
+
 
   // ✅ Deferred Permission Trigger System (Phase 6)
   const {
@@ -765,11 +578,6 @@ const MyCommuteDashboard: React.FC = () => {
                   )}
                 </View>
               </View>
-              <View style={dash.subheadingArea}>
-                {hasContent && <NetworkHealthDot severity={networkSeverity} />}
-                <Text style={dash.statusTextText}>{subtitle}</Text>
-                <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
-              </View>
             </View>
             {!hasContent && (
               <View style={dash.premiumEmptyState}>
@@ -795,7 +603,6 @@ const MyCommuteDashboard: React.FC = () => {
               <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
                 <SectionHeader 
                   title="My lines" 
-                  icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
                   onPressAdd={() => setLinesModalVisible(true)}
                   isEditing={isEditing}
                   plusRef={linesPlusRef}
@@ -818,7 +625,6 @@ const MyCommuteDashboard: React.FC = () => {
               <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
                 <SectionHeader 
                   title="My stations" 
-                  icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
                   onPressAdd={() => setStationsModalVisible(true)}
                   isEditing={isEditing}
                   plusRef={stationsPlusRef}
@@ -964,26 +770,14 @@ const dash = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center'
   },
   headerBtnText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.80)'
-  },
-  subheadingArea: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  statusTextText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.6)' },
-  staleText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12,
-    color: '#FF9500',
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.5)'
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },

@@ -49,7 +49,7 @@ interface DepartureCardProps {
 
 const getDepTimeStyle = (minutes: number | 'now') => {
   if (minutes === 0 || minutes === 'now') {
-    return { color: '#FFFFFF', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
+    return { color: '#30D158', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
   }
   if (typeof minutes === 'number' && minutes <= 2) {
     return { color: 'rgba(255,255,255,0.85)', fontWeight: '500' as const };
@@ -416,25 +416,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 5,
-    gap: 8,
   },
   arrivalDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 3,
+    height: 12,
+    borderRadius: 1.5,
+    marginRight: 8,
     flexShrink: 0,
   },
   arrivalLineName: {
     width: 72,
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.4)',
+    marginRight: 8,
   },
   arrivalDest: {
     flex: 1,
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
     color: 'rgba(255,255,255,0.9)',
+    marginRight: 8,
   },
   arrivalTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

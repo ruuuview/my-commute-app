@@ -19,6 +19,7 @@ import { playSound } from '../utils/sound';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
+import { StatusBezel } from './StatusBezel';
 
 function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
@@ -52,51 +53,7 @@ function StatusSkeleton() {
   );
 }
 
-const StatusDot = React.memo(function StatusDot({ statusType }: { statusType: string }) {
-  const pulse = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
 
-  React.useEffect(() => {
-    if (reducedMotion) return;
-    if (statusType === 'closure') {
-      pulse.value = 0.4;
-      pulse.value = withRepeat(
-        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
-      );
-    } else {
-      pulse.value = 1;
-    }
-  }, [statusType, reducedMotion, pulse]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    if (statusType === 'closure') {
-      return { opacity: pulse.value };
-    }
-    return { opacity: 1 };
-  });
-
-  let color = '#9CA3AF';
-  if (statusType === 'good') color = '#4CAF50';
-  if (statusType === 'minor') color = '#F2A002';
-  if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') color = '#E32017';
-
-  return (
-    <Animated.View
-      accessibilityLabel={`Status: ${statusType}`}
-      style={[
-        {
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: color,
-        },
-        animatedStyle,
-      ]}
-    />
-  );
-});
 
 interface LineCardProps {
   line: {
@@ -169,32 +126,11 @@ export function LineCard({
     onPress();
   };
 
-  const abbreviateStatus = (label: string): string => {
-    if (!label) return '';
-    const cleanLabel = label.trim();
-    const lowerLabel = cleanLabel.toLowerCase();
-    for (const key of Object.keys(STATUS_SHORT)) {
-      if (key.toLowerCase() === lowerLabel) {
-        return STATUS_SHORT[key];
-      }
-    }
-    return cleanLabel;
-  };
-
-  // Add a subtle outer glow for dark lines (e.g. Northern)
-  const isDarkLine = line.id === 'northern';
-  const barGlowStyle = isDarkLine ? {
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 2,
-  } : null;
-
   let statusTextColor = 'rgba(255, 255, 255, 0.55)';
-  if (statusType === 'good') statusTextColor = '#4CAF50';
-  if (statusType === 'minor') statusTextColor = '#F2A002';
-  if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') statusTextColor = '#E32017';
+  if (statusType === 'good') statusTextColor = '#30D158';
+  else if (statusType === 'minor') statusTextColor = '#FF9F0A';
+  else if (statusType === 'severe') statusTextColor = '#FF3B30';
+  else if (statusType === 'suspended' || statusType === 'closure') statusTextColor = '#636366';
 
   return (
     <Pressable
@@ -237,8 +173,7 @@ export function LineCard({
         {/* Accent bar — centred vertically, 3px wide, rounded, placed 14px from left */}
         <View style={[
           styles.accentBar,
-          { backgroundColor: line.color, top: (cardHeight - 36) / 2 },
-          barGlowStyle
+          { backgroundColor: line.color, top: (cardHeight - 36) / 2 }
         ]} />
 
         {/* Content */}
@@ -256,9 +191,9 @@ export function LineCard({
               <StatusSkeleton />
             ) : (
               <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                <StatusDot statusType={statusType} />
+                <StatusBezel statusType={statusType} />
                 <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
-                  {abbreviateStatus(statusLabel)}
+                  {STATUS_SHORT[statusLabel] || statusLabel}
                 </Text>
               </Animated.View>
             )}

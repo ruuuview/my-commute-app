@@ -731,8 +731,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'SpaceGrotesk_700Bold',
     letterSpacing: 0.8,
-    color: 'rgba(255,255,255,0.28)',
-    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.58)',
   },
   recentsClearBtn: {
     fontSize: 11,

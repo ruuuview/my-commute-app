@@ -990,7 +990,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.55)',
+    color: 'rgba(255, 255, 255, 0.58)',
     marginBottom: 12,
   },
   alternativeDeck: {

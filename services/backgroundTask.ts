@@ -26,10 +26,19 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     }
 
     // 3. Fetch latest line statuses
-    const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    let response;
+    try {
+      response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       console.log(`❌ Background Fetch: HTTP error ${response.status}`);
@@ -45,10 +54,48 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       fetchedLinesMap[line.id.toLowerCase()] = line;
     });
 
+    console.log('🔍 Background Fetch Status Map keys:', Object.keys(fetchedLinesMap));
+
     // 4. Check status changes for user's selected lines
     for (const rawLineId of selectedLines) {
       const lineId = rawLineId.toLowerCase();
-      const lineData = fetchedLinesMap[lineId];
+      let lineData = fetchedLinesMap[lineId];
+
+      if (lineId === 'overground') {
+        const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
+        let worstBranchData: any = null;
+        let worstBranchSeverity = -1;
+
+        OVERGROUND_BRANCH_IDS.forEach(branchId => {
+          const branchData = fetchedLinesMap[branchId];
+          if (branchData) {
+            const statusText = String(branchData.status ?? '').toLowerCase();
+            let branchSeverity = 1;
+            if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure')) {
+              branchSeverity = 20;
+            } else if (statusText.includes('severe')) {
+              branchSeverity = 9;
+            } else if (statusText.includes('minor') || statusText.includes('part') || statusText.includes('reduced')) {
+              branchSeverity = 5;
+            }
+            if (branchSeverity > worstBranchSeverity) {
+              worstBranchSeverity = branchSeverity;
+              worstBranchData = branchData;
+            }
+          }
+        });
+
+        if (worstBranchData) {
+          const originalOverground = fetchedLinesMap['overground'] || { name: 'London Overground', color: '#EE7C0E' };
+          lineData = {
+            ...originalOverground,
+            status: worstBranchData.status,
+            reason: worstBranchData.reason,
+            id: 'overground',
+          };
+        }
+      }
+
       if (!lineData) continue;
 
       // Map status severity similar to useLineData.ts logic

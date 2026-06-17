@@ -475,11 +475,15 @@ export default function LineDetailScreen() {
       ? `${lineData.name} is ${lineData.status}. ${statusText.length > 120 ? statusText.slice(0, 120) + '...' : statusText}`
       : `${lineData.name} is ${lineData.status}.`;
 
-    await Clipboard.setStringAsync(payload);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-    }, 1500);
+    try {
+      await Clipboard.setStringAsync(payload);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 1500);
+    } catch (e) {
+      console.log('Clipboard copy failed:', e);
+    }
   };
 
   const shareLabel = copied
@@ -774,7 +778,11 @@ export default function LineDetailScreen() {
                                   </Text>
                                 </View>
                                 <Text style={styles.arrivalMins}>
-                                  {dep.minutes_away === 0 ? 'Arriving' : `${dep.minutes_away} min`}
+                                  {dep.minutes_away == null || dep.minutes_away < 0 || isNaN(dep.minutes_away)
+                                    ? '—'
+                                    : dep.minutes_away === 0
+                                      ? 'Arriving'
+                                      : `${dep.minutes_away} min`}
                                 </Text>
                               </View>
                             ))}

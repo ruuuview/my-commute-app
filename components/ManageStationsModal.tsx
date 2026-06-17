@@ -207,7 +207,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const handleToggleStation = useCallback(
     async (station: TfLStation) => {
       if (pinnedStations.length >= MAX_PINS) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         triggerMaxPinsShake();
         setMaxPinsToast(true);
         setTimeout(() => setMaxPinsToast(false), 1500);

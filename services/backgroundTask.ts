@@ -120,12 +120,12 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       const lastSeverityRaw = backgroundStorage.getString(cacheKey);
       const lastSeverity = lastSeverityRaw ? parseInt(lastSeverityRaw, 10) : 1; // default to 1 (Good Service)
 
-      // Add to shared widget data array
+      // Add to shared widget data array (mapped to native TfL severity codes)
       selectedLinesData.push({
         id: lineId,
         name: lineData.name,
         status: lineData.status ?? 'Good Service',
-        severity: currentSeverity,
+        severity: currentSeverity === 1 ? 10 : (currentSeverity === 5 ? 5 : (currentSeverity === 9 ? 9 : 20)),
       });
 
       if (currentSeverity !== lastSeverity) {

@@ -21,6 +21,11 @@ import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { StatusBezel } from './StatusBezel';
 
+function withAlpha(hexColor: string, alpha: string): string {
+  const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
+  return `${hex}${alpha}`;
+}
+
 function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
   const reducedMotion = useReducedMotion();
@@ -167,7 +172,7 @@ export function LineCard({
 
         {/* Brand color tint overlay for selected state (Apple pill design) */}
         {selected && (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: `${line.color}1A` }]} />
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: withAlpha(line.color, '1A') }]} />
         )}
 
         {/* Accent bar — centred vertically, 3px wide, rounded, placed 14px from left */}

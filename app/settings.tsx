@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import * as Notifications from 'expo-notifications';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 
 
 interface UserPreferences {
@@ -47,9 +49,17 @@ export default function SettingsScreen() {
   const [isGranted, setIsGranted] = useState(false);
   const [showBack, setShowBack] = useState(false);
   const flipRotation = useSharedValue(0);
+  const flipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const ctaPressAnim = usePressAnimation('continue_btn', false);
 
   useEffect(() => {
     checkPermissionsStatus();
+    return () => {
+      if (flipTimeoutRef.current) {
+        clearTimeout(flipTimeoutRef.current);
+      }
+    };
   }, []);
 
   const checkPermissionsStatus = async () => {
@@ -68,10 +78,11 @@ export default function SettingsScreen() {
       });
       
       if (status === 'granted') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowBack(true);
         flipRotation.value = withTiming(180, { duration: 600 });
         
-        setTimeout(() => {
+        flipTimeoutRef.current = setTimeout(() => {
           flipRotation.value = withTiming(0, { duration: 600 }, (finished) => {
             if (finished) {
               runOnJS(resolveToEnabled)();
@@ -79,7 +90,14 @@ export default function SettingsScreen() {
           });
         }, 3000);
       } else {
-        Alert.alert('Permission Denied', 'Please enable notification permissions in iOS settings to receive alerts.');
+        Alert.alert(
+          'Permission Denied',
+          'Please enable notification permissions in iOS Settings to receive alerts.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Go to Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
       }
     } catch (error) {
       console.error('Permission request failed:', error);
@@ -257,12 +275,16 @@ export default function SettingsScreen() {
                 <Text style={styles.cardBodyText}>
                   Get live disruption alerts and leave-by reminders, straight to your lock screen.
                 </Text>
-                <Pressable
-                  style={({ pressed }) => [styles.ctaButton, { opacity: pressed ? 0.8 : 1 }]}
-                  onPress={handleGrantNotifications}
-                >
-                  <Text style={styles.ctaButtonText}>Hit me with it</Text>
-                </Pressable>
+                <Animated.View style={ctaPressAnim.animatedStyle}>
+                  <Pressable
+                    style={styles.ctaButton}
+                    onPress={handleGrantNotifications}
+                    onPressIn={ctaPressAnim.onPressIn}
+                    onPressOut={ctaPressAnim.onPressOut}
+                  >
+                    <Text style={styles.ctaButtonText}>Hit me with it</Text>
+                  </Pressable>
+                </Animated.View>
               </Animated.View>
               
               {/* Back Side (Tutorial Video) */}

@@ -28,12 +28,14 @@ struct CommuteLine: Identifiable, Codable {
 
     var level: SeverityLevel {
         switch severity {
-        case 1:
+        case 10:
             return .good
-        case 2...8:
-            return .minor
-        case 9:
+        case 9, 6:
             return .severe
+        case 8, 7, 5:
+            return .minor
+        case 4, 3, 20, 0, 11:
+            return .suspended
         default:
             return .suspended
         }
@@ -238,6 +240,19 @@ struct CommuteProvider: TimelineProvider {
         }
     }
 
+    private func getSeverityRank(_ severity: Int) -> Int {
+        switch severity {
+        case 10:
+            return 0
+        case 8, 7, 5:
+            return 1
+        case 9, 6:
+            return 2
+        default:
+            return 3
+        }
+    }
+
     private func fetchTfLStatus(for savedLines: [SavedLine]) async throws -> [CommuteLine] {
         let ids = savedLines.map { $0.id }.joined(separator: ",")
         let urlString = "https://api.tfl.gov.uk/Line/" + ids + "/Status"
@@ -251,7 +266,7 @@ struct CommuteProvider: TimelineProvider {
         let response = try JSONDecoder().decode([TfLLine].self, from: data)
         return response.compactMap { tflLine in
             guard let saved = savedLines.first(where: { $0.id == tflLine.id }),
-                  let status = tflLine.lineStatuses.first else { return nil }
+                  let status = tflLine.lineStatuses.max(by: { getSeverityRank($0.statusSeverity) < getSeverityRank($1.statusSeverity) }) else { return nil }
             return CommuteLine(id: tflLine.id, name: saved.name, status: status.statusSeverityDescription, severity: status.statusSeverity)
         }
     }

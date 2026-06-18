@@ -17,7 +17,7 @@ for (const line of lines) {
     if (data.type === 'auditAdvisory') {
       vulnerabilities.push(data.data.advisory);
     }
-  } catch (e) {
+  } catch (_e) {
     // Ignore non-JSON lines
   }
 }

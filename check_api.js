@@ -1,5 +1,3 @@
-const fs = require('fs');
-
 async function testEndpoints() {
   const stationId = '910GCANWHRF'; // Canary Wharf Elizabeth Line
   console.log(`Querying endpoints for station ${stationId}...\n`);

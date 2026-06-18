@@ -2,6 +2,8 @@
 // Bundled TfL station dataset — no API call required for search.
 // Source: TfL open data. Used by Fuse.js in onboarding/stations.tsx.
 
+import fullStationsData from './tflStationsFull.json';
+
 export interface TfLStation {
   id: string;
   name: string;
@@ -9,8 +11,6 @@ export interface TfLStation {
   zone: number;
   searchKeys?: string[];
 }
-
-import fullStationsData from './tflStationsFull.json';
 
 const STRIP_SUFFIXES = [
   ' Elizabeth line Station',

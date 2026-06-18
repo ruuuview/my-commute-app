@@ -187,7 +187,7 @@ export async function scheduleCalendarCommuteAlerts() {
                   const entry: CacheEntry = JSON.parse(dataStr);
                   travelTimeMinutes = entry.duration;
                   isDurationResolved = true;
-                } catch (e) {}
+                } catch {}
               }
             }
           }

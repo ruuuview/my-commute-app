@@ -271,7 +271,7 @@ export default function SettingsScreen() {
                   <Image
                     source={require('../assets/widget_tutorial.gif')}
                     style={styles.tutorialGif}
-                    contentMode="contain"
+                    contentFit="contain"
                   />
                   <Text style={styles.tutorialText}>Drag the widget to your Home Screen</Text>
                 </View>

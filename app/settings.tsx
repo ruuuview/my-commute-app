@@ -7,6 +7,7 @@ import {
   ScrollView,
   Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import * as Notifications from 'expo-notifications';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import { Image } from 'expo-image';
 
 
 interface UserPreferences {
@@ -39,6 +43,88 @@ export default function SettingsScreen() {
   const { back } = useRouter();
   const insets = useSafeAreaInsets();
   const resetOnboarding = useUserPreferencesStore((s) => s.resetOnboarding);
+
+  const [isGranted, setIsGranted] = useState(false);
+  const [showBack, setShowBack] = useState(false);
+  const flipRotation = useSharedValue(0);
+
+  useEffect(() => {
+    checkPermissionsStatus();
+  }, []);
+
+  const checkPermissionsStatus = async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    setIsGranted(status === 'granted');
+  };
+
+  const handleGrantNotifications = async () => {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
+      
+      if (status === 'granted') {
+        setShowBack(true);
+        flipRotation.value = withTiming(180, { duration: 600 });
+        
+        setTimeout(() => {
+          flipRotation.value = withTiming(0, { duration: 600 }, (finished) => {
+            if (finished) {
+              runOnJS(resolveToEnabled)();
+            }
+          });
+        }, 3000);
+      } else {
+        Alert.alert('Permission Denied', 'Please enable notification permissions in iOS settings to receive alerts.');
+      }
+    } catch (error) {
+      console.error('Permission request failed:', error);
+    }
+  };
+
+  const resolveToEnabled = () => {
+    setIsGranted(true);
+    setShowBack(false);
+  };
+
+  const handleToggleOff = () => {
+    Alert.alert(
+      'Disable Alerts',
+      'To disable live disruption alerts, please turn off notifications in iOS Settings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Go to Settings', onPress: () => Linking.openSettings() }
+      ]
+    );
+  };
+
+  const frontAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotateY: `${flipRotation.value}deg` }
+      ],
+      backfaceVisibility: 'hidden',
+    };
+  });
+
+  const backAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotateY: `${flipRotation.value + 180}deg` }
+      ],
+      backfaceVisibility: 'hidden',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    };
+  });
+
   const [userPrefs, setUserPrefs] = useState<UserPreferences>({
     saved_lines: [],
     saved_stations: [],
@@ -158,6 +244,57 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic">
         
+        {/* Frosted Push Notification Setup / Enabled Card */}
+        <View style={styles.cardContainer}>
+          {!isGranted ? (
+            <View style={{ height: 190 }}>
+              {/* Front Side Card */}
+              <Animated.View style={[styles.frontCard, frontAnimatedStyle]}>
+                <View style={styles.cardHeaderRow}>
+                  <Ionicons name="notifications-outline" size={24} color="#007AFF" />
+                  <Text style={styles.cardHeaderTitle}>The Central line doesn't text you when it's cooked. We do.</Text>
+                </View>
+                <Text style={styles.cardBodyText}>
+                  Get live disruption alerts and leave-by reminders, straight to your lock screen.
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [styles.ctaButton, { opacity: pressed ? 0.8 : 1 }]}
+                  onPress={handleGrantNotifications}
+                >
+                  <Text style={styles.ctaButtonText}>Hit me with it</Text>
+                </Pressable>
+              </Animated.View>
+              
+              {/* Back Side (Tutorial Video) */}
+              <Animated.View style={[styles.backCard, backAnimatedStyle]} pointerEvents={showBack ? 'auto' : 'none'}>
+                <View style={styles.tutorialContainer}>
+                  <Image
+                    source={require('../assets/widget_tutorial.gif')}
+                    style={styles.tutorialGif}
+                    contentMode="contain"
+                  />
+                  <Text style={styles.tutorialText}>Drag the widget to your Home Screen</Text>
+                </View>
+              </Animated.View>
+            </View>
+          ) : (
+            <View style={styles.enabledCard}>
+              <View style={styles.enabledRow}>
+                <View style={styles.enabledInfo}>
+                  <Text style={styles.enabledTitle}>Live Disruption Alerts</Text>
+                  <Text style={styles.enabledDescription}>Enabled & Monitoring</Text>
+                </View>
+                <Switch
+                  value={true}
+                  onValueChange={handleToggleOff}
+                  trackColor={{ false: '#D1D5DB', true: '#28A745' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* Smart Pro Status Card */}
         <ProStatusCard 
           isPro={userPrefs.is_pro}
@@ -539,4 +676,113 @@ const styles = StyleSheet.create({
   },
   iconMargin: { marginRight: 8 },
   spacer40: { height: 40 },
+  cardContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  frontCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    height: 190,
+    justifyContent: 'space-between',
+  },
+  backCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    height: 190,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginLeft: 8,
+    flex: 1,
+  },
+  cardBodyText: {
+    fontSize: 13,
+    color: '#636366',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  ctaButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 20,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  ctaButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  tutorialContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorialGif: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+  },
+  tutorialText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  enabledCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E7',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  enabledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  enabledInfo: {
+    flex: 1,
+  },
+  enabledTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  enabledDescription: {
+    fontSize: 14,
+    color: '#28A745',
+    fontWeight: '600',
+    marginTop: 2,
+  },
 });

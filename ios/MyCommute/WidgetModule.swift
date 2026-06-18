@@ -22,6 +22,19 @@ class WidgetModule: NSObject {
   }
   
   @objc
+  func saveWidgetStatusCache(_ jsonString: String) {
+    if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app") {
+      userDefaults.set(jsonString, forKey: "cachedTfLStatus")
+      userDefaults.synchronize()
+      
+      if #available(iOS 14.0, *) {
+        WidgetCenter.shared.reloadAllTimelines()
+        print("⚡️ Widget Status Cached: Reloading Timelines")
+      }
+    }
+  }
+  
+  @objc
   static func requiresMainQueueSetup() -> Bool {
     return true
   }

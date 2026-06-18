@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import NetInfo from '@react-native-community/netinfo';
 import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { FULL_STATIONS } from '../data/tflStations';
+import { FULL_STATIONS, sanitiseStationName } from '../data/tflStations';
 import { APP_CONFIG } from '../config/app.config';
 
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
@@ -92,8 +92,13 @@ export async function scheduleCalendarCommuteAlerts() {
       return;
     }
 
-    // 3. Clean up previously scheduled notifications before rescheduling
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    // 3. Clean up previously scheduled commute notifications before rescheduling
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of scheduledNotifications) {
+      if (notification.content.data?.type === 'commute-leave-by') {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
 
     // 4. Identify origin station
     const pinnedStations = useUserPreferencesStore.getState().pinnedStations;
@@ -103,8 +108,16 @@ export async function scheduleCalendarCommuteAlerts() {
       return;
     }
 
-    // Sort stations by name length descending to prevent shorter substring match collisions
-    const sortedStations = [...FULL_STATIONS].sort((a, b) => b.name.length - a.name.length);
+    // Deduplicate stations by lowercase cleaned name, then sort by length descending
+    const stationsByName = new Map<string, typeof FULL_STATIONS[0]>();
+    for (const station of FULL_STATIONS) {
+      const key = sanitiseStationName(station.name);
+      if (!stationsByName.has(key)) {
+        stationsByName.set(key, station);
+      }
+    }
+    console.log(`[Scheduler] Deduplicating stations: FULL_STATIONS.length = ${FULL_STATIONS.length}, Unique stations count = ${stationsByName.size}`);
+    const sortedStations = [...stationsByName.values()].sort((a, b) => sanitiseStationName(b.name).length - sanitiseStationName(a.name).length);
 
     // 5. Schedule alerts for each event
     for (const event of events) {
@@ -113,8 +126,9 @@ export async function scheduleCalendarCommuteAlerts() {
 
       let matchedStation = null;
       for (const station of sortedStations) {
-        const stationName = station.name.toLowerCase().trim();
-        if (location.includes(stationName)) {
+        const stationSanitised = sanitiseStationName(station.name);
+        const locationSanitised = sanitiseStationName(location);
+        if (locationSanitised.includes(stationSanitised)) {
           matchedStation = station;
           break;
         }

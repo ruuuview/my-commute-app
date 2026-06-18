@@ -20,7 +20,7 @@ struct SavedLine: Codable {
     let name: String
 }
 
-struct CommuteLine: Identifiable {
+struct CommuteLine: Identifiable, Codable {
     let id: String
     let name: String
     let status: String
@@ -28,11 +28,11 @@ struct CommuteLine: Identifiable {
 
     var level: SeverityLevel {
         switch severity {
-        case 10, 18:
+        case 1:
             return .good
-        case 9, 14, 19:
+        case 2...8:
             return .minor
-        case 6, 7, 8, 17:
+        case 9:
             return .severe
         default:
             return .suspended
@@ -160,11 +160,17 @@ struct CommuteProvider: TimelineProvider {
             let staleTime = now.addingTimeInterval(WidgetMetrics.staleThreshold)
             let staleEntry = CommuteEntry(date: staleTime, fetchDate: now, lines: lines, debugMessage: msg)
 
+            // 15-minute fallback entry
+            let fallbackTime = now.addingTimeInterval(15 * 60)
+            let fallbackEntry = CommuteEntry(date: fallbackTime, fetchDate: now, lines: lines, debugMessage: msg ?? "Still offline. Tap again when clear")
+
+            // 2-hour deep freeze entry
+            let deepFreezeTime = now.addingTimeInterval(7200)
+            let deepFreezeEntry = CommuteEntry(date: deepFreezeTime, fetchDate: now, lines: lines, debugMessage: "Tap to refresh")
+
             let hour = Calendar.current.component(.hour, from: now)
             let refreshMinutes: Int
-            if hour < 5 || hour > 23 {
-                refreshMinutes = 15
-            } else if hour < 7 || hour > 20 {
+            if hour < 7 || hour > 20 {
                 refreshMinutes = 5
             } else {
                 refreshMinutes = 2
@@ -172,7 +178,7 @@ struct CommuteProvider: TimelineProvider {
 
             let nextRefresh = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: now)!
 
-            completion(Timeline(entries: [freshEntry, staleEntry], policy: .after(nextRefresh)))
+            completion(Timeline(entries: [freshEntry, staleEntry, fallbackEntry, deepFreezeEntry], policy: .after(nextRefresh)))
         }
     }
 
@@ -188,9 +194,30 @@ struct CommuteProvider: TimelineProvider {
         }
         do {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
+            // Cache the successfully fetched lines
+            if let userDefaults = UserDefaults(suiteName: kAppGroupID),
+               let encoded = try? JSONEncoder().encode(commuteLines),
+               let jsonString = String(data: encoded, encoding: .utf8) {
+                userDefaults.set(jsonString, forKey: "cachedTfLStatus")
+                userDefaults.synchronize()
+            }
             return (commuteLines, nil)
         } catch {
-            return ([], "TFL API ERROR: " + error.localizedDescription)
+            // Fail-open: try loading last successfully cached statuses
+            if let userDefaults = UserDefaults(suiteName: kAppGroupID),
+               let jsonString = userDefaults.string(forKey: "cachedTfLStatus"),
+               let cachedData = jsonString.data(using: .utf8),
+               let cachedLines = try? JSONDecoder().decode([CommuteLine].self, from: cachedData) {
+                
+                // Filter cached lines to only match the currently saved line IDs
+                let filteredCachedLines = cachedLines.filter { cachedLine in
+                    savedLines.contains { $0.id == cachedLine.id }
+                }
+                if !filteredCachedLines.isEmpty {
+                    return (filteredCachedLines, "Still offline. Tap again when clear")
+                }
+            }
+            return ([], "Still offline. Tap again when clear")
         }
     }
 
@@ -219,6 +246,7 @@ struct CommuteProvider: TimelineProvider {
         }
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 7
         let (data, _) = try await URLSession.shared.data(for: request)
         let response = try JSONDecoder().decode([TfLLine].self, from: data)
         return response.compactMap { tflLine in

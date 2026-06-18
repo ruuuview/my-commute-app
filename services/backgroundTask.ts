@@ -1,3 +1,4 @@
+import { NativeModules } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
@@ -55,6 +56,8 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     });
 
     console.log('🔍 Background Fetch Status Map keys:', Object.keys(fetchedLinesMap));
+
+    const selectedLinesData: any[] = [];
 
     // 4. Check status changes for user's selected lines
     for (const rawLineId of selectedLines) {
@@ -117,11 +120,19 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       const lastSeverityRaw = backgroundStorage.getString(cacheKey);
       const lastSeverity = lastSeverityRaw ? parseInt(lastSeverityRaw, 10) : 1; // default to 1 (Good Service)
 
+      // Add to shared widget data array
+      selectedLinesData.push({
+        id: lineId,
+        name: lineData.name,
+        status: lineData.status ?? 'Good Service',
+        severity: currentSeverity,
+      });
+
       if (currentSeverity !== lastSeverity) {
         triggeredAnyAlert = true;
 
-        if (currentSeverity > 1) {
-          // Trigger disruption alert
+        if (currentSeverity > lastSeverity) {
+          // Severity worsened - trigger disruption alert
           await Notifications.scheduleNotificationAsync({
             content: {
               title: `Disruption on ${lineData.name} line`,
@@ -131,7 +142,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
             trigger: null,
           });
         } else if (currentSeverity === 1 && lastSeverity > 1) {
-          // Trigger service cleared alert
+          // Severity cleared - trigger cleared alert
           await Notifications.scheduleNotificationAsync({
             content: {
               title: `Service cleared on ${lineData.name} line`,
@@ -140,10 +151,31 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
             },
             trigger: null,
           });
+        } else {
+          // Severity improved but not fully cleared - trigger improving alert
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `Service improving on ${lineData.name} line`,
+              body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
+              sound: true,
+            },
+            trigger: null,
+          });
         }
 
         // Save current severity in MMKV cache
         backgroundStorage.set(cacheKey, String(currentSeverity));
+      }
+    }
+
+    // 5. Bridge latest status of selected lines directly to iOS Shared Group (UserDefaults)
+    const { WidgetModule } = NativeModules;
+    if (WidgetModule && typeof WidgetModule.saveWidgetStatusCache === 'function') {
+      try {
+        WidgetModule.saveWidgetStatusCache(JSON.stringify(selectedLinesData));
+        console.log('✅ Background Fetch bridged statuses successfully.');
+      } catch (e) {
+        console.error('❌ Failed to bridge background statuses to widget:', e);
       }
     }
 

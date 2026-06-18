@@ -20,6 +20,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { playSound } from '../utils/sound';
 
 
 interface UserPreferences {
@@ -49,9 +50,12 @@ export default function SettingsScreen() {
   const [isGranted, setIsGranted] = useState(false);
   const [showBack, setShowBack] = useState(false);
   const flipRotation = useSharedValue(0);
-  const flipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const flipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ctaPressAnim = usePressAnimation('continue_btn', false);
+  const backAnim = usePressAnimation('back_btn', false);
+  const resetPressAnim = usePressAnimation('station_row', false);
+  const hoursPressAnim = usePressAnimation('station_row', false);
 
   useEffect(() => {
     checkPermissionsStatus();
@@ -78,7 +82,8 @@ export default function SettingsScreen() {
       });
       
       if (status === 'granted') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        playSound('select', 0.45);
         setShowBack(true);
         flipRotation.value = withTiming(180, { duration: 600 });
         
@@ -248,14 +253,18 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable 
-          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]} 
-          onPress={() => back()}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </Pressable>
+        <Animated.View style={backAnim.animatedStyle}>
+          <Pressable 
+            style={styles.backButton} 
+            onPress={() => back()}
+            onPressIn={backAnim.onPressIn}
+            onPressOut={backAnim.onPressOut}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={28} color="#000" />
+          </Pressable>
+        </Animated.View>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 44 }} />
       </View>
@@ -401,21 +410,25 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  <Pressable 
-                    style={styles.settingRow} 
-                    onPress={handleEditQuietHours}
-                  >
-                    <View style={styles.settingInfo}>
-                      <View style={styles.settingLabelRow}>
-                        <Ionicons name="time" size={18} color="#666" style={styles.iconMargin} />
-                        <Text style={styles.settingLabel}>Notification Hours</Text>
+                  <Animated.View style={hoursPressAnim.animatedStyle}>
+                    <Pressable 
+                      style={styles.settingRow} 
+                      onPress={handleEditQuietHours}
+                      onPressIn={hoursPressAnim.onPressIn}
+                      onPressOut={hoursPressAnim.onPressOut}
+                    >
+                      <View style={styles.settingInfo}>
+                        <View style={styles.settingLabelRow}>
+                          <Ionicons name="time" size={18} color="#666" style={styles.iconMargin} />
+                          <Text style={styles.settingLabel}>Notification Hours</Text>
+                        </View>
+                        <Text style={styles.settingDescription}>
+                          {notificationSettings.time_window_start} - {notificationSettings.time_window_end}
+                        </Text>
                       </View>
-                      <Text style={styles.settingDescription}>
-                        {notificationSettings.time_window_start} - {notificationSettings.time_window_end}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-                  </Pressable>
+                      <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                    </Pressable>
+                  </Animated.View>
 
                   <View style={styles.divider} />
 
@@ -472,36 +485,37 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Debug Options</Text>
           <View style={styles.aboutCard}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.aboutRow,
-                { opacity: pressed ? 0.6 : 1 }
-              ]}
-              onPress={() => {
-                Alert.alert(
-                  'Reset Onboarding',
-                  'Are you sure you want to reset onboarding? This will clear your saved lines and stations.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Reset',
-                      style: 'destructive',
-                      onPress: () => {
-                        resetOnboarding();
-                        back();
+            <Animated.View style={resetPressAnim.animatedStyle}>
+              <Pressable
+                style={styles.aboutRow}
+                onPress={() => {
+                  Alert.alert(
+                    'Reset Onboarding',
+                    'Are you sure you want to reset onboarding? This will clear your saved lines and stations.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Reset',
+                        style: 'destructive',
+                        onPress: () => {
+                          resetOnboarding();
+                          back();
+                        }
                       }
-                    }
-                  ]
-                );
-              }}
-            >
-              <Ionicons name="refresh-circle-outline" size={24} color="#DC3545" />
-              <View style={styles.aboutInfo}>
-                <Text style={[styles.aboutLabel, { color: '#DC3545', fontWeight: '600' }]}>Reset Onboarding</Text>
-                <Text style={styles.settingDescription}>Start the setup flow from the beginning</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-            </Pressable>
+                    ]
+                  );
+                }}
+                onPressIn={resetPressAnim.onPressIn}
+                onPressOut={resetPressAnim.onPressOut}
+              >
+                <Ionicons name="refresh-circle-outline" size={24} color="#DC3545" />
+                <View style={styles.aboutInfo}>
+                  <Text style={[styles.aboutLabel, { color: '#DC3545', fontWeight: '600' }]}>Reset Onboarding</Text>
+                  <Text style={styles.settingDescription}>Start the setup flow from the beginning</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+              </Pressable>
+            </Animated.View>
           </View>
         </View>
 

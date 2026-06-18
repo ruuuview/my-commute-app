@@ -85,8 +85,8 @@ index 1559352..07ba949 100644
 +    if (scrollableRef.current) {
 +      const scrollRef = scrollableRef.current.getScrollableNode
 +        ? scrollableRef.current.getScrollableNode()
-+        : (scrollableRef.current.getNode
-+          ? scrollableRef.current.getNode()
++        : ((scrollableRef.current as any).getNode
++          ? (scrollableRef.current as any).getNode()
 +          : scrollableRef.current);
 +      //@ts-ignore
 +      containerRef.current.measureLayout(scrollRef, onSuccess, onFail);

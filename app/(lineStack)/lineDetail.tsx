@@ -13,10 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, {
   SlideInDown,
-  Layout,
   useDerivedValue,
   useAnimatedStyle,
   withTiming,
+  LinearTransition,
+  Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -29,6 +30,7 @@ import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { APP_CONFIG } from '../../config/app.config';
+import { LinearGradient } from 'expo-linear-gradient';
 import INTERCHANGE_COORDINATES_DATA from '../../data/interchangeCoordinates.json';
 import { DashboardGradient } from '../../components/DashboardGradient';
 import type { Severity } from '../../components/MyCommuteDashboard';
@@ -59,6 +61,27 @@ const severityFromNumber = (n: number | undefined): Severity => {
   if (n === 20) return 'suspended';
   if (n >= 9) return 'severe';
   return 'unknown';
+};
+
+const BRAND_VOICE_STRINGS: Record<string, string> = {
+  elizabeth: "Elizabeth's behaving itself today. No drama on the track.",
+  central: "Central is running hot but running clean. Smooth sailing.",
+  northern: "The Northern line is behaving itself. No gaps in the deep.",
+  jubilee: "Jubilee is gliding smoothly today. Silver trains, gold standards.",
+  victoria: "Victoria is doing what it does best: fast, frequent, and zero drama.",
+  piccadilly: "Piccadilly is on its best behavior. All clear to Heathrow and beyond.",
+  district: "District is in order today. All branches green.",
+  circle: "Going in circles, but in a good way. The Circle line is all clear.",
+  bakerloo: "The brown line is holding it down. Bakerloo is running smoothly.",
+  metropolitan: "Metropolitan is flying down the fast tracks. Good service all day.",
+  'hammersmith-city': "Pink and pretty quiet. Hammersmith & City is running clear.",
+  overground: "Overground is looking solid. Your local links are green.",
+  dlr: "DLR is running itself perfectly. Sit at the front and enjoy the ride.",
+  'waterloo-city': "Waterloo & City is running. The drain is clean today.",
+};
+
+const getBrandVoiceString = (id: string): string => {
+  return BRAND_VOICE_STRINGS[id] || `${id.charAt(0).toUpperCase() + id.slice(1)} is behaving itself today. No drama on the tracks.`;
 };
 
 interface InterchangeStation {
@@ -251,6 +274,83 @@ const getConnectionData = (line1Id: string, line2Id: string): ConnectionData | n
   const data = COMPLETE_INTERCHANGE_DB[key];
   if (Array.isArray(data) && data.length === 0) return null;
   return data || null;
+};
+
+const getInterchangeStations = (line1Id: string, line2Id: string): InterchangeStation[] => {
+  const connection = getConnectionData(line1Id, line2Id);
+  if (!connection) return [];
+  if (Array.isArray(connection)) return connection;
+  
+  // Shared track fallbacks with real key stations
+  const key = [line1Id, line2Id].sort().join('-');
+  if (key === 'circle-district') {
+    return [
+      { id: '940GZZLUVIC', name: 'Victoria' },
+      { id: '940GZZLUEMB', name: 'Embankment' },
+      { id: '940GZZLUWSM', name: 'Westminster' },
+      { id: '940GZZLUTMP', name: 'Tower Hill' },
+      { id: '940GZZLUNHG', name: 'Notting Hill Gate' }
+    ];
+  }
+  if (key === 'circle-hammersmith-city') {
+    return [
+      { id: '940GZZLUPAC', name: 'Paddington' },
+      { id: '940GZZLUBST', name: 'Baker Street' },
+      { id: '940GZZLUKSX', name: "King's Cross St Pancras" },
+      { id: '940GZZLULVT', name: 'Liverpool Street' }
+    ];
+  }
+  if (key === 'circle-metropolitan') {
+    return [
+      { id: '940GZZLUBST', name: 'Baker Street' },
+      { id: '940GZZLUKSX', name: "King's Cross St Pancras" },
+      { id: '940GZZLULVT', name: 'Liverpool Street' }
+    ];
+  }
+  if (key === 'district-hammersmith-city') {
+    return [
+      { id: '940GZZLUBGR', name: 'Barking' },
+      { id: '940GZZLUWHP', name: 'Whitechapel' },
+      { id: '940GZZLUMld', name: 'Mile End' }
+    ];
+  }
+  if (key === 'district-piccadilly') {
+    return [
+      { id: '940GZZLUHAM', name: 'Hammersmith' },
+      { id: '940GZZLUECT', name: "Earl's Court" },
+      { id: '940GZZLUSFk', name: 'South Kensington' }
+    ];
+  }
+  if (key === 'hammersmith-city-metropolitan') {
+    return [
+      { id: '940GZZLUBST', name: 'Baker Street' },
+      { id: '940GZZLUKSX', name: "King's Cross St Pancras" },
+      { id: '940GZZLULVT', name: 'Liverpool Street' }
+    ];
+  }
+  return [];
+};
+
+const getStatusPillColors = (severity: number) => {
+  if (severity === 1) {
+    return {
+      bg: 'rgba(16, 185, 129, 0.18)',
+      border: 'rgba(16, 185, 129, 0.3)',
+      text: '#10B981',
+    };
+  } else if (severity < 9) {
+    return {
+      bg: 'rgba(255, 176, 32, 0.18)',
+      border: 'rgba(255, 176, 32, 0.3)',
+      text: '#FFB020',
+    };
+  } else {
+    return {
+      bg: 'rgba(209, 67, 67, 0.18)',
+      border: 'rgba(209, 67, 67, 0.3)',
+      text: '#D14343',
+    };
+  }
 };
 
 export default function LineDetailScreen() {
@@ -496,8 +596,45 @@ export default function LineDetailScreen() {
   const isDisrupted = lineData ? lineData.status_severity > 1 : false;
   const severity = useMemo(() => severityFromNumber(lineData?.status_severity), [lineData?.status_severity]);
 
+  const statusPillColors = useMemo(() => {
+    if (!lineData) {
+      return {
+        bg: 'rgba(156, 163, 175, 0.18)',
+        border: 'rgba(156, 163, 175, 0.3)',
+        text: '#9CA3AF',
+      };
+    }
+    if (lineData.status_severity === 1) {
+      return {
+        bg: 'rgba(16, 185, 129, 0.18)',
+        border: 'rgba(16, 185, 129, 0.3)',
+        text: '#10B981',
+      };
+    } else if (lineData.status_severity < 9) {
+      return {
+        bg: 'rgba(255, 176, 32, 0.18)',
+        border: 'rgba(255, 176, 32, 0.3)',
+        text: '#FFB020',
+      };
+    } else if (lineData.status_severity === 20 || lineData.status_severity >= 9) {
+      return {
+        bg: 'rgba(209, 67, 67, 0.18)',
+        border: 'rgba(209, 67, 67, 0.3)',
+        text: '#D14343',
+      };
+    }
+    return {
+      bg: 'rgba(156, 163, 175, 0.18)',
+      border: 'rgba(156, 163, 175, 0.3)',
+      text: '#9CA3AF',
+    };
+  }, [lineData]);
+
   const disruptionProgress = useDerivedValue(() => {
-    return withTiming(isDisrupted ? 1 : 0, { duration: 300 });
+    return withTiming(isDisrupted ? 1 : 0, {
+      duration: 600,
+      easing: Easing.bezier(0.25, 1.0, 0.5, 1.0),
+    });
   });
 
   const stateAStyle = useAnimatedStyle(() => {
@@ -559,15 +696,13 @@ export default function LineDetailScreen() {
   const isNorthern = lineId === 'northern';
   const lineNameFormatted = lineData.name.toLowerCase().endsWith(' line') ? lineData.name : `${lineData.name} line`;
 
-  // Status semantic color mapping
-  const statusColor = lineData.status_severity === 1 ? '#10B981' : 
-                      lineData.status_severity < 9 ? '#FFB020' : '#D14343';
+
 
   return (
     <View style={styles.root}>
       <DashboardGradient severity={severity} />
-      {/* 1. THE FIXED DESTINATION HEADER */}
-      <BlurView intensity={80} tint="dark" style={styles.header}>
+      {/* 1. THE FIXED INTEGRATED HEADER */}
+      <View style={styles.header}>
         <View
           style={{
             paddingTop: insets.top + 12,
@@ -581,6 +716,8 @@ export default function LineDetailScreen() {
           <Pressable
             style={styles.backButton}
             onPress={handleBack}
+            onPressIn={backAnim.onPressIn}
+            onPressOut={backAnim.onPressOut}
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
@@ -589,26 +726,11 @@ export default function LineDetailScreen() {
             </Animated.View>
           </Pressable>
 
-          <View style={styles.headerTitleContainer}>
-            <View style={styles.titleRow}>
-              {/* Left Accent Bar */}
-              <View
-                style={[
-                  styles.leftAccentBar,
-                  { backgroundColor: leftBarColor },
-                  isNorthern && styles.northernAccentBarBorder,
-                ]}
-              />
-              <Text style={styles.lineTitle} numberOfLines={1}>
-                {lineNameFormatted}
-              </Text>
-            </View>
-            <Text style={[styles.statusLabel, { color: statusColor }]}>
-              {lineData.status}
-            </Text>
-          </View>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {lineNameFormatted}
+          </Text>
         </View>
-      </BlurView>
+      </View>
 
       {/* 2. MAIN CONTENT SCROLL CONTAINER */}
       <ScrollView
@@ -622,85 +744,71 @@ export default function LineDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Primary Glass Status Card */}
+        <Animated.View
+          layout={LinearTransition.duration(600).easing(Easing.bezier(0.25, 1.0, 0.5, 1.0))}
+          style={styles.primaryStatusCard}
+        >
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+          
+          {/* Hero Row */}
+          <View style={styles.primaryHeroRow}>
+            <View
+              style={[
+                styles.identityChip,
+                { backgroundColor: leftBarColor },
+                isNorthern && styles.northernAccentBarBorder,
+              ]}
+            />
+            <Text style={styles.primaryTitle} numberOfLines={1}>{lineData.name}</Text>
+            <View
+              style={[
+                styles.statusPill,
+                {
+                  backgroundColor: statusPillColors.bg,
+                  borderColor: statusPillColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.statusPillText, { color: statusPillColors.text }]}>
+                {lineData.status}
+              </Text>
+            </View>
+          </View>
+
+          {/* Copy Area */}
+          <View style={styles.primaryCopyArea}>
+            <Text style={styles.primaryCopyText}>
+              {isDisrupted
+                ? (lineData.reason || `${lineData.name}: Service is currently disrupted.`)
+                : getBrandVoiceString(lineId)
+              }
+            </Text>
+          </View>
+
+          {/* Trust Footer */}
+          <View style={styles.primaryTrustFooter}>
+            <View style={[styles.trustBadge, { backgroundColor: dataFreshness.badgeColor }]}>
+              <Text style={styles.trustBadgeLabel}>{dataFreshness.label}</Text>
+            </View>
+            <Text style={styles.relativeTimeText}>{dataFreshness.timeText}</Text>
+          </View>
+        </Animated.View>
+
         <View style={styles.transitionContainer}>
           {/* 🔴 STATE A: DISRUPTED VIEW */}
           <Animated.View
             style={[styles.stateAWrapper, stateAStyle]}
             pointerEvents={isDisrupted ? 'auto' : 'none'}
           >
-            {/* Live Feed Tray */}
-            <View style={styles.liveFeedTray}>
-              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-              <View style={styles.liveFeedContent}>
-                <Text style={styles.disruptionText}>
-                  {lineData.reason || `${lineData.name}: Service is currently disrupted.`}
-                </Text>
-                {/* Dynamic Trust Badge & Timestamp */}
-                <View style={styles.trustBadgeContainer}>
-                  <View style={[styles.trustBadge, { backgroundColor: dataFreshness.badgeColor }]}>
-                    <Text style={styles.trustBadgeLabel}>{dataFreshness.label}</Text>
-                  </View>
-                  <Text style={styles.relativeTimeText}>{dataFreshness.timeText}</Text>
-                </View>
-              </View>
-            </View>
-
             {/* Alternative Routes Section */}
             <View style={styles.alternativesSection}>
               <Text style={styles.sectionHeader}>Alternative routes</Text>
               {alternatives.length > 0 ? (
                 <View style={styles.alternativeDeck}>
                   {alternatives.slice(0, 3).map((altLine) => {
-                    const connection = getConnectionData(lineId, altLine.id);
-                    let connectionStationName = 'nearest interchange';
-                    let walkTimeVal: number | null = null;
-                    let hasWalkTimeVal = false;
-
-                    if (connection) {
-                      if (Array.isArray(connection) && connection.length > 0) {
-                        let nearest = connection[0];
-                        if (anchorCoords) {
-                          let minDistance = Infinity;
-                          connection.forEach((station) => {
-                            const coords = INTERCHANGE_COORDINATES[station.id];
-                            if (coords) {
-                              const dist = haversineDistance(anchorCoords.lat, anchorCoords.lon, coords.lat, coords.lon);
-                              if (dist < minDistance) {
-                                minDistance = dist;
-                                nearest = station;
-                              }
-                            }
-                          });
-                        }
-                        connectionStationName = nearest.name;
-
-                        // Calculate walk time if coordinates are available
-                        if (anchorCoords) {
-                          const nearestCoords = INTERCHANGE_COORDINATES[nearest.id];
-                          if (nearestCoords) {
-                            const distMeters = haversineDistance(
-                              anchorCoords.lat,
-                              anchorCoords.lon,
-                              nearestCoords.lat,
-                              nearestCoords.lon
-                            );
-                            walkTimeVal = Math.ceil(distMeters / 80);
-                            hasWalkTimeVal = true;
-                          }
-                        }
-                      } else if ('sharedTrack' in connection) {
-                        connectionStationName = 'shared track';
-                      }
-                    }
-
-                    const routeText = connectionStationName === 'shared track'
-                      ? 'Shared track'
-                      : hasWalkTimeVal && walkTimeVal !== null
-                        ? `Change at ${connectionStationName} · ${walkTimeVal} min walk`
-                        : `Change at ${connectionStationName}`;
-
-                    const altStatusColor = altLine.status_severity === 1 ? '#10B981' :
-                                           altLine.status_severity < 9 ? '#FFB020' : '#D14343';
+                    const interchangeStations = getInterchangeStations(lineId, altLine.id);
+                    const altPillColors = getStatusPillColors(altLine.status_severity);
 
                     return (
                       <Pressable
@@ -715,16 +823,62 @@ export default function LineDetailScreen() {
                           });
                         }}
                       >
-                        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+                        
                         <View style={styles.altCardContent}>
+                          {/* Hero Row */}
                           <View style={styles.altCardHeader}>
-                            <View style={[styles.altLineColorBar, { backgroundColor: altLine.color }]} />
-                            <Text style={styles.altLineName}>{altLine.name}</Text>
-                            <View style={[styles.statusDot, { backgroundColor: altStatusColor }]} />
+                            <View style={[styles.altIdentityChip, { backgroundColor: altLine.color }]} />
+                            <Text style={styles.altLineName} numberOfLines={1}>{altLine.name}</Text>
+                            <View
+                              style={[
+                                styles.altStatusPill,
+                                {
+                                  backgroundColor: altPillColors.bg,
+                                  borderColor: altPillColors.border,
+                                },
+                              ]}
+                            >
+                              <Text style={[styles.altStatusPillText, { color: altPillColors.text }]}>
+                                {altLine.status}
+                              </Text>
+                            </View>
                           </View>
-                          <Text style={styles.altRouteText}>
-                            {routeText}
-                          </Text>
+
+                          {/* Interchange Scroll Row */}
+                          {interchangeStations.length > 0 && (
+                            <View style={styles.interchangeScrollWrapper}>
+                              <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.interchangeScrollContent}
+                              >
+                                {interchangeStations.map((station) => (
+                                  <Pressable
+                                    key={station.id}
+                                    style={styles.stationCapsule}
+                                    onPress={() => {
+                                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                      playSound('select');
+                                      router.push({
+                                        pathname: '/stationDetail',
+                                        params: { stationId: station.id, stationName: station.name },
+                                      });
+                                    }}
+                                  >
+                                    <Text style={styles.stationCapsuleText}>{station.name}</Text>
+                                  </Pressable>
+                                ))}
+                              </ScrollView>
+                              <LinearGradient
+                                colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.06)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.rightFadeOverlay}
+                                pointerEvents="none"
+                              />
+                            </View>
+                          )}
                         </View>
                       </Pressable>
                     );
@@ -752,8 +906,8 @@ export default function LineDetailScreen() {
             {/* Pinned Station Arrivals Deck */}
             {lineStations.length > 0 ? (
               <Animated.View
-                entering={SlideInDown.springify().damping(15).stiffness(150)}
-                layout={Layout}
+                entering={SlideInDown.duration(600).easing(Easing.bezier(0.25, 1.0, 0.5, 1.0))}
+                layout={LinearTransition.duration(600).easing(Easing.bezier(0.25, 1.0, 0.5, 1.0))}
                 style={styles.arrivalsDeck}
               >
                 {lineStations.map((station) => {
@@ -828,7 +982,7 @@ export default function LineDetailScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#0A0A0B',
   },
   flex1: {
     flex: 1,
@@ -889,8 +1043,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginLeft: 8,
+    flex: 1,
   },
   backButton: {
     width: 44,
@@ -943,23 +1102,60 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 12,
   },
-  liveFeedTray: {
+  primaryStatusCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     overflow: 'hidden',
-    position: 'relative',
     marginBottom: 24,
-  },
-  liveFeedContent: {
     padding: 16,
-    paddingBottom: 44, // Room for absolute Badge
   },
-  disruptionText: {
+  primaryHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    width: '100%',
+  },
+  identityChip: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  primaryTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+    flex: 1,
+    marginRight: 8,
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+  },
+  primaryCopyArea: {
+    marginBottom: 16,
+  },
+  primaryCopyText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 15,
     color: '#FFFFFF',
-    lineHeight: 21, // 1.4 line-height
+    lineHeight: 21,
+  },
+  primaryTrustFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
   },
   trustBadgeContainer: {
     position: 'absolute',
@@ -1020,11 +1216,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  altLineColorBar: {
-    width: 3,
-    height: 14,
-    borderRadius: 1.5,
+  altIdentityChip: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     marginRight: 8,
+  },
+  altStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  altStatusPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+  },
+  interchangeScrollWrapper: {
+    position: 'relative',
+    marginTop: 12,
+  },
+  interchangeScrollContent: {
+    gap: 6,
+    paddingRight: 24,
+  },
+  stationCapsule: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  stationCapsuleText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  rightFadeOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 24,
   },
   altLineName: {
     fontFamily: 'SpaceGrotesk_700Bold',

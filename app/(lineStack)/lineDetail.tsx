@@ -27,7 +27,6 @@ import * as Location from 'expo-location';
 import { useLine, useLines, useLineLoading, LineStatus } from '../../store/lineDataStore';
 import { useLineData } from '../../hooks/useLineData';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { APP_CONFIG } from '../../config/app.config';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -331,26 +330,38 @@ const getInterchangeStations = (line1Id: string, line2Id: string): InterchangeSt
   return [];
 };
 
-const getStatusPillColors = (severity: number) => {
+const getStatusPillColors = (severity: number | undefined) => {
+  if (severity === undefined) {
+    return {
+      bg: 'rgba(156, 163, 175, 0.18)',
+      border: 'rgba(156, 163, 175, 0.3)',
+      text: '#9CA3AF',
+    };
+  }
   if (severity === 1) {
     return {
       bg: 'rgba(16, 185, 129, 0.18)',
       border: 'rgba(16, 185, 129, 0.3)',
       text: '#10B981',
     };
-  } else if (severity < 9) {
+  } else if (severity >= 2 && severity < 9) {
     return {
       bg: 'rgba(255, 176, 32, 0.18)',
       border: 'rgba(255, 176, 32, 0.3)',
       text: '#FFB020',
     };
-  } else {
+  } else if (severity === 20 || severity >= 9) {
     return {
       bg: 'rgba(209, 67, 67, 0.18)',
       border: 'rgba(209, 67, 67, 0.3)',
       text: '#D14343',
     };
   }
+  return {
+    bg: 'rgba(156, 163, 175, 0.18)',
+    border: 'rgba(156, 163, 175, 0.3)',
+    text: '#9CA3AF',
+  };
 };
 
 export default function LineDetailScreen() {
@@ -557,7 +568,6 @@ export default function LineDetailScreen() {
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    playSound('pop', 0.32);
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -568,7 +578,6 @@ export default function LineDetailScreen() {
   const handleShare = async () => {
     if (!lineData) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    playSound('select', 0.45);
 
     const statusText = lineData.reason;
     const payload = statusText
@@ -596,46 +605,14 @@ export default function LineDetailScreen() {
   const isDisrupted = lineData ? lineData.status_severity > 1 : false;
   const severity = useMemo(() => severityFromNumber(lineData?.status_severity), [lineData?.status_severity]);
 
-  const statusPillColors = useMemo(() => {
-    if (!lineData) {
-      return {
-        bg: 'rgba(156, 163, 175, 0.18)',
-        border: 'rgba(156, 163, 175, 0.3)',
-        text: '#9CA3AF',
-      };
-    }
-    if (lineData.status_severity === 1) {
-      return {
-        bg: 'rgba(16, 185, 129, 0.18)',
-        border: 'rgba(16, 185, 129, 0.3)',
-        text: '#10B981',
-      };
-    } else if (lineData.status_severity < 9) {
-      return {
-        bg: 'rgba(255, 176, 32, 0.18)',
-        border: 'rgba(255, 176, 32, 0.3)',
-        text: '#FFB020',
-      };
-    } else if (lineData.status_severity === 20 || lineData.status_severity >= 9) {
-      return {
-        bg: 'rgba(209, 67, 67, 0.18)',
-        border: 'rgba(209, 67, 67, 0.3)',
-        text: '#D14343',
-      };
-    }
-    return {
-      bg: 'rgba(156, 163, 175, 0.18)',
-      border: 'rgba(156, 163, 175, 0.3)',
-      text: '#9CA3AF',
-    };
-  }, [lineData]);
+  const statusPillColors = useMemo(() => getStatusPillColors(lineData?.status_severity), [lineData?.status_severity]);
 
   const disruptionProgress = useDerivedValue(() => {
     return withTiming(isDisrupted ? 1 : 0, {
       duration: 600,
       easing: Easing.bezier(0.25, 1.0, 0.5, 1.0),
     });
-  });
+  }, [isDisrupted]);
 
   const stateAStyle = useAnimatedStyle(() => {
     return {
@@ -816,7 +793,6 @@ export default function LineDetailScreen() {
                         style={styles.altCard}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          playSound('push', 0.38);
                           router.push({
                             pathname: '/(lineStack)/lineDetail',
                             params: { lineId: altLine.id },
@@ -859,7 +835,6 @@ export default function LineDetailScreen() {
                                     style={styles.stationCapsule}
                                     onPress={() => {
                                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                      playSound('select');
                                       router.push({
                                         pathname: '/stationDetail',
                                         params: { stationId: station.id, stationName: station.name },

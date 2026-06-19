@@ -47,9 +47,9 @@ const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -280,7 +280,7 @@ const getInterchangeStations = (line1Id: string, line2Id: string): InterchangeSt
   const connection = getConnectionData(line1Id, line2Id);
   if (!connection) return [];
   if (Array.isArray(connection)) return connection;
-  
+
   // Shared track fallbacks with real key stations
   const key = [line1Id, line2Id].sort().join('-');
   if (key === 'circle-district') {
@@ -750,7 +750,7 @@ export default function LineDetailScreen() {
           style={styles.primaryStatusCard}
         >
           <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
-          
+
           {/* Hero Row */}
           <View style={styles.primaryHeroRow}>
             <View
@@ -824,7 +824,7 @@ export default function LineDetailScreen() {
                         }}
                       >
                         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
-                        
+
                         <View style={styles.altCardContent}>
                           {/* Hero Row */}
                           <View style={styles.altCardHeader}>

@@ -8,7 +8,7 @@ module.exports = defineConfig([
     ignores: ['dist/*'],
   },
   {
-    files: ['*.js'],
+    files: ['**/*.js'],
     languageOptions: {
       globals: {
         __dirname: 'readonly',

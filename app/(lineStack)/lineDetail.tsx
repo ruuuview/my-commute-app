@@ -959,9 +959,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0A0B',
   },
-  flex1: {
-    flex: 1,
-  },
   backButtonFloating: {
     position: 'absolute',
     top: 60,
@@ -1038,34 +1035,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitleContainer: {
-    flex: 1,
-    marginLeft: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  leftAccentBar: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    marginRight: 10,
-  },
   northernAccentBarBorder: {
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  lineTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 22,
-    color: 'rgba(255, 255, 255, 0.95)',
-    letterSpacing: -0.5,
-  },
-  statusLabel: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 13,
-    marginTop: 2,
   },
   scrollContainer: {
     flex: 1,
@@ -1131,14 +1103,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
-  },
-  trustBadgeContainer: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   trustBadge: {
     paddingHorizontal: 8,
@@ -1242,16 +1206,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFFFFF',
     flex: 1,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  altRouteText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.55)',
   },
   honestEmptyText: {
     fontFamily: 'SpaceGrotesk_500Medium',

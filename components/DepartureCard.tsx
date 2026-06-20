@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -13,6 +12,7 @@ import Animated, {
   LinearTransition,
   FadeOut
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -57,8 +57,6 @@ const getDepTimeStyle = (minutes: number | 'now') => {
   return { color: 'rgba(255,255,255,0.55)', fontWeight: '500' as const };
 };
 
-const COLLAPSED_HEIGHT = 40;
-
 export default function DepartureCard({
   stationId,
   stationName,
@@ -71,16 +69,15 @@ export default function DepartureCard({
   isActive = false,
   index = 0,
 }: DepartureCardProps) {
+  const router = useRouter();
   const reducedMotion = useReducedMotion();
   const lastKnownData = useUserPreferencesStore(state => state.lastKnownData || []);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   
   const [contentHeight, setContentHeight] = useState(160);
-  const heightVal = useSharedValue(defaultExpanded ? 160 : COLLAPSED_HEIGHT);
-  const chevronRotation = useSharedValue(defaultExpanded ? 180 : 0);
-  const arrivalsOpacity = useSharedValue(defaultExpanded ? 1 : 0);
+  const heightVal = useSharedValue(160);
+  const arrivalsOpacity = useSharedValue(1);
 
   const jiggleStyle = useJiggle(index, isEditing, isActive);
 
@@ -169,40 +166,32 @@ export default function DepartureCard({
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
     .trim();
 
-  const handlePress = () => {
-    if (isEditing) return; // Accordion Lock
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsExpanded(prev => !prev);
-  };
-
   const onInnerLayout = (event: any) => {
     const { height } = event.nativeEvent.layout;
-    if (height > COLLAPSED_HEIGHT) {
+    if (height > 0) {
       setContentHeight(height);
     }
   };
 
   useEffect(() => {
-    const targetHeight = hideCard ? 0 : ((isExpanded || isEditing) ? contentHeight : COLLAPSED_HEIGHT);
-    const targetOpacity = isEditing ? 0.3 : (isExpanded && !hideCard ? 1 : 0);
+    const targetHeight = hideCard ? 0 : contentHeight;
+    const targetOpacity = isEditing ? 0.3 : (hideCard ? 0 : 1);
 
     if (reducedMotion) {
       heightVal.value = targetHeight;
-      chevronRotation.value = isExpanded && !hideCard && !isEditing ? 180 : 0;
       arrivalsOpacity.value = targetOpacity;
     } else {
       heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
-      chevronRotation.value = withSpring(isExpanded && !hideCard && !isEditing ? 180 : 0, { damping: 22, stiffness: 240 });
       
       if (isEditing) {
         arrivalsOpacity.value = withTiming(0.3, { duration: 150 });
-      } else if (isExpanded && !hideCard) {
+      } else if (!hideCard) {
         arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
       } else {
         arrivalsOpacity.value = withTiming(0, { duration: 100 });
       }
     }
-  }, [isExpanded, isEditing, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard, reducedMotion]);
+  }, [isEditing, contentHeight, heightVal, arrivalsOpacity, hideCard, reducedMotion]);
 
   const containerStyle = useAnimatedStyle(() => {
     const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
@@ -216,10 +205,6 @@ export default function DepartureCard({
       borderWidth: borderVal,
     };
   });
-
-  const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${chevronRotation.value}deg` }],
-  }));
 
   const arrivalsStyle = useAnimatedStyle(() => ({
     opacity: arrivalsOpacity.value,
@@ -246,29 +231,34 @@ export default function DepartureCard({
         <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View onLayout={onInnerLayout} style={styles.innerContent}>
           <Pressable
-            onPress={handlePress}
             onLongPress={onLongPress}
             delayLongPress={300}
             style={styles.headerPressable}
           >
             <View style={styles.header}>
               <View style={styles.titleColumn}>
-                <Text style={styles.stationName} numberOfLines={1}>
-                  {cleanName}
-                </Text>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({
+                      pathname: '/stationDetail',
+                      params: { stationId, stationName },
+                    });
+                  }}
+                >
+                  {({ pressed }) => (
+                    <Text
+                      style={[
+                        styles.stationName,
+                        pressed && styles.stationNamePressed,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {cleanName}
+                    </Text>
+                  )}
+                </Pressable>
               </View>
-
-              {!isEditing && (
-                <View style={styles.headerRight}>
-                  <Animated.View style={chevronStyle}>
-                    <Ionicons
-                      name="chevron-down"
-                      size={16}
-                      color="rgba(255,255,255,0.3)"
-                    />
-                  </Animated.View>
-                </View>
-              )}
             </View>
           </Pressable>
 
@@ -361,6 +351,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFFFFF',
   },
+  stationNamePressed: {
+    textDecorationLine: 'underline',
+  },
   roleBadge: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 8,
@@ -371,10 +364,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 4,
     paddingVertical: 1,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   nextTimeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

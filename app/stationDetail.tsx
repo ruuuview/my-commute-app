@@ -1,220 +1,915 @@
-import { APP_CONFIG } from '../config/app.config';
-import React, { useEffect, useReducer, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Pressable, 
-  ScrollView, 
-  ActivityIndicator, 
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { stationDataCache } from '../utils/stationCache'; // ✅ Fixed Circular Dependency
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import Animated, {
+  LinearTransition,
+} from 'react-native-reanimated';
+
+import { APP_CONFIG } from '../config/app.config';
+import { LINE_COLORS, LINE_NAMES } from '../constants/lineColors';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
+import { normaliseLineId } from '../utils/normaliseLineId';
+import { FULL_STATIONS, TFL_STATIONS } from '../data/tflStations';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { usePressAnimation } from '../hooks/usePressAnimation';
+import { DashboardGradient } from '../components/DashboardGradient';
+import { stationDataCache } from '../utils/stationCache';
+import type { Severity } from '../components/MyCommuteDashboard';
 
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 
-interface Departure { destination: string; line: string; platform: string; minutes_away: number; expected_arrival: string; status?: string; }
-interface StationDetailData { id: string; name: string; departures: Departure[]; updated_at: string; }
+interface MappedDeparture {
+  lineId: string;
+  lineName: string;
+  minutesAway: number;
+  destination: string;
+  platform: string;
+  expectedArrival: string;
+}
 
-const getLineColor = (lineName: string | null | undefined): string => {
-  const colors: { [key: string]: string } = {
-    'Bakerloo': '#B36305', 'Central': '#E32017', 'Circle': '#FFD300', 'District': '#00782A',
-    'Hammersmith & City': '#F3A9BB', 'Jubilee': '#C8CDD1', 'Metropolitan': '#9B0056', 'Northern': '#000000',
-    'Piccadilly': '#003688', 'Victoria': '#0098D4', 'Waterloo & City': '#95CDBA', 'Elizabeth': '#6950a1', 'DLR': '#00AFAD',
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const getStatusPillColors = (severity: number | undefined) => {
+  if (severity === undefined) {
+    return {
+      bg: 'rgba(156, 163, 175, 0.18)',
+      border: 'rgba(156, 163, 175, 0.3)',
+      text: '#9CA3AF',
+    };
+  }
+  if (severity === 1) {
+    return {
+      bg: 'rgba(16, 185, 129, 0.18)',
+      border: 'rgba(16, 185, 129, 0.3)',
+      text: '#10B981',
+    };
+  } else if (severity >= 2 && severity < 9) {
+    return {
+      bg: 'rgba(255, 176, 32, 0.18)',
+      border: 'rgba(255, 176, 32, 0.3)',
+      text: '#FFB020',
+    };
+  } else if (severity === 20 || severity >= 9) {
+    return {
+      bg: 'rgba(209, 67, 67, 0.18)',
+      border: 'rgba(209, 67, 67, 0.3)',
+      text: '#D14343',
+    };
+  }
+  return {
+    bg: 'rgba(156, 163, 175, 0.18)',
+    border: 'rgba(156, 163, 175, 0.3)',
+    text: '#9CA3AF',
   };
-  const lineNameStr = String(lineName ?? '');
-  const normalizedName = lineNameStr.replace(' Line', '').trim();
-  return colors[normalizedName] || colors[lineNameStr] || '#666666';
 };
 
-const extractPlatformNumber = (platform: string | null | undefined): string => {
-  const platformStr = String(platform ?? '');
-  const match = platformStr.match(/Platform (\d+)/);
-  return match ? match[1] : platformStr.split(' ').pop() || '?';
+const severityFromNumber = (n: number | undefined): Severity => {
+  if (n === undefined) return 'unknown';
+  if (n === 1) return 'good';
+  if (n >= 2 && n <= 8) return 'minor';
+  if (n === 20) return 'suspended';
+  if (n >= 9) return 'severe';
+  return 'unknown';
 };
 
-const getPlatformTextColor = (backgroundColor: string): string => {
-  const lightColors = ['#FFD300', '#95CDBA', '#F3A9BB', '#00AFAD'];
-  return lightColors.includes(backgroundColor) ? '#000' : '#fff';
+const getDepTimeStyle = (minutes: number | 'now') => {
+  if (minutes === 0 || minutes === 'now') {
+    return { color: '#30D158', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
+  }
+  if (typeof minutes === 'number' && minutes <= 2) {
+    return { color: 'rgba(255,255,255,0.85)', fontWeight: '500' as const };
+  }
+  return { color: 'rgba(255,255,255,0.55)', fontWeight: '500' as const };
 };
 
-const formatDueTime = (minutes: number): string => {
-  if (minutes <= 0) return 'DUE';
-  if (minutes === 1) return '1 MIN';
-  return `${minutes} MINS`;
+const formatPlatformText = (platformRaw: string | null | undefined): string => {
+  const raw = String(platformRaw ?? '').trim();
+  const match = raw.match(/Platform\s+(\d+[a-zA-Z]?)/i);
+  if (match) {
+    return `Platform ${match[1]}`;
+  }
+  if (raw.toLowerCase().includes('platform')) {
+    return raw;
+  }
+  return raw;
 };
 
-const getStatusSeverity = (status: string | null | undefined): number => {
-  const statusLower = String(status ?? '').toLowerCase();
-  if (statusLower.includes('severe') || statusLower.includes('suspended') || statusLower.includes('closure')) return 3; 
-  if (statusLower.includes('minor') || statusLower.includes('delay') || statusLower.includes('disruption')) return 2; 
-  if (statusLower.includes('good') || statusLower.includes('service')) return 1; 
-  return 0; 
+const cleanStationName = (name: string) => {
+  return String(name ?? '')
+    .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
+    .trim();
 };
 
-const getHeaderColor = (departures: Departure[]): string => {
-  if (!departures || departures.length === 0) return '#00A75D'; 
-  let maxSeverity = 1; 
-  departures.forEach(d => {
-    const severity = getStatusSeverity(d.status || 'Good Service');
-    if (severity > maxSeverity) maxSeverity = severity;
-  });
-  switch (maxSeverity) { case 3: return '#E32017'; case 2: return '#FFD700'; case 1: return '#00A75D'; default: return '#00A75D'; }
-};
-
-const groupDeparturesByDirection = (departures: Departure[]) => {
-  const northbound: Departure[] = [];
-  const southbound: Departure[] = [];
-  departures.forEach(d => {
-    const platform = String(d.platform ?? '').toLowerCase();
-    if (platform.includes('northbound') || platform.includes('eastbound')) northbound.push(d);
-    else if (platform.includes('southbound') || platform.includes('westbound')) southbound.push(d);
-    else northbound.push(d);
-  });
-  northbound.sort((a, b) => a.minutes_away - b.minutes_away);
-  southbound.sort((a, b) => a.minutes_away - b.minutes_away);
-  return { northbound, southbound };
+const getStationInfo = (id: string, name?: string) => {
+  if (!id) return null;
+  let found = TFL_STATIONS.find(s => s.id === id);
+  if (found) return found;
+  found = FULL_STATIONS.find(s => s.id === id);
+  if (found) return found;
+  if (name) {
+    const cleanSearchName = name.toLowerCase().trim();
+    found = FULL_STATIONS.find(s => s.name.toLowerCase().trim() === cleanSearchName);
+    if (found) return found;
+    found = TFL_STATIONS.find(s => s.name.toLowerCase().trim() === cleanSearchName);
+    if (found) return found;
+  }
+  return null;
 };
 
 export default function StationDetailScreen() {
   const params = useLocalSearchParams();
-  const { back } = useRouter();
-  const stationId = params.stationId as string;
-  const stationName = params.stationName as string;
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [{ stationData, loading, error }, dispatch] = useReducer(
-    (state: { stationData: StationDetailData | null, loading: boolean, error: string | null }, action: Partial<{ stationData: StationDetailData | null, loading: boolean, error: string | null }>) => ({ ...state, ...action }),
-    { stationData: null, loading: true, error: null }
-  );
+  const stationId = params.stationId as string;
+  const rawStationName = params.stationName as string;
+  const stationName = useMemo(() => cleanStationName(rawStationName), [rawStationName]);
 
+  const lastKnownData = useUserPreferencesStore(s => s.lastKnownData || []);
+
+  const [departures, setDepartures] = useState<MappedDeparture[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [unavailableLines, setUnavailableLines] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
+
+  const backAnim = usePressAnimation('back_btn');
+  const shareAnim = usePressAnimation('continue_btn');
+  const retryAnim = usePressAnimation('continue_btn');
+
+  // Resolve station metadata and serving lines
+  const stationInfo = useMemo(() => {
+    return getStationInfo(stationId, stationName);
+  }, [stationId, stationName]);
+
+  const servingLines = useMemo(() => {
+    return stationInfo?.lines || [];
+  }, [stationInfo]);
+
+  // Fetch function handling multiple NaPTAN resolution
   const fetchStationDetail = useCallback(async (useCache: boolean = true) => {
     try {
-      dispatch({ loading: true, error: null });
-      if (useCache && stationDataCache.has(stationId)) {
-        try {
-          const data = await stationDataCache.get(stationId);
-          dispatch({ stationData: data, loading: false });
-          stationDataCache.delete(stationId);
-          return;
-        } catch { stationDataCache.delete(stationId); }
+      setLoading(true);
+      setError(null);
+
+      const resolvedIds = resolveTflStopIds(stationId);
+      let allRawDepartures: any[] = [];
+      let cacheSucceeded = false;
+      const succeededNaPTANs = new Set<string>();
+      const failedNaPTANs = new Set<string>();
+
+      // 1. Check stationDataCache
+      if (useCache) {
+        let hasCacheData = false;
+        for (const id of resolvedIds) {
+          if (stationDataCache.has(id)) {
+            try {
+              const cachedData = await stationDataCache.get(id);
+              if (cachedData && Array.isArray(cachedData.departures)) {
+                allRawDepartures.push(...cachedData.departures);
+                succeededNaPTANs.add(id);
+                hasCacheData = true;
+              }
+              stationDataCache.delete(id);
+            } catch {
+              stationDataCache.delete(id);
+            }
+          }
+        }
+        if (hasCacheData) {
+          cacheSucceeded = true;
+        }
       }
-      
-      const response = await fetch(`${BACKEND_URL}/api/stations/${stationId}`);
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-      const data = await response.json();
-      dispatch({ stationData: data });
-    } catch (e: any) {
-      dispatch({ error: e.message || 'Failed to load details' });
-    } finally {
-      dispatch({ loading: false });
+
+      // 2. Fetch from network if cache missed or we forced fresh poll
+      if (!cacheSucceeded) {
+        const fetchPromises = resolvedIds.map(async (id) => {
+          try {
+            const res = await fetch(`${BACKEND_URL}/api/stations/${id}`);
+            if (res.ok) {
+              const data = await res.json();
+              return { id, data, success: true };
+            }
+          } catch (e) {
+            console.error(`Failed to fetch departures for NaPTAN ${id}:`, e);
+          }
+          return { id, data: null, success: false };
+        });
+
+        const results = await Promise.all(fetchPromises);
+        results.forEach(result => {
+          if (result.success && result.data) {
+            succeededNaPTANs.add(result.id);
+            if (Array.isArray(result.data.departures)) {
+              allRawDepartures.push(...result.data.departures);
+            }
+          } else {
+            failedNaPTANs.add(result.id);
+          }
+        });
+      }
+
+      // If all NaPTAN fetches failed and we have no cached data, trigger error
+      if (succeededNaPTANs.size === 0 && resolvedIds.length > 0) {
+        throw new Error('Departures feed unavailable');
+      }
+
+      // 3. Deduplicate
+      const dedupedRaw: any[] = [];
+      const seenKeys = new Set<string>();
+
+      allRawDepartures.forEach(dep => {
+        const dest = String(dep.destination || '');
+        if (dest.includes('DELETE') || dest.includes('⚠️')) {
+          return;
+        }
+        const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          dedupedRaw.push(dep);
+        }
+      });
+
+      // 4. Map departures to internal schema
+      const mappedDepartures = dedupedRaw.map((dep: any) => {
+        const { cleanLineId } = normaliseLineId(dep.line);
+        return {
+          lineId: cleanLineId,
+          lineName: dep.line,
+          minutesAway: dep.minutes_away || 0,
+          destination: dep.destination || '',
+          platform: dep.platform || '',
+          expectedArrival: dep.expected_arrival || '',
+        };
+      });
+
+      // 5. Determine unavailable lines
+      const unavail = new Set<string>();
+      failedNaPTANs.forEach(id => {
+        const naptanInfo = FULL_STATIONS.find(s => s.id === id) || TFL_STATIONS.find(s => s.id === id);
+        const lines = naptanInfo ? naptanInfo.lines : [];
+        lines.forEach(lineId => {
+          const isServedBySucceeded = Array.from(succeededNaPTANs).some(succId => {
+            const succInfo = FULL_STATIONS.find(s => s.id === succId) || TFL_STATIONS.find(s => s.id === succId);
+            return succInfo ? succInfo.lines.includes(lineId) : false;
+          });
+          if (!isServedBySucceeded) {
+            unavail.add(lineId);
+          }
+        });
+      });
+
+      setDepartures(mappedDepartures);
+      setUnavailableLines(unavail);
+      setLoading(false);
+    } catch (err: any) {
+      console.log('Error fetching departures in stationDetail:', err);
+      setError(err.message || 'Failed to load details');
+      setLoading(false);
     }
   }, [stationId]);
 
+  // Polling
   useEffect(() => {
-    dispatch({ stationData: null, error: null, loading: true });
-    fetchStationDetail();
-    const interval = setInterval(() => fetchStationDetail(false), 30000); 
+    fetchStationDetail(true);
+    const interval = setInterval(() => fetchStationDetail(false), 30000);
     return () => clearInterval(interval);
-  }, [stationId, fetchStationDetail]);
+  }, [fetchStationDetail]);
 
-  if (loading && !stationData) {
+  // Max severity calculation
+  const stationSeverity = useMemo(() => {
+    if (servingLines.length === 0 && departures.length === 0) return 'unknown';
+
+    let maxSeverityVal = 1; // Default: Good Service
+    const linesToCheck = new Set([...servingLines, ...departures.map(d => d.lineId)]);
+
+    linesToCheck.forEach((lId) => {
+      const lineData = lastKnownData?.find((l) => l.id === lId);
+      const severityVal = lineData?.status_severity ?? 1;
+      if (severityVal > maxSeverityVal) {
+        maxSeverityVal = severityVal;
+      }
+    });
+
+    return severityFromNumber(maxSeverityVal);
+  }, [servingLines, departures, lastKnownData]);
+
+  // Brand voice subhead text
+  const { headerVoice } = useMemo(() => {
+    const totalLinesCount = servingLines.length;
+    if (totalLinesCount === 0) {
+      return { headerVoice: 'Real-time departures', disruptedCount: 0 };
+    }
+
+    let disrupted = 0;
+    servingLines.forEach((lId) => {
+      const lineData = lastKnownData?.find((l) => l.id === lId);
+      if (lineData && lineData.status_severity > 1) {
+        disrupted++;
+      }
+    });
+
+    if (disrupted > 0) {
+      const lineLabel = totalLinesCount === 1 ? 'line' : 'lines';
+      const voice = `${totalLinesCount} ${lineLabel} · ${disrupted} ${disrupted === 1 ? 'is' : 'are'} struggling.`;
+      return { headerVoice: voice, disruptedCount: disrupted };
+    } else {
+      const lineLabel = totalLinesCount === 1 ? 'line' : 'lines';
+      const voice = `${totalLinesCount} ${lineLabel} · All clear.`;
+      return { headerVoice: voice, disruptedCount: 0 };
+    }
+  }, [servingLines, lastKnownData]);
+
+  // Group departures by normalized line ID
+  const groupedDepartures = useMemo(() => {
+    const groups: Record<string, MappedDeparture[]> = {};
+    departures.forEach((dep) => {
+      if (!groups[dep.lineId]) {
+        groups[dep.lineId] = [];
+      }
+      groups[dep.lineId].push(dep);
+    });
+    return groups;
+  }, [departures]);
+
+  // Merge serving lines and any active departures, keeping stable order
+  const orderedLineIds = useMemo(() => {
+    const list: string[] = [];
+    servingLines.forEach((l) => {
+      if (!list.includes(l)) list.push(l);
+    });
+    Object.keys(groupedDepartures).forEach((l) => {
+      if (!list.includes(l)) list.push(l);
+    });
+    return list;
+  }, [servingLines, groupedDepartures]);
+
+  // Copy to clipboard
+  const handleShare = async () => {
+    if (departures.length === 0) return;
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const summaryParts: string[] = [];
+    const groupedDeps: Record<string, MappedDeparture[]> = {};
+    departures.forEach(d => {
+      if (!groupedDeps[d.lineName]) {
+        groupedDeps[d.lineName] = [];
+      }
+      groupedDeps[d.lineName].push(d);
+    });
+
+    Object.entries(groupedDeps).forEach(([lineName, deps]) => {
+      const sorted = deps.slice().sort((a, b) => a.minutesAway - b.minutesAway);
+      const times = sorted.slice(0, 2).map(d => d.minutesAway === 0 ? 'now' : `${d.minutesAway}m`).join(', ');
+      summaryParts.push(`${lineName}: ${times}`);
+    });
+
+    const prefix = `${stationName} departures: `;
+    let text = prefix + summaryParts.join(' | ');
+    if (text.length > 120) {
+      text = text.slice(0, 117) + '...';
+    }
+
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.log('Clipboard copy failed:', e);
+    }
+  };
+
+  const shareLabel = copied ? 'Copied!' : 'Share departures';
+
+  // ─── Render States ─────────────────────────────────────────────────────────
+
+  // 1. Loading State
+  if (loading && departures.length === 0) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading departures…</Text>
+      <View style={styles.root}>
+        <DashboardGradient severity="unknown" />
+        {/* Header */}
+        <View style={styles.header}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.headerInner, { paddingTop: insets.top + 12 }]}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => router.back()}
+              onPressIn={backAnim.onPressIn}
+              onPressOut={backAnim.onPressOut}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
+              <Animated.View style={[styles.backIconContainer, backAnim.animatedStyle]}>
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </Animated.View>
+            </Pressable>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{stationName}</Text>
+            </View>
+          </View>
+        </View>
+        {/* Loading Indicator */}
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color="rgba(255, 255, 255, 0.4)" />
+          <Text style={styles.loadingText}>Fetching departures...</Text>
         </View>
       </View>
     );
   }
 
-  if (error && !stationData) {
+  // 2. Failure State
+  if (error && departures.length === 0) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#E74C3C" />
-          <Text style={styles.errorText}>Failed to load departures</Text>
-          <Pressable style={styles.retryButton} onPress={() => fetchStationDetail()} accessibilityLabel="Retry loading departures" accessibilityRole="button">
-            <Text style={styles.retryButtonText}>Retry</Text>
+      <View style={styles.root}>
+        <DashboardGradient severity="unknown" />
+        {/* Header */}
+        <View style={styles.header}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.headerInner, { paddingTop: insets.top + 12 }]}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => router.back()}
+              onPressIn={backAnim.onPressIn}
+              onPressOut={backAnim.onPressOut}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
+              <Animated.View style={[styles.backIconContainer, backAnim.animatedStyle]}>
+                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+              </Animated.View>
+            </Pressable>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{stationName}</Text>
+            </View>
+          </View>
+        </View>
+        {/* Failure Content */}
+        <View style={styles.centeredContainer}>
+          <Ionicons name="alert-circle" size={48} color="rgba(255, 255, 255, 0.3)" style={{ marginBottom: 16 }} />
+          <Text style={styles.errorTitle}>Failed to load departures</Text>
+          <Text style={styles.errorSubtext}>Departures are currently unavailable. Check your connection.</Text>
+          <Pressable
+            onPress={() => fetchStationDetail(false)}
+            onPressIn={retryAnim.onPressIn}
+            onPressOut={retryAnim.onPressOut}
+            style={styles.retryButtonPressable}
+          >
+            <Animated.View style={[styles.retryButton, retryAnim.animatedStyle]}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Animated.View>
           </Pressable>
         </View>
       </View>
     );
   }
 
-  const { northbound, southbound } = stationData ? groupDeparturesByDirection(stationData.departures) : { northbound: [], southbound: [] };
-  const headerBackgroundColor = stationData ? getHeaderColor(stationData.departures) : '#00A75D';
-  
-  const renderDepartureBlock = (departure: Departure, index: number, prefix: string) => {
-    const lineColor = getLineColor(departure.line);
-    const platformNumber = extractPlatformNumber(departure.platform);
-    const platformTextColor = getPlatformTextColor(lineColor);
-    return (
-      <View key={`${prefix}-${departure.line}-${departure.destination}-${departure.minutes_away}-${departure.expected_arrival || 'fallback'}`} style={[styles.departureCard, { borderColor: lineColor }]}>
-        <View style={[styles.platformCircle, { backgroundColor: lineColor }]}>
-          <Text style={[styles.platformLabel, { color: platformTextColor }]}>PLT</Text>
-          <Text style={[styles.platformNumber, { color: platformTextColor }]}>{platformNumber}</Text>
-        </View>
-        <View style={styles.departureDetails}>
-          <Text style={[styles.lineName, { color: lineColor }]}>{String(departure.line ?? '')}</Text>
-          <Text style={styles.destination} numberOfLines={1}>{String(departure.destination ?? '').replace(' Underground Station', '').replace(' DLR Station', '')}</Text>
-        </View>
-        <Text style={styles.dueTime}>{formatDueTime(departure.minutes_away)}</Text>
-      </View>
-    );
-  };
-
+  // 3. Normal Active State
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={[styles.header, { backgroundColor: headerBackgroundColor }]}>
-        <Pressable style={styles.backButton} onPress={() => back()} accessibilityLabel="Go back" accessibilityRole="button"><Ionicons name="arrow-back" size={28} color="#FFFFFF" /></Pressable>
-        <View style={styles.headerContent}><Text style={styles.stationTitle}>{String(stationData?.name ?? stationName ?? '').toUpperCase()}</Text></View>
-        <Pressable style={styles.refreshButton} onPress={() => fetchStationDetail()} accessibilityLabel="Refresh departures" accessibilityRole="button"><Ionicons name="refresh" size={24} color="#FFFFFF" /></Pressable>
+    <View style={styles.root}>
+      {/* Glow Ambient Layer */}
+      <DashboardGradient severity={stationSeverity} />
+
+      {/* Integrated Blur Header */}
+      <View style={styles.header}>
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.headerInner, { paddingTop: insets.top + 12 }]}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+            onPressIn={backAnim.onPressIn}
+            onPressOut={backAnim.onPressOut}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Animated.View style={[styles.backIconContainer, backAnim.animatedStyle]}>
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            </Animated.View>
+          </Pressable>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {stationName}
+            </Text>
+            <View style={styles.headerMetadataRow}>
+              <View style={styles.pipsContainer}>
+                {servingLines.slice(0, 5).map((lId) => {
+                  const color = LINE_COLORS[lId] || '#888';
+                  return <View key={lId} style={[styles.pip, { backgroundColor: color }]} />;
+                })}
+                {servingLines.length > 5 && <Text style={styles.overflowDot}>·</Text>}
+              </View>
+              <Text style={styles.headerVoiceText} numberOfLines={1}>{headerVoice}</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic">
-        {northbound.length > 0 && (
-          <View style={styles.directionSection}>
-            <Text style={styles.directionTitle}>↑ NORTHBOUND</Text>
-            {northbound.map((d, i) => renderDepartureBlock(d, i, 'nb'))}
+      {/* Main Content Area */}
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 68,
+            paddingBottom: insets.bottom + 92,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {orderedLineIds.length === 0 ? (
+          <View style={styles.emptyFeedCard}>
+            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Text style={styles.emptyFeedText}>No serving lines configured.</Text>
           </View>
-        )}
-        {southbound.length > 0 && (
-          <View style={styles.directionSection}>
-            <Text style={styles.directionTitle}>↓ SOUTHBOUND</Text>
-            {southbound.map((d, i) => renderDepartureBlock(d, i, 'sb'))}
-          </View>
+        ) : (
+          orderedLineIds.map((lineId) => {
+            const isUnavailable = unavailableLines.has(lineId);
+            const lineDeps = groupedDepartures[lineId] || [];
+            const lineName = LINE_NAMES[lineId] || lineId;
+            const lineColor = LINE_COLORS[lineId] || '#888';
+
+            const lineInfo = lastKnownData?.find((l) => l.id === lineId);
+            const severity = lineInfo?.status_severity ?? 1;
+            const statusText = lineInfo?.status ?? 'Good Service';
+            const isDisrupted = severity > 1;
+            const statusPill = getStatusPillColors(isUnavailable ? undefined : severity);
+
+            return (
+              <Animated.View
+                key={lineId}
+                layout={LinearTransition.springify().mass(0.8).damping(18)}
+                style={styles.cardContainer}
+              >
+                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+
+                {/* Card Header */}
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.lineAccentBar, { backgroundColor: lineColor }]} />
+                  <Text style={styles.cardLineName}>{lineName}</Text>
+                  
+                  {isUnavailable ? (
+                    <View style={styles.statusRow}>
+                      <View style={[styles.statusDot, { backgroundColor: '#9CA3AF' }]} />
+                      <Text style={styles.statusTextMuted}>Data unavailable</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.statusPill, { backgroundColor: statusPill.bg, borderColor: statusPill.border }]}>
+                      <Text style={[styles.statusPillText, { color: statusPill.text }]}>{statusText}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Inline Disruption block */}
+                {!isUnavailable && isDisrupted && lineInfo?.reason && (
+                  <View style={styles.disruptionTextContainer}>
+                    <Text style={styles.disruptionReasonText}>{lineInfo.reason}</Text>
+                    <Pressable
+                      style={styles.viewLineLink}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push({
+                          pathname: '/(lineStack)/lineDetail',
+                          params: { lineId },
+                        });
+                      }}
+                    >
+                      <Text style={styles.viewLineLinkText}>View line →</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {/* Card Body / Departures */}
+                {isUnavailable ? (
+                  <Text style={styles.emptyText}>Feed offline. Please try again later.</Text>
+                ) : lineDeps.length === 0 ? (
+                  <Text style={styles.emptyText}>No upcoming departures found.</Text>
+                ) : (
+                  <View style={styles.departuresList}>
+                    {lineDeps.slice(0, 6).map((dep, index, arr) => {
+                      const depVal = dep.minutesAway === 0 ? 'now' : dep.minutesAway;
+                      const depTimeStyle = getDepTimeStyle(depVal);
+                      const cleanPlatformText = formatPlatformText(dep.platform);
+                      const cleanDestText = dep.destination.replace(' Underground Station', '').replace(' DLR Station', '').trim();
+                      const platformAndDest = cleanPlatformText ? `${cleanPlatformText} · to ${cleanDestText}` : `To ${cleanDestText}`;
+
+                      return (
+                        <View
+                          key={`${dep.lineId}-${dep.destination}-${dep.minutesAway}-${index}`}
+                          style={[
+                            styles.departureRow,
+                            index === arr.length - 1 && { borderBottomWidth: 0 },
+                          ]}
+                        >
+                          <Text style={styles.platformAndDestText} numberOfLines={1}>
+                            {platformAndDest}
+                          </Text>
+                          <Text style={[styles.departureTimeText, depTimeStyle]}>
+                            {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </Animated.View>
+            );
+          })
         )}
       </ScrollView>
+
+      {/* Floating Share departures action pill */}
+      {departures.length > 0 && (
+        <View style={[styles.bottomPillContainer, { bottom: insets.bottom + 16 }]}>
+          <Pressable
+            onPress={handleShare}
+            onPressIn={shareAnim.onPressIn}
+            onPressOut={shareAnim.onPressOut}
+            style={styles.pillPressable}
+          >
+            <Animated.View style={[styles.actionPill, shareAnim.animatedStyle]}>
+              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <Text style={styles.pillText}>{shareLabel}</Text>
+            </Animated.View>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F7' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 20 },
-  backButton: { padding: 8, marginRight: 8 },
-  headerContent: { flex: 1, alignItems: 'center' },
-  stationTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1.5, textAlign: 'center' },
-  refreshButton: { padding: 8 },
-  content: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  errorText: { fontSize: 18, color: '#E74C3C', textAlign: 'center', marginTop: 16, marginBottom: 24 },
-  retryButton: { backgroundColor: '#007AFF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
-  retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  directionSection: { marginTop: 20 },
-  directionTitle: { fontSize: 15, fontWeight: '600', color: '#666666', marginBottom: 12, marginHorizontal: 16, letterSpacing: 0.5 },
-  departureCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginVertical: 6, paddingHorizontal: 16, paddingVertical: 18, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 3, boxShadow: '0 2px 4px rgba(0,0,0,0.08)' },
-  platformCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  platformLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
-  platformNumber: { fontSize: 16, fontWeight: '700', marginTop: -2 },
-  departureDetails: { flex: 1 },
-  lineName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
-  destination: { fontSize: 20, fontWeight: '800', color: '#000000' },
-  dueTime: { fontSize: 22, fontWeight: '800', color: '#000000', minWidth: 90, textAlign: 'right' }
+  root: {
+    flex: 1,
+    backgroundColor: '#0A0A0B',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  headerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    width: '100%',
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  backIconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  headerMetadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  pipsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  pip: {
+    width: 12,
+    height: 3,
+    borderRadius: 1.5,
+    marginRight: 4,
+  },
+  overflowDot: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    lineHeight: 14,
+    marginLeft: -2,
+    marginRight: 6,
+  },
+  headerVoiceText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    flex: 1,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: 12,
+  },
+  errorTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 18,
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  retryButtonPressable: {
+    minWidth: 120,
+  },
+  retryButton: {
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  retryButtonText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: '#000000',
+  },
+  emptyFeedCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyFeedText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  cardContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
+    marginBottom: 16,
+    padding: 16,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  lineAccentBar: {
+    width: 4,
+    height: 16,
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  cardLineName: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  statusPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  statusTextMuted: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  disruptionTextContainer: {
+    backgroundColor: 'rgba(209, 67, 67, 0.08)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(209, 67, 67, 0.15)',
+    padding: 10,
+    marginBottom: 12,
+  },
+  disruptionReasonText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  viewLineLink: {
+    alignSelf: 'flex-start',
+  },
+  viewLineLinkText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: '#30D158',
+    textDecorationLine: 'underline',
+  },
+  departuresList: {
+    marginTop: 4,
+  },
+  departureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  platformAndDestText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
+    flex: 1,
+    marginRight: 12,
+  },
+  departureTimeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+  },
+  emptyText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.4)',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  bottomPillContainer: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    zIndex: 100,
+  },
+  pillPressable: {
+    width: '100%',
+  },
+  actionPill: {
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  pillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
 });

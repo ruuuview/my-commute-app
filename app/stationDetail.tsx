@@ -28,6 +28,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { DashboardGradient } from '../components/DashboardGradient';
 import { stationDataCache } from '../utils/stationCache';
 import type { Severity } from '../components/MyCommuteDashboard';
+import { playSound } from '../utils/sound';
 
 const BACKEND_URL = APP_CONFIG.BACKEND_URL;
 
@@ -127,6 +128,35 @@ const getStationInfo = (id: string, name?: string) => {
   }
   return null;
 };
+
+interface ViewLineButtonProps {
+  lineId: string;
+}
+
+function ViewLineButton({ lineId }: ViewLineButtonProps) {
+  const router = useRouter();
+  const pressAnim = usePressAnimation('station_row');
+
+  return (
+    <Pressable
+      style={styles.viewLineLink}
+      onPressIn={pressAnim.onPressIn}
+      onPressOut={pressAnim.onPressOut}
+      onPress={async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await playSound('select', 0.45);
+        router.push({
+          pathname: '/(lineStack)/lineDetail',
+          params: { lineId },
+        });
+      }}
+    >
+      <Animated.View style={pressAnim.animatedStyle}>
+        <Text style={styles.viewLineLinkText}>View line →</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export default function StationDetailScreen() {
   const params = useLocalSearchParams();
@@ -360,6 +390,7 @@ export default function StationDetailScreen() {
   const handleShare = async () => {
     if (departures.length === 0) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await playSound('select', 0.45);
 
     const summaryParts: string[] = [];
     const groupedDeps: Record<string, MappedDeparture[]> = {};
@@ -530,7 +561,7 @@ export default function StationDetailScreen() {
       >
         {orderedLineIds.length === 0 ? (
           <View style={styles.emptyFeedCard}>
-            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
             <Text style={styles.emptyFeedText}>No serving lines configured.</Text>
           </View>
         ) : (
@@ -552,7 +583,7 @@ export default function StationDetailScreen() {
                 layout={LinearTransition.springify().mass(0.8).damping(18)}
                 style={styles.cardContainer}
               >
-                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+                <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
 
                 {/* Card Header */}
                 <View style={styles.cardHeaderRow}>
@@ -575,18 +606,7 @@ export default function StationDetailScreen() {
                 {!isUnavailable && isDisrupted && lineInfo?.reason && (
                   <View style={styles.disruptionTextContainer}>
                     <Text style={styles.disruptionReasonText}>{lineInfo.reason}</Text>
-                    <Pressable
-                      style={styles.viewLineLink}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push({
-                          pathname: '/(lineStack)/lineDetail',
-                          params: { lineId },
-                        });
-                      }}
-                    >
-                      <Text style={styles.viewLineLinkText}>View line →</Text>
-                    </Pressable>
+                    <ViewLineButton lineId={lineId} />
                   </View>
                 )}
 
@@ -662,7 +682,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   headerInner: {
     flexDirection: 'row',
@@ -773,7 +793,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
     padding: 24,
     alignItems: 'center',
@@ -787,7 +807,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
     marginBottom: 16,
     padding: 16,

@@ -279,7 +279,7 @@ export default function SettingsScreen() {
               <Animated.View style={[styles.frontCard, frontAnimatedStyle]}>
                 <View style={styles.cardHeaderRow}>
                   <Ionicons name="notifications-outline" size={24} color="#007AFF" />
-                  <Text style={styles.cardHeaderTitle}>The Central line doesn't text you when it's cooked. We do.</Text>
+                  <Text style={styles.cardHeaderTitle}>{"The Central line doesn’t text you when it’s cooked. We do."}</Text>
                 </View>
                 <Text style={styles.cardBodyText}>
                   Get live disruption alerts and leave-by reminders, straight to your lock screen.

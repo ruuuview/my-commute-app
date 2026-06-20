@@ -27,11 +27,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withRepeat,
-  withSequence,
   Easing,
   useReducedMotion,
-  cancelAnimation,
   withSpring,
   withDelay,
   LinearTransition,
@@ -71,7 +68,6 @@ import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
-import { TFL_STATIONS, FULL_STATIONS } from '../data/tflStations';
 import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -144,7 +140,7 @@ const LinePill: React.FC<{
   if (severity === 'good') statusColor = '#30D158';
   else if (severity === 'minor') statusColor = '#FF9F0A';
   else if (severity === 'severe') statusColor = '#FF3B30';
-  else if (severity === 'suspended' || severity === 'closure') statusColor = '#636366';
+  else if (severity === 'suspended') statusColor = '#636366';
 
   const statusLabel = STATUS_SHORT[line.status] || line.status;
 
@@ -502,7 +498,7 @@ const MyCommuteDashboard: React.FC = () => {
     }
   }, [selectedStations, selectedLines, setLastKnown]);
 
-  const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData);
+  const { forceRefresh, isLoading } = useTflPoller(fetchData);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

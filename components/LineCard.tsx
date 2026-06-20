@@ -7,7 +7,6 @@ import Animated, {
   useReducedMotion,
   withRepeat,
   withTiming,
-  Easing,
   FadeIn,
   FadeOut,
   ZoomIn,

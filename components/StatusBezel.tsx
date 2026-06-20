@@ -37,7 +37,7 @@ export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType,
     } else {
       pulse.value = 1;
     }
-  }, [normalizedStatus, reducedMotion]);
+  }, [normalizedStatus, reducedMotion, pulse]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return { opacity: pulse.value };

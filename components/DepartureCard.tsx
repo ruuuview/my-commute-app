@@ -24,6 +24,15 @@ const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
 const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
 
+const cleanPlatformName = (platform: string): string => {
+  if (!platform) return '';
+  const match = platform.match(/Platform\s+[A-Za-z0-9]+/i);
+  if (match) {
+    return match[0].charAt(0).toUpperCase() + match[0].slice(1);
+  }
+  return platform;
+};
+
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 interface Arrival {
   lineId: string;
@@ -32,6 +41,7 @@ interface Arrival {
   minutesAway: number;
   destination: string;
   expectedArrival: string;
+  platform?: string;
 }
 
 interface DepartureCardProps {
@@ -139,6 +149,7 @@ export default function DepartureCard({
           minutesAway: dep.minutes_away,
           destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
           expectedArrival: dep.expected_arrival,
+          platform: dep.platform ? cleanPlatformName(dep.platform) : '',
         };
       });
 
@@ -285,9 +296,16 @@ export default function DepartureCard({
                     <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
                       {a.lineName}
                     </Text>
-                    <Text style={styles.arrivalDest} numberOfLines={1}>
-                      {a.destination}
-                    </Text>
+                    <View style={styles.arrivalDestContainer}>
+                      <Text style={styles.arrivalDest} numberOfLines={1}>
+                        {a.destination}
+                      </Text>
+                      {a.platform ? (
+                        <Text style={styles.arrivalPlatform} numberOfLines={1}>
+                          {a.platform}
+                        </Text>
+                      ) : null}
+                    </View>
                     <Text style={[styles.arrivalTime, depStyle]}>
                       {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
                     </Text>
@@ -420,12 +438,24 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
     marginRight: 8,
   },
-  arrivalDest: {
+  arrivalDestContainer: {
     flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  arrivalDest: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
     color: 'rgba(255,255,255,0.9)',
-    marginRight: 8,
+    lineHeight: 15,
+  },
+  arrivalPlatform: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 9.5,
+    color: 'rgba(255,255,255,0.38)',
+    marginTop: 1,
+    lineHeight: 12,
   },
   arrivalTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

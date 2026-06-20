@@ -15,7 +15,7 @@ export const LINE_SHORT_NAMES: Record<string, string> = {
   overground: 'Overground',
   piccadilly: 'Piccadilly',
   victoria: 'Victoria',
-  'waterloo-city': 'W&C',
+  'waterloo-city': 'WL&City',
   // Overground branches
   weaver: 'Overground',
   mildmay: 'Overground',

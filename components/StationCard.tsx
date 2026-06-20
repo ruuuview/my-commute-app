@@ -13,6 +13,15 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { getPillColors } from '../utils/pillColors';
 import { normaliseLineId } from '../utils/normaliseLineId';
 
+const cleanPlatformName = (platform: string): string => {
+  if (!platform) return '';
+  const match = platform.match(/Platform\s+[A-Za-z0-9]+/i);
+  if (match) {
+    return match[0].charAt(0).toUpperCase() + match[0].slice(1);
+  }
+  return platform;
+};
+
 export interface Departure {
   lineId: string;
   lineColor: string;
@@ -20,6 +29,7 @@ export interface Departure {
   destination: string;
   timeText: string;
   isImminent: boolean;
+  platform?: string;
 }
 
 interface StationCardProps {
@@ -104,6 +114,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
     lineOccurrenceCount[lineId] = occ + 1;
     const destination = terminals[(occ + seed) % terminals.length];
 
+    const platformNum = ((seed + index) % 4) + 1;
     departures.push({
       lineId,
       lineColor: LINE_COLORS[lineId] || '#888',
@@ -111,6 +122,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
       destination,
       timeText: `${mins} min`,
       isImminent: mins <= 2,
+      platform: `Platform ${platformNum}`,
     });
     index++;
   }
@@ -200,6 +212,7 @@ export function StationCard({
               .replace(' DLR Station', ''),
             timeText: `${dep.minutes_away} min`,
             isImminent: dep.minutes_away <= 2,
+            platform: dep.platform ? cleanPlatformName(dep.platform) : '',
           };
         });
 
@@ -315,6 +328,11 @@ export function StationCard({
                         <Text style={styles.ledgerDestText} numberOfLines={1} ellipsizeMode="tail">
                           {dep.destination}
                         </Text>
+                        {dep.platform ? (
+                          <Text style={styles.ledgerPlatformText} numberOfLines={1}>
+                            {dep.platform}
+                          </Text>
+                        ) : null}
                       </View>
                       <View style={styles.columnCountdown}>
                         <Text style={[styles.ledgerTimeText, depStyle]} numberOfLines={1}>
@@ -452,11 +470,21 @@ const styles = StyleSheet.create({
   columnDestination: {
     flex: 3,
     paddingLeft: 4,
+    flexDirection: 'column',
+    justifyContent: 'center',
   },
   ledgerDestText: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.65)',
     fontFamily: 'SpaceGrotesk_500Medium',
+    lineHeight: 14,
+  },
+  ledgerPlatformText: {
+    fontSize: 9,
+    color: 'rgba(255, 255, 255, 0.35)',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    marginTop: 1,
+    lineHeight: 11,
   },
   columnCountdown: {
     width: 38,

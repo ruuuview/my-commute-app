@@ -1,1 +1,1 @@
-// File deprecated. Functionality moved to modules/my-widget-kicker
+// File deprecated. Functionality moved to WidgetModule

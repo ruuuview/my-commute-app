@@ -160,18 +160,24 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         return persisted;
       },
       onRehydrateStorage: () => (state) => {
-        if (state) {
-          validateStationZoneCache(state.pinnedStations);
-          
-          // Also clean up onboarding store's pinned stations if they contain excluded IDs
-          const onboardingPinned = useOnboardingStore.getState().pinnedStations;
-          const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
-          const cleanedOnboarding = onboardingPinned.filter(s => !EXCLUDED_IDS.has(s.id));
-          if (cleanedOnboarding.length !== onboardingPinned.length) {
-            useOnboardingStore.setState({ pinnedStations: cleanedOnboarding });
+        try {
+          if (state) {
+            validateStationZoneCache(state.pinnedStations);
+            
+            // Also clean up onboarding store's pinned stations if they contain excluded IDs
+            const onboardingPinned = useOnboardingStore.getState().pinnedStations;
+            const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
+            const cleanedOnboarding = onboardingPinned ? onboardingPinned.filter(s => s && s.id && !EXCLUDED_IDS.has(s.id)) : [];
+            if (onboardingPinned && cleanedOnboarding.length !== onboardingPinned.length) {
+              useOnboardingStore.setState({ pinnedStations: cleanedOnboarding });
+            }
           }
-
-          state.setHasHydrated(true);
+        } catch (e) {
+          console.error("Hydration validation failed:", e);
+        } finally {
+          if (state) {
+            state.setHasHydrated(true);
+          }
         }
       },
     }

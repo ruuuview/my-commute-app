@@ -189,6 +189,8 @@ export default function RootLayout() {
           let targetPath = '/onboarding/lines';
           if (onboardingStep === 1) {
             targetPath = '/onboarding/stations';
+          } else if (onboardingStep === 2) {
+            targetPath = '/onboarding/permissions';
           }
           router.replace(targetPath as any);
         }, 100);

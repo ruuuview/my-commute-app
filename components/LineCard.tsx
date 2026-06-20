@@ -134,7 +134,7 @@ export function LineCard({
   if (statusType === 'good') statusTextColor = '#30D158';
   else if (statusType === 'minor') statusTextColor = '#FF9F0A';
   else if (statusType === 'severe') statusTextColor = '#FF3B30';
-  else if (statusType === 'suspended' || statusType === 'closure') statusTextColor = '#636366';
+  else if (statusType === 'suspended' || statusType === 'closure') statusTextColor = '#FF3B30';
 
   return (
     <Pressable

@@ -1,7 +1,7 @@
 export const STATUS_SHORT: Record<string, string> = {
-  'Good service': 'All clear.',
-  'Good Service': 'All clear.',
-  'good': 'All clear.',
+  'Good service': 'Good service',
+  'Good Service': 'Good service',
+  'good': 'Good service',
   
   'Minor delays': 'Minor delays',
   'Minor Delays': 'Minor delays',

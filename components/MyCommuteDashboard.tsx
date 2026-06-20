@@ -140,7 +140,7 @@ const LinePill: React.FC<{
   if (severity === 'good') statusColor = '#30D158';
   else if (severity === 'minor') statusColor = '#FF9F0A';
   else if (severity === 'severe') statusColor = '#FF3B30';
-  else if (severity === 'suspended') statusColor = '#636366';
+  else if (severity === 'suspended') statusColor = '#FF3B30';
 
   const statusLabel = STATUS_SHORT[line.status] || line.status;
 

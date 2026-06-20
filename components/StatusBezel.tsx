@@ -26,7 +26,11 @@ export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType,
       return;
     }
 
-    const shouldBlink = normalizedStatus === 'suspended' || normalizedStatus === 'closure';
+    const shouldBlink =
+      normalizedStatus.includes('suspended') ||
+      normalizedStatus.includes('suspend') ||
+      normalizedStatus.includes('closure') ||
+      normalizedStatus.includes('closed');
     if (shouldBlink) {
       pulse.value = 1;
       pulse.value = withRepeat(
@@ -44,10 +48,24 @@ export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType,
   });
 
   let color = '#636366'; // Default suspended/closure/error/loading color
-  if (normalizedStatus === 'good') color = '#30D158';
-  else if (normalizedStatus === 'minor') color = '#FF9F0A';
-  else if (normalizedStatus === 'severe') color = '#FF3B30';
-  else if (normalizedStatus === 'suspended' || normalizedStatus === 'closure') color = '#636366';
+  if (normalizedStatus.includes('good')) {
+    color = '#30D158';
+  } else if (normalizedStatus.includes('minor') || normalizedStatus.includes('delay')) {
+    if (normalizedStatus.includes('severe')) {
+      color = '#FF3B30';
+    } else {
+      color = '#FF9F0A';
+    }
+  } else if (normalizedStatus.includes('severe')) {
+    color = '#FF3B30';
+  } else if (
+    normalizedStatus.includes('suspended') ||
+    normalizedStatus.includes('suspend') ||
+    normalizedStatus.includes('closure') ||
+    normalizedStatus.includes('closed')
+  ) {
+    color = '#FF3B30';
+  }
 
   return (
     <View style={[styles.outerBezel, style]}>

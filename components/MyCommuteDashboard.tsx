@@ -69,6 +69,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
+import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -169,9 +170,9 @@ const LinePill: React.FC<{
         delayLongPress={300}
         style={pill.container}
       >
-        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
-        <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
+        <Text style={pill.name} numberOfLines={1}>{LINE_SHORT_NAMES[line.id] || line.name}</Text>
         <View style={pill.spacer} />
         {!isEditing && (
           <>
@@ -200,8 +201,21 @@ const LinePill: React.FC<{
 };
 
 const pill = StyleSheet.create({
-  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', borderRadius: 12, marginBottom: 8, overflow: 'hidden', position: 'relative' },
-  colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
+  container: { 
+    minHeight: 44, 
+    paddingVertical: 10, 
+    paddingHorizontal: 16, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.05)', 
+    borderRadius: 14, 
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    marginBottom: 8, 
+    overflow: 'hidden', 
+    position: 'relative' 
+  },
+  colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 12 },
   name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   spacer: { flex: 1 },
   statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
@@ -242,6 +256,7 @@ const SectionHeader: React.FC<{
         }}
       >
         <Animated.View style={[section.addBtn, isEditing && { marginRight: 12 }]}>
+          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
           <Text style={section.addBtnText}>+</Text>
         </Animated.View>
       </TapGestureHandler>
@@ -253,16 +268,22 @@ const section = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginTop: 4 },
   title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.58)' },
   addBtn: {
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.05)',
   },
   addBtnText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.35)',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: '#FFFFFF',
     textAlign: 'center',
+    marginTop: -1,
   },
 });
 
@@ -569,6 +590,7 @@ const MyCommuteDashboard: React.FC = () => {
                 <View style={dash.headerActions}>
                   {hasContent && (
                     <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
+                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
                       <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
                     </Pressable>
                   )}
@@ -766,14 +788,20 @@ const dash = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.05)',
+    minWidth: 64,
   },
   headerBtnText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)'
+    color: '#FFFFFF',
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },

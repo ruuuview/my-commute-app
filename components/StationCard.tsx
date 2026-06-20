@@ -293,7 +293,7 @@ export function StationCard({
       <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
         {/* Dark smoked glass background */}
         <BlurView
-          intensity={80}
+          intensity={65}
           tint="dark"
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
         />
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     borderRadius: 18,
     marginBottom: 6,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     minHeight: 68,
   },
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurBackground: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(0, 0, 0, 0.20)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.05)',
   },
   cardContent: {
     paddingHorizontal: 16,

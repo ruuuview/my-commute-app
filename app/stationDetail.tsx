@@ -95,14 +95,12 @@ const getDepTimeStyle = (minutes: number | 'now') => {
   return { color: 'rgba(255,255,255,0.55)', fontWeight: '500' as const };
 };
 
-const formatPlatformText = (platformRaw: string | null | undefined): string => {
+const cleanPlatformName = (platformRaw: string | null | undefined): string => {
   const raw = String(platformRaw ?? '').trim();
-  const match = raw.match(/Platform\s+(\d+[a-zA-Z]?)/i);
+  if (!raw) return '';
+  const match = raw.match(/Platform\s+[A-Za-z0-9]+/i);
   if (match) {
-    return `Platform ${match[1]}`;
-  }
-  if (raw.toLowerCase().includes('platform')) {
-    return raw;
+    return match[0].charAt(0).toUpperCase() + match[0].slice(1);
   }
   return raw;
 };
@@ -620,7 +618,7 @@ export default function StationDetailScreen() {
                     {lineDeps.slice(0, 6).map((dep, index, arr) => {
                       const depVal = dep.minutesAway === 0 ? 'now' : dep.minutesAway;
                       const depTimeStyle = getDepTimeStyle(depVal);
-                      const cleanPlatformText = formatPlatformText(dep.platform);
+                      const cleanPlatformText = cleanPlatformName(dep.platform);
                       const cleanDestText = dep.destination.replace(' Underground Station', '').replace(' DLR Station', '').trim();
                       const platformAndDest = cleanPlatformText ? `${cleanPlatformText} · to ${cleanDestText}` : `To ${cleanDestText}`;
 

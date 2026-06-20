@@ -239,7 +239,7 @@ export default function DepartureCard({
       style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
     >
       <Animated.View style={[styles.container, containerStyle]}>
-        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <BlurView intensity={65} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View onLayout={onInnerLayout} style={styles.innerContent}>
           <Pressable
             onLongPress={onLongPress}
@@ -337,9 +337,9 @@ export default function DepartureCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'transparent',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.18)',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 0,

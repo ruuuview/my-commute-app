@@ -33,14 +33,27 @@ export function useArrivalPoller(naptanId: string | null) {
         const data = await res.json();
         
         // Map raw TfL departures to our clean Arrival model
-        const mapped: Arrival[] = data.map((item: any) => ({
-          id: String(item.id || ''),
-          lineId: String(item.lineId || '').toLowerCase(),
-          lineName: String(item.lineName || ''),
-          destinationName: String(item.destinationName || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-          timeToStation: Number(item.timeToStation || 0),
-          expectedArrival: String(item.expectedArrival || ''),
-        }));
+        const mapped: Arrival[] = data.map((item: any) => {
+          let dest = item.destinationName;
+          if (String(item.lineId || '').toLowerCase() === 'waterloo-city') {
+            if (naptanId === '940GZZLUWLO' || naptanId?.includes('WLO')) {
+              dest = 'Bank Underground Station';
+            } else if (naptanId === '940GZZLUBNK' || naptanId?.includes('BNK')) {
+              dest = 'Waterloo Underground Station';
+            }
+          }
+          if (!dest) {
+            dest = 'Unknown';
+          }
+          return {
+            id: String(item.id || ''),
+            lineId: String(item.lineId || '').toLowerCase(),
+            lineName: String(item.lineName || ''),
+            destinationName: String(dest).replace(' Underground Station', '').replace(' DLR Station', ''),
+            timeToStation: Number(item.timeToStation || 0),
+            expectedArrival: String(item.expectedArrival || ''),
+          };
+        });
 
         const sorted = mapped.sort((a, b) => a.timeToStation - b.timeToStation);
         setArrivals(sorted);
@@ -51,13 +64,26 @@ export function useArrivalPoller(naptanId: string | null) {
           stationDataCache.set(naptanId, Promise.resolve({
             id: naptanId,
             name: tflCapitalise(rawName),
-            departures: data.map((item: any) => ({
-              destination: String(item.destinationName || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-              line: String(item.lineName || ''),
-              platform: String(item.platformName || ''),
-              minutes_away: Math.floor(Number(item.timeToStation || 0) / 60),
-              expected_arrival: String(item.expectedArrival || ''),
-            })),
+            departures: data.map((item: any) => {
+              let dest = item.destinationName;
+              if (String(item.lineId || '').toLowerCase() === 'waterloo-city') {
+                if (naptanId === '940GZZLUWLO' || naptanId?.includes('WLO')) {
+                  dest = 'Bank Underground Station';
+                } else if (naptanId === '940GZZLUBNK' || naptanId?.includes('BNK')) {
+                  dest = 'Waterloo Underground Station';
+                }
+              }
+              if (!dest) {
+                dest = 'Unknown';
+              }
+              return {
+                destination: String(dest).replace(' Underground Station', '').replace(' DLR Station', ''),
+                line: String(item.lineName || ''),
+                platform: String(item.platformName || ''),
+                minutes_away: Math.floor(Number(item.timeToStation || 0) / 60),
+                expected_arrival: String(item.expectedArrival || ''),
+              };
+            }),
             updated_at: new Date().toISOString()
           }));
         }

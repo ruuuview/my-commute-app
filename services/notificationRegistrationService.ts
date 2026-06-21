@@ -7,8 +7,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 let messaging: any = null;
 if (Platform.OS === 'android') {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     messaging = require('@react-native-firebase/messaging').default;
-  } catch (error) {
+  } catch {
     console.warn('⚠️ FCM: React Native Firebase not available');
   }
 }

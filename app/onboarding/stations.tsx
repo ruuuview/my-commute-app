@@ -415,7 +415,7 @@ export default function StationsScreen() {
 
           {/* Title Header Container */}
           <View style={styles.headerContainer}>
-            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
+            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 3</Text>
             <View style={{ marginBottom: 6 }}>
               <ProgressDots total={3} current={2} />
             </View>
@@ -686,9 +686,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addedCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -698,9 +698,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   addCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.30)',
     alignItems: 'center',

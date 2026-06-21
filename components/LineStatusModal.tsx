@@ -177,6 +177,7 @@ export function LineStatusModal({ visible, line, onClose }: LineStatusModalProps
       visible={shouldRender}
       transparent
       animationType="none"
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <View style={styles.root}>
@@ -194,7 +195,7 @@ export function LineStatusModal({ visible, line, onClose }: LineStatusModalProps
             style={[styles.sheet, animatedSheetStyle, { maxHeight: SCREEN_HEIGHT * 0.65 }]}
             onLayout={onLayout}
           >
-            <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
             
             {/* Top Drag Handle */}
             <View style={styles.handleContainer}>
@@ -265,7 +266,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     backgroundColor: Platform.OS === 'android' ? 'rgba(20, 20, 28, 0.95)' : 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     borderBottomWidth: 0,
     overflow: 'hidden',
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   handle: {
-    width: 36,
+    width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',

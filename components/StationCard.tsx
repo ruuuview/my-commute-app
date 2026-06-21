@@ -12,6 +12,7 @@ import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { getPillColors } from '../utils/pillColors';
 import { normaliseLineId } from '../utils/normaliseLineId';
+import { APP_CONFIG } from '../config/app.config';
 
 const cleanPlatformName = (platform: string): string => {
   if (!platform) return '';
@@ -170,7 +171,7 @@ export function StationCard({
         const resolvedIds = resolveTflStopIds(station.id);
         const responses = await Promise.all(
           resolvedIds.map(id =>
-            fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+            fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
               .then(res => (res.ok ? res.json() : null))
               .catch(() => null)
           )

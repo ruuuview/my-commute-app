@@ -58,6 +58,7 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { LineStatusModal } from './LineStatusModal';
+import { APP_CONFIG } from '../config/app.config';
 import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -445,7 +446,7 @@ const MyCommuteDashboard: React.FC = () => {
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       // 1. Fetch lines
-      const response = await fetch('https://my-commute-backend.vercel.app/api/lines', { signal });
+      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, { signal });
       if (!response.ok) {
         return { status: response.status };
       }
@@ -467,7 +468,7 @@ const MyCommuteDashboard: React.FC = () => {
             const resolvedIds = resolveTflStopIds(st.id);
             const responses = await Promise.all(
               resolvedIds.map(id =>
-                fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`, { signal })
+                fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal })
                   .then(res => (res.ok ? res.json() : null))
                   .catch(() => null)
               )

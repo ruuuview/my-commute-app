@@ -8,13 +8,14 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-backend.vercel.app';
+const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-brain.vercel.app';
 
 // Lazy import to avoid crashes in Expo Go
 let messaging: any = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   messaging = require('@react-native-firebase/messaging').default;
-} catch (error) {
+} catch {
   console.warn('⚠️ FCM: React Native Firebase not available (requires custom build)');
 }
 

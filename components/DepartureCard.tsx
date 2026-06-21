@@ -18,6 +18,7 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { useJiggle } from '../hooks/useJiggle';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { APP_CONFIG } from '../config/app.config';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -108,7 +109,7 @@ export default function DepartureCard({
       const resolvedIds = resolveTflStopIds(stationId);
       const responses = await Promise.all(
         resolvedIds.map(id =>
-          fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
             .then(res => (res.ok ? res.json() : null))
             .catch(() => null)
         )

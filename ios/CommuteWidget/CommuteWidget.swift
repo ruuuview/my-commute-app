@@ -48,58 +48,39 @@ enum SeverityLevel {
     var gradientColors: [Color] {
         switch self {
         case .good:
-            return [Color(red: 0.157, green: 0.655, blue: 0.271),
-                    Color(red: 0.118, green: 0.494, blue: 0.208)]
+            return [Color(red: 13.0/255.0, green: 92.0/255.0, blue: 46.0/255.0), Color.black]
         case .minor:
-            return [Color(red: 1.000, green: 0.749, blue: 0.000),
-                    Color(red: 0.902, green: 0.659, blue: 0.000)]
+            return [Color(red: 122.0/255.0, green: 74.0/255.0, blue: 0.0/255.0), Color.black]
         case .severe:
-            return [Color(red: 0.863, green: 0.208, blue: 0.271),
-                    Color(red: 0.741, green: 0.129, blue: 0.188)]
+            return [Color(red: 122.0/255.0, green: 14.0/255.0, blue: 14.0/255.0), Color.black]
         case .suspended:
-            return [Color(red: 0.890, green: 0.125, blue: 0.090),
-                    Color(red: 0.722, green: 0.102, blue: 0.071)]
+            return [Color(red: 92.0/255.0, green: 10.0/255.0, blue: 10.0/255.0), Color.black]
         }
     }
 
     var iconColor: Color {
         switch self {
         case .good:
-            return Color(red: 0.157, green: 0.655, blue: 0.271)
+            return Color(red: 48.0/255.0, green: 209.0/255.0, blue: 88.0/255.0) // #30D158
         case .minor:
-            return Color(red: 0.851, green: 0.549, blue: 0.000)
+            return Color(red: 255.0/255.0, green: 159.0/255.0, blue: 10.0/255.0) // #FF9F0A
         case .severe:
-            return Color(red: 0.863, green: 0.208, blue: 0.271)
+            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0) // #FF3B30
         case .suspended:
-            return Color(red: 0.890, green: 0.125, blue: 0.090)
+            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0) // #FF3B30
         }
     }
 
     var textColor: Color {
-        switch self {
-        case .good, .severe, .suspended:
-            return .white
-        case .minor:
-            return Color(red: 0.15, green: 0.10, blue: 0.00)
-        }
+        return .white
     }
 
     var secondaryTextColor: Color {
-        switch self {
-        case .good, .severe, .suspended:
-            return .white.opacity(0.80)
-        case .minor:
-            return Color(red: 0.25, green: 0.15, blue: 0.00).opacity(0.85)
-        }
+        return .white.opacity(0.60)
     }
 
     var dividerColor: Color {
-        switch self {
-        case .good, .severe, .suspended:
-            return .white.opacity(0.3)
-        case .minor:
-            return Color.black.opacity(0.15)
-        }
+        return .white.opacity(0.12)
     }
 }
 

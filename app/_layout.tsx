@@ -16,7 +16,7 @@ import {
 } from '@expo-google-fonts/space-grotesk';
 import { setAudioModeAsync } from 'expo-audio';
 import { preloadSounds } from '../utils/sound';
-import { registerBackgroundFetchAsync } from '../services/backgroundTask';
+import { registerBackgroundFetchAsync, syncGeofencesAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
 
 SplashScreen.preventAutoHideAsync();
@@ -47,6 +47,8 @@ export default function RootLayout() {
   const hasCompletedOnboarding = useUserPreferencesStore(s => s.hasCompletedOnboarding);
   const onboardingStep = useUserPreferencesStore(s => s.onboardingStep);
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
+  const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
+  const locationGranted = useUserPreferencesStore(s => s.locationGranted);
 
   // Preload UI sounds and configure audio ducking
   useEffect(() => {
@@ -103,6 +105,13 @@ export default function RootLayout() {
       registerBackgroundFetchAsync();
     }
   }, [_hasHydrated]);
+
+  // Synchronize geofences whenever hydration is complete, location permissions change, or pinned stations change
+  useEffect(() => {
+    if (_hasHydrated) {
+      syncGeofencesAsync(pinnedStations);
+    }
+  }, [_hasHydrated, locationGranted, pinnedStations]);
 
   // Synchronize with iOS Widget when selectedLines changes
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);

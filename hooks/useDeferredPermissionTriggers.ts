@@ -71,10 +71,15 @@ export function useDeferredPermissionTriggers() {
 
   const requestLocationPermission = useCallback(async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      const granted = status === 'granted';
-      setLocationGranted(granted);
-      return granted;
+      const foreground = await Location.requestForegroundPermissionsAsync();
+      if (foreground.status === 'granted') {
+        const background = await Location.requestBackgroundPermissionsAsync();
+        const granted = background.status === 'granted';
+        setLocationGranted(granted);
+        return granted;
+      }
+      setLocationGranted(false);
+      return false;
     } catch (err) {
       console.log('Error requesting location permissions:', err);
       return false;

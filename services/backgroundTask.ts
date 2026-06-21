@@ -2,12 +2,55 @@ import { NativeModules } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
+const GEOFENCING_TASK = 'geofencing-task';
 const backgroundStorage = createMMKV({ id: 'background-storage' });
+
+// Offline coordinates dataset for station geofencing lookup
+const stationCoordinates = require('../data/stationCoordinates.json');
+
+TaskManager.defineTask(GEOFENCING_TASK, async ({ data: { eventType, region }, error }: any) => {
+  if (error) {
+    console.error(`❌ Background Geofencing Error: ${error.message}`);
+    return;
+  }
+
+  try {
+    const stationId = region.identifier;
+    const stationData = stationCoordinates[stationId];
+    const stationName = stationData ? stationData.name : 'Commute Station';
+
+    console.log(`📍 Geofencing Event: type ${eventType} for station ${stationName} (${stationId})`);
+
+    // eventType 1 = Enter, 2 = Exit
+    if (eventType === Location.GeofencingEventType.Enter) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Approaching ${stationName}`,
+          body: `Starting live tracking for your commute.`,
+          sound: true,
+        },
+        trigger: null,
+      });
+    } else if (eventType === Location.GeofencingEventType.Exit) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Departed ${stationName}`,
+          body: `Stopping live tracking.`,
+          sound: true,
+        },
+        trigger: null,
+      });
+    }
+  } catch (err) {
+    console.error('❌ Background Geofencing Task failed:', err);
+  }
+});
 
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
@@ -202,5 +245,57 @@ export async function registerBackgroundFetchAsync() {
     }
   } catch (err) {
     console.error('❌ Failed to register Background Fetch Task:', err);
+  }
+}
+
+export async function syncGeofencesAsync(pinnedStations: any[]) {
+  try {
+    const status = await Location.getBackgroundPermissionsAsync();
+    if (status.status !== 'granted') {
+      console.log('🔇 Geofencing Sync: Background location permissions not granted. Stopping geofencing.');
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
+      if (isRegistered) {
+        await Location.stopGeofencingAsync(GEOFENCING_TASK);
+      }
+      return;
+    }
+
+    if (!pinnedStations || pinnedStations.length === 0) {
+      console.log('🔇 Geofencing Sync: No pinned stations. Stopping geofencing.');
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
+      if (isRegistered) {
+        await Location.stopGeofencingAsync(GEOFENCING_TASK);
+      }
+      return;
+    }
+
+    const regions: Location.LocationRegion[] = [];
+    pinnedStations.forEach((station) => {
+      const coord = stationCoordinates[station.id];
+      if (coord && typeof coord.lat === 'number' && typeof coord.lon === 'number') {
+        regions.push({
+          identifier: station.id,
+          latitude: coord.lat,
+          longitude: coord.lon,
+          radius: 500, // 500 meters radius
+          notifyOnEnter: true,
+          notifyOnExit: true,
+        });
+      }
+    });
+
+    if (regions.length === 0) {
+      console.log('🔇 Geofencing Sync: No valid coordinates found for pinned stations. Stopping geofencing.');
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
+      if (isRegistered) {
+        await Location.stopGeofencingAsync(GEOFENCING_TASK);
+      }
+      return;
+    }
+
+    await Location.startGeofencingAsync(GEOFENCING_TASK, regions);
+    console.log(`✅ Geofencing Sync: Successfully registered ${regions.length} regions.`);
+  } catch (err) {
+    console.error('❌ Failed to sync Geofences:', err);
   }
 }

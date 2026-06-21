@@ -64,11 +64,12 @@ export default function PermissionsScreen() {
         const calRes = await Calendar.getCalendarPermissionsAsync();
         const notifRes = await Notifications.getPermissionsAsync();
         const locRes = await Location.getForegroundPermissionsAsync();
+        const bgRes = locRes.status === 'granted' ? await Location.getBackgroundPermissionsAsync() : null;
 
         if (active) {
           setCalendarGranted(calRes.status === Calendar.PermissionStatus.GRANTED);
           setNotificationsGranted(notifRes.status === 'granted');
-          setLocationGranted(locRes.status === 'granted');
+          setLocationGranted(locRes.status === 'granted' && bgRes?.status === 'granted');
         }
       } catch (e) {
         console.log('Error checking system permissions:', e);

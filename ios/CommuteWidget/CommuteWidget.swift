@@ -30,9 +30,9 @@ struct CommuteLine: Identifiable, Codable {
         switch severity {
         case 10:
             return .good
-        case 9, 6:
+        case 6:
             return .severe
-        case 8, 7, 5:
+        case 9, 8, 7, 5:
             return .minor
         case 4, 3, 20, 0, 11:
             return .suspended
@@ -225,9 +225,9 @@ struct CommuteProvider: TimelineProvider {
         switch severity {
         case 10:
             return 0
-        case 8, 7, 5:
+        case 9, 8, 7, 5:
             return 1
-        case 9, 6:
+        case 6:
             return 2
         default:
             return 3

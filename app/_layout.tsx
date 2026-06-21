@@ -18,6 +18,7 @@ import { setAudioModeAsync } from 'expo-audio';
 import { preloadSounds } from '../utils/sound';
 import { registerBackgroundFetchAsync, syncGeofencesAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
+import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
 
 SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
@@ -49,6 +50,7 @@ export default function RootLayout() {
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const locationGranted = useUserPreferencesStore(s => s.locationGranted);
+  const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted);
 
   // Preload UI sounds and configure audio ducking
   useEffect(() => {
@@ -120,6 +122,13 @@ export default function RootLayout() {
       syncToWidget(selectedLines);
     }
   }, [_hasHydrated, selectedLines]);
+
+  // Synchronize push token and lines preferences with Vercel backend
+  useEffect(() => {
+    if (_hasHydrated && notificationsGranted) {
+      syncPushTokenWithBackend(selectedLines);
+    }
+  }, [_hasHydrated, notificationsGranted, selectedLines]);
 
   // Track active background-to-foreground transitions to increment sessionCount
   useEffect(() => {

@@ -14,9 +14,6 @@ export default function Index() {
     if (onboardingStep === 1) {
       return <Redirect href={"/onboarding/stations" as any} />;
     }
-    if (onboardingStep === 2) {
-      return <Redirect href={"/onboarding/permissions" as any} />;
-    }
     return <Redirect href={"/onboarding/lines" as any} />;
   }
 

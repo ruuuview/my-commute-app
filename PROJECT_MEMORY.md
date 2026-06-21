@@ -12,7 +12,7 @@ Workflow: Vibe Coding — AI must provide complete, copy-pasteable files, not sn
 - UX/UI: `MY_COMMUTE_UX_PLAN_v4.5.md`
 
 3. Backend Architecture (LIVE)
-URL: [https://my-commute-brain.vercel.app](https://my-commute-brain.vercel.app).
+URL: [https://my-commute-backend.vercel.app](https://my-commute-backend.vercel.app).
 Status: Verified "online" and "tfl_connected: true".
 Stack: Python 3.12 (FastAPI), MongoDB (Motor/Pymongo), Vercel Serverless.  
 

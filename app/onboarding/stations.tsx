@@ -301,10 +301,21 @@ export default function StationsScreen() {
       useUserPreferencesStore.setState({
         selectedLines,
         pinnedStations: mappedStations,
-        onboardingStep: 2,
       });
 
-      router.push('/onboarding/permissions');
+      // Complete onboarding state directly
+      useUserPreferencesStore.getState().completeOnboarding();
+
+      // Reset parent navigation stack to main dashboard tabs (triggering Grand Reveal)
+      const parentNav = navigation.getParent();
+      if (parentNav) {
+        (parentNav as any).reset({
+          index: 0,
+          routes: [{ name: '(tabs)' }],
+        });
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   };
 
@@ -415,9 +426,9 @@ export default function StationsScreen() {
 
           {/* Title Header Container */}
           <View style={styles.headerContainer}>
-            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 3</Text>
+            <Text style={styles.eyebrow}>SETUP · STEP 2 OF 2</Text>
             <View style={{ marginBottom: 6 }}>
-              <ProgressDots total={3} current={2} />
+              <ProgressDots total={2} current={2} />
             </View>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
               Where do you catch your train?

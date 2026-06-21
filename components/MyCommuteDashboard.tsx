@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo, memo, forwardRef } from 'react';
-import { useRouter } from 'expo-router';
+
 import {
   LayoutAnimation,
   Platform,
@@ -329,7 +329,7 @@ StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+
 
   // Premium scale-up center reveal for dashboard transition
   const revealScale = useSharedValue(0.88);
@@ -632,7 +632,6 @@ const MyCommuteDashboard: React.FC = () => {
                     isEditing={isEditing}
                     onDelete={removeLine}
                     onLongPress={handleEdit}
-                    onPress={() => router.push({ pathname: '/(lineStack)/lineDetail', params: { lineId: item.id } })}
                     index={index}
                   />
                 ))}

@@ -12,7 +12,7 @@ import Animated, {
   LinearTransition,
   FadeOut
 } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+
 import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -79,7 +79,7 @@ export default function DepartureCard({
   isActive = false,
   index = 0,
 }: DepartureCardProps) {
-  const router = useRouter();
+
   const reducedMotion = useReducedMotion();
   const lastKnownData = useUserPreferencesStore(state => state.lastKnownData || []);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
@@ -248,27 +248,12 @@ export default function DepartureCard({
           >
             <View style={styles.header}>
               <View style={styles.titleColumn}>
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({
-                      pathname: '/stationDetail',
-                      params: { stationId, stationName },
-                    });
-                  }}
+                <Text
+                  style={styles.stationName}
+                  numberOfLines={1}
                 >
-                  {({ pressed }) => (
-                    <Text
-                      style={[
-                        styles.stationName,
-                        pressed && styles.stationNamePressed,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {cleanName}
-                    </Text>
-                  )}
-                </Pressable>
+                  {cleanName}
+                </Text>
               </View>
             </View>
           </Pressable>

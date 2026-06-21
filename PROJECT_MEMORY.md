@@ -17,7 +17,7 @@
 
 ## 3. Backend Architecture (LIVE)
 
-- **URL:** <https://my-commute-backend.vercel.app>
+- **URL:** <https://my-commute-brain.vercel.app>
 - **Status:** Verified "online" and "tfl_connected: true".
 - **Stack:** Python 3.12 (FastAPI), MongoDB (Motor/Pymongo), Vercel Serverless.
 

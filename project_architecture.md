@@ -3,7 +3,7 @@
 - App: "My Commute" — Live London Underground navigation for London commuters.
 - UX Philosophy: Dark (#050505), cinematic, premium aesthetic with high
   interactivity (jiggle modes).
-- Backend: Vercel (<https://my-commute-backend.vercel.app>) using Python,
+- Backend: Vercel (<https://my-commute-brain.vercel.app>) using Python,
   FastAPI, and motor.
 - Critical Fixes: Locked pymongo==4.6.1; fixed circular imports in
   notification_service.py.

@@ -8,7 +8,7 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-backend.vercel.app';
+const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL || 'https://my-commute-brain.vercel.app';
 
 // Lazy import to avoid crashes in Expo Go
 let messaging: any = null;

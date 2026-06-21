@@ -1,0 +1,2828 @@
+{
+  "HUBKGX": {
+    "id": "HUBKGX",
+    "name": "King's Cross & St Pancras International",
+    "lat": 51.53031226194627,
+    "lon": -0.12387212868703427
+  },
+  "940GZZLUKSX": {
+    "id": "940GZZLUKSX",
+    "name": "King's Cross St. Pancras",
+    "lat": 51.53031226194627,
+    "lon": -0.12387212868703427
+  },
+  "HUBLST": {
+    "id": "HUBLST",
+    "name": "Liverpool Street",
+    "lat": 51.51759813225402,
+    "lon": -0.08224962188885442
+  },
+  "940GZZLUBST": {
+    "id": "940GZZLUBST",
+    "name": "Baker Street",
+    "lat": 51.52312936605881,
+    "lon": -0.15690419298618452
+  },
+  "HUBPAD": {
+    "id": "HUBPAD",
+    "name": "Paddington",
+    "lat": 51.51539350022652,
+    "lon": -0.17573675026577226
+  },
+  "HUBSRA": {
+    "id": "HUBSRA",
+    "name": "Stratford",
+    "lat": 51.54169257587399,
+    "lon": -0.003751641027190752
+  },
+  "HUBBAN": {
+    "id": "HUBBAN",
+    "name": "Bank",
+    "lat": 51.51334691914183,
+    "lon": -0.08900012349437465
+  },
+  "940GZZLUEMB": {
+    "id": "940GZZLUEMB",
+    "name": "Embankment",
+    "lat": 51.50731229694681,
+    "lon": -0.1223673356621198
+  },
+  "HUBZFD": {
+    "id": "HUBZFD",
+    "name": "Farringdon",
+    "lat": 51.52019551919777,
+    "lon": -0.10484306131676423
+  },
+  "HUBHMS": {
+    "id": "HUBHMS",
+    "name": "Hammersmith",
+    "lat": 51.49348298668772,
+    "lon": -0.22464015450070055
+  },
+  "940GZZLULVT": {
+    "id": "940GZZLULVT",
+    "name": "Liverpool Street",
+    "lat": 51.51759813225402,
+    "lon": -0.08224962188885442
+  },
+  "940GZZLUMGT": {
+    "id": "940GZZLUMGT",
+    "name": "Moorgate",
+    "lat": 51.51843699583112,
+    "lon": -0.08901768741961913
+  },
+  "HUBZMG": {
+    "id": "HUBZMG",
+    "name": "Moorgate",
+    "lat": 51.51843699583112,
+    "lon": -0.08901768741961913
+  },
+  "940GZZLUWLO": {
+    "id": "940GZZLUWLO",
+    "name": "Waterloo",
+    "lat": 51.50281699566367,
+    "lon": -0.11166347062402095
+  },
+  "HUBWAT": {
+    "id": "HUBWAT",
+    "name": "Waterloo",
+    "lat": 51.50281699566367,
+    "lon": -0.11166347062402095
+  },
+  "HUBWEH": {
+    "id": "HUBWEH",
+    "name": "West Ham",
+    "lat": 51.52818761328958,
+    "lon": 0.01683343330916664
+  },
+  "HUBZWL": {
+    "id": "HUBZWL",
+    "name": "Whitechapel",
+    "lat": 51.51996912160411,
+    "lon": -0.06013202547173207
+  },
+  "940GZZLUBNK": {
+    "id": "940GZZLUBNK",
+    "name": "Bank",
+    "lat": 51.51334691914183,
+    "lon": -0.08900012349437465
+  },
+  "940GZZLUBBN": {
+    "id": "940GZZLUBBN",
+    "name": "Barbican",
+    "lat": 51.520215126107836,
+    "lon": -0.09772157809050226
+  },
+  "HUBBKG": {
+    "id": "HUBBKG",
+    "name": "Barking",
+    "lat": 51.53952124839739,
+    "lon": 0.08083161040306543
+  },
+  "HUBBDS": {
+    "id": "HUBBDS",
+    "name": "Bond Street",
+    "lat": 51.513797282327445,
+    "lon": -0.14961360853164615
+  },
+  "HUBCAW": {
+    "id": "HUBCAW",
+    "name": "Canary Wharf",
+    "lat": 51.50357837512887,
+    "lon": -0.019466840139324412
+  },
+  "HUBEAL": {
+    "id": "HUBEAL",
+    "name": "Ealing Broadway",
+    "lat": 51.51486148277942,
+    "lon": -0.3020103761336258
+  },
+  "940GZZLUERC": {
+    "id": "940GZZLUERC",
+    "name": "Edgware Road (Circle Line)",
+    "lat": 51.61422917451505,
+    "lon": -0.2750936620617057
+  },
+  "HUBEUS": {
+    "id": "HUBEUS",
+    "name": "Euston",
+    "lat": 51.528664114832,
+    "lon": -0.13329647081915122
+  },
+  "940GZZLUESQ": {
+    "id": "940GZZLUESQ",
+    "name": "Euston Square",
+    "lat": 51.525468382999584,
+    "lon": -0.13534448844269154
+  },
+  "940GZZLUFCN": {
+    "id": "940GZZLUFCN",
+    "name": "Farringdon",
+    "lat": 51.52019551919777,
+    "lon": -0.10484306131676423
+  },
+  "940GZZLUGTR": {
+    "id": "940GZZLUGTR",
+    "name": "Gloucester Road",
+    "lat": 51.494499259625194,
+    "lon": -0.18354355757159108
+  },
+  "940GZZLUGPS": {
+    "id": "940GZZLUGPS",
+    "name": "Great Portland Street",
+    "lat": 51.52378856271794,
+    "lon": -0.14396142408109036
+  },
+  "940GZZLUGPK": {
+    "id": "940GZZLUGPK",
+    "name": "Green Park",
+    "lat": 51.50676025371464,
+    "lon": -0.1424775744225331
+  },
+  "HUBHHY": {
+    "id": "HUBHHY",
+    "name": "Highbury & Islington",
+    "lat": 51.54649533884997,
+    "lon": -0.10408213923935299
+  },
+  "940GZZLUMED": {
+    "id": "940GZZLUMED",
+    "name": "Mile End",
+    "lat": 51.525310919564504,
+    "lon": -0.0326660842711517
+  },
+  "940GZZLUNHG": {
+    "id": "940GZZLUNHG",
+    "name": "Notting Hill Gate",
+    "lat": 51.50937501801177,
+    "lon": -0.19592161622639087
+  },
+  "940GZZLUOXC": {
+    "id": "940GZZLUOXC",
+    "name": "Oxford Circus",
+    "lat": 51.51522317440166,
+    "lon": -0.1408361701333405
+  },
+  "940GZZLUPAC": {
+    "id": "940GZZLUPAC",
+    "name": "Paddington",
+    "lat": 51.51539350022652,
+    "lon": -0.17573675026577226
+  },
+  "940GZZLUSKS": {
+    "id": "940GZZLUSKS",
+    "name": "South Kensington",
+    "lat": 51.494071083255236,
+    "lon": -0.17392302133763954
+  },
+  "HUBTCR": {
+    "id": "HUBTCR",
+    "name": "Tottenham Court Road",
+    "lat": 51.516210657936185,
+    "lon": -0.1311104379402324
+  },
+  "940GZZLUVIC": {
+    "id": "940GZZLUVIC",
+    "name": "Victoria",
+    "lat": 51.49642371956767,
+    "lon": -0.14392070512630392
+  },
+  "HUBVIC": {
+    "id": "HUBVIC",
+    "name": "Victoria",
+    "lat": 51.49642371956767,
+    "lon": -0.14392070512630392
+  },
+  "940GZZLUWHM": {
+    "id": "940GZZLUWHM",
+    "name": "West Ham",
+    "lat": 51.52818761328958,
+    "lon": 0.01683343330916664
+  },
+  "940GZZLUWSM": {
+    "id": "940GZZLUWSM",
+    "name": "Westminster",
+    "lat": 51.50139533894144,
+    "lon": -0.12850098283072034
+  },
+  "HUBWSM": {
+    "id": "HUBWSM",
+    "name": "Westminster",
+    "lat": 51.50139533894144,
+    "lon": -0.12850098283072034
+  },
+  "HUBWIJ": {
+    "id": "HUBWIJ",
+    "name": "Willesden Junction",
+    "lat": 51.53079799248029,
+    "lon": -0.24250293723304417
+  },
+  "940GZZLUACT": {
+    "id": "940GZZLUACT",
+    "name": "Acton Town",
+    "lat": 51.50307098636339,
+    "lon": -0.280302696832724
+  },
+  "940GZZLUALD": {
+    "id": "940GZZLUALD",
+    "name": "Aldgate",
+    "lat": 51.5143422574978,
+    "lon": -0.07562691232248626
+  },
+  "940GZZLUADE": {
+    "id": "940GZZLUADE",
+    "name": "Aldgate East",
+    "lat": 51.515081505698724,
+    "lon": -0.07300146242073956
+  },
+  "940GZZLUBKG": {
+    "id": "940GZZLUBKG",
+    "name": "Barking",
+    "lat": 51.53952124839739,
+    "lon": 0.08083161040306543
+  },
+  "940GZZLUBSC": {
+    "id": "940GZZLUBSC",
+    "name": "Barons Court",
+    "lat": 51.490228334902,
+    "lon": -0.21343014241789163
+  },
+  "940GZZLUBWT": {
+    "id": "940GZZLUBWT",
+    "name": "Bayswater",
+    "lat": 51.51211098317958,
+    "lon": -0.18790157187820541
+  },
+  "940GZZLUBKF": {
+    "id": "940GZZLUBKF",
+    "name": "Blackfriars",
+    "lat": 51.511586761695014,
+    "lon": -0.10299538462450546
+  },
+  "HUBBFR": {
+    "id": "HUBBFR",
+    "name": "Blackfriars",
+    "lat": 51.511586761695014,
+    "lon": -0.10299538462450546
+  },
+  "HUBBHO": {
+    "id": "HUBBHO",
+    "name": "Blackhorse Road",
+    "lat": 51.58577656484627,
+    "lon": -0.039625711465052844
+  },
+  "940GZZLUBND": {
+    "id": "940GZZLUBND",
+    "name": "Bond Street",
+    "lat": 51.513797282327445,
+    "lon": -0.14961360853164615
+  },
+  "940GZZLUBWR": {
+    "id": "940GZZLUBWR",
+    "name": "Bow Road",
+    "lat": 51.52704176950966,
+    "lon": -0.02435959063268143
+  },
+  "940GZZLUBBB": {
+    "id": "940GZZLUBBB",
+    "name": "Bromley-by-Bow",
+    "lat": 51.524840183700945,
+    "lon": -0.011682374353045397
+  },
+  "HUBZCW": {
+    "id": "HUBZCW",
+    "name": "Canada Water",
+    "lat": 51.498168331250874,
+    "lon": -0.05080712084909722
+  },
+  "HUBCAN": {
+    "id": "HUBCAN",
+    "name": "Canning Town",
+    "lat": 51.51387030350512,
+    "lon": 0.008305632748764395
+  },
+  "940GZZLUCST": {
+    "id": "940GZZLUCST",
+    "name": "Cannon Street",
+    "lat": 51.51136194370192,
+    "lon": -0.09025052641503478
+  },
+  "HUBCST": {
+    "id": "HUBCST",
+    "name": "Cannon Street",
+    "lat": 51.51136194370192,
+    "lon": -0.09025052641503478
+  },
+  "910GCNNB": {
+    "id": "910GCNNB",
+    "name": "Canonbury Station",
+    "lat": 51.54818823621243,
+    "lon": -0.09257419532817909
+  },
+  "940GZZLUCHX": {
+    "id": "940GZZLUCHX",
+    "name": "Charing Cross",
+    "lat": 51.50835842818622,
+    "lon": -0.12480293723304417
+  },
+  "HUBCHX": {
+    "id": "HUBCHX",
+    "name": "Charing Cross",
+    "lat": 51.50835842818622,
+    "lon": -0.12480293723304417
+  },
+  "910GCLPHMJ1": {
+    "id": "910GCLPHMJ1",
+    "name": "Clapham Junction",
+    "lat": 51.464366507789435,
+    "lon": -0.17031500054416623
+  },
+  "HUBCLJ": {
+    "id": "HUBCLJ",
+    "name": "Clapham Junction",
+    "lat": 51.464366507789435,
+    "lon": -0.17031500054416623
+  },
+  "HUBCUS": {
+    "id": "HUBCUS",
+    "name": "Custom House",
+    "lat": 51.50962210163043,
+    "lon": 0.025772510305280598
+  },
+  "940GZZLUEBY": {
+    "id": "940GZZLUEBY",
+    "name": "Ealing Broadway",
+    "lat": 51.51486148277942,
+    "lon": -0.3020103761336258
+  },
+  "940GZZLUECM": {
+    "id": "940GZZLUECM",
+    "name": "Ealing Common",
+    "lat": 51.510248187933655,
+    "lon": -0.2871514131053222
+  },
+  "940GZZLUECT": {
+    "id": "940GZZLUECT",
+    "name": "Earl's Court",
+    "lat": 51.49135635619762,
+    "lon": -0.19431380709514257
+  },
+  "940GZZLUEHM": {
+    "id": "940GZZLUEHM",
+    "name": "East Ham",
+    "lat": 51.53924625194368,
+    "lon": 0.051516293480576195
+  },
+  "940GZZLUEAE": {
+    "id": "940GZZLUEAE",
+    "name": "Eastcote",
+    "lat": 51.57655117614093,
+    "lon": -0.39682329014980217
+  },
+  "940GZZLUEAC": {
+    "id": "940GZZLUEAC",
+    "name": "Elephant & Castle",
+    "lat": 51.49584922002923,
+    "lon": -0.10073871425628238
+  },
+  "HUBEPH": {
+    "id": "HUBEPH",
+    "name": "Elephant & Castle",
+    "lat": 51.49584922002923,
+    "lon": -0.10073871425628238
+  },
+  "940GZZLUEUS": {
+    "id": "940GZZLUEUS",
+    "name": "Euston",
+    "lat": 51.528664114832,
+    "lon": -0.13329647081915122
+  },
+  "940GZZLUFYR": {
+    "id": "940GZZLUFYR",
+    "name": "Finchley Road",
+    "lat": 51.547095906434386,
+    "lon": -0.18005055863249353
+  },
+  "940GZZLUFPK": {
+    "id": "940GZZLUFPK",
+    "name": "Finsbury Park",
+    "lat": 51.564635274841386,
+    "lon": -0.10588148552890234
+  },
+  "HUBFPK": {
+    "id": "HUBFPK",
+    "name": "Finsbury Park",
+    "lat": 51.564635274841386,
+    "lon": -0.10588148552890234
+  },
+  "940GZZLUGHK": {
+    "id": "940GZZLUGHK",
+    "name": "Goldhawk Road",
+    "lat": 51.502076596636755,
+    "lon": -0.2274040032488232
+  },
+  "910GGOSPLOK": {
+    "id": "910GGOSPLOK",
+    "name": "Gospel Oak Station",
+    "lat": 51.555405048065396,
+    "lon": -0.15130103124520655
+  },
+  "HUBGUN": {
+    "id": "HUBGUN",
+    "name": "Gunnersbury",
+    "lat": 51.49186296322991,
+    "lon": -0.27516413141625035
+  },
+  "940GZZLUHSD": {
+    "id": "940GZZLUHSD",
+    "name": "Hammersmith (Dist&Picc Line)",
+    "lat": 51.49181941355715,
+    "lon": -0.2228609258853042
+  },
+  "940GZZLUHSC": {
+    "id": "940GZZLUHSC",
+    "name": "Hammersmith (H&C Line)",
+    "lat": 51.49348298668772,
+    "lon": -0.22464015450070055
+  },
+  "HUBHDN": {
+    "id": "HUBHDN",
+    "name": "Harlesden",
+    "lat": 51.536257908620385,
+    "lon": -0.2574956703770174
+  },
+  "HUBHRW": {
+    "id": "HUBHRW",
+    "name": "Harrow & Wealdstone",
+    "lat": 51.59259408808769,
+    "lon": -0.3342526785741267
+  },
+  "HUBHX4": {
+    "id": "HUBHX4",
+    "name": "Heathrow Airport Terminal 4",
+    "lat": 51.459779698532394,
+    "lon": -0.4477295782660727
+  },
+  "HUBHX5": {
+    "id": "HUBHX5",
+    "name": "Heathrow Airport Terminal 5",
+    "lat": 51.470024624464,
+    "lon": -0.4906474891242473
+  },
+  "HUBH13": {
+    "id": "HUBH13",
+    "name": "Heathrow Terminals 2 & 3",
+    "lat": 51.471288661913334,
+    "lon": -0.4524072136493198
+  },
+  "940GZZLUHSK": {
+    "id": "940GZZLUHSK",
+    "name": "High Street Kensington",
+    "lat": 51.50072913416872,
+    "lon": -0.19156605549641917
+  },
+  "910GHGHI": {
+    "id": "910GHGHI",
+    "name": "Highbury & Islington Station",
+    "lat": 51.54649533884997,
+    "lon": -0.10408213923935299
+  },
+  "940GZZLUHGD": {
+    "id": "940GZZLUHGD",
+    "name": "Hillingdon",
+    "lat": 51.553776781763695,
+    "lon": -0.44989798162302097
+  },
+  "940GZZLUHBN": {
+    "id": "940GZZLUHBN",
+    "name": "Holborn",
+    "lat": 51.51723554139566,
+    "lon": -0.11984050660293674
+  },
+  "940GZZLUICK": {
+    "id": "940GZZLUICK",
+    "name": "Ickenham",
+    "lat": 51.56082433291199,
+    "lon": -0.44157950126879947
+  },
+  "HUBKNL": {
+    "id": "HUBKNL",
+    "name": "Kensal Green",
+    "lat": 51.53052384871879,
+    "lon": -0.22471338113804362
+  },
+  "HUBKPA": {
+    "id": "HUBKPA",
+    "name": "Kensington (Olympia)",
+    "lat": 51.497879357125825,
+    "lon": -0.2103792397678828
+  },
+  "HUBKNT": {
+    "id": "HUBKNT",
+    "name": "Kenton",
+    "lat": 51.581495770351395,
+    "lon": -0.31521686082632067
+  },
+  "HUBKWG": {
+    "id": "HUBKWG",
+    "name": "Kew Gardens",
+    "lat": 51.476788671230366,
+    "lon": -0.28538100667617433
+  },
+  "940GZZLULAD": {
+    "id": "940GZZLULAD",
+    "name": "Ladbroke Grove",
+    "lat": 51.51721033175281,
+    "lon": -0.21019816989179294
+  },
+  "940GZZLULRD": {
+    "id": "940GZZLULRD",
+    "name": "Latimer Road",
+    "lat": 51.51395774487751,
+    "lon": -0.21745966331724165
+  },
+  "940GZZLULSQ": {
+    "id": "940GZZLULSQ",
+    "name": "Leicester Square",
+    "lat": 51.51129097417173,
+    "lon": -0.12824214662980674
+  },
+  "910GLIVST": {
+    "id": "910GLIVST",
+    "name": "Liverpool Street Station",
+    "lat": 51.51759813225402,
+    "lon": -0.08224962188885442
+  },
+  "940GZZLULNB": {
+    "id": "940GZZLULNB",
+    "name": "London Bridge",
+    "lat": 51.50467420930433,
+    "lon": -0.08600559774813961
+  },
+  "HUBLBG": {
+    "id": "HUBLBG",
+    "name": "London Bridge",
+    "lat": 51.50467420930433,
+    "lon": -0.08600559774813961
+  },
+  "940GZZLUMSH": {
+    "id": "940GZZLUMSH",
+    "name": "Mansion House",
+    "lat": 51.5120915984511,
+    "lon": -0.09419765724378423
+  },
+  "940GZZLUMMT": {
+    "id": "940GZZLUMMT",
+    "name": "Monument",
+    "lat": 51.51063027735101,
+    "lon": -0.0861883132610571
+  },
+  "HUBNWB": {
+    "id": "HUBNWB",
+    "name": "North Wembley",
+    "lat": 51.56239579644328,
+    "lon": -0.30394821391329097
+  },
+  "940GZZLUPAH": {
+    "id": "940GZZLUPAH",
+    "name": "Paddington (H&C Line)-Underground",
+    "lat": 51.51539350022652,
+    "lon": -0.17573675026577226
+  },
+  "940GZZLUPCC": {
+    "id": "940GZZLUPCC",
+    "name": "Piccadilly Circus",
+    "lat": 51.510091,
+    "lon": -0.133869
+  },
+  "940GZZLUPLW": {
+    "id": "940GZZLUPLW",
+    "name": "Plaistow",
+    "lat": 51.5244,
+    "lon": 0.0175
+  },
+  "HUBQPW": {
+    "id": "HUBQPW",
+    "name": "Queen's Park",
+    "lat": 51.53431231776354,
+    "lon": -0.20479814695067167
+  },
+  "940GZZLURYL": {
+    "id": "940GZZLURYL",
+    "name": "Rayners Lane",
+    "lat": 51.575396127388515,
+    "lon": -0.37106080574871114
+  },
+  "HUBRMD": {
+    "id": "HUBRMD",
+    "name": "Richmond",
+    "lat": 51.46323239395917,
+    "lon": -0.30173912870492936
+  },
+  "910GROMFORD": {
+    "id": "910GROMFORD",
+    "name": "Romford Station",
+    "lat": 51.57464189428389,
+    "lon": 0.18305527427580953
+  },
+  "940GZZLURYO": {
+    "id": "940GZZLURYO",
+    "name": "Royal Oak",
+    "lat": 51.5182940459234,
+    "lon": -0.18882367154685417
+  },
+  "940GZZLURSP": {
+    "id": "940GZZLURSP",
+    "name": "Ruislip",
+    "lat": 51.572161233876166,
+    "lon": -0.4212349155921323
+  },
+  "940GZZLURSM": {
+    "id": "940GZZLURSM",
+    "name": "Ruislip Manor",
+    "lat": 51.573450901149116,
+    "lon": -0.41284934443184823
+  },
+  "HUBSVS": {
+    "id": "HUBSVS",
+    "name": "Seven Sisters",
+    "lat": 51.58336204399537,
+    "lon": -0.07246682251889108
+  },
+  "HUBSDE": {
+    "id": "HUBSDE",
+    "name": "Shadwell",
+    "lat": 51.5117,
+    "lon": -0.0566
+  },
+  "HUBSPB": {
+    "id": "HUBSPB",
+    "name": "Shepherd's Bush",
+    "lat": 51.504531795613886,
+    "lon": -0.2185191566688487
+  },
+  "940GZZLUSBM": {
+    "id": "940GZZLUSBM",
+    "name": "Shepherd's Bush Market",
+    "lat": 51.50588033819017,
+    "lon": -0.22740049041020913
+  },
+  "940GZZLUSSQ": {
+    "id": "940GZZLUSSQ",
+    "name": "Sloane Square",
+    "lat": 51.492359510480554,
+    "lon": -0.15648885605702362
+  },
+  "HUBSOK": {
+    "id": "HUBSOK",
+    "name": "South Kenton",
+    "lat": 51.571043947551274,
+    "lon": -0.3081429717620929
+  },
+  "940GZZLUSJP": {
+    "id": "940GZZLUSJP",
+    "name": "St. James's Park",
+    "lat": 51.49960957772611,
+    "lon": -0.13387875434112476
+  },
+  "940GZZLUSGN": {
+    "id": "940GZZLUSGN",
+    "name": "Stepney Green",
+    "lat": 51.521995758615454,
+    "lon": -0.04738252319485509
+  },
+  "940GZZLUSKW": {
+    "id": "940GZZLUSKW",
+    "name": "Stockwell",
+    "lat": 51.47215905711563,
+    "lon": -0.12284630335652602
+  },
+  "HUBSBP": {
+    "id": "HUBSBP",
+    "name": "Stonebridge Park",
+    "lat": 51.54398610565641,
+    "lon": -0.2754004371046793
+  },
+  "940GZZLUSTD": {
+    "id": "940GZZLUSTD",
+    "name": "Stratford",
+    "lat": 51.54169257587399,
+    "lon": -0.003751641027190752
+  },
+  "910GSTFD": {
+    "id": "910GSTFD",
+    "name": "Stratford Station",
+    "lat": 51.54169257587399,
+    "lon": -0.003751641027190752
+  },
+  "940GZZLUTMP": {
+    "id": "940GZZLUTMP",
+    "name": "Temple",
+    "lat": 51.51104042360467,
+    "lon": -0.11372574953125439
+  },
+  "940GZZLUTCR": {
+    "id": "940GZZLUTCR",
+    "name": "Tottenham Court Road",
+    "lat": 51.516210657936185,
+    "lon": -0.1311104379402324
+  },
+  "940GZZLUTWH": {
+    "id": "940GZZLUTWH",
+    "name": "Tower Hill",
+    "lat": 51.51039415022928,
+    "lon": -0.07670119812097691
+  },
+  "940GZZLUTNG": {
+    "id": "940GZZLUTNG",
+    "name": "Turnham Green",
+    "lat": 51.49518152685563,
+    "lon": -0.2545245642842539
+  },
+  "HUBUPM": {
+    "id": "HUBUPM",
+    "name": "Upminster",
+    "lat": 51.558763771001516,
+    "lon": 0.2514008048009922
+  },
+  "940GZZLUUPK": {
+    "id": "940GZZLUUPK",
+    "name": "Upton Park",
+    "lat": 51.536628259878114,
+    "lon": 0.03454183972360732
+  },
+  "940GZZLUUXB": {
+    "id": "940GZZLUUXB",
+    "name": "Uxbridge",
+    "lat": 51.54645372786724,
+    "lon": -0.47710154642097474
+  },
+  "HUBWHC": {
+    "id": "HUBWHC",
+    "name": "Walthamstow Central",
+    "lat": 51.58301808337606,
+    "lon": -0.019940545005550973
+  },
+  "940GZZLUWRR": {
+    "id": "940GZZLUWRR",
+    "name": "Warren Street",
+    "lat": 51.524493721832044,
+    "lon": -0.14013401538356993
+  },
+  "HUBWMB": {
+    "id": "HUBWMB",
+    "name": "Wembley Central",
+    "lat": 51.55187888370566,
+    "lon": -0.3168864929863098
+  },
+  "940GZZLUWYP": {
+    "id": "940GZZLUWYP",
+    "name": "Wembley Park",
+    "lat": 51.56304838798409,
+    "lon": -0.28330606805442343
+  },
+  "HUBWBP": {
+    "id": "HUBWBP",
+    "name": "West Brompton",
+    "lat": 51.48702309543708,
+    "lon": -0.1970295711576437
+  },
+  "HUBWHD": {
+    "id": "HUBWHD",
+    "name": "West Hampstead",
+    "lat": 51.54826359547847,
+    "lon": -0.19155209682922836
+  },
+  "940GZZLUWSP": {
+    "id": "940GZZLUWSP",
+    "name": "Westbourne Park",
+    "lat": 51.52168793826675,
+    "lon": -0.20450098283072035
+  },
+  "940GZZLUWPL": {
+    "id": "940GZZLUWPL",
+    "name": "Whitechapel",
+    "lat": 51.51996912160411,
+    "lon": -0.06013202547173207
+  },
+  "940GZZLUWIG": {
+    "id": "940GZZLUWIG",
+    "name": "Willesden Green",
+    "lat": 51.54734673300682,
+    "lon": -0.2190564687618821
+  },
+  "910GWLSDJHL": {
+    "id": "910GWLSDJHL",
+    "name": "Willesden Junction Station",
+    "lat": 51.53079799248029,
+    "lon": -0.24250293723304417
+  },
+  "940GZZLUWLA": {
+    "id": "940GZZLUWLA",
+    "name": "Wood Lane",
+    "lat": 51.50962309586845,
+    "lon": -0.23358367154685417
+  },
+  "940GZZDLABR": {
+    "id": "940GZZDLABR",
+    "name": "Abbey Road",
+    "lat": 51.53195199547294,
+    "lon": 0.0037233710983363487
+  },
+  "HUBABW": {
+    "id": "HUBABW",
+    "name": "Abbey Wood",
+    "lat": 51.49078429543708,
+    "lon": 0.12027197064065129
+  },
+  "910GABWDXR": {
+    "id": "910GABWDXR",
+    "name": "Abbey Wood Station",
+    "lat": 51.49078429543708,
+    "lon": 0.12027197064065129
+  },
+  "910GACTNCTL": {
+    "id": "910GACTNCTL",
+    "name": "Acton Central Station",
+    "lat": 51.508757351253415,
+    "lon": -0.26343019532568895
+  },
+  "910GACTONML": {
+    "id": "910GACTONML",
+    "name": "Acton Main Line Station",
+    "lat": 51.516886495162936,
+    "lon": -0.2676899480142479
+  },
+  "940GZZDLALL": {
+    "id": "940GZZDLALL",
+    "name": "All Saints",
+    "lat": 51.51047690641237,
+    "lon": -0.01262488536034996
+  },
+  "940GZZLUALP": {
+    "id": "940GZZLUALP",
+    "name": "Alperton",
+    "lat": 51.54120878643842,
+    "lon": -0.2995157534755783
+  },
+  "940GZZLUAMS": {
+    "id": "940GZZLUAMS",
+    "name": "Amersham",
+    "lat": 51.674128328342675,
+    "lon": -0.6065137678777907
+  },
+  "HUBAMR": {
+    "id": "HUBAMR",
+    "name": "Amersham",
+    "lat": 51.674128328342675,
+    "lon": -0.6065137678777907
+  },
+  "910GANERLEY": {
+    "id": "910GANERLEY",
+    "name": "Anerley Station",
+    "lat": 51.41251661375114,
+    "lon": -0.06513709987901907
+  },
+  "940GZZLUAGL": {
+    "id": "940GZZLUAGL",
+    "name": "Angel",
+    "lat": 51.53296784539842,
+    "lon": -0.10558144830378893
+  },
+  "940GZZLUACY": {
+    "id": "940GZZLUACY",
+    "name": "Archway",
+    "lat": 51.56549031545965,
+    "lon": -0.13512157562147284
+  },
+  "940GZZLUASG": {
+    "id": "940GZZLUASG",
+    "name": "Arnos Grove",
+    "lat": 51.616229924551426,
+    "lon": -0.13427021772184933
+  },
+  "940GZZLUASL": {
+    "id": "940GZZLUASL",
+    "name": "Arsenal",
+    "lat": 51.55854120559965,
+    "lon": -0.1054999329611858
+  },
+  "940GZZLUBLM": {
+    "id": "940GZZLUBLM",
+    "name": "Balham",
+    "lat": 51.443182314397006,
+    "lon": -0.15268516199326135
+  },
+  "HUBBAL": {
+    "id": "HUBBAL",
+    "name": "Balham",
+    "lat": 51.443182314397006,
+    "lon": -0.15268516199326135
+  },
+  "940GZZDLBNK": {
+    "id": "940GZZDLBNK",
+    "name": "Bank",
+    "lat": 51.51334691914183,
+    "lon": -0.08900012349437465
+  },
+  "910GBARKRIV": {
+    "id": "910GBARKRIV",
+    "name": "Barking Riverside Station",
+    "lat": 51.5191121613515,
+    "lon": 0.11476948270172459
+  },
+  "910GBARKING": {
+    "id": "910GBARKING",
+    "name": "Barking Station",
+    "lat": 51.53952124839739,
+    "lon": 0.08083161040306543
+  },
+  "940GZZLUBKE": {
+    "id": "940GZZLUBKE",
+    "name": "Barkingside",
+    "lat": 51.58585076146283,
+    "lon": 0.08847664010592626
+  },
+  "940GZZBPSUST": {
+    "id": "940GZZBPSUST",
+    "name": "Battersea Power Station",
+    "lat": 51.479496343757326,
+    "lon": -0.14200135136467834
+  },
+  "940GZZDLBEC": {
+    "id": "940GZZDLBEC",
+    "name": "Beckton",
+    "lat": 51.51437673300682,
+    "lon": 0.06152529715978421
+  },
+  "940GZZDLBPK": {
+    "id": "940GZZDLBPK",
+    "name": "Beckton Park",
+    "lat": 51.50890088618667,
+    "lon": 0.05482193904539788
+  },
+  "940GZZLUBEC": {
+    "id": "940GZZLUBEC",
+    "name": "Becontree",
+    "lat": 51.53958561974398,
+    "lon": 0.12688029269359377
+  },
+  "940GZZLUBZP": {
+    "id": "940GZZLUBZP",
+    "name": "Belsize Park",
+    "lat": 51.55019061178192,
+    "lon": -0.16397449102551867
+  },
+  "940GZZLUBMY": {
+    "id": "940GZZLUBMY",
+    "name": "Bermondsey",
+    "lat": 51.49796067750633,
+    "lon": -0.06433008981152362
+  },
+  "910GBTHNLGR": {
+    "id": "910GBTHNLGR",
+    "name": "Bethnal Green",
+    "lat": 51.527191653122124,
+    "lon": -0.05539211145016204
+  },
+  "940GZZLUBLG": {
+    "id": "940GZZLUBLG",
+    "name": "Bethnal Green",
+    "lat": 51.527191653122124,
+    "lon": -0.05539211145016204
+  },
+  "940GZZLUBLR": {
+    "id": "940GZZLUBLR",
+    "name": "Blackhorse Road",
+    "lat": 51.58577656484627,
+    "lon": -0.039625711465052844
+  },
+  "910GBLCHSRD": {
+    "id": "910GBLCHSRD",
+    "name": "Blackhorse Road Station",
+    "lat": 51.58577656484627,
+    "lon": -0.039625711465052844
+  },
+  "940GZZDLBLA": {
+    "id": "940GZZDLBLA",
+    "name": "Blackwall",
+    "lat": 51.50783153133504,
+    "lon": -0.007235165877666228
+  },
+  "910GBONDST": {
+    "id": "910GBONDST",
+    "name": "Bond Street Station",
+    "lat": 51.513797282327445,
+    "lon": -0.14961360853164615
+  },
+  "940GZZLUBOR": {
+    "id": "940GZZLUBOR",
+    "name": "Borough",
+    "lat": 51.50104871772216,
+    "lon": -0.09419732263858394
+  },
+  "940GZZLUBOS": {
+    "id": "940GZZLUBOS",
+    "name": "Boston Manor",
+    "lat": 51.49576500584812,
+    "lon": -0.32474718262238134
+  },
+  "940GZZLUBDS": {
+    "id": "940GZZLUBDS",
+    "name": "Bounds Green",
+    "lat": 51.60703172061751,
+    "lon": -0.12417706473479641
+  },
+  "940GZZDLBOW": {
+    "id": "940GZZDLBOW",
+    "name": "Bow Church",
+    "lat": 51.52761517272713,
+    "lon": -0.020499899177146366
+  },
+  "940GZZLUBTX": {
+    "id": "940GZZLUBTX",
+    "name": "Brent Cross",
+    "lat": 51.57659886839313,
+    "lon": -0.21333583786630983
+  },
+  "910GBRTWOOD": {
+    "id": "910GBRTWOOD",
+    "name": "Brentwood",
+    "lat": 51.613610829903095,
+    "lon": 0.29967282145821766
+  },
+  "940GZZLUBXN": {
+    "id": "940GZZLUBXN",
+    "name": "Brixton",
+    "lat": 51.46273661697816,
+    "lon": -0.11455209682922837
+  },
+  "HUBBRX": {
+    "id": "HUBBRX",
+    "name": "Brixton",
+    "lat": 51.46273661697816,
+    "lon": -0.11455209682922837
+  },
+  "910GBROCKLY": {
+    "id": "910GBROCKLY",
+    "name": "Brockley Station",
+    "lat": 51.46474960336704,
+    "lon": -0.037748250467778785
+  },
+  "910GBRBYPK": {
+    "id": "910GBRBYPK",
+    "name": "Brondesbury Park Station",
+    "lat": 51.54032502366848,
+    "lon": -0.21047394410807815
+  },
+  "910GBRBY": {
+    "id": "910GBRBY",
+    "name": "Brondesbury Station",
+    "lat": 51.54526203281226,
+    "lon": -0.20283848334279223
+  },
+  "910GBRUCGRV": {
+    "id": "910GBRUCGRV",
+    "name": "Bruce Grove Station",
+    "lat": 51.59401113363423,
+    "lon": -0.07039898936228008
+  },
+  "940GZZLUBKH": {
+    "id": "940GZZLUBKH",
+    "name": "Buckhurst Hill",
+    "lat": 51.62657674004732,
+    "lon": 0.04671254142876922
+  },
+  "910GBNHAM": {
+    "id": "910GBNHAM",
+    "name": "Burnham (Berks)",
+    "lat": 51.52350398967751,
+    "lon": -0.6463882083350451
+  },
+  "940GZZLUBTK": {
+    "id": "940GZZLUBTK",
+    "name": "Burnt Oak",
+    "lat": 51.60255148173764,
+    "lon": -0.2643307082008112
+  },
+  "910GBHILLPK": {
+    "id": "910GBHILLPK",
+    "name": "Bush Hill Park Station",
+    "lat": 51.641481848544466,
+    "lon": -0.06928041222613097
+  },
+  "910GBUSHYDC": {
+    "id": "910GBUSHYDC",
+    "name": "Bushey",
+    "lat": 51.645543532577356,
+    "lon": -0.3847215327260823
+  },
+  "HUBBSH": {
+    "id": "HUBBSH",
+    "name": "Bushey",
+    "lat": 51.645543532577356,
+    "lon": -0.3847215327260823
+  },
+  "940GZZLUCAR": {
+    "id": "940GZZLUCAR",
+    "name": "Caledonian Road",
+    "lat": 51.54788524982811,
+    "lon": -0.11836086106469487
+  },
+  "910GCLDNNRB": {
+    "id": "910GCLDNNRB",
+    "name": "Caledonian Road & Barnsbury Station",
+    "lat": 51.543284389381675,
+    "lon": -0.11520485594881438
+  },
+  "910GCAMHTH": {
+    "id": "910GCAMHTH",
+    "name": "Cambridge Heath Station",
+    "lat": 51.5320596731624,
+    "lon": -0.0572032006374023
+  },
+  "910GCMDNRD": {
+    "id": "910GCMDNRD",
+    "name": "Camden Road Station",
+    "lat": 51.54185100885649,
+    "lon": -0.13920311140104435
+  },
+  "940GZZLUCTN": {
+    "id": "940GZZLUCTN",
+    "name": "Camden Town",
+    "lat": 51.53996912160411,
+    "lon": -0.14245237987648948
+  },
+  "940GZZLUCWR": {
+    "id": "940GZZLUCWR",
+    "name": "Canada Water",
+    "lat": 51.498168331250874,
+    "lon": -0.05080712084909722
+  },
+  "910GCNDAW": {
+    "id": "910GCNDAW",
+    "name": "Canada Water Station",
+    "lat": 51.498168331250874,
+    "lon": -0.05080712084909722
+  },
+  "910GCANWHRF": {
+    "id": "910GCANWHRF",
+    "name": "Canary Wharf",
+    "lat": 51.50357837512887,
+    "lon": -0.019466840139324412
+  },
+  "940GZZDLCAN": {
+    "id": "940GZZDLCAN",
+    "name": "Canary Wharf",
+    "lat": 51.50357837512887,
+    "lon": -0.019466840139324412
+  },
+  "940GZZLUCYF": {
+    "id": "940GZZLUCYF",
+    "name": "Canary Wharf",
+    "lat": 51.50357837512887,
+    "lon": -0.019466840139324412
+  },
+  "940GZZDLCGT": {
+    "id": "940GZZDLCGT",
+    "name": "Canning Town",
+    "lat": 51.51387030350512,
+    "lon": 0.008305632748764395
+  },
+  "940GZZLUCGT": {
+    "id": "940GZZLUCGT",
+    "name": "Canning Town",
+    "lat": 51.51387030350512,
+    "lon": 0.008305632748764395
+  },
+  "940GZZLUCPK": {
+    "id": "940GZZLUCPK",
+    "name": "Canons Park",
+    "lat": 51.60765009028535,
+    "lon": -0.294391591494146
+  },
+  "910GCRPNDPK": {
+    "id": "910GCRPNDPK",
+    "name": "Carpenders Park",
+    "lat": 51.628186088758376,
+    "lon": -0.3858293151270327
+  },
+  "910GCHDWLHT": {
+    "id": "910GCHDWLHT",
+    "name": "Chadwell Heath Station",
+    "lat": 51.56804709196961,
+    "lon": 0.12890111256817982
+  },
+  "940GZZLUCAL": {
+    "id": "940GZZLUCAL",
+    "name": "Chalfont & Latimer",
+    "lat": 51.66790656389214,
+    "lon": -0.5610677589431823
+  },
+  "HUBCFO": {
+    "id": "HUBCFO",
+    "name": "Chalfont & Latimer",
+    "lat": 51.66790656389214,
+    "lon": -0.5610677589431823
+  },
+  "940GZZLUCFM": {
+    "id": "940GZZLUCFM",
+    "name": "Chalk Farm",
+    "lat": 51.54414883734655,
+    "lon": -0.15373306950607965
+  },
+  "940GZZLUCHL": {
+    "id": "940GZZLUCHL",
+    "name": "Chancery Lane",
+    "lat": 51.518493835819875,
+    "lon": -0.11196202676241712
+  },
+  "940GZZLUCSM": {
+    "id": "940GZZLUCSM",
+    "name": "Chesham",
+    "lat": 51.705379023301255,
+    "lon": -0.6114296352979314
+  },
+  "910GCHESHNT": {
+    "id": "910GCHESHNT",
+    "name": "Cheshunt",
+    "lat": 51.70287327834175,
+    "lon": -0.02388741542966125
+  },
+  "940GZZLUCWL": {
+    "id": "940GZZLUCWL",
+    "name": "Chigwell",
+    "lat": 51.61785799974183,
+    "lon": 0.07617921535230276
+  },
+  "910GCHINGFD": {
+    "id": "910GCHINGFD",
+    "name": "Chingford Station",
+    "lat": 51.63325339188138,
+    "lon": 0.009514325530879747
+  },
+  "940GZZLUCWP": {
+    "id": "940GZZLUCWP",
+    "name": "Chiswick Park",
+    "lat": 51.494370277942714,
+    "lon": -0.2677369179922983
+  },
+  "940GZZLUCYD": {
+    "id": "940GZZLUCYD",
+    "name": "Chorleywood",
+    "lat": 51.65426508092765,
+    "lon": -0.5183339108571566
+  },
+  "HUBCLW": {
+    "id": "HUBCLW",
+    "name": "Chorleywood",
+    "lat": 51.65426508092765,
+    "lon": -0.5183339108571566
+  },
+  "940GZZLUCPC": {
+    "id": "940GZZLUCPC",
+    "name": "Clapham Common",
+    "lat": 51.461803445807924,
+    "lon": -0.1383149013879234
+  },
+  "910GCLPHHS": {
+    "id": "910GCLPHHS",
+    "name": "Clapham High Street",
+    "lat": 51.46546929922253,
+    "lon": -0.132464501562701
+  },
+  "910GCLPHMJC": {
+    "id": "910GCLPHMJC",
+    "name": "Clapham Junction Station",
+    "lat": 51.464366507789435,
+    "lon": -0.17031500054416623
+  },
+  "940GZZLUCPN": {
+    "id": "940GZZLUCPN",
+    "name": "Clapham North",
+    "lat": 51.46491600472909,
+    "lon": -0.1299100619146426
+  },
+  "940GZZLUCPS": {
+    "id": "940GZZLUCPS",
+    "name": "Clapham South",
+    "lat": 51.45267624920499,
+    "lon": -0.14798406833029198
+  },
+  "910GCLAPTON": {
+    "id": "910GCLAPTON",
+    "name": "Clapton Station",
+    "lat": 51.56156899642487,
+    "lon": -0.05748945826500976
+  },
+  "940GZZLUCKS": {
+    "id": "940GZZLUCKS",
+    "name": "Cockfosters",
+    "lat": 51.65202423620424,
+    "lon": -0.14991670977205104
+  },
+  "940GZZLUCND": {
+    "id": "940GZZLUCND",
+    "name": "Colindale",
+    "lat": 51.59523010894074,
+    "lon": -0.2502875400711353
+  },
+  "940GZZLUCSD": {
+    "id": "940GZZLUCSD",
+    "name": "Colliers Wood",
+    "lat": 51.41875889952969,
+    "lon": -0.17741509804960517
+  },
+  "940GZZLUCGN": {
+    "id": "940GZZLUCGN",
+    "name": "Covent Garden",
+    "lat": 51.51276003353218,
+    "lon": -0.12450689373696637
+  },
+  "940GZZDLCLA": {
+    "id": "940GZZDLCLA",
+    "name": "Crossharbour",
+    "lat": 51.495839957405124,
+    "lon": -0.01493281309024971
+  },
+  "910GCROUCHH": {
+    "id": "910GCROUCHH",
+    "name": "Crouch Hill Station",
+    "lat": 51.57132690836755,
+    "lon": -0.1171332840976015
+  },
+  "940GZZLUCXY": {
+    "id": "940GZZLUCXY",
+    "name": "Croxley",
+    "lat": 51.64700456011115,
+    "lon": -0.4416037868779258
+  },
+  "HUBCYP": {
+    "id": "HUBCYP",
+    "name": "Crystal Palace",
+    "lat": 51.418170235167786,
+    "lon": -0.07260723245875281
+  },
+  "910GCRYSTLP": {
+    "id": "910GCRYSTLP",
+    "name": "Crystal Palace Station",
+    "lat": 51.418170235167786,
+    "lon": -0.07260723245875281
+  },
+  "940GZZDLCUS": {
+    "id": "940GZZDLCUS",
+    "name": "Custom House (for ExCel)",
+    "lat": 51.50962210163043,
+    "lon": 0.025772510305280598
+  },
+  "910GCUSTMHS": {
+    "id": "910GCUSTMHS",
+    "name": "Custom House Station",
+    "lat": 51.50962210163043,
+    "lon": 0.025772510305280598
+  },
+  "HUBCUT": {
+    "id": "HUBCUT",
+    "name": "Cutty Sark",
+    "lat": 51.48194445322957,
+    "lon": -0.01058186672360873
+  },
+  "940GZZDLCUT": {
+    "id": "940GZZDLCUT",
+    "name": "Cutty Sark (for Maritime Greenwich)",
+    "lat": 51.47754764253433,
+    "lon": -0.014863083602737517
+  },
+  "940GZZDLCYP": {
+    "id": "940GZZDLCYP",
+    "name": "Cyprus",
+    "lat": 51.50852668850102,
+    "lon": 0.06384075607487531
+  },
+  "940GZZLUDGE": {
+    "id": "940GZZLUDGE",
+    "name": "Dagenham East",
+    "lat": 51.54418761328958,
+    "lon": 0.16583343330916664
+  },
+  "940GZZLUDGY": {
+    "id": "940GZZLUDGY",
+    "name": "Dagenham Heathway",
+    "lat": 51.54121203550144,
+    "lon": 0.14767972147400332
+  },
+  "910GDALS": {
+    "id": "910GDALS",
+    "name": "Dalston Junction Station",
+    "lat": 51.54609359547847,
+    "lon": -0.07499420449881748
+  },
+  "910GDALSKLD": {
+    "id": "910GDALSKLD",
+    "name": "Dalston Kingsland Station",
+    "lat": 51.54866769606561,
+    "lon": -0.07622692161799678
+  },
+  "940GZZLUDBN": {
+    "id": "940GZZLUDBN",
+    "name": "Debden",
+    "lat": 51.64549214152591,
+    "lon": 0.08380147525632461
+  },
+  "910GDENMRKH": {
+    "id": "910GDENMRKH",
+    "name": "Denmark Hill Station",
+    "lat": 51.468200492925064,
+    "lon": -0.09098786910291701
+  },
+  "940GZZDLDEP": {
+    "id": "940GZZDLDEP",
+    "name": "Deptford Bridge",
+    "lat": 51.47447673839478,
+    "lon": -0.022052428774292577
+  },
+  "940GZZDLDEV": {
+    "id": "940GZZDLDEV",
+    "name": "Devons Road",
+    "lat": 51.52225844074295,
+    "lon": -0.0180077541751607
+  },
+  "940GZZLUDOH": {
+    "id": "940GZZLUDOH",
+    "name": "Dollis Hill",
+    "lat": 51.55185020227431,
+    "lon": -0.23879775836475764
+  },
+  "910GEALINGB": {
+    "id": "910GEALINGB",
+    "name": "Ealing Broadway Station",
+    "lat": 51.51486148277942,
+    "lon": -0.3020103761336258
+  },
+  "940GZZLUEAN": {
+    "id": "940GZZLUEAN",
+    "name": "East Acton",
+    "lat": 51.51626301045364,
+    "lon": -0.2481122212813141
+  },
+  "940GZZLUEFY": {
+    "id": "940GZZLUEFY",
+    "name": "East Finchley",
+    "lat": 51.5873322776344,
+    "lon": -0.16474388444671967
+  },
+  "940GZZDLEIN": {
+    "id": "940GZZDLEIN",
+    "name": "East India",
+    "lat": 51.5086840050616,
+    "lon": -0.0023703315489933146
+  },
+  "940GZZLUEPY": {
+    "id": "940GZZLUEPY",
+    "name": "East Putney",
+    "lat": 51.45887944035384,
+    "lon": -0.21099823159594175
+  },
+  "940GZZLUEGW": {
+    "id": "940GZZLUEGW",
+    "name": "Edgware",
+    "lat": 51.61422917451505,
+    "lon": -0.2750936620617057
+  },
+  "940GZZLUERB": {
+    "id": "940GZZLUERB",
+    "name": "Edgware Road (Bakerloo)",
+    "lat": 51.520645084536135,
+    "lon": -0.17053954989974043
+  },
+  "910GEDMNGRN": {
+    "id": "910GEDMNGRN",
+    "name": "Edmonton Green Station",
+    "lat": 51.62511560436454,
+    "lon": -0.06163901923512943
+  },
+  "940GZZLUEPK": {
+    "id": "940GZZLUEPK",
+    "name": "Elm Park",
+    "lat": 51.54912490990794,
+    "lon": 0.19725268428342685
+  },
+  "940GZZDLELV": {
+    "id": "940GZZDLELV",
+    "name": "Elverson Road",
+    "lat": 51.468372165038545,
+    "lon": -0.016816376196184032
+  },
+  "910GEMRSPKH": {
+    "id": "910GEMRSPKH",
+    "name": "Emerson Park Station",
+    "lat": 51.56911527219532,
+    "lon": 0.22022293719981073
+  },
+  "910GENFLDTN": {
+    "id": "910GENFLDTN",
+    "name": "Enfield Town Station",
+    "lat": 51.65196994515368,
+    "lon": -0.07932992172819582
+  },
+  "940GZZLUEPG": {
+    "id": "940GZZLUEPG",
+    "name": "Epping",
+    "lat": 51.69368635497796,
+    "lon": 0.11382555351421217
+  },
+  "910GEUSTON": {
+    "id": "910GEUSTON",
+    "name": "Euston Station",
+    "lat": 51.528664114832,
+    "lon": -0.13329647081915122
+  },
+  "940GZZLUFLP": {
+    "id": "940GZZLUFLP",
+    "name": "Fairlop",
+    "lat": 51.59610969417489,
+    "lon": 0.0905932799159299
+  },
+  "910GFRNDXR": {
+    "id": "910GFRNDXR",
+    "name": "Farringdon Station",
+    "lat": 51.52019551919777,
+    "lon": -0.10484306131676423
+  },
+  "940GZZLUFYC": {
+    "id": "940GZZLUFYC",
+    "name": "Finchley Central",
+    "lat": 51.60090293685636,
+    "lon": -0.19322063471165793
+  },
+  "910GFNCHLYR": {
+    "id": "910GFNCHLYR",
+    "name": "Finchley Road & Frognal Station",
+    "lat": 51.55011920011288,
+    "lon": -0.1836512006949723
+  },
+  "910GFRSTGT": {
+    "id": "910GFRSTGT",
+    "name": "Forest Gate Station",
+    "lat": 51.54931616108423,
+    "lon": 0.024189091543256335
+  },
+  "910GFORESTH": {
+    "id": "910GFORESTH",
+    "name": "Forest Hill Station",
+    "lat": 51.43970822760034,
+    "lon": -0.05332850425339094
+  },
+  "940GZZLUFBY": {
+    "id": "940GZZLUFBY",
+    "name": "Fulham Broadway",
+    "lat": 51.480260585746336,
+    "lon": -0.19554416152789666
+  },
+  "940GZZDLGAL": {
+    "id": "940GZZDLGAL",
+    "name": "Gallions Reach",
+    "lat": 51.50903426024889,
+    "lon": 0.07177539473002964
+  },
+  "940GZZLUGTH": {
+    "id": "940GZZLUGTH",
+    "name": "Gants Hill",
+    "lat": 51.57655306294169,
+    "lon": 0.06608409806317944
+  },
+  "910GGIDEAPK": {
+    "id": "910GGIDEAPK",
+    "name": "Gidea Park Station",
+    "lat": 51.581866086649704,
+    "lon": 0.20597698312646676
+  },
+  "940GZZLUGGN": {
+    "id": "940GZZLUGGN",
+    "name": "Golders Green",
+    "lat": 51.57221521685042,
+    "lon": -0.19483455693826343
+  },
+  "940GZZLUGDG": {
+    "id": "940GZZLUGDG",
+    "name": "Goodge Street",
+    "lat": 51.52061289126984,
+    "lon": -0.13480768911472682
+  },
+  "910GGODMAYS": {
+    "id": "910GGODMAYS",
+    "name": "Goodmayes Station",
+    "lat": 51.566181168031925,
+    "lon": 0.11172965502874978
+  },
+  "940GZZLUGGH": {
+    "id": "940GZZLUGGH",
+    "name": "Grange Hill",
+    "lat": 51.61348057933538,
+    "lon": 0.09227253016869208
+  },
+  "940GZZLUGFD": {
+    "id": "940GZZLUGFD",
+    "name": "Greenford",
+    "lat": 51.54197950701463,
+    "lon": -0.3458787331310219
+  },
+  "HUBGFD": {
+    "id": "HUBGFD",
+    "name": "Greenford",
+    "lat": 51.54197950701463,
+    "lon": -0.3458787331310219
+  },
+  "940GZZDLGRE": {
+    "id": "940GZZDLGRE",
+    "name": "Greenwich",
+    "lat": 51.47754764253433,
+    "lon": -0.014863083602737517
+  },
+  "HUBGNW": {
+    "id": "HUBGNW",
+    "name": "Greenwich",
+    "lat": 51.47754764253433,
+    "lon": -0.014863083602737517
+  },
+  "940GZZLUGBY": {
+    "id": "940GZZLUGBY",
+    "name": "Gunnersbury",
+    "lat": 51.49186296322991,
+    "lon": -0.27516413141625035
+  },
+  "910GGNRSBRY": {
+    "id": "910GGNRSBRY",
+    "name": "Gunnersbury Station",
+    "lat": 51.49186296322991,
+    "lon": -0.27516413141625035
+  },
+  "910GHACKNYC": {
+    "id": "910GHACKNYC",
+    "name": "Hackney Central Station",
+    "lat": 51.54725735659255,
+    "lon": -0.055589511802494954
+  },
+  "910GHAKNYNM": {
+    "id": "910GHAKNYNM",
+    "name": "Hackney Downs Station",
+    "lat": 51.54907798925833,
+    "lon": -0.0601851048568028
+  },
+  "910GHACKNYW": {
+    "id": "910GHACKNYW",
+    "name": "Hackney Wick Station",
+    "lat": 51.54355836778055,
+    "lon": -0.025259502770290876
+  },
+  "910GHAGGERS": {
+    "id": "910GHAGGERS",
+    "name": "Haggerston Station",
+    "lat": 51.53868460901327,
+    "lon": -0.07559525776089235
+  },
+  "940GZZLUHLT": {
+    "id": "940GZZLUHLT",
+    "name": "Hainault",
+    "lat": 51.602845483752255,
+    "lon": 0.09410855083015249
+  },
+  "940GZZLUHTD": {
+    "id": "940GZZLUHTD",
+    "name": "Hampstead",
+    "lat": 51.55654230644866,
+    "lon": -0.17801455810844966
+  },
+  "910GHMPSTDH": {
+    "id": "910GHMPSTDH",
+    "name": "Hampstead Heath Station",
+    "lat": 51.555199657702005,
+    "lon": -0.16456618167757284
+  },
+  "940GZZLUHGR": {
+    "id": "940GZZLUHGR",
+    "name": "Hanger Lane",
+    "lat": 51.5300715563412,
+    "lon": -0.29299614055716494
+  },
+  "910GHANWELL": {
+    "id": "910GHANWELL",
+    "name": "Hanwell Station",
+    "lat": 51.512185406676046,
+    "lon": -0.33805187778633095
+  },
+  "940GZZLUHSN": {
+    "id": "940GZZLUHSN",
+    "name": "Harlesden",
+    "lat": 51.536257908620385,
+    "lon": -0.2574956703770174
+  },
+  "910GHARLSDN": {
+    "id": "910GHARLSDN",
+    "name": "Harlesden Station",
+    "lat": 51.536257908620385,
+    "lon": -0.2574956703770174
+  },
+  "910GHRLDWOD": {
+    "id": "910GHRLDWOD",
+    "name": "Harold Wood Station",
+    "lat": 51.59320260393047,
+    "lon": 0.23420407665837287
+  },
+  "910GHRGYGL": {
+    "id": "910GHRGYGL",
+    "name": "Harringay Green Lanes Station",
+    "lat": 51.5771457347569,
+    "lon": -0.09821739122071835
+  },
+  "940GZZLUHAW": {
+    "id": "940GZZLUHAW",
+    "name": "Harrow & Wealdstone",
+    "lat": 51.59259408808769,
+    "lon": -0.3342526785741267
+  },
+  "910GHROW": {
+    "id": "910GHROW",
+    "name": "Harrow & Wealdstone Station",
+    "lat": 51.59259408808769,
+    "lon": -0.3342526785741267
+  },
+  "940GZZLUHOH": {
+    "id": "940GZZLUHOH",
+    "name": "Harrow-on-the-Hill",
+    "lat": 51.5793875695421,
+    "lon": -0.33700151070609563
+  },
+  "HUBHOH": {
+    "id": "HUBHOH",
+    "name": "Harrow-on-the-Hill",
+    "lat": 51.5793875695421,
+    "lon": -0.33700151070609563
+  },
+  "910GHTCHEND": {
+    "id": "910GHTCHEND",
+    "name": "Hatch End",
+    "lat": 51.609827902244945,
+    "lon": -0.3691787730321793
+  },
+  "940GZZLUHNX": {
+    "id": "940GZZLUHNX",
+    "name": "Hatton Cross",
+    "lat": 51.466684612990974,
+    "lon": -0.4233805529699787
+  },
+  "910GHAYESAH": {
+    "id": "910GHAYESAH",
+    "name": "Hayes & Harlington Station",
+    "lat": 51.50304838798409,
+    "lon": -0.4206418932877566
+  },
+  "910GHEDSTNL": {
+    "id": "910GHEDSTNL",
+    "name": "Headstone Lane Station",
+    "lat": 51.602499044558435,
+    "lon": -0.3569075069574213
+  },
+  "910GHTRWTM4": {
+    "id": "910GHTRWTM4",
+    "name": "Heathrow Terminal 4",
+    "lat": 51.459779698532394,
+    "lon": -0.4477295782660727
+  },
+  "940GZZLUHR4": {
+    "id": "940GZZLUHR4",
+    "name": "Heathrow Terminal 4",
+    "lat": 51.459779698532394,
+    "lon": -0.4477295782660727
+  },
+  "910GHTRWTM5": {
+    "id": "910GHTRWTM5",
+    "name": "Heathrow Terminal 5",
+    "lat": 51.470024624464,
+    "lon": -0.4906474891242473
+  },
+  "940GZZLUHR5": {
+    "id": "940GZZLUHR5",
+    "name": "Heathrow Terminal 5",
+    "lat": 51.470024624464,
+    "lon": -0.4906474891242473
+  },
+  "910GHTRWAPT": {
+    "id": "910GHTRWAPT",
+    "name": "Heathrow Terminals 2 & 3",
+    "lat": 51.471288661913334,
+    "lon": -0.4524072136493198
+  },
+  "940GZZLUHRC": {
+    "id": "940GZZLUHRC",
+    "name": "Heathrow Terminals 2 & 3",
+    "lat": 51.471288661913334,
+    "lon": -0.4524072136493198
+  },
+  "940GZZLUHCL": {
+    "id": "940GZZLUHCL",
+    "name": "Hendon Central",
+    "lat": 51.583132678162094,
+    "lon": -0.22673413710008808
+  },
+  "940GZZDLHEQ": {
+    "id": "940GZZDLHEQ",
+    "name": "Heron Quays",
+    "lat": 51.50338653553158,
+    "lon": -0.021953532036309648
+  },
+  "940GZZLUHBT": {
+    "id": "940GZZLUHBT",
+    "name": "High Barnet",
+    "lat": 51.65168793826675,
+    "lon": -0.1941653779796151
+  },
+  "910GHGHMSPK": {
+    "id": "910GHGHMSPK",
+    "name": "Highams Park Station",
+    "lat": 51.608355995963855,
+    "lon": -0.00013528591952880162
+  },
+  "940GZZLUHAI": {
+    "id": "940GZZLUHAI",
+    "name": "Highbury & Islington",
+    "lat": 51.54649533884997,
+    "lon": -0.10408213923935299
+  },
+  "940GZZLUHGT": {
+    "id": "940GZZLUHGT",
+    "name": "Highgate",
+    "lat": 51.57764637933854,
+    "lon": -0.1469348609337413
+  },
+  "940GZZLUHPK": {
+    "id": "940GZZLUHPK",
+    "name": "Holland Park",
+    "lat": 51.50714614814041,
+    "lon": -0.20655777541232848
+  },
+  "940GZZLUHWY": {
+    "id": "940GZZLUHWY",
+    "name": "Holloway Road",
+    "lat": 51.552815921064415,
+    "lon": -0.11293569621685982
+  },
+  "910GHOMRTON": {
+    "id": "910GHOMRTON",
+    "name": "Homerton Station",
+    "lat": 51.54659538619648,
+    "lon": -0.03851234702111631
+  },
+  "910GHONROPK": {
+    "id": "910GHONROPK",
+    "name": "Honor Oak Park Station",
+    "lat": 51.450648171040484,
+    "lon": -0.044153121032106585
+  },
+  "940GZZLUHCH": {
+    "id": "940GZZLUHCH",
+    "name": "Hornchurch",
+    "lat": 51.55435547079002,
+    "lon": 0.21892699941117588
+  },
+  "940GZZLUHWC": {
+    "id": "940GZZLUHWC",
+    "name": "Hounslow Central",
+    "lat": 51.470925168799894,
+    "lon": -0.36595812136688016
+  },
+  "940GZZLUHWE": {
+    "id": "940GZZLUHWE",
+    "name": "Hounslow East",
+    "lat": 51.47370731480755,
+    "lon": -0.3552753144989688
+  },
+  "940GZZLUHWT": {
+    "id": "940GZZLUHWT",
+    "name": "Hounslow West",
+    "lat": 51.47310508637143,
+    "lon": -0.385707619977202
+  },
+  "910GHOXTON": {
+    "id": "910GHOXTON",
+    "name": "Hoxton Station",
+    "lat": 51.53139149136721,
+    "lon": -0.07558564687618821
+  },
+  "940GZZLUHPC": {
+    "id": "940GZZLUHPC",
+    "name": "Hyde Park Corner",
+    "lat": 51.502583765542106,
+    "lon": -0.15247411263186791
+  },
+  "910GILFORD": {
+    "id": "910GILFORD",
+    "name": "Ilford Station",
+    "lat": 51.55914235666761,
+    "lon": 0.06868519118076073
+  },
+  "HUBIMP": {
+    "id": "HUBIMP",
+    "name": "Imperial Wharf",
+    "lat": 51.47493863003009,
+    "lon": -0.1828375028016368
+  },
+  "910GCSEAH": {
+    "id": "910GCSEAH",
+    "name": "Imperial Wharf Station",
+    "lat": 51.47493863003009,
+    "lon": -0.1828375028016368
+  },
+  "940GZZDLISL": {
+    "id": "940GZZDLISL",
+    "name": "Island Gardens",
+    "lat": 51.48795007358022,
+    "lon": -0.010493303130196344
+  },
+  "910GIVER": {
+    "id": "910GIVER",
+    "name": "Iver",
+    "lat": 51.50850130163604,
+    "lon": -0.5067404189391109
+  },
+  "940GZZLUKNG": {
+    "id": "940GZZLUKNG",
+    "name": "Kennington",
+    "lat": 51.48866228881571,
+    "lon": -0.1050706127740003
+  },
+  "940GZZLUKSL": {
+    "id": "940GZZLUKSL",
+    "name": "Kensal Green",
+    "lat": 51.53052384871879,
+    "lon": -0.22471338113804362
+  },
+  "910GKENSLG": {
+    "id": "910GKENSLG",
+    "name": "Kensal Green Station",
+    "lat": 51.53052384871879,
+    "lon": -0.22471338113804362
+  },
+  "910GKENR": {
+    "id": "910GKENR",
+    "name": "Kensal Rise Station",
+    "lat": 51.5342147055381,
+    "lon": -0.2208209758254941
+  },
+  "940GZZLUKOY": {
+    "id": "940GZZLUKOY",
+    "name": "Kensington (Olympia)",
+    "lat": 51.497879357125825,
+    "lon": -0.2103792397678828
+  },
+  "910GKENOLYM": {
+    "id": "910GKENOLYM",
+    "name": "Kensington (Olympia) Station",
+    "lat": 51.497879357125825,
+    "lon": -0.2103792397678828
+  },
+  "940GZZLUKSH": {
+    "id": "940GZZLUKSH",
+    "name": "Kentish Town",
+    "lat": 51.55000929428177,
+    "lon": -0.14047126270052573
+  },
+  "HUBKTN": {
+    "id": "HUBKTN",
+    "name": "Kentish Town",
+    "lat": 51.55000929428177,
+    "lon": -0.14047126270052573
+  },
+  "910GKNTSHTW": {
+    "id": "910GKNTSHTW",
+    "name": "Kentish Town West Station",
+    "lat": 51.546547731815146,
+    "lon": -0.1467564086224741
+  },
+  "940GZZLUKEN": {
+    "id": "940GZZLUKEN",
+    "name": "Kenton",
+    "lat": 51.581495770351395,
+    "lon": -0.31521686082632067
+  },
+  "910GKTON": {
+    "id": "910GKTON",
+    "name": "Kenton Station",
+    "lat": 51.581495770351395,
+    "lon": -0.31521686082632067
+  },
+  "940GZZLUKWG": {
+    "id": "940GZZLUKWG",
+    "name": "Kew Gardens",
+    "lat": 51.476788671230366,
+    "lon": -0.28538100667617433
+  },
+  "910GKEWGRDN": {
+    "id": "910GKEWGRDN",
+    "name": "Kew Gardens Station",
+    "lat": 51.476788671230366,
+    "lon": -0.28538100667617433
+  },
+  "940GZZLUKBN": {
+    "id": "940GZZLUKBN",
+    "name": "Kilburn",
+    "lat": 51.54694410286596,
+    "lon": -0.2046327166992552
+  },
+  "910GKLBRNHR": {
+    "id": "910GKLBRNHR",
+    "name": "Kilburn High Road Station",
+    "lat": 51.53726743072475,
+    "lon": -0.19111310361342868
+  },
+  "940GZZLUKPK": {
+    "id": "940GZZLUKPK",
+    "name": "Kilburn Park",
+    "lat": 51.53513522184343,
+    "lon": -0.19396605493970595
+  },
+  "940GZZDLKGV": {
+    "id": "940GZZDLKGV",
+    "name": "King George V",
+    "lat": 51.502008711932824,
+    "lon": 0.062206214109291724
+  },
+  "940GZZLUKBY": {
+    "id": "940GZZLUKBY",
+    "name": "Kingsbury",
+    "lat": 51.58487606349117,
+    "lon": -0.2786016037131724
+  },
+  "940GZZLUKNB": {
+    "id": "940GZZLUKNB",
+    "name": "Knightsbridge",
+    "lat": 51.50135463701893,
+    "lon": -0.16066448462280936
+  },
+  "940GZZLULBN": {
+    "id": "940GZZLULBN",
+    "name": "Lambeth North",
+    "lat": 51.49912976538859,
+    "lon": -0.11176826046020598
+  },
+  "940GZZLULGT": {
+    "id": "940GZZLULGT",
+    "name": "Lancaster Gate",
+    "lat": 51.511890658328326,
+    "lon": -0.17542992678979158
+  },
+  "940GZZDLLDP": {
+    "id": "940GZZDLLDP",
+    "name": "Langdon Park",
+    "lat": 51.51888391608367,
+    "lon": -0.015213798947704839
+  },
+  "910GLANGLEY": {
+    "id": "910GLANGLEY",
+    "name": "Langley (Berks)",
+    "lat": 51.50806077346535,
+    "lon": -0.541770556061928
+  },
+  "940GZZDLLEW": {
+    "id": "940GZZDLLEW",
+    "name": "Lewisham",
+    "lat": 51.46488069551227,
+    "lon": -0.012432700898009246
+  },
+  "HUBLEW": {
+    "id": "HUBLEW",
+    "name": "Lewisham",
+    "lat": 51.46488069551227,
+    "lon": -0.012432700898009246
+  },
+  "940GZZLULYN": {
+    "id": "940GZZLULYN",
+    "name": "Leyton",
+    "lat": 51.55813226231266,
+    "lon": -0.006465331580603041
+  },
+  "910GLEYTNMR": {
+    "id": "910GLEYTNMR",
+    "name": "Leyton Midland Road Station",
+    "lat": 51.56936422878631,
+    "lon": -0.008066347430350757
+  },
+  "940GZZLULYS": {
+    "id": "940GZZLULYS",
+    "name": "Leytonstone",
+    "lat": 51.56852230672617,
+    "lon": 0.009140451957061277
+  },
+  "910GLYTNSHR": {
+    "id": "910GLYTNSHR",
+    "name": "Leytonstone High Road Station",
+    "lat": 51.563807360364464,
+    "lon": 0.008254468835955844
+  },
+  "940GZZDLLIM": {
+    "id": "940GZZDLLIM",
+    "name": "Limehouse",
+    "lat": 51.51231210167662,
+    "lon": -0.03938007766249374
+  },
+  "HUBLHS": {
+    "id": "HUBLHS",
+    "name": "Limehouse",
+    "lat": 51.51231210167662,
+    "lon": -0.03938007766249374
+  },
+  "910GLIVSTLL": {
+    "id": "910GLIVSTLL",
+    "name": "Liverpool Street Station",
+    "lat": 51.51759813225402,
+    "lon": -0.08224962188885442
+  },
+  "940GZZDLLCA": {
+    "id": "940GZZDLLCA",
+    "name": "London City Airport",
+    "lat": 51.503689745247414,
+    "lon": 0.04787271558352588
+  },
+  "HUBLCY": {
+    "id": "HUBLCY",
+    "name": "London City Airport",
+    "lat": 51.503689745247414,
+    "lon": 0.04787271558352588
+  },
+  "910GLONFLDS": {
+    "id": "910GLONFLDS",
+    "name": "London Fields Station",
+    "lat": 51.54071874924931,
+    "lon": -0.057699686220921656
+  },
+  "940GZZLULGN": {
+    "id": "940GZZLULGN",
+    "name": "Loughton",
+    "lat": 51.641570570828016,
+    "lon": 0.055279079287447894
+  },
+  "940GZZLUMVL": {
+    "id": "940GZZLUMVL",
+    "name": "Maida Vale",
+    "lat": 51.529994755621196,
+    "lon": -0.18543264493585596
+  },
+  "910GMDNHEAD": {
+    "id": "910GMDNHEAD",
+    "name": "Maidenhead",
+    "lat": 51.518667426954124,
+    "lon": -0.7226749105747798
+  },
+  "940GZZLUMRH": {
+    "id": "940GZZLUMRH",
+    "name": "Manor House",
+    "lat": 51.570746986190926,
+    "lon": -0.09568497573192744
+  },
+  "910GMANRPK": {
+    "id": "910GMANRPK",
+    "name": "Manor Park Station",
+    "lat": 51.55285442759388,
+    "lon": 0.04572387018697303
+  },
+  "940GZZLUMBA": {
+    "id": "940GZZLUMBA",
+    "name": "Marble Arch",
+    "lat": 51.51396523465938,
+    "lon": -0.15857121479275763
+  },
+  "910GMRYLAND": {
+    "id": "910GMRYLAND",
+    "name": "Maryland Station",
+    "lat": 51.54566828299751,
+    "lon": 0.005681654184252551
+  },
+  "940GZZLUMYB": {
+    "id": "940GZZLUMYB",
+    "name": "Marylebone",
+    "lat": 51.52239640326536,
+    "lon": -0.16349256231091294
+  },
+  "HUBMYB": {
+    "id": "HUBMYB",
+    "name": "Marylebone",
+    "lat": 51.52239640326536,
+    "lon": -0.16349256231091294
+  },
+  "940GZZLUMHL": {
+    "id": "940GZZLUMHL",
+    "name": "Mill Hill East",
+    "lat": 51.60831630368604,
+    "lon": -0.20989571031440662
+  },
+  "940GZZLUMPK": {
+    "id": "940GZZLUMPK",
+    "name": "Moor Park",
+    "lat": 51.62992995953362,
+    "lon": -0.4329130164958966
+  },
+  "940GZZLUMDN": {
+    "id": "940GZZLUMDN",
+    "name": "Morden",
+    "lat": 51.40218564474951,
+    "lon": -0.1948519795190437
+  },
+  "940GZZLUMTC": {
+    "id": "940GZZLUMTC",
+    "name": "Mornington Crescent",
+    "lat": 51.53436199274684,
+    "lon": -0.13874434872471417
+  },
+  "940GZZDLMUD": {
+    "id": "940GZZDLMUD",
+    "name": "Mudchute",
+    "lat": 51.491236163479066,
+    "lon": -0.01495994488107933
+  },
+  "940GZZLUNDN": {
+    "id": "940GZZLUNDN",
+    "name": "Neasden",
+    "lat": 51.554627310041155,
+    "lon": -0.2501150416936122
+  },
+  "HUBNWX": {
+    "id": "HUBNWX",
+    "name": "New Cross",
+    "lat": 51.47642936493697,
+    "lon": -0.03227881144505215
+  },
+  "HUBNXG": {
+    "id": "HUBNXG",
+    "name": "New Cross Gate",
+    "lat": 51.475264866034166,
+    "lon": -0.039529051848319986
+  },
+  "910GNEWXGTE": {
+    "id": "910GNEWXGTE",
+    "name": "New Cross Gate Station",
+    "lat": 51.475264866034166,
+    "lon": -0.039529051848319986
+  },
+  "910GNWCRELL": {
+    "id": "910GNWCRELL",
+    "name": "New Cross Station",
+    "lat": 51.47642936493697,
+    "lon": -0.03227881144505215
+  },
+  "940GZZLUNBP": {
+    "id": "940GZZLUNBP",
+    "name": "Newbury Park",
+    "lat": 51.57563850646377,
+    "lon": 0.09030315819789672
+  },
+  "940GZZNEUGST": {
+    "id": "940GZZNEUGST",
+    "name": "Nine Elms",
+    "lat": 51.48000104922924,
+    "lon": -0.12850098283072034
+  },
+  "940GZZLUNAN": {
+    "id": "940GZZLUNAN",
+    "name": "North Acton",
+    "lat": 51.523432004609894,
+    "lon": -0.2597295239222282
+  },
+  "940GZZLUNEN": {
+    "id": "940GZZLUNEN",
+    "name": "North Ealing",
+    "lat": 51.51762181807098,
+    "lon": -0.28899354775317115
+  },
+  "940GZZLUNGW": {
+    "id": "940GZZLUNGW",
+    "name": "North Greenwich",
+    "lat": 51.5002551610895,
+    "lon": 0.003586259125950833
+  },
+  "HUBNGW": {
+    "id": "HUBNGW",
+    "name": "North Greenwich",
+    "lat": 51.5002551610895,
+    "lon": 0.003586259125950833
+  },
+  "940GZZLUNHA": {
+    "id": "940GZZLUNHA",
+    "name": "North Harrow",
+    "lat": 51.58463070784392,
+    "lon": -0.3626329855990683
+  },
+  "940GZZLUNWY": {
+    "id": "940GZZLUNWY",
+    "name": "North Wembley",
+    "lat": 51.56239579644328,
+    "lon": -0.30394821391329097
+  },
+  "910GNWEMBLY": {
+    "id": "910GNWEMBLY",
+    "name": "North Wembley Station",
+    "lat": 51.56239579644328,
+    "lon": -0.30394821391329097
+  },
+  "940GZZLUNFD": {
+    "id": "940GZZLUNFD",
+    "name": "Northfields",
+    "lat": 51.50049115689572,
+    "lon": -0.31506481298857175
+  },
+  "940GZZLUNHT": {
+    "id": "940GZZLUNHT",
+    "name": "Northolt",
+    "lat": 51.54821230018008,
+    "lon": -0.3684405875976204
+  },
+  "940GZZLUNKP": {
+    "id": "940GZZLUNKP",
+    "name": "Northwick Park",
+    "lat": 51.578508169653034,
+    "lon": -0.3181993860133686
+  },
+  "940GZZLUNOW": {
+    "id": "940GZZLUNOW",
+    "name": "Northwood",
+    "lat": 51.611212919581355,
+    "lon": -0.42383777619581775
+  },
+  "940GZZLUNWH": {
+    "id": "940GZZLUNWH",
+    "name": "Northwood Hills",
+    "lat": 51.600801977914315,
+    "lon": -0.40931134805689284
+  },
+  "HUBNWD": {
+    "id": "HUBNWD",
+    "name": "Norwood Junction",
+    "lat": 51.39695420145057,
+    "lon": -0.07520985620618181
+  },
+  "910GNORWDJ": {
+    "id": "910GNORWDJ",
+    "name": "Norwood Junction Station",
+    "lat": 51.39695420145057,
+    "lon": -0.07520985620618181
+  },
+  "940GZZLUOAK": {
+    "id": "940GZZLUOAK",
+    "name": "Oakwood",
+    "lat": 51.64763774735996,
+    "lon": -0.1318535388133937
+  },
+  "940GZZLUODS": {
+    "id": "940GZZLUODS",
+    "name": "Old Street",
+    "lat": 51.525581330743044,
+    "lon": -0.08762295738735129
+  },
+  "HUBOLD": {
+    "id": "HUBOLD",
+    "name": "Old Street",
+    "lat": 51.525581330743044,
+    "lon": -0.08762295738735129
+  },
+  "940GZZLUOSY": {
+    "id": "940GZZLUOSY",
+    "name": "Osterley",
+    "lat": 51.48121623575927,
+    "lon": -0.3520960888490031
+  },
+  "940GZZLUOVL": {
+    "id": "940GZZLUOVL",
+    "name": "Oval",
+    "lat": 51.48141241737747,
+    "lon": -0.11332107512133172
+  },
+  "910GPADTLL": {
+    "id": "910GPADTLL",
+    "name": "Paddington Station",
+    "lat": 51.51539350022652,
+    "lon": -0.17573675026577226
+  },
+  "910GPADTON": {
+    "id": "910GPADTON",
+    "name": "Paddington Station",
+    "lat": 51.51539350022652,
+    "lon": -0.17573675026577226
+  },
+  "940GZZLUPKR": {
+    "id": "940GZZLUPKR",
+    "name": "Park Royal",
+    "lat": 51.526833556086295,
+    "lon": -0.28492891296710476
+  },
+  "940GZZLUPSG": {
+    "id": "940GZZLUPSG",
+    "name": "Parsons Green",
+    "lat": 51.47495982565945,
+    "lon": -0.20112449001225277
+  },
+  "910GPCKHMRY": {
+    "id": "910GPCKHMRY",
+    "name": "Peckham Rye Station",
+    "lat": 51.46951125269604,
+    "lon": -0.06998355290619437
+  },
+  "910GPENEW": {
+    "id": "910GPENEW",
+    "name": "Penge West Station",
+    "lat": 51.41806283133318,
+    "lon": -0.06064576434263841
+  },
+  "940GZZLUPVL": {
+    "id": "940GZZLUPVL",
+    "name": "Perivale",
+    "lat": 51.53634129467288,
+    "lon": -0.3230704159011666
+  },
+  "940GZZLUPCO": {
+    "id": "940GZZLUPCO",
+    "name": "Pimlico",
+    "lat": 51.4891,
+    "lon": -0.1334
+  },
+  "940GZZLUPNR": {
+    "id": "940GZZLUPNR",
+    "name": "Pinner",
+    "lat": 51.5928,
+    "lon": -0.3804
+  },
+  "940GZZDLPDK": {
+    "id": "940GZZDLPDK",
+    "name": "Pontoon Dock",
+    "lat": 51.5023,
+    "lon": 0.0322
+  },
+  "940GZZDLPOP": {
+    "id": "940GZZDLPOP",
+    "name": "Poplar",
+    "lat": 51.5077,
+    "lon": -0.0172
+  },
+  "940GZZLUPRD": {
+    "id": "940GZZLUPRD",
+    "name": "Preston Road",
+    "lat": 51.572,
+    "lon": -0.2949
+  },
+  "940GZZDLPRE": {
+    "id": "940GZZDLPRE",
+    "name": "Prince Regent",
+    "lat": 51.50943460724026,
+    "lon": 0.03348857411467715
+  },
+  "940GZZDLPUD": {
+    "id": "940GZZDLPUD",
+    "name": "Pudding Mill Lane",
+    "lat": 51.534327836050565,
+    "lon": -0.012768511944547117
+  },
+  "940GZZLUPYB": {
+    "id": "940GZZLUPYB",
+    "name": "Putney Bridge",
+    "lat": 51.46786499705636,
+    "lon": -0.20936541430195443
+  },
+  "940GZZLUQPS": {
+    "id": "940GZZLUQPS",
+    "name": "Queen's Park",
+    "lat": 51.53431231776354,
+    "lon": -0.20479814695067167
+  },
+  "910GQPRK": {
+    "id": "910GQPRK",
+    "name": "Queen's Park Station (London)",
+    "lat": 51.53431231776354,
+    "lon": -0.20479814695067167
+  },
+  "910GPCKHMQD": {
+    "id": "910GPCKHMQD",
+    "name": "Queens Road Peckham Station",
+    "lat": 51.47428461792391,
+    "lon": -0.05735497866902937
+  },
+  "940GZZLUQBY": {
+    "id": "940GZZLUQBY",
+    "name": "Queensbury",
+    "lat": 51.59388250931327,
+    "lon": -0.286331592620629
+  },
+  "940GZZLUQWY": {
+    "id": "940GZZLUQWY",
+    "name": "Queensway",
+    "lat": 51.51044892854765,
+    "lon": -0.1874199010483689
+  },
+  "940GZZLURVP": {
+    "id": "940GZZLURVP",
+    "name": "Ravenscourt Park",
+    "lat": 51.494067596546,
+    "lon": -0.23596922986014346
+  },
+  "910GRDNGSTN": {
+    "id": "910GRDNGSTN",
+    "name": "Reading",
+    "lat": 51.458784566812625,
+    "lon": -0.9718776209963325
+  },
+  "910GRCTRYRD": {
+    "id": "910GRCTRYRD",
+    "name": "Rectory Road Station",
+    "lat": 51.55876336735922,
+    "lon": -0.06838566445429543
+  },
+  "940GZZLURBG": {
+    "id": "940GZZLURBG",
+    "name": "Redbridge",
+    "lat": 51.576366994360605,
+    "lon": 0.045394044087077395
+  },
+  "940GZZLURGP": {
+    "id": "940GZZLURGP",
+    "name": "Regent's Park",
+    "lat": 51.523810437772845,
+    "lon": -0.1453444097205957
+  },
+  "940GZZLURMD": {
+    "id": "940GZZLURMD",
+    "name": "Richmond",
+    "lat": 51.46323239395917,
+    "lon": -0.30173912870492936
+  },
+  "910GRICHMND": {
+    "id": "910GRICHMND",
+    "name": "Richmond Station",
+    "lat": 51.46323239395917,
+    "lon": -0.30173912870492936
+  },
+  "940GZZLURKW": {
+    "id": "940GZZLURKW",
+    "name": "Rickmansworth",
+    "lat": 51.640322241933696,
+    "lon": -0.4736845710128753
+  },
+  "HUBRIC": {
+    "id": "HUBRIC",
+    "name": "Rickmansworth",
+    "lat": 51.640322241933696,
+    "lon": -0.4736845710128753
+  },
+  "940GZZLURVY": {
+    "id": "940GZZLURVY",
+    "name": "Roding Valley",
+    "lat": 51.61695652081232,
+    "lon": 0.04402620712663845
+  },
+  "910GRTHERHI": {
+    "id": "910GRTHERHI",
+    "name": "Rotherhithe Station",
+    "lat": 51.501594420702716,
+    "lon": -0.0529662962549398
+  },
+  "940GZZDLRAL": {
+    "id": "940GZZDLRAL",
+    "name": "Royal Albert",
+    "lat": 51.50849394631005,
+    "lon": 0.045177145189641374
+  },
+  "940GZZDLRVC": {
+    "id": "940GZZDLRVC",
+    "name": "Royal Victoria",
+    "lat": 51.50905526715448,
+    "lon": 0.017965412588985888
+  },
+  "HUBRVC": {
+    "id": "HUBRVC",
+    "name": "Royal Victoria",
+    "lat": 51.50905526715448,
+    "lon": 0.017965412588985888
+  },
+  "940GZZLURSG": {
+    "id": "940GZZLURSG",
+    "name": "Ruislip Gardens",
+    "lat": 51.55995951052218,
+    "lon": -0.40929410137403394
+  },
+  "940GZZLURSQ": {
+    "id": "940GZZLURSQ",
+    "name": "Russell Square",
+    "lat": 51.523012836646224,
+    "lon": -0.12459019687261923
+  },
+  "910GSVNKNGS": {
+    "id": "910GSVNKNGS",
+    "name": "Seven Kings Station",
+    "lat": 51.56399351215581,
+    "lon": 0.09631957529138686
+  },
+  "940GZZLUSVS": {
+    "id": "940GZZLUSVS",
+    "name": "Seven Sisters",
+    "lat": 51.58336204399537,
+    "lon": -0.07246682251889108
+  },
+  "910GSEVNSIS": {
+    "id": "910GSEVNSIS",
+    "name": "Seven Sisters Station",
+    "lat": 51.58336204399537,
+    "lon": -0.07246682251889108
+  },
+  "910GSHADWEL": {
+    "id": "910GSHADWEL",
+    "name": "Shadwell",
+    "lat": 51.5117,
+    "lon": -0.0566
+  },
+  "940GZZDLSHA": {
+    "id": "940GZZDLSHA",
+    "name": "Shadwell",
+    "lat": 51.5117,
+    "lon": -0.0566
+  },
+  "910GSHENFLD": {
+    "id": "910GSHENFLD",
+    "name": "Shenfield",
+    "lat": 51.630873639892386,
+    "lon": 0.32995227076530625
+  },
+  "910GSHPDSB": {
+    "id": "910GSHPDSB",
+    "name": "Shepherd's Bush",
+    "lat": 51.504531795613886,
+    "lon": -0.2185191566688487
+  },
+  "940GZZLUSBC": {
+    "id": "940GZZLUSBC",
+    "name": "Shepherd's Bush (Central)",
+    "lat": 51.504531795613886,
+    "lon": -0.2185191566688487
+  },
+  "910GSHRDHST": {
+    "id": "910GSHRDHST",
+    "name": "Shoreditch High Street Station",
+    "lat": 51.523466695343075,
+    "lon": -0.07708742433139697
+  },
+  "910GSIVRST": {
+    "id": "910GSIVRST",
+    "name": "Silver Street Station",
+    "lat": 51.61524236180803,
+    "lon": -0.07258974125866192
+  },
+  "910GSLOUGH": {
+    "id": "910GSLOUGH",
+    "name": "Slough",
+    "lat": 51.51187888370566,
+    "lon": -0.5915248252758044
+  },
+  "940GZZLUSNB": {
+    "id": "940GZZLUSNB",
+    "name": "Snaresbrook",
+    "lat": 51.58089131157066,
+    "lon": 0.021463927810755047
+  },
+  "910GSACTON": {
+    "id": "910GSACTON",
+    "name": "South Acton Station",
+    "lat": 51.49968538827372,
+    "lon": -0.27021520326622445
+  },
+  "940GZZLUSEA": {
+    "id": "940GZZLUSEA",
+    "name": "South Ealing",
+    "lat": 51.50164352033085,
+    "lon": -0.30704023946122333
+  },
+  "910GSHMPSTD": {
+    "id": "910GSHMPSTD",
+    "name": "South Hampstead Station",
+    "lat": 51.54147655809487,
+    "lon": -0.17837119811462532
+  },
+  "940GZZLUSHH": {
+    "id": "940GZZLUSHH",
+    "name": "South Harrow",
+    "lat": 51.56467959482167,
+    "lon": -0.35189396373160503
+  },
+  "940GZZLUSKT": {
+    "id": "940GZZLUSKT",
+    "name": "South Kenton",
+    "lat": 51.571043947551274,
+    "lon": -0.3081429717620929
+  },
+  "910GSKENTON": {
+    "id": "910GSKENTON",
+    "name": "South Kenton Station",
+    "lat": 51.571043947551274,
+    "lon": -0.3081429717620929
+  },
+  "940GZZDLSOQ": {
+    "id": "940GZZDLSOQ",
+    "name": "South Quay",
+    "lat": 51.50086357890648,
+    "lon": -0.018460692665022115
+  },
+  "940GZZLUSRP": {
+    "id": "940GZZLUSRP",
+    "name": "South Ruislip",
+    "lat": 51.55688965147795,
+    "lon": -0.3991159010068219
+  },
+  "HUBSRU": {
+    "id": "HUBSRU",
+    "name": "South Ruislip",
+    "lat": 51.55688965147795,
+    "lon": -0.3991159010068219
+  },
+  "910GSTOTNHM": {
+    "id": "910GSTOTNHM",
+    "name": "South Tottenham Station",
+    "lat": 51.580402471228126,
+    "lon": -0.0718559563059047
+  },
+  "940GZZLUSWN": {
+    "id": "940GZZLUSWN",
+    "name": "South Wimbledon",
+    "lat": 51.41536039779992,
+    "lon": -0.19197454409905726
+  },
+  "940GZZLUSWF": {
+    "id": "940GZZLUSWF",
+    "name": "South Woodford",
+    "lat": 51.59155266475493,
+    "lon": 0.02794307837440943
+  },
+  "910GSTHALL": {
+    "id": "910GSTHALL",
+    "name": "Southall Station",
+    "lat": 51.50595629378949,
+    "lon": -0.3787111814415624
+  },
+  "910GSBURY": {
+    "id": "910GSBURY",
+    "name": "Southbury Station",
+    "lat": 51.648433641300066,
+    "lon": -0.05298331040026236
+  },
+  "940GZZLUSFS": {
+    "id": "940GZZLUSFS",
+    "name": "Southfields",
+    "lat": 51.44488297741004,
+    "lon": -0.20660938309093127
+  },
+  "940GZZLUSGT": {
+    "id": "940GZZLUSGT",
+    "name": "Southgate",
+    "lat": 51.63237564173069,
+    "lon": -0.1277700463078405
+  },
+  "940GZZLUSWK": {
+    "id": "940GZZLUSWK",
+    "name": "Southwark",
+    "lat": 51.50385344972166,
+    "lon": -0.1057949389250921
+  }
+}

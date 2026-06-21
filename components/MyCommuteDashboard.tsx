@@ -57,6 +57,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
+import { LineStatusModal } from './LineStatusModal';
 import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -132,8 +133,10 @@ const LinePill: React.FC<{
   onLongPress?: () => void;
   onPress?: () => void;
   index: number;
-}> = ({ line, isEditing, onDelete, onLongPress, onPress, index }) => {
-  const jiggleStyle = useJiggle(index, isEditing, false);
+  drag?: () => void;
+  isActive?: boolean;
+}> = ({ line, isEditing, onDelete, onLongPress, onPress, index, drag, isActive = false }) => {
+  const jiggleStyle = useJiggle(index, isEditing, isActive);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
 
@@ -158,12 +161,11 @@ const LinePill: React.FC<{
 
   return (
     <Animated.View
-      layout={LinearTransition.springify().mass(0.8).damping(15)}
+      layout={isActive ? undefined : LinearTransition.springify().mass(0.8).damping(15)}
       exiting={FadeOut.duration(150)}
       style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle, animatedStyle]}
     >
       <Pressable
-        onPress={isEditing ? undefined : onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onLongPress={onLongPress}
@@ -172,7 +174,26 @@ const LinePill: React.FC<{
       >
         <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
-        <Text style={pill.name} numberOfLines={1}>{LINE_SHORT_NAMES[line.id] || line.name}</Text>
+        <Pressable
+          onPress={() => {
+            if (!isEditing && onPress) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onPress();
+            }
+          }}
+        >
+          {({ pressed }) => (
+            <Text
+              style={[
+                pill.name,
+                pressed && { textDecorationLine: 'underline' }
+              ]}
+              numberOfLines={1}
+            >
+              {LINE_SHORT_NAMES[line.id] || line.name}
+            </Text>
+          )}
+        </Pressable>
         <View style={pill.spacer} />
         {!isEditing && (
           <>
@@ -351,7 +372,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderStations } = useUserPreferencesStore(useShallow((s: UserPreferencesState) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderStations, reorderLines } = useUserPreferencesStore(useShallow((s: UserPreferencesState) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -361,12 +382,14 @@ const MyCommuteDashboard: React.FC = () => {
     setLastKnown: s.setLastKnown,
     calendarGranted: s.calendarGranted,
     reorderStations: s.reorderStations,
+    reorderLines: s.reorderLines,
   })));
 
   const [linesModalVisible, setLinesModalVisible] = useState(false);
   const [stationsModalVisible, setStationsModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedStatusLine, setSelectedStatusLine] = useState<LineData | null>(null);
 
   const linesPlusRef = React.useRef<any>(null);
   const stationsPlusRef = React.useRef<any>(null);
@@ -535,8 +558,9 @@ const MyCommuteDashboard: React.FC = () => {
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   const sortedLines = useMemo(() => {
-    const list = data.lines.filter(l => selectedLines.includes(l.id));
-    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    return selectedLines
+      .map((id) => data.lines.find((l) => l.id === id))
+      .filter((l): l is LineData => !!l);
   }, [data.lines, selectedLines]);
 
   const handleBackdropPress = () => {
@@ -625,16 +649,34 @@ const MyCommuteDashboard: React.FC = () => {
                   isEditing={isEditing}
                   plusRef={linesPlusRef}
                 />
-                {sortedLines.map((item, index) => (
-                  <LinePill
-                    key={item.id}
-                    line={item}
-                    isEditing={isEditing}
-                    onDelete={removeLine}
-                    onLongPress={handleEdit}
-                    index={index}
-                  />
-                ))}
+                <NestableDraggableFlatList
+                  data={sortedLines}
+                  keyExtractor={(item) => item.id}
+                  onDragBegin={() => {
+                    isDragging.value = true;
+                  }}
+                  onDragEnd={({ data }) => {
+                    isDragging.value = false;
+                    reorderLines(data.map((l) => l.id));
+                  }}
+                  renderItem={({ item, drag, isActive, getIndex }) => {
+                    const index = getIndex();
+                    return (
+                      <StaggeredCardWrapper index={index ?? 0}>
+                        <LinePill
+                          line={item}
+                          isEditing={isEditing}
+                          onDelete={removeLine}
+                          onLongPress={isEditing ? drag : handleEdit}
+                          onPress={() => setSelectedStatusLine(item)}
+                          drag={drag}
+                          isActive={isActive}
+                          index={index ?? 0}
+                        />
+                      </StaggeredCardWrapper>
+                    );
+                  }}
+                />
               </View>
             )}
 
@@ -702,6 +744,11 @@ const MyCommuteDashboard: React.FC = () => {
           <ManageStationsModal
             visible={stationsModalVisible}
             onClose={() => setStationsModalVisible(false)}
+          />
+          <LineStatusModal
+            visible={selectedStatusLine !== null}
+            line={selectedStatusLine}
+            onClose={() => setSelectedStatusLine(null)}
           />
 
           {/* Deferred Notification Modal */}

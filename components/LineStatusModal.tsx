@@ -81,6 +81,7 @@ export function LineStatusModal({ visible, line, onClose }: LineStatusModalProps
         }
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, line]);
 
   const onLayout = (event: any) => {

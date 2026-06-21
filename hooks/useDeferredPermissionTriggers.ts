@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { Platform } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';

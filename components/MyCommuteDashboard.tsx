@@ -113,6 +113,7 @@ function parseSeverity(statusText: string): Severity {
   if (text.includes('minor')) return 'minor';
   if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
+  if (text.includes('offline')) return 'offline';
   return 'good';
 }
 
@@ -407,8 +408,20 @@ const MyCommuteDashboard: React.FC = () => {
     requestNotificationPermission,
   } = useDeferredPermissionTriggers();
 
-  const myLines = data.lines.filter(l => selectedLines.includes(l.id));
-  const hasContent = myLines.length > 0 || selectedStations.length > 0;
+  const sortedLines = useMemo(() => {
+    return selectedLines.map((id) => {
+      const found = data.lines.find((l) => l.id === id);
+      if (found) return found;
+      return {
+        id,
+        name: LINE_SHORT_NAMES[id] || (id.charAt(0).toUpperCase() + id.slice(1)),
+        color: LINE_COLORS[id] || '#888',
+        status: 'Offline',
+      };
+    });
+  }, [data.lines, selectedLines]);
+
+  const hasContent = selectedLines.length > 0 || selectedStations.length > 0;
 
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [showCalPrompt, setShowCalPrompt] = useState(false);
@@ -556,13 +569,7 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing((v) => !v);
   }, []);
 
-  const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
-
-  const sortedLines = useMemo(() => {
-    return selectedLines
-      .map((id) => data.lines.find((l) => l.id === id))
-      .filter((l): l is LineData => !!l);
-  }, [data.lines, selectedLines]);
+  const networkSeverity = useMemo(() => worstSeverity(sortedLines), [sortedLines]);
 
   const handleBackdropPress = () => {
     if (isDragging.value) return;
@@ -681,7 +688,7 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
             )}
 
-            {sortedLines.length > 0 && (
+            {(selectedStations.length > 0 || isEditing) && (
               <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
                 <SectionHeader 
                   title="My stations" 

@@ -18,10 +18,7 @@ import Animated, {
   useAnimatedStyle,
   withSequence,
   withTiming,
-  withRepeat,
-  cancelAnimation,
   Easing,
-  useReducedMotion,
 } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
@@ -35,34 +32,12 @@ import { tflCapitalise } from '../../utils/tflCapitalise';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
 import { StationCard } from '../../components/StationCard';
+import { SkeletonCard } from '../../components/SkeletonCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 
 const MAX_PINS = 5;
-
-function SkeletonCard() {
-  const opacity = useSharedValue(0.4);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    opacity.value = withRepeat(
-      withTiming(1.0, { duration: 600, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
-    return () => cancelAnimation(opacity);
-  }, [opacity, reducedMotion]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={[styles.skeletonCard, animatedStyle]} />
-  );
-}
 
 export default function StationsScreen() {
   const router = useRouter();

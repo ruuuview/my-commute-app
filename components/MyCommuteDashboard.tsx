@@ -649,98 +649,104 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
             )}
 
-            {sortedLines.length > 0 && (
-              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
-                <SectionHeader 
-                  title="My lines" 
-                  onPressAdd={() => setLinesModalVisible(true)}
-                  isEditing={isEditing}
-                  plusRef={linesPlusRef}
-                />
-                <NestableDraggableFlatList
-                  data={sortedLines}
-                  keyExtractor={(item) => item.id}
-                  onDragBegin={() => {
-                    isDragging.value = true;
-                  }}
-                  onDragEnd={({ data }) => {
-                    isDragging.value = false;
-                    reorderLines(data.map((l) => l.id));
-                  }}
-                  renderItem={({ item, drag, isActive, getIndex }) => {
-                    const index = getIndex();
-                    return (
-                      <StaggeredCardWrapper index={index ?? 0}>
-                        <LinePill
-                          line={item}
-                          isEditing={isEditing}
-                          onDelete={removeLine}
-                          onLongPress={isEditing ? drag : handleEdit}
-                          onPress={() => setSelectedStatusLine(item)}
-                          drag={drag}
-                          isActive={isActive}
-                          index={index ?? 0}
-                        />
-                      </StaggeredCardWrapper>
-                    );
-                  }}
-                />
-              </View>
-            )}
-
-            {(selectedStations.length > 0 || isEditing) && (
-              <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
-                <SectionHeader 
-                  title="My stations" 
-                  onPressAdd={() => setStationsModalVisible(true)}
-                  isEditing={isEditing}
-                  plusRef={stationsPlusRef}
-                />
-                {selectedStations.length === 0 ? (
-                  <Pressable
-                    onPress={() => setStationsModalVisible(true)}
-                    style={dash.addStationCard}
-                  >
-                    <BlurView
-                      intensity={20}
-                      tint="dark"
-                      style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+            {hasContent && isLoading && data.lines.length === 0 ? (
+              <DashboardSkeleton />
+            ) : (
+              <>
+                {sortedLines.length > 0 && (
+                  <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
+                    <SectionHeader 
+                      title="My lines" 
+                      onPressAdd={() => setLinesModalVisible(true)}
+                      isEditing={isEditing}
+                      plusRef={linesPlusRef}
                     />
-                    <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
-                    <Text style={dash.addCardText}>Add your first station</Text>
-                  </Pressable>
-                ) : (
-                  <NestableDraggableFlatList
-                    data={selectedStations}
-                    keyExtractor={(item) => item.id}
-                    onDragBegin={() => {
-                      isDragging.value = true;
-                    }}
-                    onDragEnd={({ data }) => {
-                      isDragging.value = false;
-                      reorderStations(data);
-                    }}
-                    renderItem={({ item, drag, isActive, getIndex }) => {
-                      const index = getIndex();
-                      return (
-                        <StaggeredCardWrapper index={index ?? 0}>
-                          <DepartureCard
-                            stationId={item.id}
-                            stationName={item.name}
-                            isEditing={isEditing}
-                            onDelete={removeStation}
-                            onLongPress={isEditing ? drag : handleEdit}
-                            drag={drag}
-                            isActive={isActive}
-                            index={index ?? 0}
-                            defaultExpanded={true}
-                          />
-                        </StaggeredCardWrapper>
-                      );
-                    }}
-                  />
+                    <NestableDraggableFlatList
+                      data={sortedLines}
+                      keyExtractor={(item) => item.id}
+                      onDragBegin={() => {
+                        isDragging.value = true;
+                      }}
+                      onDragEnd={({ data }) => {
+                        isDragging.value = false;
+                        reorderLines(data.map((l) => l.id));
+                      }}
+                      renderItem={({ item, drag, isActive, getIndex }) => {
+                        const index = getIndex();
+                        return (
+                          <StaggeredCardWrapper index={index ?? 0}>
+                            <LinePill
+                              line={item}
+                              isEditing={isEditing}
+                              onDelete={removeLine}
+                              onLongPress={isEditing ? drag : handleEdit}
+                              onPress={() => setSelectedStatusLine(item)}
+                              drag={drag}
+                              isActive={isActive}
+                              index={index ?? 0}
+                            />
+                          </StaggeredCardWrapper>
+                        );
+                      }}
+                    />
+                  </View>
                 )}
-              </View>
+
+                {(selectedStations.length > 0 || isEditing) && (
+                  <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
+                    <SectionHeader 
+                      title="My stations" 
+                      onPressAdd={() => setStationsModalVisible(true)}
+                      isEditing={isEditing}
+                      plusRef={stationsPlusRef}
+                    />
+                    {selectedStations.length === 0 ? (
+                      <Pressable
+                        onPress={() => setStationsModalVisible(true)}
+                        style={dash.addStationCard}
+                      >
+                        <BlurView
+                          intensity={20}
+                          tint="dark"
+                          style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                        />
+                        <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
+                        <Text style={dash.addCardText}>Add your first station</Text>
+                      </Pressable>
+                    ) : (
+                      <NestableDraggableFlatList
+                        data={selectedStations}
+                        keyExtractor={(item) => item.id}
+                        onDragBegin={() => {
+                          isDragging.value = true;
+                        }}
+                        onDragEnd={({ data }) => {
+                          isDragging.value = false;
+                          reorderStations(data);
+                        }}
+                        renderItem={({ item, drag, isActive, getIndex }) => {
+                          const index = getIndex();
+                          return (
+                            <StaggeredCardWrapper index={index ?? 0}>
+                              <DepartureCard
+                                stationId={item.id}
+                                stationName={item.name}
+                                isEditing={isEditing}
+                                onDelete={removeStation}
+                                onLongPress={isEditing ? drag : handleEdit}
+                                drag={drag}
+                                isActive={isActive}
+                                index={index ?? 0}
+                                defaultExpanded={true}
+                              />
+                            </StaggeredCardWrapper>
+                          );
+                        }}
+                      />
+                    )}
+                  </View>
+                )}
+              </>
             )}
           </NestableScrollContainer>
 

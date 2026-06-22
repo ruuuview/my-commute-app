@@ -1,10 +1,11 @@
 /**
- * SkeletonLoader - Shimmering placeholder cards for loading state
- * Renders ghost cards that match the exact layout of real content.
+ * DashboardSkeleton - Premium glassmorphic shimmering placeholder cards for loading state.
+ * Renders dark ghost cards that match the exact layout of the real dashboard components.
  */
 import React, { useEffect } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 
 const ShimmerBar: React.FC<{ width: number | string; height: number; style?: any }> = ({ width: w, height: h, style }) => {
   const shimmerAnim = useSharedValue(-200);
@@ -22,130 +23,142 @@ const ShimmerBar: React.FC<{ width: number | string; height: number; style?: any
   }));
 
   return (
-    <View style={[{ width: w as any, height: h, borderRadius: 6, backgroundColor: '#E8E8ED', overflow: 'hidden' }, style]}>
-      <Animated.View style={[styles.shimmerBase, { width: 100 }, animatedStyle]} />
+    <View style={[styles.shimmerContainer, { width: w as any, height: h }, style]}>
+      <Animated.View style={[styles.shimmerBase, animatedStyle]} />
     </View>
   );
 };
 
-const SkeletonLineCard: React.FC<{ compact?: boolean; cardWidth: number }> = ({ compact = false, cardWidth }) => (
-  <View style={[styles.card, compact && { width: (cardWidth - 12) / 2 }]}>
-    <View style={styles.accentBar} />
-    <View style={styles.cardContent}>
-      <ShimmerBar width={compact ? 80 : 120} height={16} />
-      <ShimmerBar width={compact ? 60 : 100} height={12} style={styles.mt8} />
+const SkeletonLineCard: React.FC = () => (
+  <View style={styles.lineCard}>
+    <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+    <View style={styles.colorBarPlaceholder} />
+    <View style={styles.lineCardContent}>
+      <ShimmerBar width={100} height={14} />
+      <View style={styles.spacer} />
+      <ShimmerBar width={60} height={12} />
     </View>
   </View>
 );
 
 const SkeletonStationCard: React.FC = () => (
   <View style={styles.stationCard}>
+    <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
     <View style={styles.stationHeader}>
+      <ShimmerBar width={140} height={16} />
+      <View style={styles.spacer} />
       <ShimmerBar width={24} height={24} style={styles.br12} />
-      <ShimmerBar width={140} height={16} style={styles.ml8} />
     </View>
     <View style={styles.nextTrainSkeleton}>
-      <ShimmerBar width={100} height={14} />
-      <ShimmerBar width={50} height={28} />
+      <View style={styles.nextTrainColumn}>
+        <ShimmerBar width={100} height={14} />
+        <ShimmerBar width={160} height={10} style={styles.mt8} />
+      </View>
+      <ShimmerBar width={40} height={18} style={styles.br6} />
     </View>
-    <ShimmerBar width={"80%"} height={12} style={styles.mt8} />
-    <ShimmerBar width={"65%"} height={12} style={styles.mt6} />
   </View>
 );
 
-
-
 export const DashboardSkeleton: React.FC = () => {
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const CARD_WIDTH = SCREEN_WIDTH - 40;
-
   return (
     <View style={styles.container}>
-      <ShimmerBar width={120} height={20} style={styles.sectionTitle} />
-      <SkeletonStationCard />
-      <SkeletonStationCard />
+      <ShimmerBar width={80} height={14} style={styles.sectionTitle} />
+      <SkeletonLineCard />
+      <SkeletonLineCard />
+      <SkeletonLineCard />
 
-      <ShimmerBar width={100} height={20} style={[styles.sectionTitle, { marginTop: 24 }]} />
-      
-      <View style={styles.compactRow}>
-        <SkeletonLineCard compact cardWidth={CARD_WIDTH} />
-        <SkeletonLineCard compact cardWidth={CARD_WIDTH} />
-        <SkeletonLineCard compact cardWidth={CARD_WIDTH} />
-      </View>
+      <ShimmerBar width={100} height={14} style={[styles.sectionTitle, { marginTop: 24 }]} />
+      <SkeletonStationCard />
+      <SkeletonStationCard />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 16,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    flexDirection: 'row',
+  shimmerContainer: {
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     overflow: 'hidden',
-    marginBottom: 12,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-  },
-  accentBar: {
-    width: 4,
-    backgroundColor: '#E8E8ED',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 16,
-  },
-  compactRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  stationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-  },
-  stationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  nextTrainSkeleton: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  heroSkeleton: {
-    backgroundColor: 'rgba(255,255,255,0.97)',
-    borderRadius: 16,
-    padding: 16,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    position: 'relative',
   },
   shimmerBase: {
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    width: 120,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  lineCard: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.85)' : 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  colorBarPlaceholder: {
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+    marginRight: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  lineCardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spacer: {
+    flex: 1,
+  },
+  stationCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.13)',
+    minHeight: 110,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 12,
+    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : 'rgba(255, 255, 255, 0.04)',
+  },
+  stationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  nextTrainSkeleton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nextTrainColumn: {
+    flexDirection: 'column',
+  },
+  sectionTitle: {
+    marginTop: 12,
+    marginBottom: 12,
+    opacity: 0.6,
   },
   mt8: { marginTop: 8 },
-  mt6: { marginTop: 6 },
-  mt10: { marginTop: 10 },
   br12: { borderRadius: 12 },
-  br10: { borderRadius: 10 },
-  ml8: { marginLeft: 8 },
-  ml12: { marginLeft: 12 },
-  rowCenter: { flexDirection: 'row', alignItems: 'center' },
-  sectionTitle: { marginTop: 28, marginBottom: 16 },
+  br6: { borderRadius: 6 },
 });
 
 export default DashboardSkeleton;

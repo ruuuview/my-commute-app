@@ -54,9 +54,9 @@
       <true/>
     </dict>
     <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
+    <string>We read departure times alongside your calendar to suggest alerts. Your calendar data stays on your device.</string>
     <key>NSCalendarsUsageDescription</key>
-    <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
+    <string>We read departure times alongside your calendar to suggest alerts. Your calendar data stays on your device.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationAlwaysUsageDescription</key>
@@ -66,9 +66,9 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSRemindersFullAccessUsageDescription</key>
-    <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
+    <string>We read departure times alongside your calendar to suggest alerts. Your calendar data stays on your device.</string>
     <key>NSRemindersUsageDescription</key>
-    <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
+    <string>We read departure times alongside your calendar to suggest alerts. Your calendar data stays on your device.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

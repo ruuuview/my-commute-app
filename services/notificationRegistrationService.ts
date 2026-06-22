@@ -29,7 +29,7 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
       try {
         const devicePushToken = await Notifications.getDevicePushTokenAsync();
         token = devicePushToken.data;
-        console.log('📱 APNS: Fetched iOS device push token:', token);
+        console.log('📱 APNS: Fetched iOS device push token:', token ? `${token.substring(0, 12)}...` : null);
       } catch (err) {
         console.warn('⚠️ APNS: Failed to fetch iOS device token (this is expected on simulator):', err);
       }
@@ -42,7 +42,7 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
         if (enabled) {
           token = await messaging().getToken();
-          console.log('📱 FCM: Fetched Android device push token:', token);
+          console.log('📱 FCM: Fetched Android device push token:', token ? `${token.substring(0, 12)}...` : null);
         }
       } catch (err) {
         console.error('❌ FCM token fetch failed:', err);

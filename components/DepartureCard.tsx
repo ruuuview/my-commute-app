@@ -85,6 +85,7 @@ export default function DepartureCard({
   const lastKnownData = useUserPreferencesStore(state => state.lastKnownData || []);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   
   const [contentHeight, setContentHeight] = useState(160);
   const heightVal = useSharedValue(160);
@@ -156,9 +157,14 @@ export default function DepartureCard({
 
       if (!active.current) return;
       setArrivals(mappedArrivals);
+      setError(false);
       setLoading(false);
     } catch (err) {
       console.log('Error fetching in DepartureCard:', err);
+      if (active.current) {
+        setError(true);
+        setLoading(false);
+      }
     }
   }, [stationId]);
 
@@ -264,6 +270,10 @@ export default function DepartureCard({
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
                 <Text style={styles.loadingText}>Fetching departures...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: '#FF9F0A' }]}>Offline — Live times unavailable</Text>
               </View>
             ) : visibleArrivals.length === 0 ? (
               <View style={styles.emptyContainer}>

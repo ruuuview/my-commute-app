@@ -35,6 +35,8 @@ This document tracks execution state, updates, and current tasks.
 * **`DashboardGradient` UI Thread Mutation Fix:** Relocated React State (`setLayers`) and React Ref (`prevSeverityRef`) updates from the Reanimated UI thread worklet callback to the JS thread via `runOnJS(onTransitionComplete)`, avoiding worklet memory violations.
 * **Dashboard Style and Modal Specification Alignment:** Configured the deferred notification and calendar modals to use slide transitions with `overFullScreen` to preserve iOS blurs. Gated the debug reset onboarding button under `__DEV__`. Re-styled the Section Add (+) buttons to 28x28 circular hitboxes with centered white Ionicons add icons, and the Edit/Done pill button to a capsule pill with paddingHorizontal: 14 / paddingVertical: 6, routing both through `usePressAnimation`.
 * **GSD Phase 13 Documentation Alignment:** Created the missing `1-SUMMARY.md` and `VERIFICATION.md` files for Phase 13 under `.gsd/phases/13` to complete the canonical 4-file documentation set.
+* **CodeRabbit Review Findings Resolved:** Refactored the native iOS `WidgetModule` bridge methods (`reloadWidget`, `saveWidgetStatusCache`) to a Promise-based API for error visibility in JS. Added accessibility props to settings notification CTA and cancel timing animations on unmount to prevent state leaks. Handled calendar alerts scheduler rejections on mount and AppState changes.
+* **iOS Lock Screen Widget Optimization:** Added support for `.accessoryCircular`, `.accessoryRectangular`, and `.accessoryInline` widget families in `CommuteWidget.swift`. Implemented custom SwiftUI subviews for each accessory family and configured dynamic switches inside `CommutePremiumEntryView` to support iOS lock screen widget configuration.
 
 ---
 

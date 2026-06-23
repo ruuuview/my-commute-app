@@ -44,3 +44,9 @@ This document captures standard patterns, structures, and idioms used within the
 * **Network Check Guards:** Wrap background schedulers and requests in connectivity checks (`NetInfo`) to fallback gracefully to cached profiles.
 * **Proximity & Location Geofencing:** Always request location permissions sequentially: foreground permission must be requested and approved (`status === 'granted'`) before background permission is requested. Pinned stations are mapped to geofencing regions (identifier as station ID, 500m radius) using latitude and longitude coordinates matched locally from `data/stationCoordinates.json`.
 * **Press Event Animation Routing:** All interactive buttons or touch target items route gestures through the custom `usePressAnimation` hook to coordinate haptics and spring animations. For gesture handlers (like `TapGestureHandler`), map touch states (`State.BEGAN`, `State.ACTIVE`, `State.FAILED`, `State.CANCELLED`) to `pressAnim.onPressIn()` / `pressAnim.onPressOut()`.
+
+---
+
+## 5. Promise-Based Native Bridge Communication
+
+* **Error Visibility & Propagation:** Expose standard Promise interfaces (`RCTPromiseResolveBlock` / `RCTPromiseRejectBlock` in Objective-C/Swift) for native modules bridging with external resources or Shared App Groups (`UserDefaults`). This allows the JS/TS layer to await operations and implement robust error logs, preventing silent updating or cache failures.

@@ -345,26 +345,38 @@ struct CommutePremiumEntryView: View {
     @Environment(\.widgetFamily) var family
 
     var body: some View {
-        ZStack {
-            LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
-            Group {
-                if let msg = entry.debugMessage {
-                    DebugView(message: msg, theme: entry.overallLevel)
-                } else if entry.lines.isEmpty {
-                    EmptyStateView(theme: entry.overallLevel)
-                } else {
-                    if family == .systemSmall, let worst = entry.worstLine {
-                        SmallPriorityView(line: worst, theme: entry.overallLevel, entry: entry)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        switch family {
+        case .accessoryInline:
+            AccessoryInlineView(entry: entry)
+                .modifier(ContainerBackgroundModifier())
+        case .accessoryCircular:
+            AccessoryCircularView(entry: entry)
+                .modifier(ContainerBackgroundModifier())
+        case .accessoryRectangular:
+            AccessoryRectangularView(entry: entry)
+                .modifier(ContainerBackgroundModifier())
+        default:
+            ZStack {
+                LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                Group {
+                    if let msg = entry.debugMessage {
+                        DebugView(message: msg, theme: entry.overallLevel)
+                    } else if entry.lines.isEmpty {
+                        EmptyStateView(theme: entry.overallLevel)
                     } else {
-                        DashboardView(entry: entry, theme: entry.overallLevel)
+                        if family == .systemSmall, let worst = entry.worstLine {
+                            SmallPriorityView(line: worst, theme: entry.overallLevel, entry: entry)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            DashboardView(entry: entry, theme: entry.overallLevel)
+                        }
                     }
                 }
             }
+            .grayscale(entry.isStale ? 1.0 : 0.0)
+            .opacity(entry.isStale ? 0.75 : 1.0)
+            .modifier(ContainerBackgroundModifier())
         }
-        .grayscale(entry.isStale ? 1.0 : 0.0)
-        .opacity(entry.isStale ? 0.75 : 1.0)
-        .modifier(ContainerBackgroundModifier())
     }
 }
 
@@ -578,6 +590,87 @@ struct EmptyStateView: View {
     }
 }
 
+struct AccessoryInlineView: View {
+    let entry: CommuteEntry
+    
+    var body: some View {
+        if let worst = entry.worstLine {
+            Text("\(worst.name): \(worst.status)")
+        } else {
+            Text("No Commute Data")
+        }
+    }
+}
+
+struct AccessoryCircularView: View {
+    let entry: CommuteEntry
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            if let worst = entry.worstLine {
+                Image(systemName: worst.level == .good ? "checkmark.circle" :
+                                 worst.level == .minor ? "exclamationmark.triangle" :
+                                 worst.level == .severe ? "exclamationmark.circle" : "xmark.circle")
+                    .font(.system(size: 18, weight: .bold))
+                Text(String(worst.name.prefix(3)).uppercased())
+                    .font(.system(size: 8, weight: .black))
+            } else {
+                Image(systemName: "tram")
+                    .font(.system(size: 16))
+            }
+        }
+    }
+}
+
+struct AccessoryRectangularView: View {
+    let entry: CommuteEntry
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 4) {
+                Image(systemName: "tram.fill")
+                    .font(.system(size: 10))
+                Text("COMMUTE")
+                    .font(.system(size: 8, weight: .black))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 2)
+            
+            if let worst = entry.worstLine {
+                HStack(spacing: 4) {
+                    Image(systemName: worst.level == .good ? "checkmark.circle.fill" :
+                                     worst.level == .minor ? "exclamationmark.triangle.fill" :
+                                     "exclamationmark.circle.fill")
+                        .font(.system(size: 9))
+                    Text(worst.name)
+                        .font(.system(size: 11, weight: .bold))
+                    Text(worst.status)
+                        .font(.system(size: 10))
+                        .lineLimit(1)
+                }
+                
+                if let second = entry.otherLines.first {
+                    HStack(spacing: 4) {
+                        Image(systemName: second.level == .good ? "checkmark.circle.fill" :
+                                         second.level == .minor ? "exclamationmark.triangle.fill" :
+                                         "exclamationmark.circle.fill")
+                            .font(.system(size: 9))
+                        Text(second.name)
+                            .font(.system(size: 11, weight: .bold))
+                        Text(second.status)
+                            .font(.system(size: 10))
+                            .lineLimit(1)
+                    }
+                }
+            } else {
+                Text("Open My Commute to add lines.")
+                    .font(.system(size: 9))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct ContainerBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
@@ -597,7 +690,7 @@ struct CommutePremiumWidget: Widget {
         }
         .configurationDisplayName("My Commute")
         .description("Live TfL status, colour-coded by your worst delay.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
         .disableContentMarginsIfAvailable()
     }
 }

@@ -11,8 +11,8 @@
 		396780BB2F03C259007126B8 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 396780BA2F03C259007126B8 /* WidgetKit.framework */; };
 		396780BD2F03C259007126B8 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 396780BC2F03C259007126B8 /* SwiftUI.framework */; };
 		396780C82F03C25B007126B8 /* CommuteWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 396780B92F03C258007126B8 /* CommuteWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		39845CAD2F2942E300D3B917 /* WidgetHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39845CAC2F2942E300D3B917 /* WidgetHelper.swift */; };
-		39845CAF2F2945A200D3B917 /* WidgetHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 39845CAE2F2945A200D3B917 /* WidgetHelper.m */; };
+		39845CAD2F2942E300D3B917 /* WidgetModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39845CAC2F2942E300D3B917 /* WidgetModule.swift */; };
+		39845CAF2F2945A200D3B917 /* WidgetModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 39845CAE2F2945A200D3B917 /* WidgetModule.m */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		554ED898B5F6A77B7C9D3DAA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B5DA530DD615E7DB48E0BC19 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
@@ -54,8 +54,8 @@
 		396780BA2F03C259007126B8 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		396780BC2F03C259007126B8 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		396780CE2F03CBA9007126B8 /* CommuteWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CommuteWidgetExtension.entitlements; sourceTree = "<group>"; };
-		39845CAC2F2942E300D3B917 /* WidgetHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHelper.swift; sourceTree = "<group>"; };
-		39845CAE2F2945A200D3B917 /* WidgetHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WidgetHelper.m; sourceTree = "<group>"; };
+		39845CAC2F2942E300D3B917 /* WidgetModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetModule.swift; path = MyCommute/WidgetModule.swift; sourceTree = "<group>"; };
+		39845CAE2F2945A200D3B917 /* WidgetModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = WidgetModule.m; path = MyCommute/WidgetModule.m; sourceTree = "<group>"; };
 		52C8E52852E70ACEA2D3C4BB /* Pods_MyCommute.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MyCommute.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C7B45D7EAD14A8237A494CA /* Pods-MyCommute.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCommute.debug.xcconfig"; path = "Target Support Files/Pods-MyCommute/Pods-MyCommute.debug.xcconfig"; sourceTree = "<group>"; };
 		A0C4A3E2EC787BDFA533BC34 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyCommute/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
@@ -128,6 +128,8 @@
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* MyCommute-Bridging-Header.h */,
+				39845CAE2F2945A200D3B917 /* WidgetModule.m */,
+				39845CAC2F2942E300D3B917 /* WidgetModule.swift */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -176,8 +178,6 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				39845CAE2F2945A200D3B917 /* WidgetHelper.m */,
-				39845CAC2F2942E300D3B917 /* WidgetHelper.swift */,
 				396780CE2F03CBA9007126B8 /* CommuteWidgetExtension.entitlements */,
 				13B07FAE1A68108700A75B9A /* MyCommute */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
@@ -503,9 +503,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				39845CAF2F2945A200D3B917 /* WidgetHelper.m in Sources */,
+				39845CAF2F2945A200D3B917 /* WidgetModule.m in Sources */,
 				F310DCD3F38B83700B883E1F /* ExpoModulesProvider.swift in Sources */,
-				39845CAD2F2942E300D3B917 /* WidgetHelper.swift in Sources */,
+				39845CAD2F2942E300D3B917 /* WidgetModule.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

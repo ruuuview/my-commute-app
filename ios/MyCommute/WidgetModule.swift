@@ -10,8 +10,6 @@ class WidgetModule: NSObject {
     // 1. Force Write to Shared Group
     if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app") {
       userDefaults.set(jsonString, forKey: "myLines")
-      userDefaults.set(jsonString, forKey: "widget_data_json")
-      userDefaults.synchronize()
     }
     
     // 2. KICK the Widget (Force Reload)
@@ -25,7 +23,6 @@ class WidgetModule: NSObject {
   func saveWidgetStatusCache(_ jsonString: String) {
     if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app") {
       userDefaults.set(jsonString, forKey: "cachedTfLStatus")
-      userDefaults.synchronize()
       
       if #available(iOS 14.0, *) {
         WidgetCenter.shared.reloadAllTimelines()

@@ -172,16 +172,25 @@ export function LineCard({
     const expandedTop = 14;
     const topVal = collapsedTop + (expandedTop - collapsedTop) * factor;
 
+    // Fade out absolute accent bar as we expand
+    const opacityVal = 1 - factor;
+
     return {
       height: heightVal,
       top: topVal,
+      opacity: opacityVal,
     };
   });
 
-  const selectedBorderStyle = {
-    borderWidth: isExpanded ? 1 : StyleSheet.hairlineWidth,
-    borderColor: isExpanded ? getSeverityBorderColor(statusType) : 'rgba(255, 255, 255, 0.18)',
-  };
+  const selectedBorderStyle = isExpanded
+    ? {
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+      }
+    : {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.18)',
+      };
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);
@@ -205,6 +214,7 @@ export function LineCard({
   };
 
   const handlePress = () => {
+    console.log(`[DEBUG-LineCard] handlePress called. mode=${mode}, line=${line?.name}, disabled=${disabled}, isEditing=${isEditing}`);
     if (disabled) return;
     if (isEditing) return;
 
@@ -227,7 +237,12 @@ export function LineCard({
 
       if (onPress) onPress();
     } else {
+      // Trigger haptics & audio feedback for card tap on dashboard as per press animation guidelines
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playSound('select', 0.45);
+
       if (onPress) {
+        console.log(`[DEBUG-LineCard] Invoking onPress callback for ${line?.name}`);
         onPress();
       } else {
         // In display mode, single tap also triggers the in-place portal
@@ -257,19 +272,7 @@ export function LineCard({
     statusTextColor = '#FF3B30';
   }
 
-  // Resolve status pill colors for expanded view
-  let statusPillBg = 'rgba(255, 255, 255, 0.06)';
-  let statusPillBorder = 'rgba(255, 255, 255, 0.15)';
-  if (statusType === 'good') {
-    statusPillBg = 'rgba(48, 209, 88, 0.1)';
-    statusPillBorder = 'rgba(48, 209, 88, 0.2)';
-  } else if (statusType === 'minor') {
-    statusPillBg = 'rgba(255, 159, 10, 0.1)';
-    statusPillBorder = 'rgba(255, 159, 10, 0.2)';
-  } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
-    statusPillBg = 'rgba(255, 59, 48, 0.1)';
-    statusPillBorder = 'rgba(255, 59, 48, 0.2)';
-  }
+
 
   const reasonText = useMemo(() => {
     if (statusType === 'good') {
@@ -280,12 +283,46 @@ export function LineCard({
     return line.reason || line.status || statusLabel || 'Service is disrupted.';
   }, [statusType, line.id, line.reason, line.status, statusLabel]);
 
-  function getSeverityBorderColor(type: string) {
-    if (type === 'good') return 'rgba(48, 209, 88, 0.3)';
-    if (type === 'minor') return 'rgba(255, 159, 10, 0.3)';
-    if (type === 'severe' || type === 'suspended' || type === 'closure') return 'rgba(255, 59, 48, 0.3)';
-    return 'rgba(255, 255, 255, 0.18)';
-  }
+  const renderExpandedContent = () => {
+    // Resolve status text and pill background colors
+    let statusTextColor = 'rgba(255, 255, 255, 0.55)';
+    if (statusType === 'good') statusTextColor = '#30D158';
+    else if (statusType === 'minor') statusTextColor = '#FF9F0A';
+    else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
+      statusTextColor = '#FF3B30';
+    }
+
+    let statusPillBg = 'rgba(255, 255, 255, 0.06)';
+    if (statusType === 'good') {
+      statusPillBg = 'rgba(48, 209, 88, 0.2)';
+    } else if (statusType === 'minor') {
+      statusPillBg = 'rgba(218, 165, 32, 0.2)';
+    } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
+      statusPillBg = 'rgba(255, 59, 48, 0.2)';
+    }
+
+    return (
+      <View style={styles.expandedContent}>
+        {/* SECTION 1: THE HERO HEADER */}
+        <View style={styles.expandedHeader}>
+          <View style={[styles.headerColorBar, { backgroundColor: line.color }]} />
+          <Text style={styles.expandedLineName}>{line.name.toUpperCase()} LINE</Text>
+        </View>
+
+        {/* SECTION 2: THE STATUS LAYER */}
+        <View style={styles.statusPillRow}>
+          <View style={[styles.statusPill, { backgroundColor: statusPillBg }]}>
+            <Text style={[styles.statusPillText, { color: statusTextColor }]}>
+              {statusLabel.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        {/* SECTION 3: THE CONTEXTUAL BODY */}
+        <Text style={styles.reasonText}>{reasonText}</Text>
+      </View>
+    );
+  };
 
   return (
     <View
@@ -312,11 +349,12 @@ export function LineCard({
           selectedBorderStyle,
           animatedContainerStyle,
           combinedStyle,
-          isExpanded && styles.expandedShadow
+          isExpanded && styles.expandedShadow,
+          isExpanded && { flexDirection: 'column', alignItems: 'stretch' }
         ]}
       >
         <BlurView
-          intensity={45}
+          intensity={isExpanded ? 40 : 45}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
         />
@@ -345,15 +383,7 @@ export function LineCard({
           style={StyleSheet.absoluteFillObject}
         >
           {isExpanded ? (
-            <View style={styles.expandedContent}>
-              <View style={styles.expandedHeader}>
-                <Text style={styles.expandedLineName}>{line.name}</Text>
-                <View style={[styles.statusPill, { backgroundColor: statusPillBg, borderColor: statusPillBorder }]}>
-                  <Text style={[styles.statusPillText, { color: statusTextColor }]}>{statusLabel}</Text>
-                </View>
-              </View>
-              <Text style={styles.reasonText}>{reasonText}</Text>
-            </View>
+            renderExpandedContent()
           ) : (
             <View style={[styles.cardContentSingleRow, { paddingLeft: cardPaddingLeft }]}>
               <Text
@@ -445,15 +475,7 @@ export function LineCard({
         }}
         pointerEvents="none"
       >
-        <View style={styles.expandedContent}>
-          <View style={styles.expandedHeader}>
-            <Text style={styles.expandedLineName}>{line.name}</Text>
-            <View style={[styles.statusPill, { backgroundColor: statusPillBg, borderColor: statusPillBorder }]}>
-              <Text style={[styles.statusPillText, { color: statusTextColor }]}>{statusLabel}</Text>
-            </View>
-          </View>
-          <Text style={styles.reasonText}>{reasonText}</Text>
-        </View>
+        {renderExpandedContent()}
       </View>
     </View>
   );
@@ -550,41 +572,54 @@ const styles = StyleSheet.create({
     zIndex: 9998,
   },
   expandedContent: {
-    paddingLeft: 22,
-    paddingRight: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     justifyContent: 'flex-start',
+    width: '100%',
   },
   expandedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    justifyContent: 'flex-start',
+    marginBottom: 12,
     width: '100%',
   },
+  headerColorBar: {
+    width: 4,
+    height: 18,
+    borderRadius: 2,
+    marginRight: 10,
+  },
   expandedLineName: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  statusPillRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 12,
   },
   statusPill: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    borderRadius: 9999,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusPillText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10,
-    textTransform: 'uppercase',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   reasonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.85)',
     lineHeight: 22,
+    textAlign: 'left',
   },
   deleteBadgeContainer: {
     position: 'absolute',

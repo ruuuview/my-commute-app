@@ -540,7 +540,10 @@ const MyCommuteDashboard: React.FC = () => {
                             <LineCard
                               line={item}
                               selected={false}
-                              onPress={() => setSelectedLineForModal(item)}
+                              onPress={() => {
+                                console.log('[DEBUG-Dashboard] LineCard onPress triggered for:', item.name);
+                                setSelectedLineForModal(item);
+                              }}
                               statusType={parseSeverity(item.status)}
                               statusLabel={item.status}
                               cardHeight={38}

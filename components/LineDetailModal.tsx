@@ -56,28 +56,30 @@ export function LineDetailModal({
     return line.reason || line.status || statusLabel || 'Service is disrupted.';
   }, [line, statusType, statusLabel]);
 
-  if (!line) return null;
-
   // Resolve status text colors
   let statusTextColor = 'rgba(255, 255, 255, 0.55)';
-  if (statusType === 'good') statusTextColor = '#30D158';
-  else if (statusType === 'minor') statusTextColor = '#FF9F0A';
-  else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
-    statusTextColor = '#FF3B30';
+  if (line) {
+    if (statusType === 'good') statusTextColor = '#30D158';
+    else if (statusType === 'minor') statusTextColor = '#FF9F0A';
+    else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
+      statusTextColor = '#FF3B30';
+    }
   }
 
   // Resolve status pill colors
   let statusPillBg = 'rgba(255, 255, 255, 0.06)';
   let statusPillBorder = 'rgba(255, 255, 255, 0.15)';
-  if (statusType === 'good') {
-    statusPillBg = 'rgba(48, 209, 88, 0.1)';
-    statusPillBorder = 'rgba(48, 209, 88, 0.2)';
-  } else if (statusType === 'minor') {
-    statusPillBg = 'rgba(255, 159, 10, 0.1)';
-    statusPillBorder = 'rgba(255, 159, 10, 0.2)';
-  } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
-    statusPillBg = 'rgba(255, 59, 48, 0.1)';
-    statusPillBorder = 'rgba(255, 59, 48, 0.2)';
+  if (line) {
+    if (statusType === 'good') {
+      statusPillBg = 'rgba(48, 209, 88, 0.1)';
+      statusPillBorder = 'rgba(48, 209, 88, 0.2)';
+    } else if (statusType === 'minor') {
+      statusPillBg = 'rgba(255, 159, 10, 0.1)';
+      statusPillBorder = 'rgba(255, 159, 10, 0.2)';
+    } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
+      statusPillBg = 'rgba(255, 59, 48, 0.1)';
+      statusPillBorder = 'rgba(255, 59, 48, 0.2)';
+    }
   }
 
   return (
@@ -88,72 +90,76 @@ export function LineDetailModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.root}>
-        {/* Apple Glassmorphic blurred backdrop */}
-        <BlurView
-          intensity={50}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
+      {line ? (
+        <View style={styles.root}>
+          {/* Apple Glassmorphic blurred backdrop */}
+          <BlurView
+            intensity={50}
+            tint="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
 
-        {/* Pressable backdrop to dismiss */}
-        <Pressable
-          style={StyleSheet.absoluteFillObject}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss detail popup"
-        />
+          {/* Pressable backdrop to dismiss */}
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss detail popup"
+          />
 
-        {/* Centered glassmorphic card */}
-        <View style={styles.cardContainer}>
-          <View style={styles.cardInner}>
-            <BlurView
-              intensity={80}
-              tint="dark"
-              style={StyleSheet.absoluteFillObject}
-            />
-            {/* Subtle background overlay */}
-            <View style={styles.cardGlassOverlay} />
+          {/* Centered glassmorphic card */}
+          <View style={styles.cardContainer}>
+            <View style={styles.cardInner}>
+              <BlurView
+                intensity={80}
+                tint="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+              {/* Subtle background overlay */}
+              <View style={styles.cardGlassOverlay} />
 
-            {/* Header Row */}
-            <View style={styles.headerRow}>
-              <View style={styles.lineNameContainer}>
-                <View style={[styles.brandDot, { backgroundColor: line.color }]} />
-                <Text style={styles.lineName}>{line.name} Line</Text>
+              {/* Header Row */}
+              <View style={styles.headerRow}>
+                <View style={styles.lineNameContainer}>
+                  <View style={[styles.brandDot, { backgroundColor: line.color }]} />
+                  <Text style={styles.lineName}>{line.name} Line</Text>
+                </View>
+                <View style={[styles.statusPill, { backgroundColor: statusPillBg, borderColor: statusPillBorder }]}>
+                  <Text style={[styles.statusPillText, { color: statusTextColor }]}>{statusLabel}</Text>
+                </View>
               </View>
-              <View style={[styles.statusPill, { backgroundColor: statusPillBg, borderColor: statusPillBorder }]}>
-                <Text style={[styles.statusPillText, { color: statusTextColor }]}>{statusLabel}</Text>
-              </View>
-            </View>
 
-            {/* Divider */}
-            <View style={styles.divider} />
+              {/* Divider */}
+              <View style={styles.divider} />
 
-            {/* Reason details */}
-            <ScrollView
-              style={styles.scrollArea}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={true}
-            >
-              <Text style={styles.reasonText}>{reasonText}</Text>
-            </ScrollView>
-
-            {/* Close CTA */}
-            <Animated.View style={[styles.closeBtnWrapper, closePressAnim.animatedStyle]}>
-              <Pressable
-                onPress={onClose}
-                onPressIn={closePressAnim.onPressIn}
-                onPressOut={closePressAnim.onPressOut}
-                style={styles.closeBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Close details modal"
+              {/* Reason details */}
+              <ScrollView
+                style={styles.scrollArea}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={true}
               >
-                <Text style={styles.closeBtnText}>Close</Text>
-              </Pressable>
-            </Animated.View>
+                <Text style={styles.reasonText}>{reasonText}</Text>
+              </ScrollView>
+
+              {/* Close CTA */}
+              <Animated.View style={[styles.closeBtnWrapper, closePressAnim.animatedStyle]}>
+                <Pressable
+                  onPress={onClose}
+                  onPressIn={closePressAnim.onPressIn}
+                  onPressOut={closePressAnim.onPressOut}
+                  style={styles.closeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close details modal"
+                >
+                  <Text style={styles.closeBtnText}>Close</Text>
+                </Pressable>
+              </Animated.View>
+            </View>
           </View>
         </View>
-      </View>
+      ) : (
+        <View />
+      )}
     </Modal>
   );
 }

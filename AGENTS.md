@@ -83,3 +83,9 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 * **iOS Blur Backgrounds**: Modals that require frosted glass overlays must never use `pageSheet` style.
 * **TfL Stop IDs**: Elizabeth Line arrivals route differently because NaPTAN IDs starting with `910G` represent National Rail interchange points. Use the backend fallback endpoint `/api/stations/...` rather than querying National Rail endpoints directly.
 * **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (68px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.
+
+---
+
+## 5. Session Memory & Brain Documentation
+* **Brain Folder Authority**: A dedicated `brain` folder at the root level `brain/` (relative to project root) maintains the project memory files (`architecture.md`, `decisions.md`, `memory.md`, and `patterns.md`).
+* **Update Protocol**: Agents must check and read these files at the beginning of each session and update them at the end of execution to keep all design parameters, decisions, and patterns fully synchronized.

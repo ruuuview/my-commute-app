@@ -114,6 +114,14 @@ export function LineCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
 
+  const isSlim = cardHeight <= 40;
+  const cardRadius = isSlim ? 16 : 18;
+  const lineNameFontSize = isSlim ? 13 : 14;
+  const lineNameFontFamily = isSlim ? 'SpaceGrotesk_600SemiBold' : 'SpaceGrotesk_700Bold';
+  const statusTextFontSize = isSlim ? 11 : 12;
+  const leftAccentBarPosition = isSlim ? 14 : 16;
+  const cardPaddingLeft = isSlim ? 30 : 34;
+
   const opacityVal = useSharedValue(0);
   const animatedHeight = useSharedValue(cardHeight);
 
@@ -219,8 +227,12 @@ export function LineCard({
 
       if (onPress) onPress();
     } else {
-      // In display mode, single tap also triggers the in-place portal
-      expandCard();
+      if (onPress) {
+        onPress();
+      } else {
+        // In display mode, single tap also triggers the in-place portal
+        expandCard();
+      }
     }
   };
 
@@ -279,7 +291,7 @@ export function LineCard({
     <View
       style={[
         styles.outerCard,
-        { height: cardHeight, zIndex: isExpanded ? 9999 : 1, overflow: 'visible' },
+        { height: cardHeight, borderRadius: cardRadius, zIndex: isExpanded ? 9999 : 1, overflow: 'visible' },
         mode === 'display' && { marginBottom: 12 },
         isEditing && jiggleStyle
       ]}
@@ -296,6 +308,7 @@ export function LineCard({
       <Animated.View
         style={[
           styles.cardInner,
+          { borderRadius: cardRadius },
           selectedBorderStyle,
           animatedContainerStyle,
           combinedStyle,
@@ -317,7 +330,7 @@ export function LineCard({
         <Animated.View
           style={[
             styles.accentBar,
-            { backgroundColor: line.color },
+            { backgroundColor: line.color, left: leftAccentBarPosition },
             animatedBarStyle
           ]}
         />
@@ -342,9 +355,9 @@ export function LineCard({
               <Text style={styles.reasonText}>{reasonText}</Text>
             </View>
           ) : (
-            <View style={styles.cardContentSingleRow}>
+            <View style={[styles.cardContentSingleRow, { paddingLeft: cardPaddingLeft }]}>
               <Text
-                style={styles.lineName}
+                style={[styles.lineName, { fontSize: lineNameFontSize, fontFamily: lineNameFontFamily }]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -360,7 +373,7 @@ export function LineCard({
                   <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
                     {mode === 'display' ? (
                       <>
-                        <Text style={[styles.statusText, { color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
+                        <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
                           {STATUS_SHORT[statusLabel] || statusLabel}
                         </Text>
                         <StatusBezel statusType={statusType} />
@@ -368,7 +381,7 @@ export function LineCard({
                     ) : (
                       <>
                         <StatusBezel statusType={statusType} />
-                        <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
+                        <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
                           {STATUS_SHORT[statusLabel] || statusLabel}
                         </Text>
                       </>
@@ -421,13 +434,13 @@ export function LineCard({
       {/* Invisible Measure View (rendered in-place to resolve height string dynamically) */}
       <View
         style={[
-          styles.cardInner,
-          styles.measureContainer
+          styles.measureContainer,
+          { borderRadius: cardRadius }
         ]}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           if (h > 0) {
-            setMeasuredHeight(h + 20); // add padding cushion for margins/spacing
+            setMeasuredHeight(h);
           }
         }}
         pointerEvents="none"
@@ -540,7 +553,6 @@ const styles = StyleSheet.create({
     paddingLeft: 22,
     paddingRight: 16,
     paddingVertical: 14,
-    flex: 1,
     justifyContent: 'flex-start',
   },
   expandedHeader: {

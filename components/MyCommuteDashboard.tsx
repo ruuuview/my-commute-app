@@ -50,9 +50,10 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
+import { LineDetailModal } from './LineDetailModal';
 import { LineCard } from './LineCard';
 import { APP_CONFIG } from '../config/app.config';
-import { DashboardGradient } from './DashboardGradient';
+import { GradientBackground } from './GradientBackground';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
@@ -243,6 +244,7 @@ const MyCommuteDashboard: React.FC = () => {
 
   const [linesModalVisible, setLinesModalVisible] = useState(false);
   const [stationsModalVisible, setStationsModalVisible] = useState(false);
+  const [selectedLineForModal, setSelectedLineForModal] = useState<LineData | null>(null);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -426,7 +428,6 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing((v) => !v);
   }, []);
 
-  const networkSeverity = useMemo(() => worstSeverity(sortedLines), [sortedLines]);
 
   const handleBackdropPress = () => {
     if (isDragging.value) return;
@@ -441,7 +442,7 @@ const MyCommuteDashboard: React.FC = () => {
       onLongPress={handleEdit}
       delayLongPress={600}
     >
-      <DashboardGradient severity={networkSeverity} />
+      <GradientBackground lines={selectedLines} />
         <Animated.View collapsable={false} style={[{ flex: 1, paddingTop: insets.top }, revealStyle]} pointerEvents="box-none">
           {/* ── Content ── */}
           <NestableScrollContainer
@@ -539,6 +540,7 @@ const MyCommuteDashboard: React.FC = () => {
                             <LineCard
                               line={item}
                               selected={false}
+                              onPress={() => setSelectedLineForModal(item)}
                               statusType={parseSeverity(item.status)}
                               statusLabel={item.status}
                               cardHeight={38}
@@ -623,6 +625,13 @@ const MyCommuteDashboard: React.FC = () => {
           <ManageStationsModal
             visible={stationsModalVisible}
             onClose={() => setStationsModalVisible(false)}
+          />
+          <LineDetailModal
+            visible={selectedLineForModal !== null}
+            onClose={() => setSelectedLineForModal(null)}
+            line={selectedLineForModal}
+            statusType={selectedLineForModal ? parseSeverity(selectedLineForModal.status) : 'loading'}
+            statusLabel={selectedLineForModal ? selectedLineForModal.status : ''}
           />
           {/* In-place status portals are self-contained inside LineCard */}
 

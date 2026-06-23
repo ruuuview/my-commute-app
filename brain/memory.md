@@ -37,6 +37,8 @@ This document tracks execution state, updates, and current tasks.
 * **GSD Phase 13 Documentation Alignment:** Created the missing `1-SUMMARY.md` and `VERIFICATION.md` files for Phase 13 under `.gsd/phases/13` to complete the canonical 4-file documentation set.
 * **CodeRabbit Review Findings Resolved:** Refactored the native iOS `WidgetModule` bridge methods (`reloadWidget`, `saveWidgetStatusCache`) to a Promise-based API for error visibility in JS. Added accessibility props to settings notification CTA and cancel timing animations on unmount to prevent state leaks. Handled calendar alerts scheduler rejections on mount and AppState changes.
 * **iOS Lock Screen Widget Optimization:** Added support for `.accessoryCircular`, `.accessoryRectangular`, and `.accessoryInline` widget families in `CommuteWidget.swift`. Implemented custom SwiftUI subviews for each accessory family and configured dynamic switches inside `CommutePremiumEntryView` to support iOS lock screen widget configuration.
+* **Onboarding Line Card Height Revert:** Reverted `ONBOARDING_CARD_HEIGHT` back to `48` in `layout.ts` and refactored `LineCard.tsx` to dynamically switch styles based on cardHeight: it renders slim on the dashboard (height 38, radius 16, font 13 SemiBold) but reverts to its previous larger styling on the onboarding screen (height 48+, radius 18, font 14 Bold).
+* **LineCard Expansion Height Fix:** Resolved a React Native layout bug where the expanded `LineCard` remained squished to 38px on the dashboard by removing `flex: 1` from `expandedContent` and separating the invisible measure container from `styles.cardInner` to let content wrap and measure its natural height.
 
 ---
 

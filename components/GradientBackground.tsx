@@ -69,9 +69,7 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
 
     if (reducedMotion) {
       // Instant snap — still communicates the state change, just without motion
-      crossfadeOpacity.value = 1;
       handleTransitionComplete(status);
-      crossfadeOpacity.value = 0;
     } else {
       // 800ms cross-fade per spec
       crossfadeOpacity.value = withTiming(1, { duration: 800 }, (finished) => {

@@ -11,6 +11,8 @@ import {
 import { BlurView } from 'expo-blur';
 import Animated from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -76,7 +78,7 @@ export function LineDetailModal({
     } else if (statusType === 'minor') {
       statusPillBg = 'rgba(255, 159, 10, 0.1)';
       statusPillBorder = 'rgba(255, 159, 10, 0.2)';
-    } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
+    } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
       statusPillBg = 'rgba(255, 59, 48, 0.1)';
       statusPillBorder = 'rgba(255, 59, 48, 0.2)';
     }
@@ -102,7 +104,11 @@ export function LineDetailModal({
           {/* Pressable backdrop to dismiss */}
           <Pressable
             style={StyleSheet.absoluteFillObject}
-            onPress={onClose}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              playSound('deselect', 0.35);
+              onClose();
+            }}
             accessibilityRole="button"
             accessibilityLabel="Dismiss detail popup"
           />

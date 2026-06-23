@@ -30,9 +30,9 @@ struct CommuteLine: Identifiable, Codable {
         switch severity {
         case 10:
             return .good
-        case 6:
+        case 9, 6:
             return .severe
-        case 9, 8, 7, 5:
+        case 8, 7, 5:
             return .minor
         case 4, 3, 20, 0, 11:
             return .suspended
@@ -44,6 +44,15 @@ struct CommuteLine: Identifiable, Codable {
 
 enum SeverityLevel {
     case good, minor, severe, suspended
+
+    var rank: Int {
+        switch self {
+        case .good: return 0
+        case .minor: return 1
+        case .severe: return 2
+        case .suspended: return 3
+        }
+    }
 
     var gradientColors: [Color] {
         switch self {
@@ -105,14 +114,14 @@ struct CommuteEntry: TimelineEntry {
     }
 
     var worstLine: CommuteLine? {
-        lines.min(by: { $0.severity < $1.severity })
+        lines.max(by: { $0.level.rank < $1.level.rank })
     }
 
     var otherLines: [CommuteLine] {
         guard let worst = worstLine else { return [] }
         return lines
             .filter { $0.id != worst.id }
-            .sorted { $0.severity < $1.severity }
+            .sorted { $0.level.rank > $1.level.rank }
     }
 
     var overallLevel: SeverityLevel {
@@ -145,11 +154,11 @@ struct CommuteProvider: TimelineProvider {
 
             // 15-minute fallback entry
             let fallbackTime = now.addingTimeInterval(15 * 60)
-            let fallbackEntry = CommuteEntry(date: fallbackTime, fetchDate: now, lines: lines, debugMessage: msg ?? "Still offline. Tap again when clear")
+            let fallbackEntry = CommuteEntry(date: fallbackTime, fetchDate: now, lines: lines, debugMessage: lines.isEmpty ? (msg ?? "Still offline. Tap again when clear") : msg)
 
             // 2-hour deep freeze entry
             let deepFreezeTime = now.addingTimeInterval(7200)
-            let deepFreezeEntry = CommuteEntry(date: deepFreezeTime, fetchDate: now, lines: lines, debugMessage: "Tap to refresh")
+            let deepFreezeEntry = CommuteEntry(date: deepFreezeTime, fetchDate: now, lines: lines, debugMessage: lines.isEmpty ? "Tap to refresh" : msg)
 
             let hour = Calendar.current.component(.hour, from: now)
             let refreshMinutes: Int

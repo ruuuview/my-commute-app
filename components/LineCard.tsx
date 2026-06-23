@@ -142,9 +142,23 @@ export function LineCard({
   }));
 
   const animatedBarStyle = useAnimatedStyle(() => {
-    // Top is 14px, bottom is 14px, so height is containerHeight - 28
+    const h = animatedHeight.value;
+    const minH = cardHeight;
+    const maxH = measuredHeight || cardHeight;
+    const range = maxH - minH;
+    const factor = range > 0 ? Math.max(0, Math.min(1, (h - minH) / range)) : 0;
+    
+    const collapsedHeight = 20;
+    const expandedHeight = Math.max(8, h - 28);
+    const heightVal = collapsedHeight + (expandedHeight - collapsedHeight) * factor;
+    
+    const collapsedTop = (h - collapsedHeight) / 2;
+    const expandedTop = 14;
+    const topVal = collapsedTop + (expandedTop - collapsedTop) * factor;
+    
     return {
-      height: Math.max(8, animatedHeight.value - 28),
+      height: heightVal,
+      top: topVal,
     };
   });
 
@@ -315,7 +329,7 @@ export function LineCard({
               <Text style={styles.reasonText}>{reasonText}</Text>
             </View>
           ) : (
-            <View style={[styles.cardContent, { paddingRight: 8 }]}>
+            <View style={styles.cardContentSingleRow}>
               <Text
                 style={styles.lineName}
                 numberOfLines={1}
@@ -324,18 +338,35 @@ export function LineCard({
                 {line.name}
               </Text>
 
-              <View style={styles.statusSubRow}>
+              <View style={styles.flexSpacer} />
+
+              <View style={[styles.statusSubRowSingleRow, mode === 'select' && selected && { marginRight: 32 }]}>
                 {statusType === 'loading' ? (
                   <StatusSkeleton />
                 ) : (
                   <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                    <StatusBezel statusType={statusType} />
-                    <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
-                      {STATUS_SHORT[statusLabel] || statusLabel}
-                    </Text>
+                    {mode === 'display' ? (
+                      <>
+                        <Text style={[styles.statusText, { color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
+                          {STATUS_SHORT[statusLabel] || statusLabel}
+                        </Text>
+                        <StatusBezel statusType={statusType} />
+                      </>
+                    ) : (
+                      <>
+                        <StatusBezel statusType={statusType} />
+                        <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
+                          {STATUS_SHORT[statusLabel] || statusLabel}
+                        </Text>
+                      </>
+                    )}
                   </Animated.View>
                 )}
               </View>
+
+              {mode === 'display' && !isEditing && (
+                <Text style={styles.chevronText}>›</Text>
+              )}
             </View>
           )}
         </Pressable>
@@ -431,12 +462,28 @@ const styles = StyleSheet.create({
     left: 14,
     width: 3,
     borderRadius: 2,
-    top: 14,
   },
-  cardContent: {
+  cardContentSingleRow: {
     flex: 1,
-    paddingLeft: 22,
-    justifyContent: 'center',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 30,
+    paddingRight: 16,
+  },
+  flexSpacer: {
+    flex: 1,
+  },
+  statusSubRowSingleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chevronText: {
+    fontSize: 20,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255, 255, 255, 0.3)',
+    marginLeft: 6,
+    marginTop: -3,
   },
   lineName: {
     fontSize: 14,
@@ -458,7 +505,10 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
   },
   rightBadgeContainer: {
-    marginRight: 12,
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -39,6 +39,7 @@ This document tracks execution state, updates, and current tasks.
 * **iOS Lock Screen Widget Optimization:** Added support for `.accessoryCircular`, `.accessoryRectangular`, and `.accessoryInline` widget families in `CommuteWidget.swift`. Implemented custom SwiftUI subviews for each accessory family and configured dynamic switches inside `CommutePremiumEntryView` to support iOS lock screen widget configuration.
 * **Onboarding Line Card Height Revert:** Reverted `ONBOARDING_CARD_HEIGHT` back to `48` in `layout.ts` and refactored `LineCard.tsx` to dynamically switch styles based on cardHeight: it renders slim on the dashboard (height 38, radius 16, font 13 SemiBold) but reverts to its previous larger styling on the onboarding screen (height 48+, radius 18, font 14 Bold).
 * **LineCard Expansion Height Fix:** Resolved a React Native layout bug where the expanded `LineCard` remained squished to 38px on the dashboard by removing `flex: 1` from `expandedContent` and separating the invisible measure container from `styles.cardInner` to let content wrap and measure its natural height.
+* **`cf40526` — refactor(linecard):** Refactored `LineCard.tsx`'s expanded UI state hierarchy and layout geometry to strictly enforce a top-to-bottom vertical stack, dismantling the side-by-side header. Implemented capsule status pill and bound the vertical accent bar to the header row. Applied premium glassmorphic styling (intensity 40, rgba fill, border 1).
 
 ---
 

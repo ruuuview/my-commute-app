@@ -41,6 +41,12 @@ This document tracks execution state, updates, and current tasks.
 * **LineCard Expansion Height Fix:** Resolved a React Native layout bug where the expanded `LineCard` remained squished to 38px on the dashboard by removing `flex: 1` from `expandedContent` and separating the invisible measure container from `styles.cardInner` to let content wrap and measure its natural height.
 * **`cf40526` — refactor(linecard):** Refactored `LineCard.tsx`'s expanded UI state hierarchy and layout geometry to strictly enforce a top-to-bottom vertical stack, dismantling the side-by-side header. Implemented capsule status pill and bound the vertical accent bar to the header row. Applied premium glassmorphic styling (intensity 40, rgba fill, border 1).
 * **`38bc205` — fix(gradient):** Relocated the React Ref (`prevStatusRef`) mutation from the Reanimated UI thread callback to a JS callback (`handleTransitionComplete`) executed via `runOnJS`, eliminating the Reanimated worklet memory violation warning.
+* **`73f56ec` — fix(coderabbit):** Addressed the CodeRabbit review findings by:
+  - Correcting severity code 9 mapping to `.severe` in `CommuteWidget.swift`.
+  - Implementing rank-based comparison (`SeverityLevel.rank`) inside `worstLine`/`otherLines` in `CommuteWidget.swift` to resolve misranking of suspended lines.
+  - Guarding widget fallback/deepfreeze `debugMessage` to check `lines.isEmpty` to preserve stale status layout displaying.
+  - Removing opacity updates on reduced motion inside `GradientBackground.tsx` to prevent transition flickers.
+  - Adding haptic feedback and deselect sounds to backdrop dismissal press actions, and grouping `'error'` under severe red color styles in `LineDetailModal.tsx`.
 
 ---
 

@@ -222,11 +222,11 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				396780C92F03C25B007126B8 /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				305AAAC226EC98E91B27F615 /* [CP] Embed Pods Frameworks */,
 				AEBB24503B36C52617141290 /* [CP-User] [RNFB] Core Configuration */,
-				396780C92F03C25B007126B8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);

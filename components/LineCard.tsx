@@ -365,9 +365,6 @@ export function LineCard({
                 )}
               </View>
 
-              {mode === 'display' && !isEditing && (
-                <Text style={styles.chevronText}>›</Text>
-              )}
             </View>
           )}
         </Pressable>
@@ -479,16 +476,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  chevronText: {
-    fontSize: 20,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.3)',
-    marginLeft: 6,
-    marginTop: -3,
-  },
   lineName: {
     fontSize: 14,
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.95)',
   },
   statusSubRow: {

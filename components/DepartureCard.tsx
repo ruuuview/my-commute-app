@@ -214,7 +214,7 @@ export default function DepartureCard({
   const containerStyle = useAnimatedStyle(() => {
     const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
     const marginVal = reducedMotion ? (hideCard ? 0 : 12) : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
-    const borderVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 100 });
+    const borderVal = reducedMotion ? (hideCard ? 0 : StyleSheet.hairlineWidth) : withTiming(hideCard ? 0 : StyleSheet.hairlineWidth, { duration: 100 });
 
     return {
       height: heightVal.value,
@@ -334,9 +334,9 @@ export default function DepartureCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 0,
     overflow: 'hidden', // Accordion clip!
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerPressable: {
-    paddingVertical: 10,
+    paddingVertical: 8,
     width: '100%',
   },
   header: {
@@ -361,8 +361,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stationName: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 14,
     color: '#FFFFFF',
   },
   stationNamePressed: {
@@ -389,8 +389,8 @@ const styles = StyleSheet.create({
   },
   arrivalsContainer: {
     marginTop: 0,
-    paddingTop: 6,
-    paddingBottom: 12,
+    paddingTop: 4,
+    paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   arrivalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 5,
+    paddingVertical: 4,
   },
   arrivalDot: {
     width: 3,

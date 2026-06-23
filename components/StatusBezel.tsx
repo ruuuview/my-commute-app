@@ -78,18 +78,18 @@ StatusBezel.displayName = 'StatusBezel';
 
 const styles = StyleSheet.create({
   outerBezel: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   innerLens: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

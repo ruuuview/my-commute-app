@@ -30,9 +30,7 @@ import Animated, {
   Easing,
   useReducedMotion,
   withSpring,
-  withDelay,
-  LinearTransition,
-  FadeOut
+  withDelay
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -50,24 +48,21 @@ import {
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore, UserPreferencesState } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useJiggle } from '../hooks/useJiggle';
+
 import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
-import { LineStatusModal } from './LineStatusModal';
+import { LineCard } from './LineCard';
 import { APP_CONFIG } from '../config/app.config';
 import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
-import { StatusBezel } from './StatusBezel';
-import { STATUS_SHORT } from '../constants/statusLabels';
 import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
-import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
@@ -127,136 +122,7 @@ function worstSeverity(lines: LineData[]): Severity {
   return 'good';
 }
 
-// ─── LinePill ───────────────────────────────────────────────────
-const LinePill: React.FC<{
-  line: LineData;
-  isEditing: boolean;
-  onDelete: (id: string) => void;
-  onLongPress?: () => void;
-  onPress?: () => void;
-  index: number;
-  drag?: () => void;
-  isActive?: boolean;
-}> = ({ line, isEditing, onDelete, onLongPress, onPress, index, drag, isActive = false }) => {
-  const jiggleStyle = useJiggle(index, isEditing, isActive);
-  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
-  const severity = parseSeverity(line.status);
-
-  let statusColor = '#636366';
-  if (severity === 'good') statusColor = '#30D158';
-  else if (severity === 'minor') statusColor = '#FF9F0A';
-  else if (severity === 'severe') statusColor = '#FF3B30';
-  else if (severity === 'suspended') statusColor = '#FF3B30';
-
-  const statusLabel = STATUS_SHORT[line.status] || line.status;
-
-  const deleteScale = useSharedValue(isEditing ? 1 : 0);
-
-  useEffect(() => {
-    deleteScale.value = withSpring(isEditing ? 1 : 0, { damping: 15, stiffness: 180 });
-  }, [isEditing, deleteScale]);
-
-  const deleteBadgeStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: deleteScale.value }],
-    opacity: deleteScale.value,
-  }));
-
-  return (
-    <Animated.View
-      layout={isActive ? undefined : LinearTransition.springify().mass(0.8).damping(15)}
-      exiting={FadeOut.duration(150)}
-      style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle, animatedStyle]}
-    >
-      <Pressable
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        onLongPress={onLongPress}
-        delayLongPress={300}
-        style={pill.container}
-      >
-        <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
-        <View style={[pill.colorBar, { backgroundColor: line.color }]} />
-        <Pressable
-          onPress={() => {
-            if (!isEditing && onPress) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onPress();
-            }
-          }}
-        >
-          {({ pressed }) => (
-            <Text
-              style={[
-                pill.name,
-                pressed && { textDecorationLine: 'underline' }
-              ]}
-              numberOfLines={1}
-            >
-              {LINE_SHORT_NAMES[line.id] || line.name}
-            </Text>
-          )}
-        </Pressable>
-        <View style={pill.spacer} />
-        {!isEditing && (
-          <>
-            <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>
-              {statusLabel}
-            </Text>
-            <StatusBezel statusType={line.status} style={{ marginRight: 14 }} />
-          </>
-        )}
-      </Pressable>
-
-      <Animated.View style={[pill.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>
-        <Pressable
-          style={pill.deleteBadge}
-          hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onDelete(line.id);
-          }}
-        >
-          <Text style={pill.deleteIcon}>−</Text>
-        </Pressable>
-      </Animated.View>
-    </Animated.View>
-  );
-};
-
-const pill = StyleSheet.create({
-  container: { 
-    minHeight: 44, 
-    paddingVertical: 10, 
-    paddingHorizontal: 16, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.05)', 
-    borderRadius: 14, 
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    marginBottom: 8, 
-    overflow: 'hidden', 
-    position: 'relative' 
-  },
-  colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 12 },
-  name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
-  spacer: { flex: 1 },
-  statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
-  deleteBadgeContainer: { position: 'absolute', top: -6, right: -6, zIndex: 10 },
-  deleteBadge: { 
-    width: 22, 
-    height: 22, 
-    borderRadius: 11, 
-    backgroundColor: '#FF3B30', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    borderWidth: 2, 
-    borderColor: '#1E1E1E' 
-  },
-  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
-});
+// LinePill removed since LineCard is now used directly on the dashboard.
 
 
 const SectionHeader: React.FC<{
@@ -391,7 +257,6 @@ const MyCommuteDashboard: React.FC = () => {
   const [stationsModalVisible, setStationsModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedStatusLine, setSelectedStatusLine] = useState<LineData | null>(null);
 
   const linesPlusRef = React.useRef<any>(null);
   const stationsPlusRef = React.useRef<any>(null);
@@ -675,12 +540,15 @@ const MyCommuteDashboard: React.FC = () => {
                         const index = getIndex();
                         return (
                           <StaggeredCardWrapper index={index ?? 0}>
-                            <LinePill
+                            <LineCard
                               line={item}
+                              selected={false}
+                              statusType={parseSeverity(item.status)}
+                              statusLabel={item.status}
+                              cardHeight={68}
+                              mode="display"
                               isEditing={isEditing}
                               onDelete={removeLine}
-                              onLongPress={isEditing ? drag : handleEdit}
-                              onPress={() => setSelectedStatusLine(item)}
                               drag={drag}
                               isActive={isActive}
                               index={index ?? 0}
@@ -759,11 +627,7 @@ const MyCommuteDashboard: React.FC = () => {
             visible={stationsModalVisible}
             onClose={() => setStationsModalVisible(false)}
           />
-          <LineStatusModal
-            visible={selectedStatusLine !== null}
-            line={selectedStatusLine}
-            onClose={() => setSelectedStatusLine(null)}
-          />
+          {/* In-place status portals are self-contained inside LineCard */}
 
           {/* Deferred Notification Modal */}
           <Modal

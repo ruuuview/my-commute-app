@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -7,18 +7,31 @@ import Animated, {
   useReducedMotion,
   withRepeat,
   withTiming,
+  withSpring,
   FadeIn,
   FadeOut,
   ZoomIn,
   ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { useJiggle } from '../hooks/useJiggle';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { StatusBezel } from './StatusBezel';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const PERSONALITY_POOL = [
+  "Don't jinx it.",
+  "Nothing to see here. Genuinely. Go enjoy that.",
+  "All quiet. Suspiciously quiet.",
+  "I've got nothing. Which is the whole point.",
+  "Boring is the best thing I can be right now.",
+  "Enjoy the smooth journey ahead.",
+];
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -29,7 +42,7 @@ function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
   const reducedMotion = useReducedMotion();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (reducedMotion) return;
     opacity.value = withRepeat(
       withTiming(0.75, { duration: 650 }),
@@ -57,20 +70,28 @@ function StatusSkeleton() {
   );
 }
 
-
-
 interface LineCardProps {
   line: {
     id: string;
     name: string;
     color: string;
+    status?: string;
+    reason?: string;
   };
   selected: boolean;
-  onPress: () => void;
+  onPress?: () => void;
   disabled?: boolean;
-  statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error';
+  statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown' | 'offline' | string;
   statusLabel: string;
   cardHeight?: number;
+  
+  // Dashboard modes & properties:
+  mode?: 'select' | 'display';
+  isEditing?: boolean;
+  onDelete?: (id: string) => void;
+  drag?: () => void;
+  isActive?: boolean;
+  index?: number;
 }
 
 export function LineCard({
@@ -81,10 +102,22 @@ export function LineCard({
   statusType,
   statusLabel,
   cardHeight = ONBOARDING_CARD_HEIGHT,
+  mode = 'select',
+  isEditing = false,
+  onDelete,
+  drag,
+  isActive = false,
+  index = 0,
 }: LineCardProps) {
-  const opacityVal = useSharedValue(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
 
-  React.useEffect(() => {
+  const opacityVal = useSharedValue(0);
+  const animatedHeight = useSharedValue(cardHeight);
+
+  const jiggleStyle = useJiggle(index, isEditing, isActive);
+
+  useEffect(() => {
     if (statusType !== 'loading') {
       opacityVal.value = withTiming(1, { duration: 200 });
     } else {
@@ -92,124 +125,228 @@ export function LineCard({
     }
   }, [statusType, opacityVal]);
 
+  useEffect(() => {
+    if (isExpanded && measuredHeight) {
+      animatedHeight.value = withSpring(measuredHeight, { damping: 15, stiffness: 120 });
+    } else {
+      animatedHeight.value = withSpring(cardHeight, { damping: 15, stiffness: 120 });
+    }
+  }, [isExpanded, measuredHeight, cardHeight, animatedHeight]);
+
   const animatedStatusStyle = useAnimatedStyle(() => ({
     opacity: opacityVal.value,
   }));
 
-  // Uniform hairline border — no state change, no brand color bleed
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    height: animatedHeight.value,
+  }));
+
+  const animatedBarStyle = useAnimatedStyle(() => {
+    // Top is 14px, bottom is 14px, so height is containerHeight - 28
+    return {
+      height: Math.max(8, animatedHeight.value - 28),
+    };
+  });
+
   const selectedBorderStyle = {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: isExpanded ? 1 : StyleSheet.hairlineWidth,
+    borderColor: isExpanded ? getSeverityBorderColor(statusType) : 'rgba(255, 255, 255, 0.18)',
   };
 
-  // Glow explicitly zeroed — prevents iOS shadow residual and Android elevation diff
-  const selectedGlowStyle = {
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
-  };
-
-  const reducedMotion = useReducedMotion();
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);
 
-  const handlePress = () => {
-    if (disabled) return;
+  const combinedStyle = useAnimatedStyle(() => {
+    const scale = isExpanded ? 1 : (pressAnim.animatedStyle.transform?.[0]?.scale ?? 1);
+    return {
+      transform: [{ scale }],
+    };
+  });
 
-    const timestamp = Date.now();
-    console.log(`[AUDIO_TRIGGER] playSound at ${timestamp} (selected: ${selected})`);
-
-    if (selected) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      playSound('deselect', 0.35);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      playSound('select', 0.45);
-    }
-
-    onPress();
+  const expandCard = () => {
+    if (disabled || isEditing) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    playSound('select', 0.45);
+    setIsExpanded(true);
   };
 
+  const collapseCard = () => {
+    setIsExpanded(false);
+  };
+
+  const handlePress = () => {
+    if (disabled) return;
+    if (isEditing) return;
+
+    if (isExpanded) {
+      collapseCard();
+      return;
+    }
+
+    if (mode === 'select') {
+      const timestamp = Date.now();
+      console.log(`[AUDIO_TRIGGER] playSound at ${timestamp} (selected: ${selected})`);
+
+      if (selected) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playSound('deselect', 0.35);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        playSound('select', 0.45);
+      }
+
+      if (onPress) onPress();
+    } else {
+      // In display mode, single tap also triggers the in-place portal
+      expandCard();
+    }
+  };
+
+  const handleLongPress = () => {
+    if (disabled) return;
+    if (isEditing) {
+      if (drag) drag();
+    } else {
+      expandCard();
+    }
+  };
+
+  // Resolve status text colors
   let statusTextColor = 'rgba(255, 255, 255, 0.55)';
   if (statusType === 'good') statusTextColor = '#30D158';
   else if (statusType === 'minor') statusTextColor = '#FF9F0A';
-  else if (statusType === 'severe') statusTextColor = '#FF3B30';
-  else if (statusType === 'suspended' || statusType === 'closure') statusTextColor = '#FF3B30';
+  else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
+    statusTextColor = '#FF3B30';
+  }
+
+  // Resolve status pill colors for expanded view
+  let statusPillBg = 'rgba(255, 255, 255, 0.06)';
+  let statusPillBorder = 'rgba(255, 255, 255, 0.15)';
+  if (statusType === 'good') {
+    statusPillBg = 'rgba(48, 209, 88, 0.1)';
+    statusPillBorder = 'rgba(48, 209, 88, 0.2)';
+  } else if (statusType === 'minor') {
+    statusPillBg = 'rgba(255, 159, 10, 0.1)';
+    statusPillBorder = 'rgba(255, 159, 10, 0.2)';
+  } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
+    statusPillBg = 'rgba(255, 59, 48, 0.1)';
+    statusPillBorder = 'rgba(255, 59, 48, 0.2)';
+  }
+
+  const reasonText = useMemo(() => {
+    if (statusType === 'good') {
+      const seed = line.id.charCodeAt(0) + line.id.charCodeAt(line.id.length - 1);
+      const idx = seed % PERSONALITY_POOL.length;
+      return PERSONALITY_POOL[idx];
+    }
+    return line.reason || line.status || statusLabel || 'Service is disrupted.';
+  }, [statusType, line.id, line.reason, line.status, statusLabel]);
+
+  function getSeverityBorderColor(type: string) {
+    if (type === 'good') return 'rgba(48, 209, 88, 0.3)';
+    if (type === 'minor') return 'rgba(255, 159, 10, 0.3)';
+    if (type === 'severe' || type === 'suspended' || type === 'closure') return 'rgba(255, 59, 48, 0.3)';
+    return 'rgba(255, 255, 255, 0.18)';
+  }
 
   return (
-    <Pressable
-      onPress={handlePress}
-      onPressIn={pressAnim.onPressIn}
-      onPressOut={pressAnim.onPressOut}
-      disabled={disabled}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.outerCard,
-        { height: cardHeight },
-        selectedGlowStyle,
-        pressed && { opacity: 0.65 }
+        { height: cardHeight, zIndex: isExpanded ? 9999 : 1, overflow: 'visible' },
+        isEditing && jiggleStyle
       ]}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={`${line.name} line, status: ${statusLabel}${selected ? ', selected' : ''}`}
     >
+      {/* Absolute dimming backdrop overlay */}
+      {isExpanded && (
+        <Pressable
+          style={styles.backdrop}
+          onPress={collapseCard}
+        />
+      )}
+
+      {/* Morphing inner container */}
       <Animated.View
         style={[
           styles.cardInner,
           selectedBorderStyle,
-          !reducedMotion && pressAnim.animatedStyle
+          animatedContainerStyle,
+          combinedStyle,
+          isExpanded && styles.expandedShadow
         ]}
       >
-        {/* Frosted glass background layer with opaque fallback styling */}
         <BlurView
           intensity={45}
           tint="dark"
-          style={[
-            StyleSheet.absoluteFillObject,
-            styles.blurBackground,
-          ]}
+          style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Brand color tint overlay for selected state (Apple pill design) */}
-        {selected && (
+        {/* Selected state overlay (select mode only) */}
+        {mode === 'select' && selected && (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: withAlpha(line.color, '1A') }]} />
         )}
 
-        {/* Accent bar — centred vertically, 3px wide, rounded, placed 14px from left */}
-        <View style={[
-          styles.accentBar,
-          { backgroundColor: line.color, top: (cardHeight - 36) / 2 }
-        ]} />
+        {/* Morphing left vertical accent bar */}
+        <Animated.View
+          style={[
+            styles.accentBar,
+            { backgroundColor: line.color },
+            animatedBarStyle
+          ]}
+        />
 
-        {/* Content */}
-        <View style={[styles.cardContent, { paddingRight: 8 }]}>
-          <Text
-            style={styles.lineName}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {line.name}
-          </Text>
+        {/* Interactive pressing body */}
+        <Pressable
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          onPressIn={pressAnim.onPressIn}
+          onPressOut={pressAnim.onPressOut}
+          delayLongPress={300}
+          style={StyleSheet.absoluteFillObject}
+        >
+          {isExpanded ? (
+            <View style={styles.expandedContent}>
+              <View style={styles.expandedHeader}>
+                <Text style={styles.expandedLineName}>{line.name}</Text>
+                <View style={[styles.statusPill, { backgroundColor: statusPillBg, borderColor: statusPillBorder }]}>
+                  <Text style={[styles.statusPillText, { color: statusTextColor }]}>{statusLabel}</Text>
+                </View>
+              </View>
+              <Text style={styles.reasonText}>{reasonText}</Text>
+            </View>
+          ) : (
+            <View style={[styles.cardContent, { paddingRight: 8 }]}>
+              <Text
+                style={styles.lineName}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {line.name}
+              </Text>
 
-          <View style={styles.statusSubRow}>
-            {statusType === 'loading' ? (
-              <StatusSkeleton />
-            ) : (
-              <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                <StatusBezel statusType={statusType} />
-                <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
-                  {STATUS_SHORT[statusLabel] || statusLabel}
-                </Text>
-              </Animated.View>
-            )}
-          </View>
-        </View>
+              <View style={styles.statusSubRow}>
+                {statusType === 'loading' ? (
+                  <StatusSkeleton />
+                ) : (
+                  <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
+                    <StatusBezel statusType={statusType} />
+                    <Text style={[styles.statusText, { color: statusTextColor }]} numberOfLines={1}>
+                      {STATUS_SHORT[statusLabel] || statusLabel}
+                    </Text>
+                  </Animated.View>
+                )}
+              </View>
+            </View>
+          )}
+        </Pressable>
 
-        {/* Right selection badge consistent with StationCard.tsx */}
-        {selected && (
+        {/* Selection Badge (select mode only) */}
+        {mode === 'select' && selected && !isEditing && !isExpanded && (
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(100)}
             style={styles.rightBadgeContainer}
+            pointerEvents="none"
           >
             <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
               <View style={styles.addedCircle}>
@@ -222,8 +359,49 @@ export function LineCard({
             </Animated.View>
           </Animated.View>
         )}
+
+        {/* Delete badge (edit mode only) */}
+        {!isExpanded && isEditing && onDelete && (
+          <Animated.View style={styles.deleteBadgeContainer}>
+            <Pressable
+              style={styles.deleteBadge}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onDelete(line.id);
+              }}
+            >
+              <Text style={styles.deleteIcon}>−</Text>
+            </Pressable>
+          </Animated.View>
+        )}
       </Animated.View>
-    </Pressable>
+
+      {/* Invisible Measure View (rendered in-place to resolve height string dynamically) */}
+      <View
+        style={[
+          styles.cardInner,
+          styles.measureContainer
+        ]}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0) {
+            setMeasuredHeight(h + 20); // add padding cushion for margins/spacing
+          }
+        }}
+        pointerEvents="none"
+      >
+        <View style={styles.expandedContent}>
+          <View style={styles.expandedHeader}>
+            <Text style={styles.expandedLineName}>{line.name}</Text>
+            <View style={[styles.statusPill, { backgroundColor: statusPillBg, borderColor: statusPillBorder }]}>
+              <Text style={[styles.statusPillText, { color: statusTextColor }]}>{statusLabel}</Text>
+            </View>
+          </View>
+          <Text style={styles.reasonText}>{reasonText}</Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -239,20 +417,25 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     position: 'relative',
     overflow: 'hidden',
-  },
-  blurBackground: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  expandedShadow: {
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
   },
   accentBar: {
     position: 'absolute',
     left: 14,
     width: 3,
-    height: 36, // Vertical height centered bar (strictly 36px)
     borderRadius: 2,
+    top: 14,
   },
   cardContent: {
     flex: 1,
-    paddingLeft: 22, // 14px margin + 3px bar + 5px breathing room
+    paddingLeft: 22,
     justifyContent: 'center',
   },
   lineName: {
@@ -273,7 +456,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.55)',
   },
   rightBadgeContainer: {
     marginRight: 12,
@@ -291,5 +473,82 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
     shadowRadius: 3,
+  },
+  backdrop: {
+    position: 'absolute',
+    top: -SCREEN_HEIGHT,
+    bottom: -SCREEN_HEIGHT,
+    left: -SCREEN_WIDTH,
+    right: -SCREEN_WIDTH,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    zIndex: 9998,
+  },
+  expandedContent: {
+    paddingLeft: 22,
+    paddingRight: 16,
+    paddingVertical: 14,
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  expandedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    width: '100%',
+  },
+  expandedLineName: {
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: '#FFFFFF',
+  },
+  statusPill: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  reasonText: {
+    fontSize: 15,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 22,
+  },
+  deleteBadgeContainer: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    zIndex: 10,
+  },
+  deleteBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#1E1E1E',
+  },
+  deleteIcon: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: -2,
+  },
+  measureContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    opacity: 0,
+    pointerEvents: 'none',
+    height: undefined,
   },
 });

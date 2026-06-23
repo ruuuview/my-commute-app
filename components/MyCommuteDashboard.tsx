@@ -35,12 +35,6 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 
 import {
-  LongPressGestureHandler,
-  TapGestureHandler,
-  State,
-} from 'react-native-gesture-handler';
-
-import {
   NestableScrollContainer,
   NestableDraggableFlatList,
 } from 'react-native-draggable-flatlist';
@@ -139,27 +133,16 @@ const SectionHeader: React.FC<{
         <Text style={section.title}>{title}</Text>
       </View>
       {onPressAdd && (
-        <TapGestureHandler
-          ref={plusRef}
-          onHandlerStateChange={(e) => {
-            if (e.nativeEvent.state === State.BEGAN) {
-              pressAnim.onPressIn();
-            } else if (e.nativeEvent.state === State.ACTIVE) {
-              pressAnim.onPressOut();
-              onPressAdd();
-            } else if (
-              e.nativeEvent.state === State.FAILED ||
-              e.nativeEvent.state === State.CANCELLED
-            ) {
-              pressAnim.onPressOut();
-            }
-          }}
+        <Pressable
+          onPress={onPressAdd}
+          onPressIn={pressAnim.onPressIn}
+          onPressOut={pressAnim.onPressOut}
         >
           <Animated.View style={[section.addBtn, isEditing && { marginRight: 12 }, pressAnim.animatedStyle]}>
             <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
             <Ionicons name="add" size={16} color="#FFFFFF" style={{ alignSelf: 'center' }} />
           </Animated.View>
-        </TapGestureHandler>
+        </Pressable>
       )}
     </View>
   );
@@ -265,7 +248,6 @@ const MyCommuteDashboard: React.FC = () => {
 
   const linesPlusRef = React.useRef<any>(null);
   const stationsPlusRef = React.useRef<any>(null);
-  const rootLongPressRef = React.useRef<any>(null);
   const isDragging = useSharedValue(false);
   const headerBtnAnim = usePressAnimation('back_btn', false);
 
@@ -447,21 +429,15 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing(false);
   };
 
-  const onBackgroundLongPress = (event: any) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
-      handleEdit();
-    }
-  };
+
 
   return (
-    <LongPressGestureHandler
-      ref={rootLongPressRef}
-      onHandlerStateChange={onBackgroundLongPress}
-      minDurationMs={600}
-      waitFor={[linesPlusRef, stationsPlusRef]}
+    <Pressable
+      style={dash.root}
+      onLongPress={handleEdit}
+      delayLongPress={600}
     >
-      <View style={dash.root}>
-        <DashboardGradient severity={networkSeverity} />
+      <DashboardGradient severity={networkSeverity} />
         <Animated.View collapsable={false} style={[{ flex: 1, paddingTop: insets.top }, revealStyle]} pointerEvents="box-none">
           {/* ── Content ── */}
           <NestableScrollContainer
@@ -565,6 +541,7 @@ const MyCommuteDashboard: React.FC = () => {
                               mode="display"
                               isEditing={isEditing}
                               onDelete={removeLine}
+                              onLongPress={isEditing ? drag : undefined}
                               drag={drag}
                               isActive={isActive}
                               index={index ?? 0}
@@ -617,7 +594,7 @@ const MyCommuteDashboard: React.FC = () => {
                                 stationName={item.name}
                                 isEditing={isEditing}
                                 onDelete={removeStation}
-                                onLongPress={isEditing ? drag : handleEdit}
+                                onLongPress={isEditing ? drag : () => {}}
                                 drag={drag}
                                 isActive={isActive}
                                 index={index ?? 0}
@@ -717,8 +694,7 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
           </Modal>
         </Animated.View>
-      </View>
-    </LongPressGestureHandler>
+      </Pressable>
   );
 };
 

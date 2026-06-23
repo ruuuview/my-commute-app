@@ -80,6 +80,7 @@ interface LineCardProps {
   };
   selected: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
   disabled?: boolean;
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown' | 'offline' | string;
   statusLabel: string;
@@ -98,6 +99,7 @@ export function LineCard({
   line,
   selected,
   onPress,
+  onLongPress,
   disabled = false,
   statusType,
   statusLabel,
@@ -116,6 +118,12 @@ export function LineCard({
   const animatedHeight = useSharedValue(cardHeight);
 
   const jiggleStyle = useJiggle(index, isEditing, isActive);
+
+  useEffect(() => {
+    if (isEditing) {
+      setIsExpanded(false);
+    }
+  }, [isEditing]);
 
   useEffect(() => {
     if (statusType !== 'loading') {
@@ -221,7 +229,11 @@ export function LineCard({
     if (isEditing) {
       if (drag) drag();
     } else {
-      expandCard();
+      if (onLongPress) {
+        onLongPress();
+      } else {
+        expandCard();
+      }
     }
   };
 

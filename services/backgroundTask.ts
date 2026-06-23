@@ -215,7 +215,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     const { WidgetModule } = NativeModules;
     if (WidgetModule && typeof WidgetModule.saveWidgetStatusCache === 'function') {
       try {
-        WidgetModule.saveWidgetStatusCache(JSON.stringify(selectedLinesData));
+        await WidgetModule.saveWidgetStatusCache(JSON.stringify(selectedLinesData));
         console.log('✅ Background Fetch bridged statuses successfully.');
       } catch (e) {
         console.error('❌ Failed to bridge background statuses to widget:', e);

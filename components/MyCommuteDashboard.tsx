@@ -295,12 +295,16 @@ const MyCommuteDashboard: React.FC = () => {
   // Calendar commute alert scheduler trigger (Phase 11)
   useEffect(() => {
     if (calendarGranted) {
-      scheduleCalendarCommuteAlerts();
+      scheduleCalendarCommuteAlerts().catch((e) =>
+        console.error('Calendar scheduling failed:', e)
+      );
     }
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && calendarGranted) {
-        scheduleCalendarCommuteAlerts();
+        scheduleCalendarCommuteAlerts().catch((e) =>
+          console.error('Calendar scheduling failed:', e)
+        );
       }
     });
 

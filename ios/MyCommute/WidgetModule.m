@@ -9,8 +9,12 @@
 #endif
 
 @interface RCT_EXTERN_MODULE(WidgetModule, NSObject)
-  RCT_EXTERN_METHOD(reloadWidget:(NSString *)jsonString)
-  RCT_EXTERN_METHOD(saveWidgetStatusCache:(NSString *)jsonString)
+  RCT_EXTERN_METHOD(reloadWidget:(NSString *)jsonString
+                    resolver:(RCTPromiseResolveBlock)resolve
+                    rejecter:(RCTPromiseRejectBlock)reject)
+  RCT_EXTERN_METHOD(saveWidgetStatusCache:(NSString *)jsonString
+                    resolver:(RCTPromiseResolveBlock)resolve
+                    rejecter:(RCTPromiseRejectBlock)reject)
 @end
 
 #endif

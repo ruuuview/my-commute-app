@@ -3,7 +3,7 @@ import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 
 const { WidgetModule } = NativeModules;
 
-export const syncToWidget = (selectedLines: string[]) => {
+export const syncToWidget = async (selectedLines: string[]) => {
   if (Platform.OS !== 'ios') return;
 
   try {
@@ -21,7 +21,7 @@ export const syncToWidget = (selectedLines: string[]) => {
     const jsonString = JSON.stringify(savedLines);
 
     if (WidgetModule && typeof WidgetModule.reloadWidget === 'function') {
-      WidgetModule.reloadWidget(jsonString);
+      await WidgetModule.reloadWidget(jsonString);
       console.log('✅ Widget Sync Succeeded:', savedLines.length, 'lines.');
     } else {
       console.warn('⚠️ Widget Sync: WidgetModule.reloadWidget is not available.');

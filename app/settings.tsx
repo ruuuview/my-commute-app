@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import * as Notifications from 'expo-notifications';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancelAnimation } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { usePressAnimation } from '../hooks/usePressAnimation';
@@ -63,8 +63,9 @@ export default function SettingsScreen() {
       if (flipTimeoutRef.current) {
         clearTimeout(flipTimeoutRef.current);
       }
+      cancelAnimation(flipRotation);
     };
-  }, []);
+  }, [flipRotation]);
 
   const checkPermissionsStatus = async () => {
     const { status } = await Notifications.getPermissionsAsync();
@@ -290,6 +291,8 @@ export default function SettingsScreen() {
                     onPress={handleGrantNotifications}
                     onPressIn={ctaPressAnim.onPressIn}
                     onPressOut={ctaPressAnim.onPressOut}
+                    accessibilityRole="button"
+                    accessibilityLabel="Enable notifications"
                   >
                     <Text style={styles.ctaButtonText}>Hit me with it</Text>
                   </Pressable>

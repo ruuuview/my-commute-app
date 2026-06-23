@@ -22,7 +22,7 @@ import { APP_CONFIG } from '../config/app.config';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
-const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
+const TEXT_GHOST = 'rgba(255,255,255,0.3)';
 const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
 
 const cleanPlatformName = (platform: string): string => {
@@ -86,7 +86,7 @@ export default function DepartureCard({
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  
+
   const [contentHeight, setContentHeight] = useState(160);
   const heightVal = useSharedValue(160);
   const arrivalsOpacity = useSharedValue(1);
@@ -200,7 +200,7 @@ export default function DepartureCard({
       arrivalsOpacity.value = targetOpacity;
     } else {
       heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
-      
+
       if (isEditing) {
         arrivalsOpacity.value = withTiming(0.3, { duration: 150 });
       } else if (!hideCard) {
@@ -288,19 +288,19 @@ export default function DepartureCard({
                     key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
                     style={styles.arrivalRow}
                   >
-                    <View style={[styles.arrivalDot, { backgroundColor: a.lineColor }]} />
+                    <View style={[styles.arrivalBar, { backgroundColor: a.lineColor }]} />
                     <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
                       {a.lineName}
                     </Text>
                     <View style={styles.arrivalDestContainer}>
                       <Text style={styles.arrivalDest} numberOfLines={1}>
                         {a.destination}
+                        {a.platform ? (
+                          <Text style={styles.arrivalPlatformInline}>
+                            {`  ${a.platform.replace('Platform ', 'P')}`}
+                          </Text>
+                        ) : null}
                       </Text>
-                      {a.platform ? (
-                        <Text style={styles.arrivalPlatform} numberOfLines={1}>
-                          {a.platform}
-                        </Text>
-                      ) : null}
                     </View>
                     <Text style={[styles.arrivalTime, depStyle]}>
                       {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerPressable: {
-    paddingVertical: 8,
+    paddingVertical: 9,
     width: '100%',
   },
   header: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   stationName: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
     color: '#FFFFFF',
   },
   stationNamePressed: {
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   arrivalsContainer: {
     marginTop: 0,
-    paddingTop: 4,
+    paddingTop: 6,
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.1)',
@@ -418,19 +418,19 @@ const styles = StyleSheet.create({
   arrivalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
-  arrivalDot: {
+  arrivalBar: {
     width: 3,
     height: 12,
     borderRadius: 1.5,
-    marginRight: 8,
+    marginRight: 6,
     flexShrink: 0,
   },
   arrivalLineName: {
-    width: 72,
+    width: 64,
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
     marginRight: 8,
   },
@@ -442,20 +442,25 @@ const styles = StyleSheet.create({
   },
   arrivalDest: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.9)',
-    lineHeight: 15,
+    lineHeight: 14,
   },
   arrivalPlatform: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 9.5,
+    fontSize: 9,
     color: 'rgba(255,255,255,0.38)',
     marginTop: 1,
     lineHeight: 12,
   },
+  arrivalPlatformInline: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+  },
   arrivalTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 13,
+    fontSize: 12,
     color: '#FFFFFF',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],

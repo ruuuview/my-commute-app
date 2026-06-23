@@ -108,7 +108,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
                   style={[styles.compactPillItem, { borderColor: colors.borderColor }]}
                 >
                   <View style={[styles.compactPillColorLayer, { backgroundColor: colors.backgroundColor }]} />
-                  <View style={[styles.compactPillDot, { backgroundColor: colors.dotColor }]} />
+                  <View style={[styles.compactPillBar, { backgroundColor: colors.dotColor }]} />
                   <Text style={[styles.compactPillText, { color: colors.textColor }]}>{shortName}</Text>
                 </View>
               );
@@ -542,8 +542,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   compactStationName: {
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.95)',
     flex: 1,
     marginRight: 12,
@@ -567,10 +567,10 @@ const styles = StyleSheet.create({
   compactPillColorLayer: {
     ...StyleSheet.absoluteFillObject,
   },
-  compactPillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  compactPillBar: {
+    width: 2,
+    height: 8,
+    borderRadius: 0.8,
   },
   compactPillText: {
     fontSize: 9,

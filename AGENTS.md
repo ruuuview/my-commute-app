@@ -90,7 +90,7 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 
 * **iOS Blur Backgrounds**: Modals that require frosted glass overlays must never use `pageSheet` style.
 * **TfL Stop IDs**: Elizabeth Line arrivals route differently because NaPTAN IDs starting with `910G` represent National Rail interchange points. Use the backend fallback endpoint `/api/stations/...` rather than querying National Rail endpoints directly.
-* **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (68px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.
+* **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (74px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.
 
 ---
 

@@ -34,20 +34,20 @@ import {
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
 const TFL_LINES = [
-  { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo, stationCount: 25 },
-  { id: 'central',          name: 'Central',            color: LINE_COLORS.central, stationCount: 49 },
-  { id: 'circle',           name: 'Circle',             color: LINE_COLORS.circle, stationCount: 36 },
-  { id: 'district',         name: 'District',           color: LINE_COLORS.district, stationCount: 60 },
-  { id: 'dlr',              name: 'DLR',                color: LINE_COLORS.dlr, stationCount: 45 },
-  { id: 'elizabeth',        name: 'Elizabeth',           color: LINE_COLORS.elizabeth, stationCount: 41 },
-  { id: 'hammersmith-city', name: 'Hammersmith & City',  color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
-  { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee, stationCount: 27 },
-  { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan, stationCount: 34 },
-  { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern, stationCount: 52 },
-  { id: 'overground',       name: 'Overground',         color: LINE_COLORS.overground, stationCount: 112 },
-  { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_COLORS.piccadilly, stationCount: 53 },
-  { id: 'victoria',         name: 'Victoria',           color: LINE_COLORS.victoria, stationCount: 16 },
-  { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'], stationCount: 2 },
+  { id: 'bakerloo', name: 'Bakerloo', color: LINE_COLORS.bakerloo, stationCount: 25 },
+  { id: 'central', name: 'Central', color: LINE_COLORS.central, stationCount: 49 },
+  { id: 'circle', name: 'Circle', color: LINE_COLORS.circle, stationCount: 36 },
+  { id: 'district', name: 'District', color: LINE_COLORS.district, stationCount: 60 },
+  { id: 'dlr', name: 'DLR', color: LINE_COLORS.dlr, stationCount: 45 },
+  { id: 'elizabeth', name: 'Elizabeth', color: LINE_COLORS.elizabeth, stationCount: 41 },
+  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
+  { id: 'jubilee', name: 'Jubilee', color: LINE_COLORS.jubilee, stationCount: 27 },
+  { id: 'metropolitan', name: 'Metropolitan', color: LINE_COLORS.metropolitan, stationCount: 34 },
+  { id: 'northern', name: 'Northern', color: LINE_COLORS.northern, stationCount: 52 },
+  { id: 'overground', name: 'Overground', color: LINE_COLORS.overground, stationCount: 112 },
+  { id: 'piccadilly', name: 'Piccadilly', color: LINE_COLORS.piccadilly, stationCount: 53 },
+  { id: 'victoria', name: 'Victoria', color: LINE_COLORS.victoria, stationCount: 16 },
+  { id: 'waterloo-city', name: 'Waterloo & City', color: LINE_COLORS['waterloo-city'], stationCount: 2 },
 ];
 
 function getCtaLabel(selectedCount: number): string {
@@ -70,14 +70,14 @@ export default function LinesScreen() {
   // Dynamic card height calculation to fill viewport on all devices with zero scroll
   const dynamicCardHeight = React.useMemo(() => {
     // headerHeight: dots (10) + title (32) + padding/margins (~80px total)
-    const headerHeight = insets.top + 4 + 88; 
+    const headerHeight = insets.top + 4 + 88;
     // footerHeight: CTA button (52) + margin/padding (~52px total)
     const footerHeight = Math.max(insets.bottom, 16) + 52;
     // safetyMargin: 32px safety buffer to account for FlatList top padding (12px) 
     // and layout flex tolerances on smaller iOS devices (e.g. iPhone SE).
-    const safetyMargin = 32; 
+    const safetyMargin = 32;
     const availableHeight = screenHeight - headerHeight - footerHeight - safetyMargin;
-    
+
     const gap = 8;
     const rows = 7;
     // Calculate and clamp between 48px and 54px
@@ -104,7 +104,7 @@ export default function LinesScreen() {
         if (!res.ok) throw new Error('Failed to fetch TfL status');
         const data = await res.json();
         if (!active) return;
-        
+
         const mapped: Record<string, { severity: number; description: string }> = {};
         data.forEach((line: any) => {
           const sev = line.lineStatuses?.[0]?.statusSeverity ?? 10;
@@ -220,13 +220,13 @@ export default function LinesScreen() {
     }
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playSound('push', 0.38);
-    
+
     const timestamp = Date.now();
     console.log(`[AUDIO_TRIGGER] playSound pushing from lines at ${timestamp}`);
 
     useUserPreferencesStore.setState({ onboardingStep: 1 });
     useOnboardingStore.getState().setNavigationDirection('forward');
-    
+
     requestAnimationFrame(() => {
       router.push('/onboarding/stations');
     });
@@ -234,7 +234,7 @@ export default function LinesScreen() {
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     useUserPreferencesStore.setState({
       hasCompletedOnboarding: true,
       onboardingStep: 2,
@@ -255,11 +255,11 @@ export default function LinesScreen() {
 
   const getLineStatus = (severity: number, desc: string) => {
     const d = desc.toLowerCase();
-    if (severity === 10 || severity === 18)       return { statusType: 'good' as const,      label: desc || 'Good service' };
+    if (severity === 10 || severity === 18) return { statusType: 'good' as const, label: desc || 'Good service' };
     if (severity === 9 || severity === 14 || severity === 19) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
     if (severity === 6 || severity === 7 || severity === 8 || severity === 17) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
     if (severity === 0 || severity === 1 || severity === 2 || severity === 3 || severity === 4 || severity === 5 || severity === 11 || severity === 16 || severity === 20) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
-    
+
     if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };
     if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
     if (d.includes('delay')) return { statusType: 'minor' as const, label: desc };
@@ -269,7 +269,7 @@ export default function LinesScreen() {
   const resolveLineStatus = (lineId: string) => {
     let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' = 'loading';
     let statusLabel = 'Loading status...';
-    
+
     if (!loadingStatuses) {
       if (lineId === 'overground') {
         let worstSeverity = 10;
@@ -394,7 +394,7 @@ export default function LinesScreen() {
           removeClippedSubviews={true}
           contentContainerStyle={[
             styles.listContainer,
-            { 
+            {
               paddingBottom: listPaddingBottom,
             },
           ]}

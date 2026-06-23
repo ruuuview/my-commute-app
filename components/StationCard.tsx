@@ -259,7 +259,7 @@ export function StationCard({
               >
                 <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
                 <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
-                <View style={[styles.pillDot, { backgroundColor: colors.dotColor }]} />
+                <View style={[styles.pillBar, { backgroundColor: colors.dotColor }]} />
                 <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
               </View>
             );
@@ -322,7 +322,7 @@ export function StationCard({
                   return (
                     <View key={idx} style={styles.ledgerRow}>
                       <View style={styles.columnIdentity}>
-                        <View style={[styles.ledgerDot, { backgroundColor: dep.lineColor }]} />
+                        <View style={[styles.ledgerBar, { backgroundColor: dep.lineColor }]} />
                         <Text style={styles.ledgerLineText} numberOfLines={1}>{dep.lineName}</Text>
                       </View>
                       <View style={styles.columnDestination}>
@@ -355,7 +355,7 @@ export function StationCard({
 const styles = StyleSheet.create({
   outerCard: {
     alignSelf: 'stretch',
-    borderRadius: 18,
+    borderRadius: 16,
     marginBottom: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.18)',
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   blurBackground: {
@@ -374,19 +374,19 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 9,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   stationName: {
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.95)',
     flex: 1,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   rightContainer: {
     flexShrink: 0,
@@ -395,8 +395,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pillsRowWrapper: {
-    marginTop: 2,
-    marginBottom: 4,
+    marginTop: 0,
+    marginBottom: 2,
   },
   pillsContainer: {
     flexDirection: 'row',
@@ -416,10 +416,10 @@ const styles = StyleSheet.create({
   pillColorLayer: {
     ...StyleSheet.absoluteFillObject,
   },
-  pillDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
+  pillBar: {
+    width: 2.5,
+    height: 10,
+    borderRadius: 1,
   },
   pillText: {
     fontSize: 10,
@@ -442,7 +442,8 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    marginBottom: 6,
+    marginTop: 4,
+    marginBottom: 5,
   },
   ledgerTable: {
     gap: 0,
@@ -457,11 +458,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  ledgerDot: {
+  ledgerBar: {
     width: 3,
     height: 12,
     borderRadius: 1.5,
-    marginRight: 8,
+    marginRight: 6,
   },
   ledgerLineText: {
     fontSize: 11,

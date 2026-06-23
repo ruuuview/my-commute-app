@@ -84,7 +84,7 @@ interface LineCardProps {
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown' | 'offline' | string;
   statusLabel: string;
   cardHeight?: number;
-  
+
   // Dashboard modes & properties:
   mode?: 'select' | 'display';
   isEditing?: boolean;
@@ -147,15 +147,15 @@ export function LineCard({
     const maxH = measuredHeight || cardHeight;
     const range = maxH - minH;
     const factor = range > 0 ? Math.max(0, Math.min(1, (h - minH) / range)) : 0;
-    
+
     const collapsedHeight = 20;
     const expandedHeight = Math.max(8, h - 28);
     const heightVal = collapsedHeight + (expandedHeight - collapsedHeight) * factor;
-    
+
     const collapsedTop = (h - collapsedHeight) / 2;
     const expandedTop = 14;
     const topVal = collapsedTop + (expandedTop - collapsedTop) * factor;
-    
+
     return {
       height: heightVal,
       top: topVal,
@@ -437,13 +437,13 @@ export function LineCard({
 const styles = StyleSheet.create({
   outerCard: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 16,
   },
   cardInner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
+    borderRadius: 16,
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.45,
-    shadowRadius: 18,
+    shadowRadius: 16,
   },
   accentBar: {
     position: 'absolute',
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lineName: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.95)',
   },
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'SpaceGrotesk_500Medium',
   },
   rightBadgeContainer: {

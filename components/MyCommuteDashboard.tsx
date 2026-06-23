@@ -536,8 +536,8 @@ const MyCommuteDashboard: React.FC = () => {
               <>
                 {sortedLines.length > 0 && (
                   <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
-                    <SectionHeader 
-                      title="My lines" 
+                    <SectionHeader
+                      title="My lines"
                       onPressAdd={() => setLinesModalVisible(true)}
                       isEditing={isEditing}
                       plusRef={linesPlusRef}
@@ -561,7 +561,7 @@ const MyCommuteDashboard: React.FC = () => {
                               selected={false}
                               statusType={parseSeverity(item.status)}
                               statusLabel={item.status}
-                              cardHeight={48}
+                              cardHeight={38}
                               mode="display"
                               isEditing={isEditing}
                               onDelete={removeLine}
@@ -578,8 +578,8 @@ const MyCommuteDashboard: React.FC = () => {
 
                 {(selectedStations.length > 0 || isEditing) && (
                   <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
-                    <SectionHeader 
-                      title="My stations" 
+                    <SectionHeader
+                      title="My stations"
                       onPressAdd={() => setStationsModalVisible(true)}
                       isEditing={isEditing}
                       plusRef={stationsPlusRef}

@@ -89,9 +89,11 @@ export function LineDetailModal({
       onRequestClose={onClose}
     >
       <View style={styles.root}>
-        {/* Translucent backdrop overlay */}
-        <View
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+        {/* Apple Glassmorphic blurred backdrop */}
+        <BlurView
+          intensity={50}
+          tint="dark"
+          style={StyleSheet.absoluteFillObject}
         />
 
         {/* Pressable backdrop to dismiss */}

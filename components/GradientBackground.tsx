@@ -55,6 +55,11 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
   // [bottom layer (outgoing), top layer (incoming)]
   const [layers, setLayers] = useState<[StatusLevel, StatusLevel]>(['unknown', 'unknown']);
 
+  const handleTransitionComplete = React.useCallback((resolvedStatus: StatusLevel) => {
+    setLayers([resolvedStatus, resolvedStatus]);
+    prevStatusRef.current = resolvedStatus;
+  }, []);
+
   useEffect(() => {
     if (status === prevStatusRef.current) return;
 
@@ -65,20 +70,18 @@ export function GradientBackground({ lines = [], status: overrideStatus, childre
     if (reducedMotion) {
       // Instant snap — still communicates the state change, just without motion
       crossfadeOpacity.value = 1;
-      runOnJS(setLayers)([status, status]);
+      handleTransitionComplete(status);
       crossfadeOpacity.value = 0;
-      prevStatusRef.current = status;
     } else {
       // 800ms cross-fade per spec
       crossfadeOpacity.value = withTiming(1, { duration: 800 }, (finished) => {
         if (finished) {
-          runOnJS(setLayers)([status, status]);
+          runOnJS(handleTransitionComplete)(status);
           crossfadeOpacity.value = 0;
-          prevStatusRef.current = status;
         }
       });
     }
-  }, [status, reducedMotion, crossfadeOpacity]);
+  }, [status, reducedMotion, crossfadeOpacity, handleTransitionComplete]);
 
   const topLayerStyle = useAnimatedStyle(() => ({
     opacity: crossfadeOpacity.value,

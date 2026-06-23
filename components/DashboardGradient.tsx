@@ -33,11 +33,11 @@ export function DashboardGradient({ severity, children }: Props) {
   // [bottom layer (outgoing), top layer (incoming)]
   const [layers, setLayers] = useState<[Severity, Severity]>(['unknown', 'unknown']);
 
-  const onTransitionComplete = (resolved: Severity) => {
+  const onTransitionComplete = React.useCallback((resolved: Severity) => {
     setLayers([resolved, resolved]);
     crossfadeOpacity.value = 0;
     prevSeverityRef.current = resolved;
-  };
+  }, [crossfadeOpacity]);
 
   useEffect(() => {
     // Normalise and handle fallback
@@ -58,7 +58,7 @@ export function DashboardGradient({ severity, children }: Props) {
         }
       });
     }
-  }, [severity, reducedMotion, crossfadeOpacity]);
+  }, [severity, reducedMotion, crossfadeOpacity, onTransitionComplete]);
 
   const topLayerStyle = useAnimatedStyle(() => ({
     opacity: crossfadeOpacity.value,

@@ -1,6 +1,6 @@
 # Agent Instructions & Project Design Specifications
 
-This document captures the locked UI specs, architectural conventions, reference implementations, and platform gotchas for the **My Commute** React Native application. 
+This document captures the locked UI specs, architectural conventions, reference implementations, and platform gotchas for the **My Commute** React Native application.
 
 AI agents (including Fable and Antigravity) must read this file before writing or modifying any components to ensure alignment on the first pass.
 
@@ -9,11 +9,13 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 ## 1. Visual & UI Design System
 
 ### Frosted Glassmorphism (Level 1 & 2)
+
 * **Background texture**: Cards and panels utilize `BlurView` with `intensity={45}` and `tint="dark"` overlayed with a translucent white background (e.g., `rgba(255, 255, 255, 0.06)`).
 * **Modals & Overlays (Level 3)**: Use a darker glass overlay: `BlurView` with `intensity={80}` and `tint="dark"`.
 * **Translucent Borders**: Standard cards and panels must use a hairline border: `borderWidth: StyleSheet.hairlineWidth`, `borderColor: 'rgba(255, 255, 255, 0.18)'`.
 
 ### Interactive Buttons & Touch Targets
+
 * **Standard Edit/Done Pills**:
   * Background: `rgba(255, 255, 255, 0.12)`
   * Border: `rgba(255, 255, 255, 0.30)` (borderWidth: 1)
@@ -35,6 +37,7 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 ## 2. Animation & Navigation Conventions
 
 ### Modals & Bottom Sheets
+
 * **iOS Blur View Preservation**: iOS native `presentationStyle="pageSheet"` overrides local `BlurView` overlays with a solid system color. To preserve glassmorphism, modals must be configured with:
   * `presentationStyle="overFullScreen"`
   * `transparent={true}`
@@ -43,6 +46,7 @@ AI agents (including Fable and Antigravity) must read this file before writing o
   * Handle: `width: 40`, `height: 4`, `borderRadius: 2`, `backgroundColor: 'rgba(255, 255, 255, 0.25)'`.
 
 ### Press Animations
+
 * Every interactive button/card must use the custom hook `usePressAnimation(configKey, disabled)`.
 * **Haptics & Audio Feedback**:
   * Selecting/Adding: `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)` + `playSound('select', 0.45)`.
@@ -54,6 +58,7 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 ## 3. Reference Implementations
 
 ### Line Subscription & TfL Status Mapping
+
 * **Locked reference file**: [components/ManageLinesModal.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/ManageLinesModal.tsx).
 * **TfL Severity Mapping**:
   * Map severity code `10` → `good` (Good service).
@@ -65,6 +70,7 @@ AI agents (including Fable and Antigravity) must read this file before writing o
   * The status for `'overground'` must be aggregated across all active branches, resolving to the **worst status severity** (lowest severity number) among them.
 
 ### Station Selection & Fuzzy Match Search
+
 * **Locked reference file**: [components/ManageStationsModal.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/ManageStationsModal.tsx).
 * **Fuzzy Matching Options (Fuse.js)**:
   * Keys: `['name']`
@@ -75,11 +81,13 @@ AI agents (including Fable and Antigravity) must read this file before writing o
   * Always group `FULL_STATIONS` from `data/tflStations` by lowercase cleaned names (`station.name.toLowerCase().trim()`) to deduplicate platforms and branches before search.
 
 ### Immediate Sync State
+
 * Dashboard preferences must update **immediately on tap** (writing directly to `useUserPreferencesStore`), eliminating "Save" buttons in bottom sheets.
 
 ---
 
 ## 4. Known Gotchas & Platform Quirks
+
 * **iOS Blur Backgrounds**: Modals that require frosted glass overlays must never use `pageSheet` style.
 * **TfL Stop IDs**: Elizabeth Line arrivals route differently because NaPTAN IDs starting with `910G` represent National Rail interchange points. Use the backend fallback endpoint `/api/stations/...` rather than querying National Rail endpoints directly.
 * **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (68px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.
@@ -87,5 +95,6 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 ---
 
 ## 5. Session Memory & Brain Documentation
+
 * **Brain Folder Authority**: A dedicated `brain` folder at the root level `brain/` (relative to project root) maintains the project memory files (`architecture.md`, `decisions.md`, `memory.md`, and `patterns.md`).
 * **Update Protocol**: Agents must check and read these files at the beginning of each session and update them at the end of execution to keep all design parameters, decisions, and patterns fully synchronized.

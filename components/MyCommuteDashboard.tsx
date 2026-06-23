@@ -53,6 +53,7 @@ import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { LineCard } from './LineCard';
@@ -130,49 +131,53 @@ const SectionHeader: React.FC<{
   onPressAdd?: () => void;
   isEditing: boolean;
   plusRef?: React.RefObject<any>;
-}> = ({ title, onPressAdd, isEditing, plusRef }) => (
-  <View style={[section.row, isEditing && { marginBottom: 20 }]}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-      <Text style={section.title}>{title}</Text>
+}> = ({ title, onPressAdd, isEditing, plusRef }) => {
+  const pressAnim = usePressAnimation('back_btn', false);
+  return (
+    <View style={[section.row, isEditing && { marginBottom: 20 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <Text style={section.title}>{title}</Text>
+      </View>
+      {onPressAdd && (
+        <TapGestureHandler
+          ref={plusRef}
+          onHandlerStateChange={(e) => {
+            if (e.nativeEvent.state === State.BEGAN) {
+              pressAnim.onPressIn();
+            } else if (e.nativeEvent.state === State.ACTIVE) {
+              pressAnim.onPressOut();
+              onPressAdd();
+            } else if (
+              e.nativeEvent.state === State.FAILED ||
+              e.nativeEvent.state === State.CANCELLED
+            ) {
+              pressAnim.onPressOut();
+            }
+          }}
+        >
+          <Animated.View style={[section.addBtn, isEditing && { marginRight: 12 }, pressAnim.animatedStyle]}>
+            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Ionicons name="add" size={16} color="#FFFFFF" style={{ alignSelf: 'center' }} />
+          </Animated.View>
+        </TapGestureHandler>
+      )}
     </View>
-    {onPressAdd && (
-      <TapGestureHandler
-        ref={plusRef}
-        onHandlerStateChange={(e) => {
-          if (e.nativeEvent.state === State.ACTIVE) {
-            onPressAdd();
-          }
-        }}
-      >
-        <Animated.View style={[section.addBtn, isEditing && { marginRight: 12 }]}>
-          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <Text style={section.addBtnText}>+</Text>
-        </Animated.View>
-      </TapGestureHandler>
-    )}
-  </View>
-);
+  );
+};
 
 const section = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginTop: 4 },
   title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.58)' },
   addBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.05)',
-  },
-  addBtnText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: -1,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
 });
 
@@ -262,6 +267,7 @@ const MyCommuteDashboard: React.FC = () => {
   const stationsPlusRef = React.useRef<any>(null);
   const rootLongPressRef = React.useRef<any>(null);
   const isDragging = useSharedValue(false);
+  const headerBtnAnim = usePressAnimation('back_btn', false);
 
 
 
@@ -486,10 +492,18 @@ const MyCommuteDashboard: React.FC = () => {
                 <Text style={dash.titleMain}>My Commute</Text>
                 <View style={dash.headerActions}>
                   {hasContent && (
-                    <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
-                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-                      <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
-                    </Pressable>
+                    <Animated.View style={headerBtnAnim.animatedStyle}>
+                      <Pressable
+                        onPress={handleEdit}
+                        onPressIn={headerBtnAnim.onPressIn}
+                        onPressOut={headerBtnAnim.onPressOut}
+                        style={dash.headerBtn}
+                        hitSlop={8}
+                      >
+                        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                        <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+                      </Pressable>
+                    </Animated.View>
                   )}
                 </View>
               </View>
@@ -508,9 +522,11 @@ const MyCommuteDashboard: React.FC = () => {
                   <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
                 </BouncyPressable>
 
-                <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
-                  <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
-                </BouncyPressable>
+                {__DEV__ && (
+                  <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
+                    <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
+                  </BouncyPressable>
+                )}
               </View>
             )}
 
@@ -633,7 +649,8 @@ const MyCommuteDashboard: React.FC = () => {
           <Modal
             visible={showNotifPrompt}
             transparent
-            animationType="fade"
+            animationType="slide"
+            presentationStyle="overFullScreen"
             onRequestClose={() => setShowNotifPrompt(false)}
           >
             <View style={dash.promptScrim}>
@@ -668,7 +685,8 @@ const MyCommuteDashboard: React.FC = () => {
           <Modal
             visible={showCalPrompt}
             transparent
-            animationType="fade"
+            animationType="slide"
+            presentationStyle="overFullScreen"
             onRequestClose={() => setShowCalPrompt(false)}
           >
             <View style={dash.promptScrim}>
@@ -711,21 +729,21 @@ const dash = StyleSheet.create({
   titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     minWidth: 64,
   },
   headerBtnText: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 12,
-    color: '#FFFFFF',
+    color: 'rgba(255,255,255,0.80)',
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },

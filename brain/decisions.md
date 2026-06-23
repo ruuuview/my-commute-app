@@ -24,7 +24,8 @@ This document captures the immutable constraints and structural design decisions
 
 * **Theme Overlay:** The foyer (onboarding) uses Option C gradients. The dashboard uses dynamic gradients matching the worst active disruption status (Suspended/Severe -> Red, Minor -> Amber, Good -> Deep Space).
 * **Glassmorphism Tokens:** Dashboard card components apply frosted glass styling (`BlurView` intensity 45 or 80) paired with translucent borders (`rgba(255, 255, 255, 0.18)`).
-* **Layout Height Gating:** Standard onboarding modules are sized for optimal breathing room: `LineCard` scales dynamically between 40px and 48px, while `StationCard` has a 74px minHeight.
+* **Layout Height Gating:** LineCards are locked to a strict height of **48px** and StationCards to **68px** (minHeight / default collapsed state) to preserve screen real estate and scroll bounds.
+* **Chevron-Free Line Layout:** LineCards in display mode do not render right-pointing chevron indicators (`›`) to maintain a cleaner, minimal visual design.
 * **Modal Configuration (iOS Blur Preservation):** Modals that require frosted glass overlays must never use `pageSheet` style, which overrides blurs with solid system colors. They must use `presentationStyle="overFullScreen"`, `transparent={true}`, and `animationType="slide"`.
 * **Standard Touch Target Specifications:**
   * **Section Add (+) Buttons:** Styled as `28x28` circular hitboxes (`borderRadius: 14`), background `rgba(255, 255, 255, 0.12)`, border `rgba(255, 255, 255, 0.30)` with `borderWidth: 1`, and a centered white `Ionicons` `add` icon (size 16).
@@ -50,3 +51,10 @@ This document captures the immutable constraints and structural design decisions
 ## 6. Reanimated & UI Thread Safety
 
 * **Ref Mutation thread safety:** React Refs (`useRef`) and React State (`useState`) cannot be safely mutated directly inside Reanimated UI thread worklets (like `withTiming` callbacks). All such operations must be wrapped in JS helper functions and executed on the JS thread using `runOnJS`.
+
+---
+
+## 7. iOS SDK and Deployment Target Constraints
+
+* **Widget API Dependency:** Lock screen widget families (`accessoryCircular`, `accessoryRectangular`, and `accessoryInline`) require iOS 16.0+ APIs. Building with any lower deployment target causes Xcode build failures.
+* **Unified Version Locks:** The minimum iOS deployment target (`IPHONEOS_DEPLOYMENT_TARGET`) across all Xcode targets (`MyCommute` main app, `CommuteWidgetExtension`), project-level settings, and CocoaPods configurations is locked to **16.0**.

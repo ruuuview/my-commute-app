@@ -47,6 +47,7 @@ This document tracks execution state, updates, and current tasks.
   * Guarding widget fallback/deepfreeze `debugMessage` to check `lines.isEmpty` to preserve stale status layout displaying.
   * Removing opacity updates on reduced motion inside `GradientBackground.tsx` to prevent transition flickers.
   * Adding haptic feedback and deselect sounds to backdrop dismissal press actions, and grouping `'error'` under severe red color styles in `LineDetailModal.tsx`.
+* **`8c93e95` — build(ios):** Upgraded iOS deployment target to `16.0` globally in CocoaPods `Podfile` and `project.pbxproj` configuration files to support compilation of iOS 16 lock screen widget families (`accessoryCircular`, `accessoryRectangular`, and `accessoryInline`).
 
 ---
 

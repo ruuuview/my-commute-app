@@ -29,7 +29,14 @@ This document tracks execution state, updates, and current tasks.
 
 ---
 
-## 3. Pending Roadmap Tasks
+## 3. Recent Commits & Changes (Jun 23, 2026)
+
+* **`6f8a6f7` & `c01fe89` — Backend Vercel Fix:** Made `aioapns` import dynamic/optional and added Mongo connection timeouts/lazy connection configurations (`connect=False`) to solve Vercel's serverless `500 FUNCTION_INVOCATION_FAILED` crash on startup.
+* **`DashboardGradient` UI Thread Mutation Fix:** Relocated React State (`setLayers`) and React Ref (`prevSeverityRef`) updates from the Reanimated UI thread worklet callback to the JS thread via `runOnJS(onTransitionComplete)`, avoiding worklet memory violations.
+
+---
+
+## 4. Pending Roadmap Tasks
 
 1. **Audio Integration (Step 6):** Embed real physical audio thud files for transitions (currently mocked).
 2. **Legal Gating (Step 8):** Add hosted Terms of Service and Privacy Policy agreements.

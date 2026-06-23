@@ -32,3 +32,16 @@ This document captures the immutable constraints and structural design decisions
 
 * **Usage Model:** Enforces a usage-based trial (e.g. 10 commutes) monitored at cold start via AppState listeners.
 * **App Store Readiness:** A visible "Restore Purchases" and hosted Legal Agreement links must be present inside settings to ensure App Store approval.
+
+---
+
+## 5. Serverless Backend Resilience
+
+* **Optional Dependencies:** Heavy libraries like `aioapns` (which require C-extensions for cryptography/ssl) are imported dynamically via `try...except ImportError` so the server can run without compilation failures on Vercel.
+* **Database Cold Starts:** MongoDB client initialization must use `connect=False` and tight 5-second timeouts (`serverSelectionTimeoutMS=5000`) at the module level to prevent cold start connection hangs from timing out the Vercel function.
+
+---
+
+## 6. Reanimated & UI Thread Safety
+
+* **Ref Mutation thread safety:** React Refs (`useRef`) and React State (`useState`) cannot be safely mutated directly inside Reanimated UI thread worklets (like `withTiming` callbacks). All such operations must be wrapped in JS helper functions and executed on the JS thread using `runOnJS`.

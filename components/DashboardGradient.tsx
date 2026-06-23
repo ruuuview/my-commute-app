@@ -33,6 +33,12 @@ export function DashboardGradient({ severity, children }: Props) {
   // [bottom layer (outgoing), top layer (incoming)]
   const [layers, setLayers] = useState<[Severity, Severity]>(['unknown', 'unknown']);
 
+  const onTransitionComplete = (resolved: Severity) => {
+    setLayers([resolved, resolved]);
+    crossfadeOpacity.value = 0;
+    prevSeverityRef.current = resolved;
+  };
+
   useEffect(() => {
     // Normalise and handle fallback
     const resolvedSeverity: Severity = STATUS_GRADIENTS[severity] ? severity : 'unknown';
@@ -48,9 +54,7 @@ export function DashboardGradient({ severity, children }: Props) {
       crossfadeOpacity.value = 0;
       crossfadeOpacity.value = withTiming(1, { duration: 800 }, (finished) => {
         if (finished) {
-          runOnJS(setLayers)([resolvedSeverity, resolvedSeverity]);
-          crossfadeOpacity.value = 0;
-          prevSeverityRef.current = resolvedSeverity;
+          runOnJS(onTransitionComplete)(resolvedSeverity);
         }
       });
     }

@@ -561,7 +561,7 @@ const MyCommuteDashboard: React.FC = () => {
                               selected={false}
                               statusType={parseSeverity(item.status)}
                               statusLabel={item.status}
-                              cardHeight={68}
+                              cardHeight={48}
                               mode="display"
                               isEditing={isEditing}
                               onDelete={removeLine}

@@ -268,6 +268,7 @@ export function LineCard({
       style={[
         styles.outerCard,
         { height: cardHeight, zIndex: isExpanded ? 9999 : 1, overflow: 'visible' },
+        mode === 'display' && { marginBottom: 12 },
         isEditing && jiggleStyle
       ]}
     >

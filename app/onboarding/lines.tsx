@@ -80,8 +80,8 @@ export default function LinesScreen() {
     
     const gap = 8;
     const rows = 7;
-    // Calculate and clamp between 56px and 84px
-    return Math.max(56, Math.min(84, (availableHeight - (rows - 1) * gap) / rows));
+    // Calculate and clamp between 48px and 54px
+    return Math.max(48, Math.min(54, (availableHeight - (rows - 1) * gap) / rows));
   }, [screenHeight, insets]);
 
   const isScrollable = dynamicCardHeight <= 56;

@@ -43,14 +43,18 @@ My Commute consists of a mobile frontend and a backend API server:
     *   `app/journeyPlanner.tsx` (Alerts & disruptions detail)
     *   `app/settings.tsx` (Preferences, debug controls, and subscriptions)
 
+### Components & Interactive Elements
+*   **In-Place Status Portal:** Renders live TfL status and delays dynamically inside [LineCard.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/LineCard.tsx) using in-place layout measurements and Reanimated spring transitions, bypassing the bottom-sheet status modal.
+*   **Gestures & Haptics:** Touch controls utilize `usePressAnimation` for haptics feedback, and long-press controls trigger cards to jiggle (edit mode) or morph (status portal).
+
 ### State Management & Storage
 *   **Zustand Store:** Custom hooks access shared preferences instantly via `store/userPreferencesStore.ts`.
 *   **MMKV Storage:** A fast, synchronous, C++ based Key-Value engine wrapper (`react-native-mmkv`) persists store states.
 
 ### Background Tasks & Scheduling
-*   **Services Module:** Background fetch and local schedule alerts.
+*   **Services Module:** Background fetch, local schedule alerts, and geofencing.
     *   `services/calendarScheduler.ts` matches local calendars against Tube stations to schedule leave-by warnings.
-    *   `services/backgroundTask.ts` executes background checks and runs TfL queries.
+    *   `services/backgroundTask.ts` executes background fetch checks, TfL polling, and runs the `'geofencing-task'` to register background regions (500m radius mapped via `data/stationCoordinates.json`) for proximity alerts.
     *   `services/notificationRegistrationService.ts` registers APNS device push tokens securely with the backend.
 
 ---

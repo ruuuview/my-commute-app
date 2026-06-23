@@ -40,5 +40,7 @@ This document captures standard patterns, structures, and idioms used within the
 
 ## 4. Platform Gating
 
-* **iOS Glassmorphic Preserves:** iOS Modals requiring glassmorphism overlays must use `presentationStyle="overFullScreen"` and `transparent={true}`. Using `pageSheet` overrides translucent views with system colors.
+* **iOS Glassmorphic Preserves:** iOS Modals requiring glassmorphism overlays must use `presentationStyle="overFullScreen"`, `transparent={true}`, and `animationType="slide"`.
 * **Network Check Guards:** Wrap background schedulers and requests in connectivity checks (`NetInfo`) to fallback gracefully to cached profiles.
+* **Proximity & Location Geofencing:** Always request location permissions sequentially: foreground permission must be requested and approved (`status === 'granted'`) before background permission is requested. Pinned stations are mapped to geofencing regions (identifier as station ID, 500m radius) using latitude and longitude coordinates matched locally from `data/stationCoordinates.json`.
+* **Press Event Animation Routing:** All interactive buttons or touch target items route gestures through the custom `usePressAnimation` hook to coordinate haptics and spring animations. For gesture handlers (like `TapGestureHandler`), map touch states (`State.BEGAN`, `State.ACTIVE`, `State.FAILED`, `State.CANCELLED`) to `pressAnim.onPressIn()` / `pressAnim.onPressOut()`.

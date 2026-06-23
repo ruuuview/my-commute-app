@@ -33,6 +33,8 @@ This document tracks execution state, updates, and current tasks.
 
 * **`6f8a6f7` & `c01fe89` — Backend Vercel Fix:** Made `aioapns` import dynamic/optional and added Mongo connection timeouts/lazy connection configurations (`connect=False`) to solve Vercel's serverless `500 FUNCTION_INVOCATION_FAILED` crash on startup.
 * **`DashboardGradient` UI Thread Mutation Fix:** Relocated React State (`setLayers`) and React Ref (`prevSeverityRef`) updates from the Reanimated UI thread worklet callback to the JS thread via `runOnJS(onTransitionComplete)`, avoiding worklet memory violations.
+* **Dashboard Style and Modal Specification Alignment:** Configured the deferred notification and calendar modals to use slide transitions with `overFullScreen` to preserve iOS blurs. Gated the debug reset onboarding button under `__DEV__`. Re-styled the Section Add (+) buttons to 28x28 circular hitboxes with centered white Ionicons add icons, and the Edit/Done pill button to a capsule pill with paddingHorizontal: 14 / paddingVertical: 6, routing both through `usePressAnimation`.
+* **GSD Phase 13 Documentation Alignment:** Created the missing `1-SUMMARY.md` and `VERIFICATION.md` files for Phase 13 under `.gsd/phases/13` to complete the canonical 4-file documentation set.
 
 ---
 
@@ -40,4 +42,3 @@ This document tracks execution state, updates, and current tasks.
 
 1. **Audio Integration (Step 6):** Embed real physical audio thud files for transitions (currently mocked).
 2. **Legal Gating (Step 8):** Add hosted Terms of Service and Privacy Policy agreements.
-3. **Android Touch Targets:** Run Android system tests for keyboard avoidance on inputs.

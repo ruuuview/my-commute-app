@@ -25,6 +25,11 @@ This document captures the immutable constraints and structural design decisions
 * **Theme Overlay:** The foyer (onboarding) uses Option C gradients. The dashboard uses dynamic gradients matching the worst active disruption status (Suspended/Severe -> Red, Minor -> Amber, Good -> Deep Space).
 * **Glassmorphism Tokens:** Dashboard card components apply frosted glass styling (`BlurView` intensity 45 or 80) paired with translucent borders (`rgba(255, 255, 255, 0.18)`).
 * **Layout Height Gating:** LineCards and StationCards are locked to a strict height of **68px** to preserve screen real estate and scroll bounds.
+* **Modal Configuration (iOS Blur Preservation):** Modals that require frosted glass overlays must never use `pageSheet` style, which overrides blurs with solid system colors. They must use `presentationStyle="overFullScreen"`, `transparent={true}`, and `animationType="slide"`.
+* **Standard Touch Target Specifications:**
+  - **Section Add (+) Buttons:** Styled as `28x28` circular hitboxes (`borderRadius: 14`), background `rgba(255, 255, 255, 0.12)`, border `rgba(255, 255, 255, 0.30)` with `borderWidth: 1`, and a centered white `Ionicons` `add` icon (size 16).
+  - **Edit/Done Pills:** Capsule shape (`borderRadius: 16`), background `rgba(255, 255, 255, 0.12)`, border `rgba(255, 255, 255, 0.30)` (`borderWidth: 1`), text `rgba(255, 255, 255, 0.80)`, and dynamic padding (`paddingHorizontal: 14`, `paddingVertical: 6`).
+* **Environment Safeguards:** Debug controls like "Reset Onboarding (Debug)" are strictly gated behind `__DEV__` to keep them hidden from production end-users.
 
 ---
 

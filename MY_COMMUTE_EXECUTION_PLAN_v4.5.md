@@ -1,5 +1,7 @@
 # ARCHITECTURE & EXECUTION PLAN
+
 ## My Commute — Onboarding Architecture & Execution Plan
+
 ### v4.8 — Onboarding Permissions Screen & Calendar Scheduler Service (Phase 11)
 
 ---
@@ -8,6 +10,8 @@
 > This is the **implementation authority document**. It owns all *how* — specific files, component names, code patterns, step-by-step build order. Every step here is sanctioned by a decision in `MY_COMMUTE_MASTER_PLAN.md`. When a step contradicts the Master Plan, the Master Plan wins.
 >
 > **Linked Documents (full suite):**
+>
+>
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
 > - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.5+)
 > - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.5+)
@@ -17,6 +21,7 @@
 ---
 
 ## 1. PROJECT PHILOSOPHY (Rules for the AI)
+
 **High Contrast Onboarding ("The Foyer"):** No fractal glass in the onboarding flow. All onboarding screens utilize the locked **Option C** gradient backdrop (`['#070714', '#0A1128', '#001040', '#000810']` at `[0, 0.38, 0.65, 1]`) with high-contrast, pure solid color pills/elements to give the foyer visual depth and atmosphere.
 
 **The Void:** All background screens must use the tiled `VoidBackground` (photographic film grain at `assets/images/grain.png` tiled at 2–3% opacity over `#0A0A0F` or the Option C gradient container) to prevent OLED black smearing and add physical depth. *(Asset successfully generated and wired.)*
@@ -60,7 +65,7 @@ A full production audit scored the onboarding implementation at **82/100**. All 
 ### Critical Fixes (4)
 
 | # | File | Issue | Resolution |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | `lines.tsx` | `getItemLayout` used raw index instead of `Math.floor(index / 2)` for 2-column grid — wrong scroll offsets | Fixed: row math now divides by `numColumns` |
 | 2 | `usePressAnimation.ts` | `useReducedMotion()` hardcoded to `false` — WCAG 2.3.3 / Apple HIG violation | Fixed: restored real `useReducedMotion()` hook |
 | 3 | `stations.tsx` | `getItemLayout` incompatible with `ListHeaderComponent` — off-by-one crash surface | Fixed: removed `getItemLayout` entirely |
@@ -69,7 +74,7 @@ A full production audit scored the onboarding implementation at **82/100**. All 
 ### Warning Fixes (9)
 
 | # | File | Issue | Resolution |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | `stations.tsx` | Search placeholder hardcoded "471 stations" | Fixed: dynamic from `cleanFullStations.length` |
 | 2 | `stations.tsx` | Fuse.js index rebuilt on every keystroke | Fixed: index memoised separately from search |
 | 3 | `stations.tsx` | MAX_PINS hit → silent error haptic, no UI feedback | Fixed: shake animation + red "Maximum 5 stations" toast in CTA footer |
@@ -93,6 +98,7 @@ Removed unused imports (`withSpring`, `SkeletonCard`, `CARD_VERTICAL_GAP`, `tflC
 ---
 
 ### STEP 0: The Splash Handoff & Font Loading — ✅ COMPLETED
+
 **File:** `app/splash.tsx` (or inside `_layout.tsx`)
 
 **Action:** Add `useFonts()` for SpaceGrotesk and utilize `SplashScreen.preventAutoHideAsync()`. Gate the fade transition on the `store.hydrated` promise and the font load, rather than a hardcoded 600ms timer.
@@ -105,9 +111,11 @@ Removed unused imports (`withSpring`, `SkeletonCard`, `CARD_VERTICAL_GAP`, `tflC
 ---
 
 ### STEP 1: Upgrade the MMKV/Zustand Brain — ✅ COMPLETED
+
 **File:** `store/userPreferencesStore.ts`
 
 **Required State Variables:**
+
 - `hasCompletedOnboarding: boolean` (default: `false`)
 - `onboardingStep: number` (`0`, `1`, or `2` — persists if app is killed mid-flow)
 - `selectedLines: string[]`
@@ -117,6 +125,7 @@ Removed unused imports (`withSpring`, `SkeletonCard`, `CARD_VERTICAL_GAP`, `tflC
 - `entitlementActive: boolean` *(synced from RevenueCat)*
 
 **Required Actions:**
+
 - `completeOnboarding()`: Sets step to 3, sets `hasCompletedOnboarding` to `true`.
 - `toggleLine(id)`: Adds/removes line.
 - `pinStation(station, role)`: Enforces max 5 limit.
@@ -130,6 +139,7 @@ Removed unused imports (`withSpring`, `SkeletonCard`, `CARD_VERTICAL_GAP`, `tflC
 ---
 
 ### STEP 2: The Global "Void" Background — ✅ COMPLETED
+
 **File:** `components/VoidBackground.tsx`
 
 Create a reusable background component. Background color: `#0A0A0F`.
@@ -145,6 +155,7 @@ Absolute fill overlay: `Image` component rendering `assets/images/grain.png`, ti
 ---
 
 ### STEP 3: Screen 1 — The Hook (Line Selection) — ✅ COMPLETED
+
 **File:** `app/onboarding/lines.tsx`
 
 **UI:** Grid of TfL line pills. Pill minimum height must be 52pt.
@@ -161,6 +172,7 @@ Absolute fill overlay: `Image` component rendering `assets/images/grain.png`, ti
 ---
 
 ### STEP 4: Screen 2 — The Refinement (Station Pinning with Fuse.js) — ✅ COMPLETED
+
 **File:** `app/onboarding/stations.tsx`
 
 **Search Engine:** Initialize Fuse.js. Set threshold adaptively to `0.2` and sorting prefix starts-with query boost to provide instantaneous zero-latency local matches.
@@ -174,10 +186,12 @@ Absolute fill overlay: `Image` component rendering `assets/images/grain.png`, ti
 
 ---
 
-### STEP 5: Screen 3 — The Superpowers (Permissions & Personalization) — ⏳ IN PROGRESS
+### STEP 5: Screen 3 — The Superpowers (Permissions & Personalization) — ✅ COMPLETED
+
 **File:** `app/onboarding/permissions.tsx`
 
 **Required Details:**
+
 - Render `ProgressDots` with `total={3} current={3}`.
 - First card requests Calendar permission using `requestCalendarPermission()` (preceded by verbatim disclosure text).
 - Second card requests Notification permission using `requestNotificationPermission()`.
@@ -198,9 +212,11 @@ Absolute fill overlay: `Image` component rendering `assets/images/grain.png`, ti
 ---
 
 ### STEP 6: The Grand Reveal (Cinematic Transition & Routing) — ✅ COMPLETED
+
 **File:** `app/_layout.tsx` (Router Guard)
 
 When `completeOnboarding()` is called, trigger a Reanimated sequence:
+
 1. Fade whole screen to pure Black (`#000000`) for 100ms.
 2. Perform the route swap behind the black screen.
 3. Fade Black out over 400ms, revealing the Dashboard.
@@ -213,9 +229,11 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 ---
 
 ### STEP 7: The Premium Zero State (Safety Net) — ✅ COMPLETED
+
 **File:** `components/MyCommuteDashboard.tsx`
 
 **If `hasContent` is false:**
+
 - Background: Faint `DashboardSkeleton` at 10% opacity.
 - Center Visual: `LivingDot` pulsing radar (ghost white). Add static fallback for `reduceMotion === true`.
 - Copy: *"Ready when you are. Add your first line."*
@@ -229,6 +247,7 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 ---
 
 ### STEP 8: Monetization & Compliance Hardening
+
 **File:** `app/settings/subscription.tsx`
 
 **Restore Purchases (CRITICAL):** Add a visible "Restore Purchases" button calling `Purchases.restorePurchases()`. *(Apple App Store review guideline 3.1.1 will reject the app automatically without this.)*
@@ -241,14 +260,17 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 ---
 
 ### STEP 9: Premium UI/UX Polish & TfL Stale State Detection — ✅ COMPLETED
+
 **Files:** `components/MyCommuteDashboard.tsx`, `hooks/useTflPoller.ts`
 
-**Action 1: GradientBackground Wiring**
+#### Action 1: GradientBackground Wiring
+
 - Positioned as absolute fill under the root dashboard view.
 - Crossfades between status gradients over 800ms using Reanimated `withTiming`.
 - Instant snap when `useReducedMotion()` is active.
 
-**Action 2: Slim Line Pills**
+#### Action 2: Slim Line Pills
+
 - Rewrite all line pill components to single-row layouts.
 - Left edge starts with a 3px color bar (height 20, border radius 2).
 - Line name rendered in 14px SpaceGrotesk SemiBold.
@@ -256,13 +278,15 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 - Status text rendered in 12px SpaceGrotesk Medium, adjacent to an 8px traffic status dot.
 - A subtle chevron indicator (`›`) completes the row on the right.
 
-**Action 3: Premium Sinusoidal Float & Spring Scaling**
+#### Action 3: Premium Sinusoidal Float & Spring Scaling
+
 - `useJiggle`: The edit mode floating motion uses Reanimated `withTiming` over 900ms, swinging between `0` and `1.5deg` in a soft sine curve to avoid hyperactive jitter.
 - `usePressSpring`: Bouncy scale spring (scales down to 0.96 with damping 15/stiffness 300) when tap begins.
 - Plays lightweight tap feedback sound (`assets/audio/tap.wav`) via `expo-audio` + triggers `expo-haptics` light impact feedback.
 - Zustand store selectors wrapped in `useShallow` to prevent excessive re-renders during state mutations.
 
-**Action 4: TfL Stale State Detection & Subheading Alerts**
+#### Action 4: TfL Stale State Detection & Subheading Alerts
+
 - Upgraded the poller hook `useTflPoller` to measure network availability via NetInfo, catch HTTP errors (status >= 500), and track fetch timeouts (8000ms).
 - If `Date.now() - lastSuccessfulFetch > 180000` (3 minutes), set `staleState` to:
   - `'offline'` if there is no internet connection.
@@ -273,26 +297,31 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 
 ---
 
-### STEP 10: Calendar & Notification Background Scheduler — ⏳ IN PROGRESS
+### STEP 10: Calendar & Notification Background Scheduler — ✅ COMPLETED
+
 **Files:** `services/calendarScheduler.ts`, `components/MyCommuteDashboard.tsx`
 
-**Action 1: Calendar Event Fetching & Substring Matching**
+#### Action 1: Calendar Event Fetching & Substring Matching
+
 - Implement `scheduleCalendarCommuteAlerts()` inside `services/calendarScheduler.ts`.
 - Check calendar permission via `expo-calendar`. Fetch events for the next 24 hours.
 - Scan event location strings and substring match them against the 471 supported stations in `FULL_STATIONS` (matching longer names first for precision).
 - If a station matches, identify the user's primary pinned station (origin) from `userPreferencesStore`.
 
-**Action 2: Travel Duration Query & Offline Caching**
+#### Action 2: Travel Duration Query & Offline Caching
+
 - Query Vercel backend `${BACKEND_URL}/api/journey-planner` with `from_station` and `to_station` to fetch transit duration.
 - Cache the duration locally in MMKV (e.g. `commute_duration_${origin}_${dest}`) to ensure offline resiliency.
 - If offline or backend is down, fall back to the MMKV cache, or use a default of 30 minutes. If no station matches, fall back to 30 minutes.
 
-**Action 3: Leave-By Alert Scheduling**
+#### Action 3: Leave-By Alert Scheduling
+
 - Calculate leave-by trigger: `event.startDate - travelTime - 15 minutes` warning.
 - If the alert time is in the future, schedule a local notification using `expo-notifications`: *"Time to leave for {event.title}"* showing the leave-by time and travel duration.
 - Cancel previous notifications before scheduling new ones to prevent duplication.
 
-**Action 4: Dashboard Wiring**
+#### Action 4: Dashboard Wiring
+
 - Import and call `scheduleCalendarCommuteAlerts()` inside a mount `useEffect` on the dashboard (if permissions are active) and on app foreground transitions.
 
 > **↑ Strategy Reference — Master Plan: "The Zero-Open Lifecycle (Dynamic Island)" + "Offline & Stale-Data Architecture"**
@@ -303,7 +332,7 @@ When `completeOnboarding()` is called, trigger a Reanimated sequence:
 ## 4. OPEN ACTION ITEMS (Post v4.6)
 
 | # | Item | Owner | Blocks | Source |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 1 | Source `assets/audio/thud.wav` (un-mock audio and fully integrate) | Founder | Step 6 | Execution Step 6 |
 | 2 | Host Privacy Policy + ToS at `getmycommute.app/legal` | Founder | Step 8 / TestFlight | Master Plan Compliance |
 | 3 | Add loading state skeleton (100% opacity + shimmer) to `MyCommuteDashboard.tsx` | Engineering | Step 7 | UX Plan §5.3 |

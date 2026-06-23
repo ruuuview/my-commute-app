@@ -55,8 +55,9 @@
 - **Jubilee Color:** Coded as `'#C8CDD1'` (brighter silver) globally for contrast.
 - **Overground:** Displayed as one unified card/item ("Overground") but statuses
   are aggregated dynamically from the six individual TfL Overground branches.
+- **Build Scope:** Strictly built and verified for iOS only. Android is out of scope.
 
-## 5. Progress Tracking (Execution Plan v4.4)
+## 5. Progress Tracking (Execution Plan v4.8)
 
 - **[COMPLETED]** Vercel Backend deployment and TfL API integration.
 - **[COMPLETED]** Cinematic `app/splash.tsx` with high-end fade animations.
@@ -74,6 +75,10 @@
   `app/onboarding/permissions.tsx`. (Now bypassed in the 2-screen onboarding).
 - **[COMPLETED]** Step 6: The Grand Reveal (Cinematic Transition & Routing) —
   `app/_layout.tsx` handles the fade to black cinematic swap.
-- **[CURRENT TASK]** Step 7: The Premium Zero State (Safety Net) & Dashboard.
-  - *Logic:* Implement the loading skeletons, offline/stale-data branches,
-    and prepare the core `MyCommuteDashboard` UI.
+- **[COMPLETED]** Step 7: The Premium Zero State (Safety Net) & Dashboard.
+- **[COMPLETED]** Step 9: Premium UI/UX Polish, Stale State Detection, & In-Place Status Portal.
+  - *Logic:* Replaced the bottom-sheet LineStatusModal with an in-place morphing
+    overlay on long-press of LineCards, with custom spring transitions.
+- **[COMPLETED]** Step 10: Calendar Leave-By alert scheduler and sequential foreground/background geofencing.
+- **[COMPLETED]** CodeRabbit Review Style Alignments (Modal overFullScreen, debug onboarding reset gate, 28x28 Section Add (+) buttons with centered Ionicons, and Edit/Done pill button restyling).
+- **[CURRENT TASK]** Final client build preparation and verification (iOS).

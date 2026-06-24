@@ -318,22 +318,23 @@ export function LineCard({
           </Animated.View>
         )}
 
-        {/* Delete badge (edit mode only) */}
-        {isEditing && onDelete && (
-          <Animated.View style={styles.deleteBadgeContainer}>
-            <Pressable
-              style={styles.deleteBadge}
-              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onDelete(line.id);
-              }}
-            >
-              <Text style={styles.deleteIcon}>−</Text>
-            </Pressable>
-          </Animated.View>
-        )}
       </Animated.View>
+
+      {/* Delete badge (edit mode only) */}
+      {isEditing && onDelete && (
+        <Animated.View style={styles.deleteBadgeContainer}>
+          <Pressable
+            style={styles.deleteBadge}
+            hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onDelete(line.id);
+            }}
+          >
+            <Text style={styles.deleteIcon}>−</Text>
+          </Pressable>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -342,6 +343,8 @@ const styles = StyleSheet.create({
   outerCard: {
     flex: 1,
     borderRadius: 16,
+    position: 'relative',
+    overflow: 'visible',
   },
   cardInner: {
     flex: 1,

@@ -554,6 +554,8 @@ const MyCommuteDashboard: React.FC = () => {
                   <NestableDraggableFlatList
                     data={sortedLines}
                     keyExtractor={(item) => item.id}
+                    style={{ overflow: 'visible' }}
+                    contentContainerStyle={{ overflow: 'visible' }}
                     onDragBegin={() => {
                       isDragging.value = true;
                     }}
@@ -636,6 +638,8 @@ const MyCommuteDashboard: React.FC = () => {
                     <NestableDraggableFlatList
                       data={selectedStations}
                       keyExtractor={(item) => item.id}
+                      style={{ overflow: 'visible' }}
+                      contentContainerStyle={{ overflow: 'visible' }}
                       onDragBegin={() => {
                         isDragging.value = true;
                       }}

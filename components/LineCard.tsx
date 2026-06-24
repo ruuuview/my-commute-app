@@ -164,7 +164,7 @@ export function LineCard({
     const range = maxH - minH;
     const factor = range > 0 ? Math.max(0, Math.min(1, (h - minH) / range)) : 0;
 
-    const collapsedHeight = 20;
+    const collapsedHeight = isSlim ? 20 : 36;
     const expandedHeight = Math.max(8, h - 28);
     const heightVal = collapsedHeight + (expandedHeight - collapsedHeight) * factor;
 
@@ -385,7 +385,13 @@ export function LineCard({
           {isExpanded ? (
             renderExpandedContent()
           ) : (
-            <View style={[styles.cardContentSingleRow, { paddingLeft: cardPaddingLeft }]}>
+            <View
+              style={[
+                isSlim ? styles.cardContentSingleRow : styles.cardContentDoubleRow,
+                { paddingLeft: cardPaddingLeft },
+                mode === 'select' && selected && { paddingRight: 40 }
+              ]}
+            >
               <Text
                 style={[styles.lineName, { fontSize: lineNameFontSize, fontFamily: lineNameFontFamily }]}
                 numberOfLines={1}
@@ -394,32 +400,47 @@ export function LineCard({
                 {line.name}
               </Text>
 
-              <View style={styles.flexSpacer} />
-
-              <View style={[styles.statusSubRowSingleRow, mode === 'select' && selected && { marginRight: 32 }]}>
-                {statusType === 'loading' ? (
-                  <StatusSkeleton />
-                ) : (
-                  <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                    {mode === 'display' ? (
-                      <>
-                        <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
-                          {STATUS_SHORT[statusLabel] || statusLabel}
-                        </Text>
-                        <StatusBezel statusType={statusType} />
-                      </>
+              {isSlim ? (
+                <>
+                  <View style={styles.flexSpacer} />
+                  <View style={[styles.statusSubRowSingleRow, mode === 'select' && selected && { marginRight: 32 }]}>
+                    {statusType === 'loading' ? (
+                      <StatusSkeleton />
                     ) : (
-                      <>
-                        <StatusBezel statusType={statusType} />
-                        <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
-                          {STATUS_SHORT[statusLabel] || statusLabel}
-                        </Text>
-                      </>
+                      <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
+                        {mode === 'display' ? (
+                          <>
+                            <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
+                              {STATUS_SHORT[statusLabel] || statusLabel}
+                            </Text>
+                            <StatusBezel statusType={statusType} />
+                          </>
+                        ) : (
+                          <>
+                            <StatusBezel statusType={statusType} />
+                            <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
+                              {STATUS_SHORT[statusLabel] || statusLabel}
+                            </Text>
+                          </>
+                        )}
+                      </Animated.View>
                     )}
-                  </Animated.View>
-                )}
-              </View>
-
+                  </View>
+                </>
+              ) : (
+                <View style={styles.statusSubRow}>
+                  {statusType === 'loading' ? (
+                    <StatusSkeleton />
+                  ) : (
+                    <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
+                      <StatusBezel statusType={statusType} />
+                      <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
+                        {STATUS_SHORT[statusLabel] || statusLabel}
+                      </Text>
+                    </Animated.View>
+                  )}
+                </View>
+              )}
             </View>
           )}
         </Pressable>
@@ -516,6 +537,14 @@ const styles = StyleSheet.create({
     paddingLeft: 30,
     paddingRight: 16,
   },
+  cardContentDoubleRow: {
+    flex: 1,
+    height: '100%',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingRight: 16,
+  },
   flexSpacer: {
     flex: 1,
   },
@@ -530,7 +559,6 @@ const styles = StyleSheet.create({
   },
   statusSubRow: {
     marginTop: 4,
-    height: 16,
     justifyContent: 'center',
   },
   statusRowLayout: {

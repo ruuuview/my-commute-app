@@ -69,23 +69,20 @@ export default function LinesScreen() {
 
   // Dynamic card height calculation to fill viewport on all devices with zero scroll
   const dynamicCardHeight = React.useMemo(() => {
-    // headerHeight: dots (10) + title (32) + padding/margins (~80px total)
-    const headerHeight = insets.top + 4 + 88;
-    // footerHeight: CTA button (52) + margin/padding (~52px total)
-    const footerHeight = Math.max(insets.bottom, 16) + 52;
-    // safetyMargin: 32px safety buffer to account for FlatList top padding (12px) 
-    // and layout flex tolerances on smaller iOS devices (e.g. iPhone SE).
-    const safetyMargin = 32;
-    const availableHeight = screenHeight - headerHeight - footerHeight - safetyMargin;
+    const actualHeaderHeight = insets.top + 58;
+    const actualFooterHeight = Math.max(insets.bottom, 16) + 66; // paddingTop (14) + cta height (52)
+    const paddingOffset = 24; // FlatList paddingTop (12) + paddingBottom above footer (12)
+    const availableHeight = screenHeight - actualHeaderHeight - actualFooterHeight - paddingOffset;
 
-    const gap = 8;
+    const gap = 12;
     const rows = 7;
-    // Calculate and clamp between 48px and 54px
-    return Math.max(48, Math.min(54, (availableHeight - (rows - 1) * gap) / rows));
+    // Calculate and clamp between 56px and 84px
+    return Math.max(56, Math.min(84, (availableHeight - (rows - 1) * gap) / rows));
   }, [screenHeight, insets]);
 
   const isScrollable = dynamicCardHeight <= 56;
-  const listPaddingBottom = isScrollable ? insets.bottom + 110 : 12;
+  const footerHeight = Math.max(insets.bottom, 16) + 66;
+  const listPaddingBottom = footerHeight + 12;
 
   // Dynamic card width for paired 2-column layouts
   const cardWidth = (width - SCREEN_PADDING * 2 - COLUMN_GAP) / 2;
@@ -388,8 +385,8 @@ export default function LinesScreen() {
           renderItem={renderItem}
           keyExtractor={item => item.id}
           numColumns={2}
-          columnWrapperStyle={{ gap: 8 }}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          columnWrapperStyle={{ gap: 12 }}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           initialNumToRender={14}
           removeClippedSubviews={true}
           contentContainerStyle={[

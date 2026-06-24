@@ -40,7 +40,7 @@
 
 ### UI/UX Philosophy (The Foyer & The Void)
 
-- **Card Heights:** Standard onboarding modules are sized for optimal breathing room: `LineCard` is dynamically scaled between 40px and 48px, while `StationCard` has a 74px minHeight.
+- **Card Heights:** Standard onboarding modules are sized for optimal breathing room: `LineCard` is dynamically scaled between 56px and 84px on onboarding, 68px on the edit sheets, and 38px on the dashboard. `StationCard` has a 74px minHeight.
 - **Accent Bars:** Vertically centered (16px top/bottom offset for 36px bar
   height).
 - **Headers:** Step indicators and setup subtitles are aligned inline in a row

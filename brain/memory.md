@@ -51,7 +51,14 @@ This document tracks execution state, updates, and current tasks.
 
 ---
 
-## 4. Pending Roadmap Tasks
+## 4. Recent Commits & Changes (Jun 24, 2026)
+
+* **Onboarding Line Card Height Restoration:** Restored `ONBOARDING_CARD_HEIGHT` to `68` in `layout.ts` and restored the `dynamicCardHeight` clamp range in `app/onboarding/lines.tsx` to clamp between `56` and `84` (originally reduced to 48-54 in a previous style pass), bringing the onboarding line cards back to their premium original size.
+
+---
+
+## 5. Pending Roadmap Tasks
 
 1. **Audio Integration (Step 6):** Embed real physical audio thud files for transitions (currently mocked).
 2. **Legal Gating (Step 8):** Add hosted Terms of Service and Privacy Policy agreements.
+

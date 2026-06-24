@@ -24,7 +24,7 @@ This document captures the immutable constraints and structural design decisions
 
 * **Theme Overlay:** The foyer (onboarding) uses Option C gradients. The dashboard uses dynamic gradients matching the worst active disruption status (Suspended/Severe -> Red, Minor -> Amber, Good -> Deep Space).
 * **Glassmorphism Tokens:** Dashboard card components apply frosted glass styling (`BlurView` intensity 45 or 80) paired with translucent borders (`rgba(255, 255, 255, 0.18)`).
-* **Layout Height Gating:** LineCards are locked to a strict height of **48px** and StationCards to **68px** (minHeight / default collapsed state) to preserve screen real estate and scroll bounds.
+* **Layout Height Gating:** LineCards are locked to a strict height of **38px** on the dashboard and **68px** (default collapsed state / `ONBOARDING_CARD_HEIGHT` baseline) on onboarding/management screens, and StationCards to **68px** to preserve screen real estate and scroll bounds.
 * **Chevron-Free Line Layout:** LineCards in display mode do not render right-pointing chevron indicators (`›`) to maintain a cleaner, minimal visual design.
 * **Modal Configuration (iOS Blur Preservation):** Modals that require frosted glass overlays must never use `pageSheet` style, which overrides blurs with solid system colors. They must use `presentationStyle="overFullScreen"`, `transparent={true}`, and `animationType="slide"`.
 * **Standard Touch Target Specifications:**

@@ -67,6 +67,7 @@ This document tracks execution state, updates, and current tasks.
     2. **Flattened `handleLongPress`**: Removed redundant local `isEditing` checks, relying entirely on the dashboard-injected gesture router.
     3. **Removed `playSound` inside display mode**: Avoids errors throwing silently from the stripped sound helper.
   * **Fixed a TypeError crash in `LineDetailModal.tsx`**: Replaced the invalid `'close_btn'` preset key with `'back_btn'` in the `usePressAnimation` hook call, resolving the runtime scale animation crash.
+  * **Fixed Widget and Modal Severity Mappings**: Aligned TfL Unified API severity code `9` (Minor Delays) with the `.minor` (orange/amber) status type across **[CommuteWidget.swift](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/ios/CommuteWidget/CommuteWidget.swift)** and **[ManageLinesModal.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/ManageLinesModal.tsx)**, resolving the bug where minor delays incorrectly displayed in red (severe/suspended).
 
 ---
 

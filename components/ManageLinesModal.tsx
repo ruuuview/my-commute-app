@@ -52,8 +52,8 @@ type StatusType = 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loadi
 const getLineStatus = (severity: number, desc: string) => {
   const d = desc.toLowerCase();
   if (severity === 10 || severity === 18)       return { statusType: 'good' as const,      label: desc || 'Good service' };
-  if (severity === 14 || severity === 19) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-  if (severity === 9 || severity === 6 || severity === 7 || severity === 8 || severity === 17) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+  if (severity === 9 || severity === 14 || severity === 19) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+  if (severity === 6 || severity === 7 || severity === 8 || severity === 17) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
   if (severity === 0 || severity === 1 || severity === 2 || severity === 3 || severity === 4 || severity === 5 || severity === 11 || severity === 16 || severity === 20) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
   
   if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };

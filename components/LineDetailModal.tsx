@@ -127,7 +127,7 @@ export function LineDetailModal({
       cardScale.value = withTiming(0.92, { duration: 160, easing: Easing.in(Easing.poly(2)) });
       cardOpacity.value = withTiming(0, { duration: 160 });
     }
-  }, [visible]);
+  }, [visible, cardScale, cardOpacity]);
 
   const cardAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: cardScale.value }],

@@ -28,13 +28,13 @@ struct CommuteLine: Identifiable, Codable {
 
     var level: SeverityLevel {
         switch severity {
-        case 10:
+        case 10, 18:
             return .good
-        case 9, 6:
-            return .severe
-        case 8, 7, 5:
+        case 9, 14, 19:
             return .minor
-        case 4, 3, 20, 0, 11:
+        case 6, 7, 8, 17:
+            return .severe
+        case 0, 1, 2, 3, 4, 5, 11, 16, 20:
             return .suspended
         default:
             return .suspended
@@ -232,11 +232,11 @@ struct CommuteProvider: TimelineProvider {
 
     private func getSeverityRank(_ severity: Int) -> Int {
         switch severity {
-        case 10:
+        case 10, 18:
             return 0
-        case 9, 8, 7, 5:
+        case 9, 14, 19:
             return 1
-        case 6:
+        case 6, 7, 8, 17:
             return 2
         default:
             return 3

@@ -113,7 +113,7 @@ export function LineDetailModal({
   statusType,
   statusLabel,
 }: LineDetailModalProps) {
-  const closePressAnim = usePressAnimation('close_btn', false);
+  const closePressAnim = usePressAnimation('back_btn', false);
 
   // ── Spring-driven entry animation ──
   const cardScale = useSharedValue(0.92);

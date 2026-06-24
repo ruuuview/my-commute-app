@@ -66,6 +66,7 @@ This document tracks execution state, updates, and current tasks.
     1. **Raised `delayLongPress` to 450ms**: Prevents collisions and race conditions where drag actions triggered root dashboard edit-mode toggles.
     2. **Flattened `handleLongPress`**: Removed redundant local `isEditing` checks, relying entirely on the dashboard-injected gesture router.
     3. **Removed `playSound` inside display mode**: Avoids errors throwing silently from the stripped sound helper.
+  * **Fixed a TypeError crash in `LineDetailModal.tsx`**: Replaced the invalid `'close_btn'` preset key with `'back_btn'` in the `usePressAnimation` hook call, resolving the runtime scale animation crash.
 
 ---
 

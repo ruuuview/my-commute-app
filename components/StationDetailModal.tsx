@@ -66,6 +66,16 @@ export function StationDetailModal({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [freshnessString, setFreshnessString] = useState('Live');
 
+  // Shift accessibility focus to station name header
+  const focusOnTitle = React.useCallback(() => {
+    if (titleRef.current) {
+      const reactTag = findNodeHandle(titleRef.current);
+      if (reactTag) {
+        AccessibilityInfo.setAccessibilityFocus(reactTag);
+      }
+    }
+  }, []);
+
   // Sync snapshot cache and trigger haptic scaling feedback
   useEffect(() => {
     if (visible) {
@@ -86,17 +96,7 @@ export function StationDetailModal({
       cardOpacity.value = withTiming(0, { duration: 160 });
       translateY.value = 0; // reset drag
     }
-  }, [visible, stationId]);
-
-  // Shift accessibility focus to station name header
-  const focusOnTitle = () => {
-    if (titleRef.current) {
-      const reactTag = findNodeHandle(titleRef.current);
-      if (reactTag) {
-        AccessibilityInfo.setAccessibilityFocus(reactTag);
-      }
-    }
-  };
+  }, [visible, stationId, cardOpacity, cardScale, translateY, focusOnTitle]);
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -253,7 +253,7 @@ export function StationDetailModal({
 
   // Active snapshot / live stream routing
   const activeData = freezeUpdates ? snapshotData : departuresFromStore;
-  const cachedLines = activeData?.lines || [];
+  const cachedLines = useMemo(() => activeData?.lines || [], [activeData]);
 
   // Pinned station information
   const stationInfo = pinnedStations.find(s => s.id === stationId);
@@ -266,7 +266,7 @@ export function StationDetailModal({
   const sortedLines = useMemo(() => {
     if (!showAllDepartures) {
       return selectedLines
-        .map(lineId => cachedLines.find(l => l.lineId === lineId))
+        .map(lineId => cachedLines.find((l: StationLineData) => l.lineId === lineId))
         .filter(Boolean) as StationLineData[];
     } else {
       return [...cachedLines].sort((a, b) => {
@@ -289,8 +289,8 @@ export function StationDetailModal({
   }, [stationInfo]);
 
   // Aligned empty states checks
-  const hasDepartures = sortedLines.some(l => l.arrivals.length > 0);
-  const isAnyLineNightTube = cachedLines.some(l => l.isNightTube);
+  const hasDepartures = sortedLines.some((l: StationLineData) => l.arrivals.length > 0);
+  const isAnyLineNightTube = cachedLines.some((l: StationLineData) => l.isNightTube);
   const emptyStateMessage = isAnyLineNightTube
     ? 'Night Tube active — service resuming shortly.'
     : 'Station service currently suspended.';
@@ -442,7 +442,7 @@ export function StationDetailModal({
                         <Text style={styles.suspendedText}>No arrivals currently running</Text>
                       ) : (
                         <View style={styles.arrivalsList}>
-                          {line.arrivals.map((arrival, arrIdx) => (
+                          {line.arrivals.map((arrival: ArrivalRow, arrIdx: number) => (
                             <View key={`${arrival.destination}-${arrIdx}`} style={styles.arrivalRow}>
                               <View style={styles.arrivalInfo}>
                                 <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail">

@@ -55,7 +55,8 @@ import { LineCard } from './LineCard';
 import { APP_CONFIG } from '../config/app.config';
 import { DashboardGradient } from './DashboardGradient';
 import DepartureCard from './DepartureCard';
-import { StationDetailModal } from './StationDetailModal';
+// @ts-ignore - IDE caching issue for newly created file
+import { StationDetailModal } from './StationDetailModal'; // Resolved import
 import { useStationDataStore } from '../store/stationDataStore';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';

@@ -54,6 +54,18 @@ This document tracks execution state, updates, and current tasks.
 ## 4. Recent Commits & Changes (Jun 24, 2026)
 
 * **Onboarding Line Card Height Restoration:** Restored `ONBOARDING_CARD_HEIGHT` to `68` in `layout.ts` and restored the `dynamicCardHeight` clamp range in `app/onboarding/lines.tsx` to clamp between `56` and `84` (originally reduced to 48-54 in a previous style pass), bringing the onboarding line cards back to their premium original size.
+* **Line Interaction & Detail Modal Redesign:**
+  * Removed the obsolete in-place card expansion from `LineCard.tsx` to prevent layouts shifting and colliding with drag-to-reorder.
+  * Rewrote `LineDetailModal.tsx` to feature the premium 3-tier layout, spring-driven scale entry animations (0.92 → 1.0), and token-based status mappings.
+  * Re-routed the status detail modal activation from single-tap `onPress` to `onLongPress` (with medium haptics) on `LineCard` inside `MyCommuteDashboard.tsx` (preserving the `drag` gesture in edit mode).
+  * Fixed three dashboard bugs in `MyCommuteDashboard.tsx`:
+    1. **Dashboard scroll freeze**: Added `onRelease` handler to flatlists to reset `isDragging.value` to `false` when gesture completes without a full drag. Set `onLongPress` on `LineCard` conditionally based on `isEditing`.
+    2. **Backdrop touch absorption**: Replaced root `Pressable` gesture callbacks (`onLongPress` and `delayLongPress`) with a permanent `backgroundLayer` (`zIndex: 0`) that handles taps to dismiss edit mode and long presses to enter edit mode, completely avoiding timing conflicts with card long-press handlers.
+    3. **Card misalignment on exit**: Removed `LayoutAnimation` triggers inside `handleEdit` which conflicted with `StaggeredCardWrapper` Reanimated springs.
+  * Fixed three `LineCard.tsx` bugs to align with dashboard gesture timing and sound systems:
+    1. **Raised `delayLongPress` to 450ms**: Prevents collisions and race conditions where drag actions triggered root dashboard edit-mode toggles.
+    2. **Flattened `handleLongPress`**: Removed redundant local `isEditing` checks, relying entirely on the dashboard-injected gesture router.
+    3. **Removed `playSound` inside display mode**: Avoids errors throwing silently from the stripped sound helper.
 
 ---
 
@@ -61,4 +73,3 @@ This document tracks execution state, updates, and current tasks.
 
 1. **Audio Integration (Step 6):** Embed real physical audio thud files for transitions (currently mocked).
 2. **Legal Gating (Step 8):** Add hosted Terms of Service and Privacy Policy agreements.
-

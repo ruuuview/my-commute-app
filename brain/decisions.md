@@ -58,3 +58,12 @@ This document captures the immutable constraints and structural design decisions
 
 * **Widget API Dependency:** Lock screen widget families (`accessoryCircular`, `accessoryRectangular`, and `accessoryInline`) require iOS 16.0+ APIs. Building with any lower deployment target causes Xcode build failures.
 * **Unified Version Locks:** The minimum iOS deployment target (`IPHONEOS_DEPLOYMENT_TARGET`) across all Xcode targets (`MyCommute` main app, `CommuteWidgetExtension`), project-level settings, and CocoaPods configurations is locked to **16.0**.
+
+---
+
+## 8. Professional Design & Visual Alignment Standards
+
+* **Attention to Detail:** Absolute mathematical alignment of card layouts (e.g. left vertical accent bars, text rows, status bezel dots) is mandatory. Visual elements must never look disjointed, shifted, or clipped.
+* **Text Spacing & Badges:** Reserved horizontal buffers must be implemented when selection checkmarks or delete badges are active to prevent text from colliding, overlapping, or truncating near the edge.
+* **Full Screen viewport scaling:** Onboarding screens or select grids must utilize precise viewport equations (subtracting dynamic header offsets, absolute footer wraps, and flatlist paddings) to scale card heights so they fill the screen perfectly with exactly zero scroll on any device.
+* **Layout Context Gating:** Conditionally switch layout geometries based on card heights: large onboarding/modal screens should keep status details vertically stacked under line names (double-row) to avoid clipping, while compact dashboard rows should render slim single-rows.

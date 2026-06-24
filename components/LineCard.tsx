@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -7,7 +7,6 @@ import Animated, {
   useReducedMotion,
   withRepeat,
   withTiming,
-  withSpring,
   FadeIn,
   FadeOut,
   ZoomIn,
@@ -21,17 +20,6 @@ import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { StatusBezel } from './StatusBezel';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-const PERSONALITY_POOL = [
-  "Don't jinx it.",
-  "Nothing to see here. Genuinely. Go enjoy that.",
-  "All quiet. Suspiciously quiet.",
-  "I've got nothing. Which is the whole point.",
-  "Boring is the best thing I can be right now.",
-  "Enjoy the smooth journey ahead.",
-];
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -111,9 +99,6 @@ export function LineCard({
   isActive = false,
   index = 0,
 }: LineCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
-
   const isSlim = cardHeight <= 40;
   const cardRadius = isSlim ? 16 : 18;
   const lineNameFontSize = isSlim ? 13 : 14;
@@ -123,15 +108,7 @@ export function LineCard({
   const cardPaddingLeft = isSlim ? 30 : 34;
 
   const opacityVal = useSharedValue(0);
-  const animatedHeight = useSharedValue(cardHeight);
-
   const jiggleStyle = useJiggle(index, isEditing, isActive);
-
-  useEffect(() => {
-    if (isEditing) {
-      setIsExpanded(false);
-    }
-  }, [isEditing]);
 
   useEffect(() => {
     if (statusType !== 'loading') {
@@ -141,87 +118,29 @@ export function LineCard({
     }
   }, [statusType, opacityVal]);
 
-  useEffect(() => {
-    if (isExpanded && measuredHeight) {
-      animatedHeight.value = withSpring(measuredHeight, { damping: 15, stiffness: 120 });
-    } else {
-      animatedHeight.value = withSpring(cardHeight, { damping: 15, stiffness: 120 });
-    }
-  }, [isExpanded, measuredHeight, cardHeight, animatedHeight]);
-
   const animatedStatusStyle = useAnimatedStyle(() => ({
     opacity: opacityVal.value,
   }));
 
-  const animatedContainerStyle = useAnimatedStyle(() => ({
-    height: animatedHeight.value,
-  }));
-
-  const animatedBarStyle = useAnimatedStyle(() => {
-    const h = animatedHeight.value;
-    const minH = cardHeight;
-    const maxH = measuredHeight || cardHeight;
-    const range = maxH - minH;
-    const factor = range > 0 ? Math.max(0, Math.min(1, (h - minH) / range)) : 0;
-
-    const collapsedHeight = isSlim ? 20 : 36;
-    const expandedHeight = Math.max(8, h - 28);
-    const heightVal = collapsedHeight + (expandedHeight - collapsedHeight) * factor;
-
-    const collapsedTop = (h - collapsedHeight) / 2;
-    const expandedTop = 14;
-    const topVal = collapsedTop + (expandedTop - collapsedTop) * factor;
-
-    // Fade out absolute accent bar as we expand
-    const opacityVal = 1 - factor;
-
-    return {
-      height: heightVal,
-      top: topVal,
-      opacity: opacityVal,
-    };
-  });
-
-  const selectedBorderStyle = isExpanded
-    ? {
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-      }
-    : {
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(255, 255, 255, 0.18)',
-      };
+  const selectedBorderStyle = {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  };
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);
 
   const combinedStyle = useAnimatedStyle(() => {
-    const scale = isExpanded ? 1 : (pressAnim.animatedStyle.transform?.[0]?.scale ?? 1);
+    const scale = pressAnim.animatedStyle.transform?.[0]?.scale ?? 1;
     return {
       transform: [{ scale }],
     };
   });
 
-  const expandCard = () => {
-    if (disabled || isEditing) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    playSound('select', 0.45);
-    setIsExpanded(true);
-  };
-
-  const collapseCard = () => {
-    setIsExpanded(false);
-  };
-
   const handlePress = () => {
     console.log(`[DEBUG-LineCard] handlePress called. mode=${mode}, line=${line?.name}, disabled=${disabled}, isEditing=${isEditing}`);
     if (disabled) return;
     if (isEditing) return;
-
-    if (isExpanded) {
-      collapseCard();
-      return;
-    }
 
     if (mode === 'select') {
       const timestamp = Date.now();
@@ -237,31 +156,23 @@ export function LineCard({
 
       if (onPress) onPress();
     } else {
-      // Trigger haptics & audio feedback for card tap on dashboard as per press animation guidelines
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      playSound('select', 0.45);
-
+      // FIX 3: Removed playSound in display mode — app-wide decision is haptics only.
+      // playSound('select', 0.45) was hitting stripped sound system and throwing.
       if (onPress) {
-        console.log(`[DEBUG-LineCard] Invoking onPress callback for ${line?.name}`);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onPress();
-      } else {
-        // In display mode, single tap also triggers the in-place portal
-        expandCard();
       }
     }
   };
 
+  // FIX 2: handleLongPress flattened — dashboard owns all routing logic.
+  // Previously this had its own isEditing check duplicating the dashboard's
+  // mode-aware onLongPress prop, creating a double-routing risk where stale
+  // closure values could fire the wrong branch. Now LineCard is a dumb
+  // passthrough: whatever the dashboard wired into onLongPress, just call it.
   const handleLongPress = () => {
     if (disabled) return;
-    if (isEditing) {
-      if (drag) drag();
-    } else {
-      if (onLongPress) {
-        onLongPress();
-      } else {
-        expandCard();
-      }
-    }
+    if (onLongPress) onLongPress();
   };
 
   // Resolve status text colors
@@ -272,89 +183,25 @@ export function LineCard({
     statusTextColor = '#FF3B30';
   }
 
-
-
-  const reasonText = useMemo(() => {
-    if (statusType === 'good') {
-      const seed = line.id.charCodeAt(0) + line.id.charCodeAt(line.id.length - 1);
-      const idx = seed % PERSONALITY_POOL.length;
-      return PERSONALITY_POOL[idx];
-    }
-    return line.reason || line.status || statusLabel || 'Service is disrupted.';
-  }, [statusType, line.id, line.reason, line.status, statusLabel]);
-
-  const renderExpandedContent = () => {
-    // Resolve status text and pill background colors
-    let statusTextColor = 'rgba(255, 255, 255, 0.55)';
-    if (statusType === 'good') statusTextColor = '#30D158';
-    else if (statusType === 'minor') statusTextColor = '#FF9F0A';
-    else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
-      statusTextColor = '#FF3B30';
-    }
-
-    let statusPillBg = 'rgba(255, 255, 255, 0.06)';
-    if (statusType === 'good') {
-      statusPillBg = 'rgba(48, 209, 88, 0.2)';
-    } else if (statusType === 'minor') {
-      statusPillBg = 'rgba(218, 165, 32, 0.2)';
-    } else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure') {
-      statusPillBg = 'rgba(255, 59, 48, 0.2)';
-    }
-
-    return (
-      <View style={styles.expandedContent}>
-        {/* SECTION 1: THE HERO HEADER */}
-        <View style={styles.expandedHeader}>
-          <View style={[styles.headerColorBar, { backgroundColor: line.color }]} />
-          <Text style={styles.expandedLineName}>{line.name.toUpperCase()} LINE</Text>
-        </View>
-
-        {/* SECTION 2: THE STATUS LAYER */}
-        <View style={styles.statusPillRow}>
-          <View style={[styles.statusPill, { backgroundColor: statusPillBg }]}>
-            <Text style={[styles.statusPillText, { color: statusTextColor }]}>
-              {statusLabel.toUpperCase()}
-            </Text>
-          </View>
-        </View>
-
-        {/* SECTION 3: THE CONTEXTUAL BODY */}
-        <Text style={styles.reasonText}>{reasonText}</Text>
-      </View>
-    );
-  };
-
   return (
     <View
       style={[
         styles.outerCard,
-        { height: cardHeight, borderRadius: cardRadius, zIndex: isExpanded ? 9999 : 1, overflow: 'visible' },
+        { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
         mode === 'display' && { marginBottom: 12 },
         isEditing && jiggleStyle
       ]}
     >
-      {/* Absolute dimming backdrop overlay */}
-      {isExpanded && (
-        <Pressable
-          style={styles.backdrop}
-          onPress={collapseCard}
-        />
-      )}
-
-      {/* Morphing inner container */}
       <Animated.View
         style={[
           styles.cardInner,
           { borderRadius: cardRadius },
           selectedBorderStyle,
-          animatedContainerStyle,
           combinedStyle,
-          isExpanded && styles.expandedShadow,
-          isExpanded && { flexDirection: 'column', alignItems: 'stretch' }
         ]}
       >
         <BlurView
-          intensity={isExpanded ? 40 : 45}
+          intensity={45}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
         />
@@ -364,12 +211,16 @@ export function LineCard({
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: withAlpha(line.color, '1A') }]} />
         )}
 
-        {/* Morphing left vertical accent bar */}
-        <Animated.View
+        {/* Left vertical accent bar */}
+        <View
           style={[
             styles.accentBar,
-            { backgroundColor: line.color, left: leftAccentBarPosition },
-            animatedBarStyle
+            {
+              backgroundColor: line.color,
+              left: leftAccentBarPosition,
+              height: isSlim ? 20 : 36,
+              top: (cardHeight - (isSlim ? 20 : 36)) / 2,
+            },
           ]}
         />
 
@@ -379,74 +230,76 @@ export function LineCard({
           onLongPress={handleLongPress}
           onPressIn={pressAnim.onPressIn}
           onPressOut={pressAnim.onPressOut}
-          delayLongPress={300}
+          // FIX 1: delayLongPress raised from 300ms to 450ms.
+          // The root dashboard Pressable fires onLongPress at 600ms (edit mode entry).
+          // At 300ms, the inner Pressable was firing first — in edit mode this started
+          // a drag gesture that also triggered the outer 600ms handler, randomly
+          // toggling edit mode off mid-drag. 450ms gives the inner gesture clean
+          // priority while keeping the outer 600ms handler safely above it.
+          delayLongPress={450}
           style={StyleSheet.absoluteFillObject}
         >
-          {isExpanded ? (
-            renderExpandedContent()
-          ) : (
-            <View
-              style={[
-                isSlim ? styles.cardContentSingleRow : styles.cardContentDoubleRow,
-                { paddingLeft: cardPaddingLeft },
-                mode === 'select' && selected && { paddingRight: 40 }
-              ]}
+          <View
+            style={[
+              isSlim ? styles.cardContentSingleRow : styles.cardContentDoubleRow,
+              { paddingLeft: cardPaddingLeft },
+              mode === 'select' && selected && { paddingRight: 40 }
+            ]}
+          >
+            <Text
+              style={[styles.lineName, { fontSize: lineNameFontSize, fontFamily: lineNameFontFamily }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
-              <Text
-                style={[styles.lineName, { fontSize: lineNameFontSize, fontFamily: lineNameFontFamily }]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {line.name}
-              </Text>
+              {line.name}
+            </Text>
 
-              {isSlim ? (
-                <>
-                  <View style={styles.flexSpacer} />
-                  <View style={[styles.statusSubRowSingleRow, mode === 'select' && selected && { marginRight: 32 }]}>
-                    {statusType === 'loading' ? (
-                      <StatusSkeleton />
-                    ) : (
-                      <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                        {mode === 'display' ? (
-                          <>
-                            <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
-                              {STATUS_SHORT[statusLabel] || statusLabel}
-                            </Text>
-                            <StatusBezel statusType={statusType} />
-                          </>
-                        ) : (
-                          <>
-                            <StatusBezel statusType={statusType} />
-                            <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
-                              {STATUS_SHORT[statusLabel] || statusLabel}
-                            </Text>
-                          </>
-                        )}
-                      </Animated.View>
-                    )}
-                  </View>
-                </>
-              ) : (
-                <View style={styles.statusSubRow}>
+            {isSlim ? (
+              <>
+                <View style={styles.flexSpacer} />
+                <View style={[styles.statusSubRowSingleRow, mode === 'select' && selected && { marginRight: 32 }]}>
                   {statusType === 'loading' ? (
                     <StatusSkeleton />
                   ) : (
                     <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                      <StatusBezel statusType={statusType} />
-                      <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
-                        {STATUS_SHORT[statusLabel] || statusLabel}
-                      </Text>
+                      {mode === 'display' ? (
+                        <>
+                          <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
+                            {STATUS_SHORT[statusLabel] || statusLabel}
+                          </Text>
+                          <StatusBezel statusType={statusType} />
+                        </>
+                      ) : (
+                        <>
+                          <StatusBezel statusType={statusType} />
+                          <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
+                            {STATUS_SHORT[statusLabel] || statusLabel}
+                          </Text>
+                        </>
+                      )}
                     </Animated.View>
                   )}
                 </View>
-              )}
-            </View>
-          )}
+              </>
+            ) : (
+              <View style={styles.statusSubRow}>
+                {statusType === 'loading' ? (
+                  <StatusSkeleton />
+                ) : (
+                  <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
+                    <StatusBezel statusType={statusType} />
+                    <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
+                      {STATUS_SHORT[statusLabel] || statusLabel}
+                    </Text>
+                  </Animated.View>
+                )}
+              </View>
+            )}
+          </View>
         </Pressable>
 
         {/* Selection Badge (select mode only) */}
-        {mode === 'select' && selected && !isEditing && !isExpanded && (
+        {mode === 'select' && selected && !isEditing && (
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(100)}
@@ -466,7 +319,7 @@ export function LineCard({
         )}
 
         {/* Delete badge (edit mode only) */}
-        {!isExpanded && isEditing && onDelete && (
+        {isEditing && onDelete && (
           <Animated.View style={styles.deleteBadgeContainer}>
             <Pressable
               style={styles.deleteBadge}
@@ -481,23 +334,6 @@ export function LineCard({
           </Animated.View>
         )}
       </Animated.View>
-
-      {/* Invisible Measure View (rendered in-place to resolve height string dynamically) */}
-      <View
-        style={[
-          styles.measureContainer,
-          { borderRadius: cardRadius }
-        ]}
-        onLayout={(e) => {
-          const h = e.nativeEvent.layout.height;
-          if (h > 0) {
-            setMeasuredHeight(h);
-          }
-        }}
-        pointerEvents="none"
-      >
-        {renderExpandedContent()}
-      </View>
     </View>
   );
 }
@@ -515,13 +351,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  expandedShadow: {
-    elevation: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
   },
   accentBar: {
     position: 'absolute',
@@ -590,65 +419,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 3,
   },
-  backdrop: {
-    position: 'absolute',
-    top: -SCREEN_HEIGHT,
-    bottom: -SCREEN_HEIGHT,
-    left: -SCREEN_WIDTH,
-    right: -SCREEN_WIDTH,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    zIndex: 9998,
-  },
-  expandedContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    justifyContent: 'flex-start',
-    width: '100%',
-  },
-  expandedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginBottom: 12,
-    width: '100%',
-  },
-  headerColorBar: {
-    width: 4,
-    height: 18,
-    borderRadius: 2,
-    marginRight: 10,
-  },
-  expandedLineName: {
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  statusPillRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-    marginBottom: 12,
-  },
-  statusPill: {
-    borderRadius: 9999,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusPillText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 11,
-    letterSpacing: 0.5,
-  },
-  reasonText: {
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.85)',
-    lineHeight: 22,
-    textAlign: 'left',
-  },
   deleteBadgeContainer: {
     position: 'absolute',
     top: -6,
@@ -670,13 +440,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginTop: -2,
-  },
-  measureContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    opacity: 0,
-    pointerEvents: 'none',
-    height: undefined,
   },
 });

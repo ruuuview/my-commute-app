@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -14,36 +14,14 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { LINE_COLORS } from '../constants/lineColors';
-import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { normaliseLineId } from '../utils/normaliseLineId';
+import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { useJiggle } from '../hooks/useJiggle';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { APP_CONFIG } from '../config/app.config';
+import { useStationDataStore } from '../store/stationDataStore';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
 const TEXT_GHOST = 'rgba(255,255,255,0.3)';
-const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
-
-const cleanPlatformName = (platform: string): string => {
-  if (!platform) return '';
-  const match = platform.match(/Platform\s+[A-Za-z0-9]+/i);
-  if (match) {
-    return match[0].charAt(0).toUpperCase() + match[0].slice(1);
-  }
-  return platform;
-};
-
-// ─── Interfaces ──────────────────────────────────────────────────────────────
-interface Arrival {
-  lineId: string;
-  lineName: string;
-  lineColor: string;
-  minutesAway: number;
-  destination: string;
-  expectedArrival: string;
-  platform?: string;
-}
 
 interface DepartureCardProps {
   stationId: string;
@@ -51,6 +29,7 @@ interface DepartureCardProps {
   isEditing?: boolean;
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
+  onPress?: () => void;
   defaultExpanded?: boolean;
   hideCard?: boolean;
   drag?: () => void;
@@ -74,112 +53,59 @@ export default function DepartureCard({
   isEditing = false,
   onDelete,
   onLongPress,
+  onPress,
   defaultExpanded = false,
   hideCard = false,
   drag,
   isActive = false,
   index = 0,
 }: DepartureCardProps) {
-
   const reducedMotion = useReducedMotion();
-  const lastKnownData = useUserPreferencesStore(state => state.lastKnownData || []);
-  const [arrivals, setArrivals] = useState<Arrival[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const jiggleStyle = useJiggle(index, isEditing, isActive);
 
+  // Global preferences and cached departures
+  const selectedLines = useUserPreferencesStore(state => state.selectedLines || []);
+  const pinnedStations = useUserPreferencesStore(state => state.pinnedStations || []);
+  const cachedData = useStationDataStore(state => state.departures[stationId]);
+
+  const [useNativeShimmer, setUseNativeShimmer] = useState(false);
   const [contentHeight, setContentHeight] = useState(160);
   const heightVal = useSharedValue(160);
   const arrivalsOpacity = useSharedValue(1);
 
-  const jiggleStyle = useJiggle(index, isEditing, isActive);
-
-  const visibleArrivals = arrivals.filter((a) => {
-    const lineObj = lastKnownData.find((l) => l.id === a.lineId);
-    if (lineObj) {
-      const statusText = String(lineObj.status || '').toLowerCase();
-      if (!statusText.includes('part') && (statusText.includes('closed') || statusText.includes('closure') || statusText.includes('suspended'))) {
-        return false;
-      }
-    }
-    return true;
-  });
-
-  // Fetch arrivals for this station
-  const fetchArrivals = useCallback(async (active: { current: boolean }) => {
-    try {
-      const resolvedIds = resolveTflStopIds(stationId);
-      const responses = await Promise.all(
-        resolvedIds.map(id =>
-          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
-            .then(res => (res.ok ? res.json() : null))
-            .catch(() => null)
-        )
-      );
-
-      if (!active.current) return;
-
-      const allRawDepartures: any[] = [];
-      responses.forEach(sData => {
-        if (sData && Array.isArray(sData.departures)) {
-          allRawDepartures.push(...sData.departures);
-        }
-      });
-
-      const dedupedRaw: any[] = [];
-      const seenKeys = new Set<string>();
-
-      allRawDepartures.forEach(dep => {
-        const dest = String(dep.destination || '');
-        if (dest.includes('DELETE') || dest.includes('⚠️')) {
-          return;
-        }
-        const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          dedupedRaw.push(dep);
-        }
-      });
-
-      dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
-
-      const mappedArrivals = dedupedRaw.map((dep: any) => {
-        const { lineId, cleanLineId } = normaliseLineId(dep.line);
-        return {
-          lineId,
-          lineName: dep.line,
-          lineColor: LINE_COLORS[cleanLineId] || '#888',
-          minutesAway: dep.minutes_away,
-          destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-          expectedArrival: dep.expected_arrival,
-          platform: dep.platform ? cleanPlatformName(dep.platform) : '',
-        };
-      });
-
-      if (!active.current) return;
-      setArrivals(mappedArrivals);
-      setError(false);
-      setLoading(false);
-    } catch (err) {
-      console.log('Error fetching in DepartureCard:', err);
-      if (active.current) {
-        setError(true);
-        setLoading(false);
-      }
-    }
-  }, [stationId]);
-
+  // Cold launch shimmer logic: if data is empty, wait 3 seconds before showing native indicator
   useEffect(() => {
-    const active = { current: true };
-    fetchArrivals(active);
-    // Poll arrivals every 30 seconds
-    const interval = setInterval(() => fetchArrivals(active), 30000);
-    return () => {
-      active.current = false;
-      clearInterval(interval);
-    };
-  }, [fetchArrivals]);
+    if (!cachedData) {
+      const timer = setTimeout(() => {
+        setUseNativeShimmer(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setUseNativeShimmer(false);
+    }
+  }, [cachedData]);
 
-  // Format clean station name
+  // Determine lines for placeholder shimmers
+  const stationInfo = pinnedStations.find(s => s.id === stationId);
+  const stationLines = stationInfo ? stationInfo.lines : [];
+  const userLinesAtStation = stationLines.filter(lineId => selectedLines.includes(lineId));
+  const shimmerLines = userLinesAtStation.length > 0 ? userLinesAtStation : stationLines.slice(0, 3);
+
+  // Flatten and sort arrivals from cache
+  const cachedLines = cachedData?.lines || [];
+  const allArrivals = cachedLines.flatMap(line => 
+    line.arrivals.map(arr => ({
+      ...arr,
+      lineId: line.lineId,
+      lineName: line.lineName,
+      lineColor: line.lineColor,
+    }))
+  );
+  const sortedArrivals = allArrivals.sort((a, b) => a.minutesAway - b.minutesAway);
+  const visibleArrivals = sortedArrivals.slice(0, 3);
+  const isLoading = !cachedData;
+
+  // Clean station name format
   const cleanName = String(stationName ?? '')
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
     .trim();
@@ -239,6 +165,25 @@ export default function DepartureCard({
     opacity: deleteScale.value,
   }));
 
+  const renderShimmerRows = () => {
+    return shimmerLines.map((lineId, index) => {
+      const lineColor = LINE_COLORS[lineId] || 'rgba(255,255,255,0.12)';
+      const lineShortName = LINE_SHORT_NAMES[lineId] || lineId;
+      return (
+        <View key={`${lineId}-${index}`} style={[styles.arrivalRow, { opacity: 0.3 }]}>
+          <View style={[styles.arrivalBar, { backgroundColor: lineColor }]} />
+          <Text style={styles.arrivalLineName} numberOfLines={1}>
+            {lineShortName}
+          </Text>
+          <View style={styles.arrivalDestContainer}>
+            <View style={{ height: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, width: '60%' }} />
+          </View>
+          <View style={{ height: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, width: 24 }} />
+        </View>
+      );
+    });
+  };
+
   return (
     <Animated.View
       layout={isActive ? undefined : LinearTransition.springify().mass(0.8).damping(15)}
@@ -249,8 +194,11 @@ export default function DepartureCard({
         <BlurView intensity={65} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View onLayout={onInnerLayout} style={styles.innerContent}>
           <Pressable
+            onPress={() => {
+              if (isEditing) return;
+              if (onPress) onPress();
+            }}
             onLongPress={onLongPress}
-            delayLongPress={300}
             style={styles.headerPressable}
           >
             <View style={styles.header}>
@@ -266,21 +214,23 @@ export default function DepartureCard({
           </Pressable>
 
           <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-                <Text style={styles.loadingText}>Fetching departures...</Text>
-              </View>
-            ) : error ? (
-              <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: '#FF9F0A' }]}>Offline — Live times unavailable</Text>
-              </View>
+            {isLoading ? (
+              useNativeShimmer ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+                  <Text style={styles.loadingText}>Fetching departures...</Text>
+                </View>
+              ) : (
+                <View style={{ paddingVertical: 5 }}>
+                  {renderShimmerRows()}
+                </View>
+              )
             ) : visibleArrivals.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
               </View>
             ) : (
-              visibleArrivals.slice(0, 3).map((a, i) => {
+              visibleArrivals.map((a, i) => {
                 const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
                 const depStyle = getDepTimeStyle(depVal);
                 return (
@@ -351,48 +301,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    gap: 10,
+    justifyContent: 'space-between',
   },
   titleColumn: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'baseline',
   },
   stationName: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
     color: '#FFFFFF',
-  },
-  stationNamePressed: {
-    textDecorationLine: 'underline',
-  },
-  roleBadge: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 8,
-    color: TEXT_SECONDARY,
-    letterSpacing: 0.8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  nextTimeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 13,
-    color: DEPARTURE_COUNTDOWN,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-    marginRight: 8,
+    letterSpacing: -0.2,
   },
   arrivalsContainer: {
-    marginTop: 0,
-    paddingTop: 6,
-    paddingBottom: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingBottom: 9,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -445,13 +368,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.9)',
     lineHeight: 14,
-  },
-  arrivalPlatform: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.38)',
-    marginTop: 1,
-    lineHeight: 12,
   },
   arrivalPlatformInline: {
     fontFamily: 'SpaceGrotesk_400Regular',

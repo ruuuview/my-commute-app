@@ -4,6 +4,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { useOnboardingStore } from './onboardingStore';
+import * as Haptics from 'expo-haptics';
 
 const storage = createMMKV();
 
@@ -52,9 +53,11 @@ export interface UserPreferencesState {
   addRecentSearch: (stationId: string) => void;
   clearRecentSearches: () => void;
   setLastKnown: (status: StatusLevel, data: any[]) => void;
+  stationFilterToggles: Record<string, boolean>;
+  toggleStationFilter: (stationId: string) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter'> = {
   schemaVersion: 1,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -71,6 +74,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   sessionCount: 0,
   firstOpenTimestamp: null,
   recentSearches: [],
+  stationFilterToggles: {},
 };
 
 const validateStationZoneCache = (pinnedStations: any[]) => {
@@ -149,6 +153,14 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       },
       reorderStations: (order: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => {
         set({ pinnedStations: order });
+      },
+      toggleStationFilter: (stationId: string) => {
+        set(state => {
+          const current = { ...(state.stationFilterToggles || {}) };
+          current[stationId] = !current[stationId];
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          return { stationFilterToggles: current };
+        });
       }
     }),
     {
@@ -156,7 +168,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       version: 1,
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

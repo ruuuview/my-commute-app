@@ -138,14 +138,10 @@ export function LineCard({
   });
 
   const handlePress = () => {
-    console.log(`[DEBUG-LineCard] handlePress called. mode=${mode}, line=${line?.name}, disabled=${disabled}, isEditing=${isEditing}`);
     if (disabled) return;
     if (isEditing) return;
 
     if (mode === 'select') {
-      const timestamp = Date.now();
-      console.log(`[AUDIO_TRIGGER] playSound at ${timestamp} (selected: ${selected})`);
-
       if (selected) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         playSound('deselect', 0.35);
@@ -230,13 +226,6 @@ export function LineCard({
           onLongPress={handleLongPress}
           onPressIn={pressAnim.onPressIn}
           onPressOut={pressAnim.onPressOut}
-          // FIX 1: delayLongPress raised from 300ms to 450ms.
-          // The root dashboard Pressable fires onLongPress at 600ms (edit mode entry).
-          // At 300ms, the inner Pressable was firing first — in edit mode this started
-          // a drag gesture that also triggered the outer 600ms handler, randomly
-          // toggling edit mode off mid-drag. 450ms gives the inner gesture clean
-          // priority while keeping the outer 600ms handler safely above it.
-          delayLongPress={450}
           style={StyleSheet.absoluteFillObject}
         >
           <View
@@ -322,17 +311,23 @@ export function LineCard({
 
       {/* Delete badge (edit mode only) */}
       {isEditing && onDelete && (
-        <Animated.View style={styles.deleteBadgeContainer}>
-          <Pressable
-            style={styles.deleteBadge}
-            hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onDelete(line.id);
-            }}
-          >
-            <Text style={styles.deleteIcon}>−</Text>
-          </Pressable>
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(100)}
+          style={styles.deleteBadgeContainer}
+        >
+          <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
+            <Pressable
+              style={styles.deleteBadge}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onDelete(line.id);
+              }}
+            >
+              <Text style={styles.deleteIcon}>−</Text>
+            </Pressable>
+          </Animated.View>
         </Animated.View>
       )}
     </View>

@@ -465,19 +465,17 @@ const MyCommuteDashboard: React.FC = () => {
         pointerEvents="box-none"
       >
         {/* Background interaction layer — always mounted, sits at zIndex 0 below cards.
-            Long press empty space → enter edit mode (600ms).
             Tap empty space while editing → exit edit mode.
-            Cards sit at zIndex 1 above this, so their gestures always win. */}
+            Cards sit at zIndex 1 above this, so their gestures always win.
+            FIX 4: Long-press entry into edit mode removed from here. Reordering now
+            begins directly on the card via NestableDraggableFlatList's onDragBegin
+            (see the lists below) — holding the item you want to move, not empty
+            space, matching the platform convention this whole feature is modeled on. */}
         <Pressable
           style={[StyleSheet.absoluteFillObject, dash.backgroundLayer]}
           onPress={isEditing ? handleBackdropPress : undefined}
-          onLongPress={!isEditing ? () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setIsEditing(true);
-          } : undefined}
-          delayLongPress={600}
-          accessibilityLabel={isEditing ? 'Exit edit mode' : 'Enter edit mode'}
-          accessibilityRole="button"
+          accessibilityLabel={isEditing ? 'Exit edit mode' : undefined}
+          accessibilityRole={isEditing ? 'button' : undefined}
         />
 
         {/* ── Content — zIndex 1 sits above backdrop ── */}
@@ -556,8 +554,18 @@ const MyCommuteDashboard: React.FC = () => {
                     keyExtractor={(item) => item.id}
                     style={{ overflow: 'visible' }}
                     contentContainerStyle={{ overflow: 'visible' }}
+                    // FIX 4: onDragBegin is now the single entry point into edit mode.
+                    // Holding any card both starts the drag AND flips isEditing — no
+                    // separate background long-press needed first. Haptic fires once,
+                    // only on the transition into edit mode, not on every drag.
                     onDragBegin={() => {
                       isDragging.value = true;
+                      setIsEditing((wasEditing) => {
+                        if (!wasEditing) {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        }
+                        return true;
+                      });
                     }}
                     onDragEnd={({ data }) => {
                       isDragging.value = false;
@@ -583,19 +591,11 @@ const MyCommuteDashboard: React.FC = () => {
                                 setSelectedLineForModal(item);
                               }
                             }}
-                            // FIX 1: Long press is now mode-aware.
-                            // In edit mode → drag to reorder.
-                            // In view mode → open status detail modal.
-                            // Previously drag fired unconditionally, starting a
-                            // gesture that never resolved → dashboard freeze.
-                            onLongPress={
-                              isEditing
-                                ? drag
-                                : () => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    setSelectedLineForModal(item);
-                                  }
-                            }
+                            // FIX 4: Long press is now a single unconditional path: drag.
+                            // It works identically whether edit mode is already active
+                            // or not — onDragBegin above is what flips isEditing. The
+                            // status modal is reachable by tap only, in either state.
+                            onLongPress={drag}
                             statusType={parseSeverity(item.status)}
                             statusLabel={item.status}
                             cardHeight={38}
@@ -640,8 +640,16 @@ const MyCommuteDashboard: React.FC = () => {
                       keyExtractor={(item) => item.id}
                       style={{ overflow: 'visible' }}
                       contentContainerStyle={{ overflow: 'visible' }}
+                      // FIX 4: Same single-entry-point pattern as the lines list above —
+                      // holding a station card starts the drag and flips isEditing together.
                       onDragBegin={() => {
                         isDragging.value = true;
+                        setIsEditing((wasEditing) => {
+                          if (!wasEditing) {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          }
+                          return true;
+                        });
                       }}
                       onDragEnd={({ data }) => {
                         isDragging.value = false;
@@ -660,7 +668,7 @@ const MyCommuteDashboard: React.FC = () => {
                               stationName={item.name}
                               isEditing={isEditing}
                               onDelete={removeStation}
-                              onLongPress={isEditing ? drag : () => {}}
+                              onLongPress={drag}
                               drag={drag}
                               isActive={isActive}
                               index={index ?? 0}

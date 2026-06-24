@@ -16,7 +16,6 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { usePressAnimation } from '../hooks/usePressAnimation';
 import * as Haptics from 'expo-haptics';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -30,7 +29,6 @@ const PERSONALITY_POOL = [
   "Enjoy the smooth journey ahead.",
 ];
 
-// ─── Types ────────────────────────────────────────────────────────
 interface LineDetailModalProps {
   visible: boolean;
   onClose: () => void;
@@ -55,7 +53,6 @@ interface LineDetailModalProps {
   statusLabel: string;
 }
 
-// ─── Token map ────────────────────────────────────────────────────
 const STATUS_TOKENS: Record<
   string,
   { text: string; pillBg: string; pillBorder: string; dotColor: string }
@@ -105,7 +102,6 @@ const FALLBACK_TOKEN = {
   dotColor: 'rgba(255, 255, 255, 0.35)',
 };
 
-// ─── Component ────────────────────────────────────────────────────
 export function LineDetailModal({
   visible,
   onClose,
@@ -113,9 +109,6 @@ export function LineDetailModal({
   statusType,
   statusLabel,
 }: LineDetailModalProps) {
-  const closePressAnim = usePressAnimation('back_btn', false);
-
-  // ── Spring-driven entry animation ──
   const cardScale = useSharedValue(0.92);
   const cardOpacity = useSharedValue(0);
 
@@ -134,10 +127,14 @@ export function LineDetailModal({
     opacity: cardOpacity.value,
   }));
 
-  // ── Status tokens ──
   const token = STATUS_TOKENS[statusType] ?? FALLBACK_TOKEN;
 
-  // ── Reason / body copy ──
+  const displayLineName = useMemo(() => {
+    if (!line) return '';
+    const stripped = line.name.replace(/\s*line\s*$/i, '').trim();
+    return `${stripped.toUpperCase()} LINE`;
+  }, [line]);
+
   const reasonText = useMemo(() => {
     if (!line) return '';
     if (statusType === 'good') {
@@ -153,7 +150,6 @@ export function LineDetailModal({
     );
   }, [line, statusType, statusLabel]);
 
-  // ── Dismiss with haptic ──
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
@@ -170,17 +166,14 @@ export function LineDetailModal({
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
-        {/* ── Full-screen blurred backdrop ── */}
         <BlurView
           intensity={40}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* ── Scrim: darkens behind the card ── */}
         <View style={styles.scrim} />
 
-        {/* ── Tap backdrop to dismiss ── */}
         <Pressable
           style={StyleSheet.absoluteFillObject}
           onPress={handleClose}
@@ -188,36 +181,25 @@ export function LineDetailModal({
           accessibilityLabel="Dismiss line detail"
         />
 
-        {/* ── Glassmorphic card ── */}
         <Animated.View style={[styles.cardShadowLayer, cardAnimStyle]}>
           <View style={styles.card}>
-            {/* Inner blur surface */}
             <BlurView
-              intensity={90}
+              intensity={60}
               tint="dark"
               style={StyleSheet.absoluteFillObject}
             />
 
-            {/* Glass tint overlay */}
             <View style={styles.glassTint} pointerEvents="none" />
 
-            {/* ════════════════════════════════════
-                SECTION 1: HERO HEADER
-                Line name + color bar accent
-                ════════════════════════════════════ */}
             <View style={styles.heroHeader}>
-              {/* Color bar — ONLY spans this header row */}
               <View
                 style={[styles.colorBar, { backgroundColor: line.color }]}
               />
               <Text style={styles.lineName} numberOfLines={1}>
-                {line.name.toUpperCase()} LINE
+                {displayLineName}
               </Text>
             </View>
 
-            {/* ════════════════════════════════════
-                SECTION 2: STATUS PILL (centered, own row)
-                ════════════════════════════════════ */}
             <View style={styles.statusRow}>
               <View
                 style={[
@@ -228,7 +210,6 @@ export function LineDetailModal({
                   },
                 ]}
               >
-                {/* Status dot */}
                 <View
                   style={[styles.statusDot, { backgroundColor: token.dotColor }]}
                 />
@@ -238,10 +219,6 @@ export function LineDetailModal({
               </View>
             </View>
 
-            {/* ════════════════════════════════════
-                SECTION 3: CONTEXTUAL BODY
-                Full disruption text from TfL API
-                ════════════════════════════════════ */}
             <ScrollView
               style={styles.bodyScroll}
               contentContainerStyle={styles.bodyScrollContent}
@@ -250,24 +227,11 @@ export function LineDetailModal({
               <Text style={styles.bodyText}>{reasonText}</Text>
             </ScrollView>
 
-            {/* ── Divider ── */}
             <View style={styles.divider} />
 
-            {/* ── Close CTA ── */}
-            <Animated.View
-              style={[styles.closeBtnWrapper, closePressAnim.animatedStyle]}
-            >
-              <Pressable
-                onPress={handleClose}
-                onPressIn={closePressAnim.onPressIn}
-                onPressOut={closePressAnim.onPressOut}
-                style={styles.closeBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Close line details"
-              >
-                <Text style={styles.closeBtnText}>Done</Text>
-              </Pressable>
-            </Animated.View>
+            <View style={styles.dismissHintWrapper}>
+              <Text style={styles.dismissHintText}>Tap anywhere to dismiss</Text>
+            </View>
           </View>
         </Animated.View>
       </View>
@@ -275,7 +239,6 @@ export function LineDetailModal({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -283,20 +246,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Scrim sits below the card
   scrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     pointerEvents: 'none',
   },
 
-  // ── Card ──────────────────────────────────────────────────────────
   cardShadowLayer: {
     width: '88%',
     maxWidth: 380,
     maxHeight: SCREEN_HEIGHT * 0.62,
     borderRadius: 26,
-    // Layered shadows for depth
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.60,
@@ -309,8 +269,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.14)',
-    // Baseline dark fill beneath blur
-    backgroundColor: 'rgba(12, 12, 20, 0.55)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     padding: 0,
   },
 
@@ -320,19 +279,17 @@ const styles = StyleSheet.create({
     borderRadius: 26,
   },
 
-  // ── Section 1: Hero Header ────────────────────────────────────────
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 26,
     paddingHorizontal: 24,
     paddingBottom: 0,
-    // Color bar is ONLY bound to this row via its explicit height
   },
 
   colorBar: {
     width: 4,
-    height: 22,        // exact cap — matches line name cap-height
+    height: 22,
     borderRadius: 2,
     marginRight: 12,
   },
@@ -345,7 +302,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // ── Section 2: Status Row ─────────────────────────────────────────
   statusRow: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -377,7 +333,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  // ── Section 3: Body ───────────────────────────────────────────────
   bodyScroll: {
     maxHeight: 180,
     marginTop: 22,
@@ -396,7 +351,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // ── Divider ──────────────────────────────────────────────────────
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
@@ -404,27 +358,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
 
-  // ── Close CTA ────────────────────────────────────────────────────
-  closeBtnWrapper: {
+  dismissHintWrapper: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-  },
-
-  closeBtn: {
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    paddingTop: 14,
+    paddingBottom: 18,
     alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  closeBtnText: {
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: 'rgba(255, 255, 255, 0.85)',
-    letterSpacing: 0.2,
+  dismissHintText: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.25)',
+    letterSpacing: 0.3,
   },
 });

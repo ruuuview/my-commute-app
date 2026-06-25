@@ -27,7 +27,8 @@ export interface TflArrivalRow {
 }
 
 // Extend your existing StationLineData type structure to ensure complete compliance
-export interface CappedStationLineData extends Omit<StationLineData, 'trains' | 'arrivals'> {
+export interface CappedStationLineData extends Omit<StationLineData, 'trains' | 'arrivals' | 'lineColor'> {
+  routeColor: string;
   trains: CleanTrainData[];
 }
 
@@ -62,7 +63,7 @@ export function groupStationDepartures(arrivals: TflArrivalRow[]): CappedStation
       lineName: firstTrain.lineName,
       destinationName: firstTrain.destinationName,
       platformName: firstTrain.platformName,
-      routeColor: LINE_COLORS[normalisedLine] || '#FFFFFF',
+      routeColor: LINE_COLORS[normalisedLine.cleanLineId] || '#FFFFFF',
       
       // 🔥 THE UI CAP: Only keep the next 3 closest trains so the modal stays clean and compact
       trains: rawTrains.slice(0, 3).map(t => ({

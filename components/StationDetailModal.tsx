@@ -123,9 +123,9 @@ export function StationDetailModal({
   // Pure Downward Swipe Dismissal responder
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 5;
+        return gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
@@ -310,7 +310,7 @@ export function StationDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="none"
+      animationType="slide"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
@@ -319,7 +319,7 @@ export function StationDetailModal({
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(10, 10, 15, 0.96)' }]} />
         ) : (
           <BlurView
-            intensity={40}
+            intensity={80}
             tint="dark"
             style={StyleSheet.absoluteFillObject}
           />
@@ -344,7 +344,7 @@ export function StationDetailModal({
           <View style={styles.card}>
             {Platform.OS !== 'android' && (
               <BlurView
-                intensity={60}
+                intensity={80}
                 tint="dark"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.04)',
     padding: 0,
   },
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   lineRowHeader: {
     flexDirection: 'row',

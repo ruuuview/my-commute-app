@@ -5,6 +5,7 @@ import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { useOnboardingStore } from './onboardingStore';
 import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
 
 const storage = createMMKV();
 
@@ -155,12 +156,17 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set({ pinnedStations: order });
       },
       toggleStationFilter: (stationId: string) => {
+        let enabled = false;
         set(state => {
           const current = { ...(state.stationFilterToggles || {}) };
-          current[stationId] = !current[stationId];
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          enabled = !current[stationId];
+          current[stationId] = enabled;
           return { stationFilterToggles: current };
         });
+        Haptics.impactAsync(
+          enabled ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
+        ).catch(() => {});
+        playSound(enabled ? 'select' : 'deselect', enabled ? 0.45 : 0.35);
       }
     }),
     {
@@ -187,9 +193,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         } catch (e) {
           console.error("Hydration validation failed:", e);
         } finally {
-          if (state) {
-            state.setHasHydrated(true);
-          }
+          useUserPreferencesStore.setState({ _hasHydrated: true });
         }
       },
     }

@@ -321,7 +321,8 @@ export function LineCard({
               style={styles.deleteBadge}
               hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                playSound('deselect', 0.35);
                 onDelete(line.id);
               }}
             >

@@ -18,6 +18,8 @@ import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { useJiggle } from '../hooks/useJiggle';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useStationDataStore } from '../store/stationDataStore';
+import { usePressAnimation } from '../hooks/usePressAnimation';
+import { playSound } from '../utils/sound';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -62,6 +64,7 @@ export default function DepartureCard({
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const jiggleStyle = useJiggle(index, isEditing, isActive);
+  const pressAnim = usePressAnimation('departure_card', isEditing || hideCard);
 
   // Global preferences and cached departures
   const selectedLines = useUserPreferencesStore(state => state.selectedLines || []);
@@ -190,8 +193,8 @@ export default function DepartureCard({
       exiting={FadeOut.duration(200)}
       style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
     >
-      <Animated.View style={[styles.container, containerStyle]}>
-        <BlurView intensity={65} tint="dark" style={StyleSheet.absoluteFillObject} />
+      <Animated.View style={[styles.container, containerStyle, pressAnim.animatedStyle]}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View onLayout={onInnerLayout} style={styles.innerContent}>
           <Pressable
             onPress={() => {
@@ -199,6 +202,8 @@ export default function DepartureCard({
               if (onPress) onPress();
             }}
             onLongPress={onLongPress}
+            onPressIn={pressAnim.onPressIn}
+            onPressOut={pressAnim.onPressOut}
             style={styles.headerPressable}
           >
             <View style={styles.header}>
@@ -268,7 +273,8 @@ export default function DepartureCard({
           style={styles.deleteBadge}
           hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            playSound('deselect', 0.35);
             if (onDelete) {
               onDelete(stationId);
             }

@@ -1,109 +1,83 @@
-// utils/groupStationDepartures.ts
-//
-// Unified data-processing utility that maps raw arrival arrays into a type-safe
-// `StationLineData[]` structure. Consolidates the duplicate parsing loops that
-// previously lived inside MyCommuteDashboard.tsx (poller) and
-// StationDetailModal.tsx (manual refresh).
-//
-// Key invariant: this utility NEVER fabricates timetable values. If the backend
-// payload does not explicitly supply `firstTrain` / `lastTrain` (or their
-// destination companions), those fields are left `undefined` so the consuming
-// modal can suppress the line-card footer element entirely.
-
-import { normaliseLineId } from './normaliseLineId';
+import { StationLineData } from '../store/stationDataStore';
 import { LINE_COLORS } from '../constants/lineColors';
-import type { StationLineData, ArrivalRow } from '../store/stationDataStore';
+import { normaliseLineId } from './normaliseLineId';
 
-// Lines that operate a Night Tube service on Friday & Saturday nights.
-const NIGHT_TUBE_LINES = ['central', 'jubilee', 'northern', 'piccadilly', 'victoria'];
-
-const STATION_SUFFIX_REGEX = /\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i;
-
-function isWeekend(): boolean {
-  const day = new Date().getDay();
-  return day === 5 || day === 6;
+// Explicitly type the inner train structure expected by the UI components
+export interface CleanTrainData {
+  id: string;
+  expectedArrival: string;
+  timeToStation: number;
+  currentLocation: string;
+  towards?: string;
 }
 
-function cleanDestination(raw: string): string {
-  return String(raw || '').replace(STATION_SUFFIX_REGEX, '').trim();
+// Represent the raw TfL arrival row payload shape
+export interface TflArrivalRow {
+  id: string;
+  lineId: string;
+  lineName: string;
+  destinationName: string;
+  platformName: string;
+  expectedArrival: string;
+  timeToStation: number;
+  currentLocation: string;
+  towards?: string;
+  firstTrain?: string;
+  lastTrain?: string;
 }
 
-function resolveBranchName(dep: any): string | undefined {
-  if (dep.branchName) return dep.branchName;
-  if (dep.platform) {
-    const platformLower = String(dep.platform).toLowerCase();
-    if (platformLower.includes('via bank')) return 'via Bank';
-    if (platformLower.includes('via charing cross')) return 'via Charing Cross';
-    if (platformLower.includes('via city branch')) return 'via City';
-  }
-  return undefined;
+// Extend your existing StationLineData type structure to ensure complete compliance
+export interface CappedStationLineData extends Omit<StationLineData, 'trains' | 'arrivals'> {
+  trains: CleanTrainData[];
 }
 
-/**
- * Deduplicate, sort, and group a flat array of raw TfL departure objects into a
- * type-safe `StationLineData[]` keyed by line.
- *
- * @param rawDepartures Flat array of raw departure objects as returned by the
- *   `/api/stations/:id` backend endpoint (already flattened across all
- *   resolved NaPTAN IDs for a station).
- * @returns Grouped & sorted line data. Timetable fields (`firstTrain`,
- *   `lastTrain`, `firstTrainDestination`, `lastTrainDestination`) are only
- *   populated when the backend payload explicitly supplies them.
- */
-export function groupStationDepartures(rawDepartures: any[]): StationLineData[] {
-  // ── 1. Filter malformed / sentinel destinations ──────────────────────────
-  const filtered = rawDepartures.filter(dep => {
-    const dest = String(dep?.destination || '');
-    if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
-    return true;
+export function groupStationDepartures(arrivals: TflArrivalRow[]): CappedStationLineData[] {
+  if (!arrivals || arrivals.length === 0) return [];
+
+  // 1. Deduplicate and sort by soonest arrival (timeToStation ascending)
+  const sortedArrivals = [...arrivals]
+    .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+    .sort((a, b) => a.timeToStation - b.timeToStation);
+
+  // 2. Group by Line and Destination
+  const groups: { [key: string]: TflArrivalRow[] } = {};
+  
+  sortedArrivals.forEach(arrival => {
+    // Create a unique key combining line and platform/destination to group matching routes
+    const groupKey = `${arrival.lineId}-${arrival.destinationName}`;
+    if (!groups[groupKey]) {
+      groups[groupKey] = [];
+    }
+    groups[groupKey].push(arrival);
   });
 
-  // ── 2. Deduplicate by line + destination + arrival key ───────────────────
-  const seenKeys = new Set<string>();
-  const deduped: any[] = [];
-  for (const dep of filtered) {
-    const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      deduped.push(dep);
-    }
-  }
+  // 3. Map into clean, capped display blocks for the premium UI
+  const formattedLines: CappedStationLineData[] = Object.keys(groups).map(key => {
+    const rawTrains = groups[key];
+    const firstTrain = rawTrains[0];
+    const normalisedLine = normaliseLineId(firstTrain.lineId);
 
-  // ── 3. Sort by minutes away ascending (soonest first) ────────────────────
-  deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
-
-  // ── 4. Group into StationLineData keyed by normalised lineId ─────────────
-  const groupedLines: Record<string, StationLineData> = {};
-  const weekend = isWeekend();
-
-  for (const dep of deduped) {
-    const { lineId, cleanLineId } = normaliseLineId(dep.line);
-
-    if (!groupedLines[lineId]) {
-      groupedLines[lineId] = {
-        lineId,
-        lineName: dep.line,
-        lineColor: LINE_COLORS[cleanLineId] || '#888',
-        // Timetable fields — only from the backend payload, never fabricated.
-        firstTrain: dep.firstTrain,
-        lastTrain: dep.lastTrain,
-        firstTrainDestination: dep.firstTrainDestination,
-        lastTrainDestination: dep.lastTrainDestination,
-        isNightTube: dep.isNightTube !== undefined ? dep.isNightTube : (NIGHT_TUBE_LINES.includes(lineId) && weekend),
-        arrivals: [],
-      };
-    }
-
-    const arrival: ArrivalRow = {
-      minutesAway: dep.minutes_away,
-      destination: cleanDestination(dep.destination),
-      expectedArrival: dep.expected_arrival,
-      branchName: resolveBranchName(dep),
-      platform: dep.platform || '',
+    return {
+      lineId: firstTrain.lineId,
+      lineName: firstTrain.lineName,
+      destinationName: firstTrain.destinationName,
+      platformName: firstTrain.platformName,
+      routeColor: LINE_COLORS[normalisedLine] || '#FFFFFF',
+      
+      // 🔥 THE UI CAP: Only keep the next 3 closest trains so the modal stays clean and compact
+      trains: rawTrains.slice(0, 3).map(t => ({
+        id: t.id,
+        expectedArrival: t.expectedArrival,
+        timeToStation: t.timeToStation,
+        currentLocation: t.currentLocation,
+        towards: t.towards
+      })),
+      
+      // Only include scheduling parameters if they genuinely exist in the TfL payload
+      firstTrain: firstTrain.firstTrain || undefined,
+      lastTrain: firstTrain.lastTrain || undefined,
     };
+  });
 
-    groupedLines[lineId].arrivals.push(arrival);
-  }
-
-  return Object.values(groupedLines);
+  return formattedLines;
 }

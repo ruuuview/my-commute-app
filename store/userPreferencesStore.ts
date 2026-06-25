@@ -78,14 +78,15 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   stationFilterToggles: {},
 };
 
-const validateStationZoneCache = (pinnedStations: any[]) => {
+const validateStationZoneCache = (state: UserPreferencesState) => {
+  const pinnedStations = state.pinnedStations;
   if (!pinnedStations) return;
   const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
   const cleanedStations = pinnedStations.filter(station => 
     station.zone !== undefined && !EXCLUDED_IDS.has(station.id)
   );
   if (cleanedStations.length !== pinnedStations.length) {
-    useUserPreferencesStore.setState({ pinnedStations: cleanedStations });
+    state.pinnedStations = cleanedStations;
   }
 };
 
@@ -180,7 +181,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       onRehydrateStorage: () => (state) => {
         try {
           if (state) {
-            validateStationZoneCache(state.pinnedStations);
+            validateStationZoneCache(state);
             
             // Also clean up onboarding store's pinned stations if they contain excluded IDs
             const onboardingPinned = useOnboardingStore.getState().pinnedStations;
@@ -193,7 +194,13 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         } catch (e) {
           console.error("Hydration validation failed:", e);
         } finally {
-          useUserPreferencesStore.setState({ _hasHydrated: true });
+          if (state) {
+            state.setHasHydrated(true);
+          } else {
+            setTimeout(() => {
+              useUserPreferencesStore.setState({ _hasHydrated: true });
+            }, 0);
+          }
         }
       },
     }

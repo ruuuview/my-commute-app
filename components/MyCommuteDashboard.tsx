@@ -550,6 +550,10 @@ const MyCommuteDashboard: React.FC = () => {
           }
           pointerEvents="box-none"
         >
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={isEditing ? handleBackdropPress : undefined}
+          >
           {/* ── Global header ── */}
           <View style={[dash.header, { paddingHorizontal: 4, zIndex: 1 }]} pointerEvents="box-none">
             <View style={dash.titleRow}>
@@ -740,8 +744,14 @@ const MyCommuteDashboard: React.FC = () => {
                   )}
                 </View>
               )}
+
+              {/* Spacer filling remaining height */}
+              <View
+                style={{ flex: 1, minHeight: 150 }}
+              />
             </>
           )}
+          </Pressable>
         </NestableScrollContainer>
 
         {/* ✅ Modals rendered at root level — immediate state sync */}
@@ -870,7 +880,7 @@ const dash = StyleSheet.create({
     color: 'rgba(255,255,255,0.80)',
   },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16 },
+  scrollContent: { paddingHorizontal: 16, flexGrow: 1 },
   section: { marginBottom: 24 },
   premiumEmptyState: { marginTop: 60, alignItems: 'center', paddingHorizontal: 16 },
   emptyVisual: { marginBottom: 32 },

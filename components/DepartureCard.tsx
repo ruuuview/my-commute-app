@@ -195,17 +195,8 @@ export default function DepartureCard({
     >
       <Animated.View style={[styles.container, containerStyle, pressAnim.animatedStyle]}>
         <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-        <View onLayout={onInnerLayout} style={styles.innerContent}>
-          <Pressable
-            onPress={() => {
-              if (isEditing) return;
-              if (onPress) onPress();
-            }}
-            onLongPress={onLongPress}
-            onPressIn={pressAnim.onPressIn}
-            onPressOut={pressAnim.onPressOut}
-            style={styles.headerPressable}
-          >
+        <View onLayout={onInnerLayout} style={styles.innerContent} pointerEvents="none">
+          <View style={styles.headerPressable}>
             <View style={styles.header}>
               <View style={styles.titleColumn}>
                 <Text
@@ -216,7 +207,7 @@ export default function DepartureCard({
                 </Text>
               </View>
             </View>
-          </Pressable>
+          </View>
 
           <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
             {isLoading ? (
@@ -266,6 +257,16 @@ export default function DepartureCard({
             )}
           </Animated.View>
         </View>
+        <Pressable
+          onPress={() => {
+            if (isEditing) return;
+            if (onPress) onPress();
+          }}
+          onLongPress={onLongPress}
+          onPressIn={pressAnim.onPressIn}
+          onPressOut={pressAnim.onPressOut}
+          style={StyleSheet.absoluteFillObject}
+        />
       </Animated.View>
 
       <Animated.View style={[styles.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>

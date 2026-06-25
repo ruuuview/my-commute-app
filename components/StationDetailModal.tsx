@@ -30,8 +30,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStationDataStore, StationLineData, ArrivalRow } from '../store/stationDataStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { normaliseLineId } from '../utils/normaliseLineId';
-import { LINE_COLORS } from '../constants/lineColors';
+import { groupStationDepartures } from '../utils/groupStationDepartures';
+import { cleanDisplayStationName } from '../data/tflStations';
+import { tflCapitalise } from '../utils/tflCapitalise';
 import { APP_CONFIG } from '../config/app.config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');

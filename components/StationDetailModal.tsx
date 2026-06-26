@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useRef } from 'react';
+import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -74,6 +74,16 @@ export function StationDetailModal({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [freshnessString, setFreshnessString] = useState('Live');
 
+  // Shift accessibility focus to station name header
+  const focusOnTitle = useCallback(() => {
+    if (titleRef.current) {
+      const reactTag = findNodeHandle(titleRef.current);
+      if (reactTag) {
+        AccessibilityInfo.setAccessibilityFocus(reactTag);
+      }
+    }
+  }, []);
+
   // Sync snapshot cache and trigger haptic scaling feedback
   useEffect(() => {
     if (visible) {
@@ -94,17 +104,7 @@ export function StationDetailModal({
       cardOpacity.value = withTiming(0, { duration: 160 });
       translateY.value = 0; // reset drag
     }
-  }, [visible, stationId]);
-
-  // Shift accessibility focus to station name header
-  const focusOnTitle = () => {
-    if (titleRef.current) {
-      const reactTag = findNodeHandle(titleRef.current);
-      if (reactTag) {
-        AccessibilityInfo.setAccessibilityFocus(reactTag);
-      }
-    }
-  };
+  }, [visible, stationId, cardScale, cardOpacity, translateY, focusOnTitle]);
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -188,7 +188,7 @@ export function StationDetailModal({
 
   // Active snapshot / live stream routing
   const activeData = freezeUpdates ? snapshotData : departuresFromStore;
-  const cachedLines = activeData?.lines || [];
+  const cachedLines = useMemo(() => activeData?.lines || [], [activeData]);
 
   // Pinned station information
   const stationInfo = pinnedStations.find(s => s.id === stationId);

@@ -18,9 +18,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import { tflCapitalise } from '../utils/tflCapitalise';
-import { cleanDisplayStationName } from '../data/tflStations';
-
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const PERSONALITY_POOL = [
@@ -134,8 +131,8 @@ export function LineDetailModal({
 
   const displayLineName = useMemo(() => {
     if (!line) return '';
-    const cleaned = tflCapitalise(cleanDisplayStationName(line.name));
-    return `${cleaned.toUpperCase()} LINE`;
+    const stripped = line.name.replace(/\s*line\s*$/i, '').trim();
+    return `${stripped.toUpperCase()} LINE`;
   }, [line]);
 
   const reasonText = useMemo(() => {
@@ -165,17 +162,15 @@ export function LineDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
         <BlurView
-          intensity={80}
+          intensity={25}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
         />
-
-        <View style={styles.scrim} />
 
         <Pressable
           style={StyleSheet.absoluteFillObject}
@@ -187,7 +182,7 @@ export function LineDetailModal({
         <Animated.View style={[styles.cardShadowLayer, cardAnimStyle]}>
           <View style={styles.card}>
             <BlurView
-              intensity={80}
+              intensity={60}
               tint="dark"
               style={StyleSheet.absoluteFillObject}
             />
@@ -203,7 +198,6 @@ export function LineDetailModal({
               </Text>
             </View>
 
-            {/* Center-aligned status pill */}
             <View style={styles.statusRow}>
               <View
                 style={[
@@ -228,7 +222,6 @@ export function LineDetailModal({
               contentContainerStyle={styles.bodyScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* Full descriptive text — no numberOfLines truncation */}
               <Text style={styles.bodyText}>{reasonText}</Text>
             </ScrollView>
 
@@ -251,12 +244,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  scrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    pointerEvents: 'none',
-  },
-
   cardShadowLayer: {
     width: '88%',
     maxWidth: 380,
@@ -273,7 +260,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     padding: 0,
   },
@@ -287,8 +274,8 @@ const styles = StyleSheet.create({
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 26,
-    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingHorizontal: 22,
     paddingBottom: 0,
   },
 
@@ -310,9 +297,9 @@ const styles = StyleSheet.create({
   statusRow: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 22,
+    paddingTop: 16,
     paddingBottom: 4,
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
   },
 
   statusPill: {
@@ -340,8 +327,8 @@ const styles = StyleSheet.create({
 
   bodyScroll: {
     maxHeight: 180,
-    marginTop: 22,
-    marginHorizontal: 24,
+    marginTop: 16,
+    marginHorizontal: 22,
     marginBottom: 0,
   },
 
@@ -359,14 +346,14 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    marginTop: 22,
+    marginTop: 16,
     marginHorizontal: 0,
   },
 
   dismissHintWrapper: {
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingTop: 10,
+    paddingBottom: 14,
     alignItems: 'center',
   },
 

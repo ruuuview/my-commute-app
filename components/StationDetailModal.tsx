@@ -27,13 +27,22 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useStationDataStore, StationLineData, ArrivalRow } from '../store/stationDataStore';
+import { useStationDataStore, StationLineData } from '../store/stationDataStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { processStationArrivals } from '../utils/groupStationDepartures';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
+import { cleanDisplayStationName } from '../data/tflStations';
+import { tflCapitalise } from '../utils/tflCapitalise';
+import { groupStationDepartures } from '../utils/groupStationDepartures';
 import { APP_CONFIG } from '../config/app.config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Mirrors DepartureCard's getDepTimeStyle tiers — a 26 min train shouldn't shout as loud as a 1 min train
+function getArrivalTimeColor(minutesAway: number): string {
+  if (minutesAway === 0) return '#30D158';
+  if (minutesAway <= 2) return 'rgba(255,255,255,0.85)';
+  return 'rgba(255,255,255,0.55)';
+}
 
 interface StationDetailModalProps {
   visible: boolean;
@@ -65,16 +74,6 @@ export function StationDetailModal({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [freshnessString, setFreshnessString] = useState('Live');
 
-  // Shift accessibility focus to station name header
-  const focusOnTitle = React.useCallback(() => {
-    if (titleRef.current) {
-      const reactTag = findNodeHandle(titleRef.current);
-      if (reactTag) {
-        AccessibilityInfo.setAccessibilityFocus(reactTag);
-      }
-    }
-  }, []);
-
   // Sync snapshot cache and trigger haptic scaling feedback
   useEffect(() => {
     if (visible) {
@@ -95,7 +94,17 @@ export function StationDetailModal({
       cardOpacity.value = withTiming(0, { duration: 160 });
       translateY.value = 0; // reset drag
     }
-  }, [visible, stationId, cardOpacity, cardScale, translateY, focusOnTitle]);
+  }, [visible, stationId]);
+
+  // Shift accessibility focus to station name header
+  const focusOnTitle = () => {
+    if (titleRef.current) {
+      const reactTag = findNodeHandle(titleRef.current);
+      if (reactTag) {
+        AccessibilityInfo.setAccessibilityFocus(reactTag);
+      }
+    }
+  };
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -122,9 +131,9 @@ export function StationDetailModal({
   // Pure Downward Swipe Dismissal responder
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+        return gestureState.dy > 5;
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
@@ -146,9 +155,7 @@ export function StationDetailModal({
     onClose();
   };
 
-  // Manual cache validation fetch — uses shared utility that
-  // deduplicates, sorts, groups by line+direction, caps at 3 per route,
-  // and NEVER fabricates firstTrain/lastTrain values.
+  // Manual cache validation fetch
   const handleManualRefresh = async () => {
     try {
       setIsRefreshing(true);
@@ -170,7 +177,7 @@ export function StationDetailModal({
         }
       });
 
-      const stationLineList = processStationArrivals(allRawDepartures, stationId);
+      const stationLineList = groupStationDepartures(allRawDepartures, stationId);
       useStationDataStore.getState().setDepartures(stationId, stationLineList);
     } catch (e) {
       console.log('Manual refresh failed inside modal:', e);
@@ -181,7 +188,7 @@ export function StationDetailModal({
 
   // Active snapshot / live stream routing
   const activeData = freezeUpdates ? snapshotData : departuresFromStore;
-  const cachedLines = useMemo(() => activeData?.lines || [], [activeData]);
+  const cachedLines = activeData?.lines || [];
 
   // Pinned station information
   const stationInfo = pinnedStations.find(s => s.id === stationId);
@@ -194,7 +201,7 @@ export function StationDetailModal({
   const sortedLines = useMemo(() => {
     if (!showAllDepartures) {
       return selectedLines
-        .map(lineId => cachedLines.find((l: StationLineData) => l.lineId === lineId))
+        .map(lineId => cachedLines.find(l => l.lineId === lineId))
         .filter(Boolean) as StationLineData[];
     } else {
       return [...cachedLines].sort((a, b) => {
@@ -208,17 +215,15 @@ export function StationDetailModal({
     }
   }, [cachedLines, selectedLines, showAllDepartures]);
 
-  // Clean title header station name
+  // Clean title header station name — canonical util, shared with StationCard/ManageStationsModal
   const cleanTitleName = useMemo(() => {
     if (!stationInfo) return '';
-    return String(stationInfo.name)
-      .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
-      .trim();
+    return tflCapitalise(cleanDisplayStationName(stationInfo.name));
   }, [stationInfo]);
 
   // Aligned empty states checks
-  const hasDepartures = sortedLines.some((l: StationLineData) => l.arrivals.length > 0);
-  const isAnyLineNightTube = cachedLines.some((l: StationLineData) => l.isNightTube);
+  const hasDepartures = sortedLines.some(l => l.arrivals.length > 0);
+  const isAnyLineNightTube = cachedLines.some(l => l.isNightTube);
   const emptyStateMessage = isAnyLineNightTube
     ? 'Night Tube active — service resuming shortly.'
     : 'Station service currently suspended.';
@@ -238,22 +243,20 @@ export function StationDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
         {/* Android Solid color fallback to maintain frame rates */}
         {Platform.OS === 'android' ? (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(10, 10, 15, 0.96)' }]} />
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(10, 10, 15, 0.75)' }]} />
         ) : (
           <BlurView
-            intensity={80}
+            intensity={25}
             tint="dark"
             style={StyleSheet.absoluteFillObject}
           />
         )}
-
-        <View style={styles.scrim} />
 
         <Pressable
           style={StyleSheet.absoluteFillObject}
@@ -272,7 +275,7 @@ export function StationDetailModal({
           <View style={styles.card}>
             {Platform.OS !== 'android' && (
               <BlurView
-                intensity={80}
+                intensity={60}
                 tint="dark"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -312,12 +315,6 @@ export function StationDetailModal({
                   )}
                   <Text style={styles.freshnessText}>{freshnessString}</Text>
                 </Pressable>
-
-                {freshnessString === '1m+ ago' && !isRefreshing && (
-                  <Pressable onPress={handleManualRefresh} style={styles.retryLink}>
-                    <Text style={styles.retryText}>Tap to retry</Text>
-                  </Pressable>
-                )}
               </View>
 
               {/* Opacity-toggled 44x44pt filter grid toggle button */}
@@ -365,25 +362,28 @@ export function StationDetailModal({
                         </Text>
                       </View>
 
-                      {/* Arrivals mapping — grouped cleanly by destination,
-                          capped at 3 trains per direction */}
+                      {/* Arrivals mapping — capped at 3 per line so every section reads the same regardless of that line's frequency */}
                       {line.arrivals.length === 0 ? (
                         <Text style={styles.suspendedText}>No arrivals currently running</Text>
                       ) : (
                         <View style={styles.arrivalsList}>
-                          {line.arrivals.map((arrival: ArrivalRow, arrIdx: number) => (
+                          {line.arrivals.slice(0, 3).map((arrival, arrIdx) => (
                             <View key={`${arrival.destination}-${arrIdx}`} style={styles.arrivalRow}>
-                              <View style={styles.arrivalDestCol}>
-                                <Text style={styles.arrivalDest}>
+                              <View style={styles.arrivalInfo}>
+                                <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail">
                                   {arrival.destination}
                                 </Text>
                                 {arrival.branchName ? (
-                                  <Text style={styles.branchText}>
+                                  <Text style={styles.branchText} numberOfLines={1} ellipsizeMode="tail">
                                     {arrival.branchName}
                                   </Text>
                                 ) : null}
                               </View>
-                              <Text style={styles.arrivalTime}>
+                              <Text
+                                style={[styles.arrivalTime, { color: getArrivalTimeColor(arrival.minutesAway) }]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
                                 {arrival.minutesAway === 0 ? 'Due' : `${arrival.minutesAway} min`}
                               </Text>
                             </View>
@@ -391,30 +391,25 @@ export function StationDetailModal({
                         </View>
                       )}
 
-                      {/* Timetable operational bounds footer — only renders
-                          when the backend explicitly supplies real data */}
-                      <View style={styles.lineFooter}>
-                        {line.isNightTube ? (
-                          <Text style={styles.lineFooterText}>
-                            Night Tube active — 24hr Service
-                          </Text>
-                        ) : line.firstTrain && line.lastTrain ? (
-                          <Text style={styles.lineFooterText}>
-                            First: {line.firstTrain} {line.firstTrainDestination || ''} │ Last: {line.lastTrain} {line.lastTrainDestination || ''}
-                          </Text>
-                        ) : null}
-                      </View>
+                      {/* Timetable operational bounds footer — only renders when there's real data to show */}
+                      {(line.isNightTube || (line.firstTrain && line.lastTrain)) && (
+                        <View style={styles.lineFooter}>
+                          {line.isNightTube ? (
+                            <Text style={styles.lineFooterText} numberOfLines={1} ellipsizeMode="tail">
+                              24hr Service
+                            </Text>
+                          ) : (
+                            <Text style={styles.lineFooterText} numberOfLines={1} ellipsizeMode="tail">
+                              First: {line.firstTrain} {line.firstTrainDestination || ''} │ Last: {line.lastTrain} {line.lastTrainDestination || ''}
+                            </Text>
+                          )}
+                        </View>
+                      )}
                     </Animated.View>
                   );
                 })
               )}
             </ScrollView>
-
-            <View style={styles.divider} />
-
-            <View style={styles.dismissHintWrapper}>
-              <Text style={styles.dismissHintText}>Swipe down or tap outside to dismiss</Text>
-            </View>
           </View>
         </Animated.View>
       </View>
@@ -427,11 +422,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  scrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    pointerEvents: 'none',
   },
   cardShadowLayer: {
     width: '90%',
@@ -448,7 +438,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.04)',
     padding: 0,
   },
@@ -459,11 +449,11 @@ const styles = StyleSheet.create({
   },
   dragHandleWrapper: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   dragHandle: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
@@ -472,8 +462,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingBottom: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   stationName: {
     fontSize: 16,
@@ -502,20 +492,12 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
   },
-  retryLink: {
-    marginLeft: 4,
-  },
-  retryText: {
-    fontSize: 10,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: '#0098D4',
-  },
   bodyScroll: {
     maxHeight: SCREEN_HEIGHT * 0.5,
     marginHorizontal: 24,
   },
   bodyScrollContent: {
-    paddingBottom: 12,
+    paddingBottom: 22,
   },
   lineSection: {
     marginBottom: 20,
@@ -523,7 +505,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   lineRowHeader: {
     flexDirection: 'row',
@@ -551,9 +533,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 2,
   },
-  arrivalDestCol: {
+  arrivalInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: 10,
   },
   arrivalDest: {
     fontSize: 12,
@@ -569,7 +551,6 @@ const styles = StyleSheet.create({
   arrivalTime: {
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#30D158',
     textAlign: 'right',
   },
   suspendedText: {
@@ -599,21 +580,5 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.4)',
     textAlign: 'center',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-  },
-  dismissHintWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
-    alignItems: 'center',
-  },
-  dismissHintText: {
-    fontSize: 10,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.25)',
-    letterSpacing: 0.3,
   },
 });

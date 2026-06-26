@@ -166,11 +166,8 @@ export function LineDetailModal({
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
-        <BlurView
-          intensity={80}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
+        {/* Whisper scrim — Apple Now Playing style overlay */}
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.25)' }]} />
 
         <Pressable
           style={StyleSheet.absoluteFillObject}
@@ -217,13 +214,25 @@ export function LineDetailModal({
               </View>
             </View>
 
-            <ScrollView
-              style={styles.bodyScroll}
-              contentContainerStyle={styles.bodyScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.bodyText}>{reasonText}</Text>
-            </ScrollView>
+            {/* Redundant disruption text suppression — hide near-duplicate or uninformative short descriptions */}
+            {(() => {
+              const descTrimmed = reasonText.trim();
+              const descLower = descTrimmed.toLowerCase();
+              const titleLower = (statusLabel || '').trim().toLowerCase();
+              const isDuplicate = descLower === titleLower;
+              const isTooShort = descTrimmed.length < 20;
+              // Always show personality messages for good service
+              const shouldHide = statusType !== 'good' && (isDuplicate || isTooShort);
+              return !shouldHide;
+            })() ? (
+              <ScrollView
+                style={styles.bodyScroll}
+                contentContainerStyle={styles.bodyScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={styles.bodyText}>{reasonText}</Text>
+              </ScrollView>
+            ) : null}
 
             <View style={styles.divider} />
 
@@ -250,18 +259,18 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.62,
     borderRadius: 26,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.60,
-    shadowRadius: 32,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    elevation: 15,
   },
 
   card: {
     borderRadius: 26,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
     padding: 0,
   },
 

@@ -49,6 +49,11 @@ export function groupStationDepartures(arrivals: TflArrivalRow[]): CappedStation
     groups[groupKey].push(arrival);
   });
 
+  // Strictly sort each group chronologically before the slice cap
+  for (const key of Object.keys(groups)) {
+    groups[key].sort((a, b) => a.timeToStation - b.timeToStation);
+  }
+
   const formattedLines: CappedStationLineData[] = Object.keys(groups).map(key => {
     const rawTrains = groups[key];
     const firstTrain = rawTrains[0];
@@ -165,7 +170,12 @@ export function processStationArrivals(
     groups[groupKey].push({ ...dep, _lineId: lineId, _dest: dest });
   }
 
-  // 4. Build StationLineData entries
+  // 4. Strictly sort each group chronologically before the slice cap
+  for (const groupKey of Object.keys(groups)) {
+    groups[groupKey].sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+  }
+
+  // 5. Build StationLineData entries
   const sortedLineKeys = Object.keys(groups).sort();
   const result: StationLineData[] = [];
 

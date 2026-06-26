@@ -11,7 +11,7 @@ import {
   PanResponder,
   AccessibilityInfo,
   findNodeHandle,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -22,12 +22,12 @@ import Animated, {
   Easing,
   runOnJS,
   FadeInUp,
-  LinearTransition
+  LinearTransition,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useStationDataStore, StationLineData } from '../store/stationDataStore';
+import { useStationDataStore, StationLineData, ArrivalRow } from '../store/stationDataStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { cleanDisplayStationName } from '../data/tflStations';
@@ -38,11 +38,56 @@ import { APP_CONFIG } from '../config/app.config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Mirrors DepartureCard's getDepTimeStyle tiers — a 26 min train shouldn't shout as loud as a 1 min train
-function getArrivalTimeColor(minutesAway: number): string {
-  if (minutesAway === 0) return '#30D158';
-  if (minutesAway <= 2) return 'rgba(255,255,255,0.85)';
-  return 'rgba(255,255,255,0.55)';
+// ─── Pressable Arrival Row with haptics, spring bounce, and line color pip ───
+
+function ArrivalRowItem({ arrival, lineColor }: { arrival: ArrivalRow; lineColor: string }) {
+  const scale = useSharedValue(1);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const onPressIn = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    scale.value = withSpring(0.97, { damping: 20, stiffness: 260 });
+  };
+
+  const onPressOut = () => {
+    scale.value = withSpring(1, { damping: 20, stiffness: 260 });
+  };
+
+  const isDue = arrival.minutesAway === 0;
+
+  return (
+    <Animated.View style={[styles.arrivalRow, animStyle]}>
+      <Pressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={styles.arrivalRowPressable}
+      >
+        {/* Line color pip indicator */}
+        <View style={[styles.arrivalPip, { backgroundColor: lineColor }]} />
+
+        <View style={styles.arrivalInfo}>
+          <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail">
+            {arrival.destination}
+          </Text>
+          {arrival.branchName ? (
+            <Text style={styles.branchText} numberOfLines={1} ellipsizeMode="tail">
+              {arrival.branchName}
+            </Text>
+          ) : null}
+        </View>
+
+        <Text
+          style={[isDue ? styles.arrivalTimeDue : styles.arrivalTimeStandard]}
+          numberOfLines={1}
+        >
+          {isDue ? 'Due' : `${arrival.minutesAway} min`}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 interface StationDetailModalProps {
@@ -126,7 +171,7 @@ export function StationDetailModal({
         setFreshnessString('1m+ ago');
       }
     };
-    
+
     updateFreshness();
     const interval = setInterval(updateFreshness, 10000);
     return () => clearInterval(interval);
@@ -205,7 +250,7 @@ export function StationDetailModal({
   const sortedLines = useMemo(() => {
     if (!showAllDepartures) {
       return selectedLines
-        .map(lineId => cachedLines.find(l => l.lineId === lineId))
+        .map(lineId => cachedLines.find((l: StationLineData) => l.lineId === lineId))
         .filter(Boolean) as StationLineData[];
     } else {
       return [...cachedLines].sort((a, b) => {
@@ -226,8 +271,8 @@ export function StationDetailModal({
   }, [stationInfo]);
 
   // Aligned empty states checks
-  const hasDepartures = sortedLines.some(l => l.arrivals.length > 0);
-  const isAnyLineNightTube = cachedLines.some(l => l.isNightTube);
+  const hasDepartures = sortedLines.some((l: StationLineData) => l.arrivals.length > 0);
+  const isAnyLineNightTube = cachedLines.some((l: StationLineData) => l.isNightTube);
   const emptyStateMessage = isAnyLineNightTube
     ? 'Night Tube active — service resuming shortly.'
     : 'Station service currently suspended.';
@@ -251,16 +296,8 @@ export function StationDetailModal({
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
-        {/* Android Solid color fallback to maintain frame rates */}
-        {Platform.OS === 'android' ? (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(10, 10, 15, 0.75)' }]} />
-        ) : (
-          <BlurView
-            intensity={80}
-            tint="dark"
-            style={StyleSheet.absoluteFillObject}
-          />
-        )}
+        {/* Whisper scrim — Apple Now Playing style overlay */}
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.25)' }]} />
 
         <Pressable
           style={StyleSheet.absoluteFillObject}
@@ -270,7 +307,7 @@ export function StationDetailModal({
           pointerEvents="auto"
         />
 
-        <Animated.View 
+        <Animated.View
           style={[styles.cardShadowLayer, cardAnimStyle]}
           accessibilityViewIsModal={true}
           importantForAccessibility="yes"
@@ -286,7 +323,7 @@ export function StationDetailModal({
             )}
 
             <View style={styles.glassTint} pointerEvents="none" />
-            
+
             {/* Drag Handle visually anchoring downward swipe */}
             <View style={styles.dragHandleWrapper}>
               <View style={styles.dragHandle} />
@@ -295,9 +332,9 @@ export function StationDetailModal({
             {/* Header Layout Row */}
             <View style={styles.heroHeader}>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 10 }}>
-                <Text 
+                <Text
                   ref={titleRef}
-                  style={styles.stationName} 
+                  style={styles.stationName}
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
@@ -322,19 +359,22 @@ export function StationDetailModal({
                 </Animated.View>
               </View>
 
-              {/* Opacity-toggled 44x44pt filter grid toggle button */}
+              {/* ⊞ Grid icon — refined: muted at rest, full visibility when modal is fully loaded */}
               {shouldShowFilterBtn && (
                 <Animated.View style={filterPressAnim.animatedStyle}>
                   <Pressable
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    style={[styles.filterBtn, { opacity: showAllDepartures ? 1.0 : 0.4 }]}
+                    style={[
+                      styles.filterBtn,
+                      { opacity: freezeUpdates ? 0.4 : showAllDepartures ? 1.0 : 0.4 },
+                    ]}
                     onPress={() => toggleFilter(stationId)}
                     onPressIn={filterPressAnim.onPressIn}
                     onPressOut={filterPressAnim.onPressOut}
                     accessibilityLabel={showAllDepartures ? 'Switch to Pinned Lines filter' : 'Switch to All Departures filter'}
                     accessibilityRole="button"
                   >
-                    <Ionicons name="grid-outline" size={20} color="#FFFFFF" />
+                    <Ionicons name="grid-outline" size={18} color="#FFFFFF" />
                   </Pressable>
                 </Animated.View>
               )}
@@ -352,9 +392,14 @@ export function StationDetailModal({
                 </View>
               ) : (
                 sortedLines.map((line, idx) => {
-                  const entering = idx < 6 
+                  const entering = idx < 6
                     ? FadeInUp.delay(idx * 50).springify().damping(18)
                     : undefined;
+
+                  // Integrity-first chronological sort before cap
+                  const sortedArrivals = [...line.arrivals].sort(
+                    (a, b) => a.minutesAway - b.minutesAway
+                  );
 
                   return (
                     <Animated.View
@@ -371,31 +416,17 @@ export function StationDetailModal({
                         </Text>
                       </View>
 
-                      {/* Arrivals mapping — capped at 3 per line so every section reads the same regardless of that line's frequency */}
-                      {line.arrivals.length === 0 ? (
+                      {/* Arrivals mapping — capped at 3 per line for perfect visual symmetry */}
+                      {sortedArrivals.length === 0 ? (
                         <Text style={styles.suspendedText}>No arrivals currently running</Text>
                       ) : (
                         <View style={styles.arrivalsList}>
-                          {line.arrivals.slice(0, 3).map((arrival, arrIdx) => (
-                            <View key={`${arrival.destination}-${arrIdx}`} style={styles.arrivalRow}>
-                              <View style={styles.arrivalInfo}>
-                                <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail">
-                                  {arrival.destination}
-                                </Text>
-                                {arrival.branchName ? (
-                                  <Text style={styles.branchText} numberOfLines={1} ellipsizeMode="tail">
-                                    {arrival.branchName}
-                                  </Text>
-                                ) : null}
-                              </View>
-                              <Text
-                                style={[styles.arrivalTime, { color: getArrivalTimeColor(arrival.minutesAway) }]}
-                                numberOfLines={1}
-                                ellipsizeMode="tail"
-                              >
-                                {arrival.minutesAway === 0 ? 'Due' : `${arrival.minutesAway} min`}
-                              </Text>
-                            </View>
+                          {sortedArrivals.slice(0, 3).map((arrival, arrIdx) => (
+                            <ArrivalRowItem
+                              key={`${arrival.destination}-${arrIdx}`}
+                              arrival={arrival}
+                              lineColor={line.lineColor}
+                            />
                           ))}
                         </View>
                       )}
@@ -438,17 +469,17 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.75,
     borderRadius: 26,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.60,
-    shadowRadius: 32,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    elevation: 15,
   },
   card: {
     borderRadius: 26,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
     padding: 0,
   },
   glassTint: {
@@ -537,10 +568,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   arrivalRow: {
+    // Outer Animated.View wrapper — layout managed by the internal Pressable
+    overflow: 'visible',
+  },
+  arrivalRowPressable: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 2,
+    flex: 1,
+  },
+  arrivalPip: {
+    width: 3,
+    height: 12,
+    borderRadius: 1.5,
+    marginRight: 6,
+    flexShrink: 0,
   },
   arrivalInfo: {
     flex: 1,
@@ -557,10 +600,19 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 1,
   },
-  arrivalTime: {
+  arrivalTimeDue: {
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     textAlign: 'right',
+    color: '#2ecc71',
+    fontWeight: '700',
+  },
+  arrivalTimeStandard: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    textAlign: 'right',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   suspendedText: {
     fontSize: 11,

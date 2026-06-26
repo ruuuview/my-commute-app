@@ -32,7 +32,8 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { cleanDisplayStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
-import { groupStationDepartures } from '../utils/groupStationDepartures';
+import { processStationArrivals } from '../utils/groupStationDepartures';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 import { APP_CONFIG } from '../config/app.config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -67,6 +68,9 @@ export function StationDetailModal({
   const showAllDepartures = useUserPreferencesStore(state => state.stationFilterToggles[stationId] || false);
   const toggleFilter = useUserPreferencesStore(state => state.toggleStationFilter);
   const departuresFromStore = useStationDataStore(state => state.departures[stationId]);
+
+  const refreshPressAnim = usePressAnimation('back_btn', false);
+  const filterPressAnim = usePressAnimation('back_btn', false);
 
   // Transition freezing state
   const [freezeUpdates, setFreezeUpdates] = useState(true);
@@ -131,7 +135,7 @@ export function StationDetailModal({
   // Pure Downward Swipe Dismissal responder
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return gestureState.dy > 5;
       },
@@ -177,7 +181,7 @@ export function StationDetailModal({
         }
       });
 
-      const stationLineList = groupStationDepartures(allRawDepartures, stationId);
+      const stationLineList = processStationArrivals(allRawDepartures, stationId);
       useStationDataStore.getState().setDepartures(stationId, stationLineList);
     } catch (e) {
       console.log('Manual refresh failed inside modal:', e);
@@ -243,7 +247,7 @@ export function StationDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="none"
+      animationType="slide"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
@@ -252,7 +256,7 @@ export function StationDetailModal({
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(10, 10, 15, 0.75)' }]} />
         ) : (
           <BlurView
-            intensity={25}
+            intensity={80}
             tint="dark"
             style={StyleSheet.absoluteFillObject}
           />
@@ -275,7 +279,7 @@ export function StationDetailModal({
           <View style={styles.card}>
             {Platform.OS !== 'android' && (
               <BlurView
-                intensity={60}
+                intensity={45}
                 tint="dark"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -301,33 +305,38 @@ export function StationDetailModal({
                 </Text>
 
                 {/* Freshness Badge Vector Component Wrapper */}
-                <Pressable
-                  onPress={handleManualRefresh}
-                  style={({ pressed }) => [
-                    styles.freshnessBadge,
-                    { opacity: pressed ? 1.0 : 0.4 }
-                  ]}
-                >
-                  {isRefreshing ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" style={{ transform: [{ scale: 0.7 }] }} />
-                  ) : (
-                    <Ionicons name="time-outline" size={12} color="#FFFFFF" />
-                  )}
-                  <Text style={styles.freshnessText}>{freshnessString}</Text>
-                </Pressable>
+                <Animated.View style={refreshPressAnim.animatedStyle}>
+                  <Pressable
+                    onPress={handleManualRefresh}
+                    onPressIn={refreshPressAnim.onPressIn}
+                    onPressOut={refreshPressAnim.onPressOut}
+                    style={styles.freshnessBadge}
+                  >
+                    {isRefreshing ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" style={{ transform: [{ scale: 0.7 }] }} />
+                    ) : (
+                      <Ionicons name="time-outline" size={12} color="#FFFFFF" />
+                    )}
+                    <Text style={styles.freshnessText}>{freshnessString}</Text>
+                  </Pressable>
+                </Animated.View>
               </View>
 
               {/* Opacity-toggled 44x44pt filter grid toggle button */}
               {shouldShowFilterBtn && (
-                <Pressable
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  style={[styles.filterBtn, { opacity: showAllDepartures ? 1.0 : 0.4 }]}
-                  onPress={() => toggleFilter(stationId)}
-                  accessibilityLabel={showAllDepartures ? 'Switch to Pinned Lines filter' : 'Switch to All Departures filter'}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="grid-outline" size={20} color="#FFFFFF" />
-                </Pressable>
+                <Animated.View style={filterPressAnim.animatedStyle}>
+                  <Pressable
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={[styles.filterBtn, { opacity: showAllDepartures ? 1.0 : 0.4 }]}
+                    onPress={() => toggleFilter(stationId)}
+                    onPressIn={filterPressAnim.onPressIn}
+                    onPressOut={filterPressAnim.onPressOut}
+                    accessibilityLabel={showAllDepartures ? 'Switch to Pinned Lines filter' : 'Switch to All Departures filter'}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="grid-outline" size={20} color="#FFFFFF" />
+                  </Pressable>
+                </Animated.View>
               )}
             </View>
 

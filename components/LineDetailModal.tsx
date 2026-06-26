@@ -162,12 +162,12 @@ export function LineDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="none"
+      animationType="slide"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
         <BlurView
-          intensity={25}
+          intensity={80}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
         />
@@ -182,7 +182,7 @@ export function LineDetailModal({
         <Animated.View style={[styles.cardShadowLayer, cardAnimStyle]}>
           <View style={styles.card}>
             <BlurView
-              intensity={60}
+              intensity={45}
               tint="dark"
               style={StyleSheet.absoluteFillObject}
             />

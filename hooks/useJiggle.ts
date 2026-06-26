@@ -19,6 +19,8 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   const zIndex = useSharedValue(0);
 
   useEffect(() => {
+    zIndex.value = isActive ? 999 : isEditing ? 1 : 0;
+
     if (isEditing && !isActive) {
       // ±1.5° rotation jiggle with multi-axis fluid loop
       rotation.value = withDelay(
@@ -33,7 +35,6 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
         phaseDelay,
         withRepeat(withSequence(withTiming(0.5, { duration: 95 }), withTiming(-0.5, { duration: 95 })), -1, true)
       );
-      zIndex.value = isActive ? 999 : 1;
     } else {
       // Soft-rest return to base values when exiting edit mode or during active drag
       cancelAnimation(rotation);
@@ -43,7 +44,6 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       rotation.value = withSpring(0, { damping: 15, stiffness: 200 });
       translateX.value = withSpring(0, { damping: 15, stiffness: 200 });
       translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
-      zIndex.value = 0;
     }
   }, [isEditing, isActive, phaseDelay]);
 

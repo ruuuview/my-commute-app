@@ -106,8 +106,8 @@ interface DashboardData {
 function parseSeverity(statusText: string): Severity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
-  if (text.includes('minor') || text.includes('reduced') || text.includes('part')) return 'minor';
   if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
+  if (text.includes('minor') || text.includes('reduced') || text.includes('part')) return 'minor';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
   if (text.includes('offline')) return 'offline';
   return 'good';
@@ -264,6 +264,7 @@ const MyCommuteDashboard: React.FC = () => {
   const stationsPlusRef = React.useRef<any>(null);
   const isDragging = useSharedValue(false);
   const headerBtnAnim = usePressAnimation('back_btn', false);
+  const addStationPressAnim = usePressAnimation('departure_card', false);
 
   // ✅ Deferred Permission Trigger System (Phase 6)
   const {
@@ -615,18 +616,22 @@ const MyCommuteDashboard: React.FC = () => {
                     plusRef={stationsPlusRef}
                   />
                   {selectedStations.length === 0 ? (
-                    <Pressable
-                      onPress={() => setStationsModalVisible(true)}
-                      style={dash.addStationCard}
-                    >
-                      <BlurView
-                        intensity={20}
-                        tint="dark"
-                        style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                      />
-                      <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
-                      <Text style={dash.addCardText}>Add your first station</Text>
-                    </Pressable>
+                    <Animated.View style={addStationPressAnim.animatedStyle}>
+                      <Pressable
+                        onPress={() => setStationsModalVisible(true)}
+                        onPressIn={addStationPressAnim.onPressIn}
+                        onPressOut={addStationPressAnim.onPressOut}
+                        style={dash.addStationCard}
+                      >
+                        <BlurView
+                          intensity={45}
+                          tint="dark"
+                          style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                        />
+                        <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
+                        <Text style={dash.addCardText}>Add your first station</Text>
+                      </Pressable>
+                    </Animated.View>
                   ) : (
                     <NestableDraggableFlatList
                       data={selectedStations}
@@ -662,7 +667,11 @@ const MyCommuteDashboard: React.FC = () => {
                               isEditing={isEditing}
                               onDelete={removeStation}
                               onLongPress={drag}
-                              onPress={() => setSelectedStationId(item.id)}
+                              onPress={() => {
+                                if (!isEditing) {
+                                  setSelectedStationId(item.id);
+                                }
+                              }}
                               drag={drag}
                               isActive={isActive}
                               index={index ?? 0}
@@ -832,9 +841,9 @@ const dash = StyleSheet.create({
   promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
   addStationCard: {
     alignSelf: 'stretch',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
     height: 68,
     flexDirection: 'row',
     alignItems: 'center',

@@ -180,7 +180,7 @@ export function LineCard({
   }
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.outerCard,
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
@@ -331,7 +331,7 @@ export function LineCard({
           </Animated.View>
         </Animated.View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

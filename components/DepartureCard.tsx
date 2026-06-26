@@ -260,6 +260,7 @@ export default function DepartureCard({
         <Pressable
           onPress={() => {
             if (isEditing) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             if (onPress) onPress();
           }}
           onLongPress={onLongPress}

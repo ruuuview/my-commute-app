@@ -18,6 +18,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+import { tflCapitalise } from '../utils/tflCapitalise';
+import { cleanDisplayStationName } from '../data/tflStations';
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const PERSONALITY_POOL = [
@@ -131,8 +134,8 @@ export function LineDetailModal({
 
   const displayLineName = useMemo(() => {
     if (!line) return '';
-    const stripped = line.name.replace(/\s*line\s*$/i, '').trim();
-    return `${stripped.toUpperCase()} LINE`;
+    const cleaned = tflCapitalise(cleanDisplayStationName(line.name));
+    return `${cleaned.toUpperCase()} LINE`;
   }, [line]);
 
   const reasonText = useMemo(() => {
@@ -200,6 +203,7 @@ export function LineDetailModal({
               </Text>
             </View>
 
+            {/* Center-aligned status pill */}
             <View style={styles.statusRow}>
               <View
                 style={[
@@ -224,6 +228,7 @@ export function LineDetailModal({
               contentContainerStyle={styles.bodyScrollContent}
               showsVerticalScrollIndicator={false}
             >
+              {/* Full descriptive text — no numberOfLines truncation */}
               <Text style={styles.bodyText}>{reasonText}</Text>
             </ScrollView>
 

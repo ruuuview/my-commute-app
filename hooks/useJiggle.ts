@@ -16,13 +16,14 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   const rotation = useSharedValue(0);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+  const zIndex = useSharedValue(0);
 
   useEffect(() => {
     if (isEditing && !isActive) {
-      // Trigger the multi-axis fluid loop with deterministic phase stagger
+      // ±1.5° rotation jiggle with multi-axis fluid loop
       rotation.value = withDelay(
         phaseDelay,
-        withRepeat(withSequence(withTiming(-1, { duration: 110 }), withTiming(1, { duration: 110 })), -1, true)
+        withRepeat(withSequence(withTiming(-1.5, { duration: 110 }), withTiming(1.5, { duration: 110 })), -1, true)
       );
       translateX.value = withDelay(
         phaseDelay,
@@ -32,6 +33,7 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
         phaseDelay,
         withRepeat(withSequence(withTiming(0.5, { duration: 95 }), withTiming(-0.5, { duration: 95 })), -1, true)
       );
+      zIndex.value = isActive ? 999 : 1;
     } else {
       // Soft-rest return to base values when exiting edit mode or during active drag
       cancelAnimation(rotation);
@@ -41,17 +43,23 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       rotation.value = withSpring(0, { damping: 15, stiffness: 200 });
       translateX.value = withSpring(0, { damping: 15, stiffness: 200 });
       translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
+      zIndex.value = 0;
     }
   }, [isEditing, isActive, phaseDelay]);
 
   const animatedStyle = useAnimatedStyle(() => {
+    const scaleVal = isActive ? 1.05 : 1;
     return {
       transform: [
         { rotate: `${rotation.value}deg` },
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { scale: isActive ? withSpring(1.04) : withSpring(1) }
-      ]
+        { scale: withSpring(scaleVal, { damping: 18, stiffness: 250 }) }
+      ],
+      zIndex: zIndex.value,
+      shadowOpacity: isActive ? 0.5 : 0,
+      shadowRadius: isActive ? 24 : 0,
+      elevation: isActive ? 12 : 0,
     };
   });
 

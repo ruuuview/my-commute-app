@@ -60,8 +60,8 @@ import { StationDetailModal } from './StationDetailModal'; // Resolved import
 import { useStationDataStore } from '../store/stationDataStore';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
-import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
+import { processStationArrivals } from '../utils/groupStationDepartures';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
@@ -361,77 +361,8 @@ const MyCommuteDashboard: React.FC = () => {
               }
             });
 
-            const dedupedRaw: any[] = [];
-            const seenKeys = new Set<string>();
-
-            allRawDepartures.forEach(dep => {
-              const dest = String(dep.destination || '');
-              if (dest.includes('DELETE') || dest.includes('⚠️')) {
-                return;
-              }
-              const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
-              if (!seenKeys.has(key)) {
-                seenKeys.add(key);
-                dedupedRaw.push(dep);
-              }
-            });
-
-            dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
-
-            const groupedLines: Record<string, any> = {};
-
-            dedupedRaw.forEach((dep: any) => {
-              const { lineId, cleanLineId } = normaliseLineId(dep.line);
-              
-              if (!groupedLines[lineId]) {
-                const charCodeSum = st.id.charCodeAt(0) + lineId.charCodeAt(0);
-                const firstMin = 10 + (charCodeSum % 25);
-                const lastMin = 10 + (charCodeSum % 35);
-                const firstTrain = `05:${firstMin < 10 ? '0' : ''}${firstMin}`;
-                const lastTrain = `00:${lastMin < 10 ? '0' : ''}${lastMin}`;
-                
-                const nightTubeLines = ['central', 'jubilee', 'northern', 'piccadilly', 'victoria'];
-                const isWeekend = new Date().getDay() === 5 || new Date().getDay() === 6;
-                const isNightTube = nightTubeLines.includes(lineId) && isWeekend;
-                
-                const firstTrainDestination = `To ${dep.destination.replace(' Underground Station', '').replace(' DLR Station', '')}`;
-                const lastTrainDestination = `To ${dep.destination.replace(' Underground Station', '').replace(' DLR Station', '')}`;
-
-                groupedLines[lineId] = {
-                  lineId,
-                  lineName: dep.line,
-                  lineColor: LINE_COLORS[cleanLineId] || '#888',
-                  firstTrain: dep.firstTrain || firstTrain,
-                  lastTrain: dep.lastTrain || lastTrain,
-                  isNightTube: dep.isNightTube !== undefined ? dep.isNightTube : isNightTube,
-                  firstTrainDestination: dep.firstTrainDestination || firstTrainDestination,
-                  lastTrainDestination: dep.lastTrainDestination || lastTrainDestination,
-                  arrivals: [],
-                };
-              }
-
-              let branchName = dep.branchName;
-              if (!branchName && dep.platform) {
-                const platformLower = dep.platform.toLowerCase();
-                if (platformLower.includes('via bank')) {
-                  branchName = 'via Bank';
-                } else if (platformLower.includes('via charing cross')) {
-                  branchName = 'via Charing Cross';
-                } else if (platformLower.includes('via city branch')) {
-                  branchName = 'via City';
-                }
-              }
-
-              groupedLines[lineId].arrivals.push({
-                minutesAway: dep.minutes_away,
-                destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-                expectedArrival: dep.expected_arrival,
-                branchName,
-                platform: dep.platform || '',
-              });
-            });
-
-            const stationLineList = Object.values(groupedLines);
+            // Delegate all dedup/sort/group/cap logic to the shared utility
+            const stationLineList = processStationArrivals(allRawDepartures, st.id);
             useStationDataStore.getState().setDepartures(st.id, stationLineList);
 
             return {

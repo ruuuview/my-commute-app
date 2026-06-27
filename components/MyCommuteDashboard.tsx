@@ -260,6 +260,15 @@ const MyCommuteDashboard: React.FC = () => {
   const [selectedStationModal, setSelectedStationModal] = useState<{ stationId: string; anchor: AnchorRect } | null>(null);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+  const [touchReady, setTouchReady] = useState(true);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setTouchReady(false);
+      const t = setTimeout(() => setTouchReady(true), 150);
+      return () => clearTimeout(t);
+    }
+  }, [isEditing]);
 
   // ── Card refs for measureInWindow ──
   const lineCardRefs = useRef<Map<string, View>>(new Map());
@@ -593,11 +602,12 @@ const MyCommuteDashboard: React.FC = () => {
                             line={item}
                             selected={false}
                             onPress={() => {
-                              // Only open modal when NOT in edit mode and NOT scrolling
-                              if (!isEditing && !isScrolling) {
+                              // Only open modal when NOT in edit mode and NOT scrolling and touchReady is true
+                              if (!isEditing && !isScrolling && touchReady) {
                                 const node = lineCardRefs.current.get(item.id);
                                 if (node) {
                                   node.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                    if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
                                     setSelectedLineModal({ line: item, anchor: { x, y, width, height } });
                                   });
                                 }
@@ -700,10 +710,11 @@ const MyCommuteDashboard: React.FC = () => {
                               onDelete={removeStation}
                               onLongPress={drag}
                               onPress={() => {
-                                if (!isEditing && !isScrolling) {
+                                if (!isEditing && !isScrolling && touchReady) {
                                   const node = stationCardRefs.current.get(item.id);
                                   if (node) {
                                     node.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                      if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
                                       setSelectedStationModal({ stationId: item.id, anchor: { x, y, width, height } });
                                     });
                                   }

@@ -157,8 +157,8 @@ export function LineDetailModal({
       opacity.value = 0;
 
       // Spring to final position
-      translateY.value = withSpring(0, { damping: 18, stiffness: 200 });
-      scale.value = withSpring(1, { damping: 18, stiffness: 200 });
+      translateY.value = withSpring(0, { damping: 18, stiffness: 200, overshootClamping: true });
+      scale.value = withSpring(1, { damping: 18, stiffness: 200, overshootClamping: true });
       opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
     } else {
       translateY.value = 0;

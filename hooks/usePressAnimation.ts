@@ -62,7 +62,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
       damping: config.damping,
       stiffness: config.stiffness,
     });
-  }, [config, mappedKey, disabled, reducedMotion]);
+  }, [config, mappedKey, disabled, reducedMotion, scale]);
 
   const onPressOut = useCallback(() => {
     if (disabled || reducedMotion) {
@@ -87,7 +87,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
         stiffness: config.stiffness,
       });
     }
-  }, [config, disabled, reducedMotion]);
+  }, [config, disabled, reducedMotion, scale]);
 
   return {
     onPressIn,

@@ -208,13 +208,13 @@ export function StationDetailModal({
       opacity.value = 0;
 
       // Spring to final position
-      translateY.value = withSpring(0, { damping: 18, stiffness: 200 }, (isFinished) => {
+      translateY.value = withSpring(0, { damping: 18, stiffness: 200, overshootClamping: true }, (isFinished) => {
         if (isFinished) {
           runOnJS(setFreezeUpdates)(false);
           runOnJS(focusOnTitle)();
         }
       });
-      scale.value = withSpring(1, { damping: 18, stiffness: 200 });
+      scale.value = withSpring(1, { damping: 18, stiffness: 200, overshootClamping: true });
       opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
     } else {
       scale.value = 0.92;

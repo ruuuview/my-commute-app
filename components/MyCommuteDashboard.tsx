@@ -5,7 +5,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useCallback, useEffect, useState, useMemo, memo, forwardRef } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, memo, forwardRef, useRef } from 'react';
 
 import {
   Platform,
@@ -245,20 +245,34 @@ const MyCommuteDashboard: React.FC = () => {
 
   const [linesModalVisible, setLinesModalVisible] = useState(false);
   const [stationsModalVisible, setStationsModalVisible] = useState(false);
-  const [selectedLineForModal, setSelectedLineForModal] = useState<LineData | null>(null);
-  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  const [isScrolling, setIsScrolling] = useState(false);
+
+  // ── Anchor rect types for contextual popups ──
+  interface AnchorRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }
+
+  const [selectedLineModal, setSelectedLineModal] = useState<{ line: LineData; anchor: AnchorRect } | null>(null);
+  const [selectedStationModal, setSelectedStationModal] = useState<{ stationId: string; anchor: AnchorRect } | null>(null);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
 
-  // Sync unmount guard for deleted/removed selectedStationId
+  // ── Card refs for measureInWindow ──
+  const lineCardRefs = useRef<Map<string, View>>(new Map());
+  const stationCardRefs = useRef<Map<string, View>>(new Map());
+
+  // Sync unmount guard for deleted/removed selectedStationModal
   useEffect(() => {
-    if (selectedStationId) {
-      const isPinned = selectedStations.some(s => s.id === selectedStationId);
+    if (selectedStationModal) {
+      const isPinned = selectedStations.some(s => s.id === selectedStationModal.stationId);
       if (!isPinned) {
-        setSelectedStationId(null);
+        setSelectedStationModal(null);
       }
     }
-  }, [selectedStations, selectedStationId]);
+  }, [selectedStations, selectedStationModal]);
 
   const linesPlusRef = React.useRef<any>(null);
   const stationsPlusRef = React.useRef<any>(null);
@@ -473,6 +487,10 @@ const MyCommuteDashboard: React.FC = () => {
           style={[dash.scroll, { zIndex: 1 }]}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScrollBeginDrag={() => setIsScrolling(true)}
+          onScrollEndDrag={() => setIsScrolling(false)}
+          onMomentumScrollEnd={() => setIsScrolling(false)}
           refreshControl={
             <RefreshControl
               refreshing={isLoading}
@@ -575,14 +593,25 @@ const MyCommuteDashboard: React.FC = () => {
                     renderItem={({ item, drag, isActive, getIndex }) => {
                       const index = getIndex();
                       return (
-                        <StaggeredCardWrapper index={index ?? 0}>
+                        <StaggeredCardWrapper
+                          ref={(node: View | null) => {
+                            if (node) lineCardRefs.current.set(item.id, node);
+                            else lineCardRefs.current.delete(item.id);
+                          }}
+                          index={index ?? 0}
+                        >
                           <LineCard
                             line={item}
                             selected={false}
                             onPress={() => {
-                              // Only open modal when NOT in edit mode
-                              if (!isEditing) {
-                                setSelectedLineForModal(item);
+                              // Only open modal when NOT in edit mode and NOT scrolling
+                              if (!isEditing && !isScrolling) {
+                                const node = lineCardRefs.current.get(item.id);
+                                if (node) {
+                                  node.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                    setSelectedLineModal({ line: item, anchor: { x, y, width, height } });
+                                  });
+                                }
                               }
                             }}
                             // FIX 4: Long press is now a single unconditional path: drag.
@@ -660,7 +689,13 @@ const MyCommuteDashboard: React.FC = () => {
                       renderItem={({ item, drag, isActive, getIndex }) => {
                         const index = getIndex();
                         return (
-                          <StaggeredCardWrapper index={index ?? 0}>
+                          <StaggeredCardWrapper
+                          ref={(node: View | null) => {
+                            if (node) stationCardRefs.current.set(item.id, node);
+                            else stationCardRefs.current.delete(item.id);
+                          }}
+                          index={index ?? 0}
+                        >
                             <DepartureCard
                               stationId={item.id}
                               stationName={item.name}
@@ -668,8 +703,13 @@ const MyCommuteDashboard: React.FC = () => {
                               onDelete={removeStation}
                               onLongPress={drag}
                               onPress={() => {
-                                if (!isEditing) {
-                                  setSelectedStationId(item.id);
+                                if (!isEditing && !isScrolling) {
+                                  const node = stationCardRefs.current.get(item.id);
+                                  if (node) {
+                                    node.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                      setSelectedStationModal({ stationId: item.id, anchor: { x, y, width, height } });
+                                    });
+                                  }
                                 }
                               }}
                               drag={drag}
@@ -704,16 +744,18 @@ const MyCommuteDashboard: React.FC = () => {
           onClose={() => setStationsModalVisible(false)}
         />
         <LineDetailModal
-          visible={selectedLineForModal !== null}
-          onClose={() => setSelectedLineForModal(null)}
-          line={selectedLineForModal}
-          statusType={selectedLineForModal ? parseSeverity(selectedLineForModal.status) : 'loading'}
-          statusLabel={selectedLineForModal ? selectedLineForModal.status : ''}
+          visible={selectedLineModal !== null}
+          onClose={() => setSelectedLineModal(null)}
+          line={selectedLineModal?.line ?? null}
+          statusType={selectedLineModal ? parseSeverity(selectedLineModal.line.status) : 'loading'}
+          statusLabel={selectedLineModal ? selectedLineModal.line.status : ''}
+          anchorRect={selectedLineModal?.anchor ?? null}
         />
         <StationDetailModal
-          visible={selectedStationId !== null}
-          onClose={() => setSelectedStationId(null)}
-          stationId={selectedStationId || ''}
+          visible={selectedStationModal !== null}
+          onClose={() => setSelectedStationModal(null)}
+          stationId={selectedStationModal?.stationId || ''}
+          anchorRect={selectedStationModal?.anchor ?? null}
         />
 
         {/* Deferred Notification Modal */}

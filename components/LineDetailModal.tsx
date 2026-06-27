@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -18,7 +19,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
+const ESTIMATED_POPUP_HEIGHT = 260;
 
 const PERSONALITY_POOL = [
   "Don't jinx it.",
@@ -28,6 +31,13 @@ const PERSONALITY_POOL = [
   "Boring is the best thing I can be right now.",
   "Enjoy the smooth journey ahead.",
 ];
+
+interface AnchorRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface LineDetailModalProps {
   visible: boolean;
@@ -51,6 +61,7 @@ interface LineDetailModalProps {
     | 'offline'
     | string;
   statusLabel: string;
+  anchorRect: AnchorRect | null;
 }
 
 const STATUS_TOKENS: Record<
@@ -108,23 +119,51 @@ export function LineDetailModal({
   line,
   statusType,
   statusLabel,
+  anchorRect,
 }: LineDetailModalProps) {
-  const cardScale = useSharedValue(0.92);
-  const cardOpacity = useSharedValue(0);
+  // ── Compute anchored position ──
+  const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
+
+  const popupTop = useMemo(() => {
+    if (!anchorRect) return SCREEN_HEIGHT / 2 - ESTIMATED_POPUP_HEIGHT / 2;
+    const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
+    if (spaceBelow < 300) {
+      return Math.max(60, anchorRect.y - ESTIMATED_POPUP_HEIGHT - 8);
+    }
+    return anchorRect.y + anchorRect.height + 8;
+  }, [anchorRect]);
+
+  // ── Spring animation values ──
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(0.92);
+  const opacity = useSharedValue(0);
 
   useEffect(() => {
-    if (visible) {
-      cardScale.value = withSpring(1, { damping: 22, stiffness: 260 });
-      cardOpacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
-    } else {
-      cardScale.value = withTiming(0.92, { duration: 160, easing: Easing.in(Easing.poly(2)) });
-      cardOpacity.value = withTiming(0, { duration: 160 });
-    }
-  }, [visible, cardScale, cardOpacity]);
+    if (visible && anchorRect) {
+      // Start from anchor bottom position
+      const startOffset = (anchorRect.y + anchorRect.height) - popupTop;
+      translateY.value = startOffset;
+      scale.value = 0.92;
+      opacity.value = 0;
 
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }],
-    opacity: cardOpacity.value,
+      // Spring to final position
+      translateY.value = withSpring(0, { damping: 18, stiffness: 200 });
+      scale.value = withSpring(1, { damping: 18, stiffness: 200 });
+      opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
+    } else if (!visible) {
+      translateY.value = 0;
+      scale.value = 0.92;
+      opacity.value = 0;
+    }
+  }, [visible, anchorRect, popupTop]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: popupLeft },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+    opacity: opacity.value,
   }));
 
   const token = STATUS_TOKENS[statusType] ?? FALLBACK_TOKEN;
@@ -162,39 +201,42 @@ export function LineDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
-        {/* Whisper scrim — Apple Now Playing style overlay */}
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.25)' }]} />
-
+        {/* Whisper scrim — blocks underlying touch bleed */}
         <Pressable
-          style={StyleSheet.absoluteFillObject}
+          style={[StyleSheet.absoluteFillObject, styles.scrim]}
           onPress={handleClose}
+          pointerEvents="auto"
           accessibilityRole="button"
           accessibilityLabel="Dismiss line detail"
         />
 
-        <Animated.View style={[styles.cardShadowLayer, cardAnimStyle]}>
-          <View style={styles.card}>
-            <BlurView
-              intensity={45}
-              tint="dark"
-              style={StyleSheet.absoluteFillObject}
-            />
+        {/* Anchored popup */}
+        <Animated.View style={[styles.popupShadow, animStyle]}>
+          <View style={styles.popup}>
+            {Platform.OS !== 'android' && (
+              <BlurView
+                intensity={45}
+                tint="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            )}
 
+            {/* Outer glass tint */}
             <View style={styles.glassTint} pointerEvents="none" />
 
+            {/* ── Content: Line title header ── */}
             <View style={styles.heroHeader}>
-              <View
-                style={[styles.colorBar, { backgroundColor: line.color }]}
-              />
+              <View style={[styles.colorBar, { backgroundColor: line.color }]} />
               <Text style={styles.lineName} numberOfLines={1}>
                 {displayLineName}
               </Text>
             </View>
 
+            {/* ── Inner tinted status pill ── */}
             <View style={styles.statusRow}>
               <View
                 style={[
@@ -205,23 +247,20 @@ export function LineDetailModal({
                   },
                 ]}
               >
-                <View
-                  style={[styles.statusDot, { backgroundColor: token.dotColor }]}
-                />
+                <View style={[styles.statusDot, { backgroundColor: token.dotColor }]} />
                 <Text style={[styles.statusText, { color: token.text }]}>
                   {statusLabel || 'Good Service'}
                 </Text>
               </View>
             </View>
 
-            {/* Redundant disruption text suppression — hide near-duplicate or uninformative short descriptions */}
+            {/* ── Full text description reason string ── */}
             {(() => {
               const descTrimmed = reasonText.trim();
               const descLower = descTrimmed.toLowerCase();
               const titleLower = (statusLabel || '').trim().toLowerCase();
               const isDuplicate = descLower === titleLower;
               const isTooShort = descTrimmed.length < 20;
-              // Always show personality messages for good service
               const shouldHide = statusType !== 'good' && (isDuplicate || isTooShort);
               return !shouldHide;
             })() ? (
@@ -233,12 +272,6 @@ export function LineDetailModal({
                 <Text style={styles.bodyText}>{reasonText}</Text>
               </ScrollView>
             ) : null}
-
-            <View style={styles.divider} />
-
-            <View style={styles.dismissHintWrapper}>
-              <Text style={styles.dismissHintText}>Tap anywhere to dismiss</Text>
-            </View>
           </View>
         </Animated.View>
       </View>
@@ -249,15 +282,17 @@ export function LineDetailModal({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  scrim: {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
 
-  cardShadowLayer: {
-    width: '88%',
-    maxWidth: 380,
-    maxHeight: SCREEN_HEIGHT * 0.62,
-    borderRadius: 26,
+  popupShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: POPUP_WIDTH,
+    borderRadius: 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.4,
@@ -265,38 +300,38 @@ const styles = StyleSheet.create({
     elevation: 15,
   },
 
-  card: {
-    borderRadius: 26,
+  popup: {
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.12)',
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
     padding: 0,
   },
 
   glassTint: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 26,
+    borderRadius: 20,
   },
 
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 20,
-    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingHorizontal: 20,
     paddingBottom: 0,
   },
 
   colorBar: {
     width: 4,
-    height: 22,
+    height: 20,
     borderRadius: 2,
     marginRight: 12,
   },
 
   lineName: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: 1.2,
@@ -304,11 +339,10 @@ const styles = StyleSheet.create({
   },
 
   statusRow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 16,
+    alignItems: 'flex-start',
+    paddingTop: 14,
     paddingBottom: 4,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
   },
 
   statusPill: {
@@ -317,8 +351,8 @@ const styles = StyleSheet.create({
     gap: 7,
     borderWidth: 1,
     borderRadius: 9999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
 
   statusDot: {
@@ -335,10 +369,10 @@ const styles = StyleSheet.create({
   },
 
   bodyScroll: {
-    maxHeight: 180,
-    marginTop: 16,
-    marginHorizontal: 22,
-    marginBottom: 0,
+    maxHeight: 140,
+    marginTop: 14,
+    marginHorizontal: 20,
+    marginBottom: 16,
   },
 
   bodyScrollContent: {
@@ -346,30 +380,9 @@ const styles = StyleSheet.create({
   },
 
   bodyText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.78)',
-    lineHeight: 24,
-  },
-
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    marginTop: 16,
-    marginHorizontal: 0,
-  },
-
-  dismissHintWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
-    alignItems: 'center',
-  },
-
-  dismissHintText: {
-    fontSize: 11,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.25)',
-    letterSpacing: 0.3,
+    lineHeight: 22,
   },
 });

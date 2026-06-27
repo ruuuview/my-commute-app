@@ -8,7 +8,6 @@ import {
   ScrollView,
   Dimensions,
   Platform,
-  PanResponder,
   AccessibilityInfo,
   findNodeHandle,
   ActivityIndicator,
@@ -36,7 +35,16 @@ import { processStationArrivals } from '../utils/groupStationDepartures';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { APP_CONFIG } from '../config/app.config';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 390);
+
+// ─── Anchor rect type ──────────────────────────────────────────────
+interface AnchorRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 // ─── Pressable Arrival Row with haptics, spring bounce, and line color pip ───
 
@@ -65,7 +73,7 @@ function ArrivalRowItem({ arrival, lineColor }: { arrival: ArrivalRow; lineColor
         onPressOut={onPressOut}
         style={styles.arrivalRowPressable}
       >
-        {/* Line color pip indicator */}
+        {/* Dynamic colored route pip */}
         <View style={[styles.arrivalPip, { backgroundColor: lineColor }]} />
 
         <View style={styles.arrivalInfo}>
@@ -94,15 +102,17 @@ interface StationDetailModalProps {
   visible: boolean;
   onClose: () => void;
   stationId: string;
+  anchorRect: AnchorRect | null;
 }
 
 export function StationDetailModal({
   visible,
   onClose,
   stationId,
+  anchorRect,
 }: StationDetailModalProps) {
-  const cardScale = useSharedValue(0.92);
-  const cardOpacity = useSharedValue(0);
+  const scale = useSharedValue(0.92);
+  const opacity = useSharedValue(0);
   const translateY = useSharedValue(0);
 
   const titleRef = useRef<Text>(null);
@@ -123,6 +133,18 @@ export function StationDetailModal({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [freshnessString, setFreshnessString] = useState('Live');
 
+  // ── Compute anchored position ──
+  const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
+
+  const popupTop = useMemo(() => {
+    if (!anchorRect) return SCREEN_HEIGHT / 2 - 200;
+    const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
+    if (spaceBelow < 300) {
+      return Math.max(60, anchorRect.y - 400 - 8);
+    }
+    return anchorRect.y + anchorRect.height + 8;
+  }, [anchorRect]);
+
   // Shift accessibility focus to station name header
   const focusOnTitle = useCallback(() => {
     if (titleRef.current) {
@@ -135,25 +157,34 @@ export function StationDetailModal({
 
   // Sync snapshot cache and trigger haptic scaling feedback
   useEffect(() => {
-    if (visible) {
+    if (visible && anchorRect) {
       setFreezeUpdates(true);
       const currentCache = useStationDataStore.getState().departures[stationId];
       setSnapshotData(currentCache);
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      cardScale.value = withSpring(1, { damping: 22, stiffness: 260 }, (isFinished) => {
+
+      // Start from anchor bottom
+      const startOffset = (anchorRect.y + anchorRect.height) - popupTop;
+      translateY.value = startOffset;
+      scale.value = 0.92;
+      opacity.value = 0;
+
+      // Spring to final position
+      translateY.value = withSpring(0, { damping: 18, stiffness: 200 }, (isFinished) => {
         if (isFinished) {
           runOnJS(setFreezeUpdates)(false);
           runOnJS(focusOnTitle)();
         }
       });
-      cardOpacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
-    } else {
-      cardScale.value = withTiming(0.92, { duration: 160, easing: Easing.in(Easing.poly(2)) });
-      cardOpacity.value = withTiming(0, { duration: 160 });
-      translateY.value = 0; // reset drag
+      scale.value = withSpring(1, { damping: 18, stiffness: 200 });
+      opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
+    } else if (!visible) {
+      scale.value = 0.92;
+      opacity.value = 0;
+      translateY.value = 0;
     }
-  }, [visible, stationId, cardScale, cardOpacity, translateY, focusOnTitle]);
+  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, popupTop]);
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -176,28 +207,6 @@ export function StationDetailModal({
     const interval = setInterval(updateFreshness, 10000);
     return () => clearInterval(interval);
   }, [departuresFromStore]);
-
-  // Pure Downward Swipe Dismissal responder
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 5;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.value = gestureState.dy;
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120 || gestureState.vy > 0.8) {
-          handleClose();
-        } else {
-          translateY.value = withSpring(0, { damping: 15, stiffness: 120 });
-        }
-      },
-    })
-  ).current;
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -279,10 +288,11 @@ export function StationDetailModal({
 
   const cardAnimStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale: cardScale.value },
-      { translateY: translateY.value }
+      { translateX: popupLeft },
+      { translateY: translateY.value },
+      { scale: scale.value },
     ],
-    opacity: cardOpacity.value,
+    opacity: opacity.value,
   }));
 
   if (!stationInfo) return null;
@@ -292,28 +302,25 @@ export function StationDetailModal({
       visible={visible}
       transparent
       presentationStyle="overFullScreen"
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
     >
       <View style={styles.root}>
-        {/* Whisper scrim — Apple Now Playing style overlay */}
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.25)' }]} />
-
+        {/* Whisper scrim — blocks underlying touch bleed */}
         <Pressable
-          style={StyleSheet.absoluteFillObject}
+          style={[StyleSheet.absoluteFillObject, styles.scrim]}
           onPress={handleClose}
+          pointerEvents="auto"
           accessibilityRole="button"
           accessibilityLabel="Dismiss station details"
-          pointerEvents="auto"
         />
 
         <Animated.View
-          style={[styles.cardShadowLayer, cardAnimStyle]}
+          style={[styles.popupShadow, cardAnimStyle]}
           accessibilityViewIsModal={true}
           importantForAccessibility="yes"
-          {...panResponder.panHandlers}
         >
-          <View style={styles.card}>
+          <View style={styles.popup}>
             {Platform.OS !== 'android' && (
               <BlurView
                 intensity={45}
@@ -323,11 +330,6 @@ export function StationDetailModal({
             )}
 
             <View style={styles.glassTint} pointerEvents="none" />
-
-            {/* Drag Handle visually anchoring downward swipe */}
-            <View style={styles.dragHandleWrapper}>
-              <View style={styles.dragHandle} />
-            </View>
 
             {/* Header Layout Row */}
             <View style={styles.heroHeader}>
@@ -341,7 +343,7 @@ export function StationDetailModal({
                   {cleanTitleName.toUpperCase()}
                 </Text>
 
-                {/* Freshness Badge Vector Component Wrapper */}
+                {/* Freshness Badge */}
                 <Animated.View style={refreshPressAnim.animatedStyle}>
                   <Pressable
                     onPress={handleManualRefresh}
@@ -359,7 +361,7 @@ export function StationDetailModal({
                 </Animated.View>
               </View>
 
-              {/* ⊞ Grid icon — refined: muted at rest, full visibility when modal is fully loaded */}
+              {/* ⊞ Grid icon */}
               {shouldShowFilterBtn && (
                 <Animated.View style={filterPressAnim.animatedStyle}>
                   <Pressable
@@ -416,7 +418,7 @@ export function StationDetailModal({
                         </Text>
                       </View>
 
-                      {/* Arrivals mapping — capped at 3 per line for perfect visual symmetry */}
+                      {/* Arrivals mapping — capped at 3 per line */}
                       {sortedArrivals.length === 0 ? (
                         <Text style={styles.suspendedText}>No arrivals currently running</Text>
                       ) : (
@@ -431,7 +433,7 @@ export function StationDetailModal({
                         </View>
                       )}
 
-                      {/* Timetable operational bounds footer — only renders when there's real data to show */}
+                      {/* Timetable footer */}
                       {(line.isNightTube || (line.firstTrain && line.lastTrain)) && (
                         <View style={styles.lineFooter}>
                           {line.isNightTube ? (
@@ -460,64 +462,63 @@ export function StationDetailModal({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  cardShadowLayer: {
-    width: '90%',
-    maxWidth: 390,
-    maxHeight: SCREEN_HEIGHT * 0.75,
-    borderRadius: 26,
+  scrim: {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  },
+
+  popupShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: POPUP_WIDTH,
+    borderRadius: 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.4,
     shadowRadius: 18,
     elevation: 15,
   },
-  card: {
-    borderRadius: 26,
+
+  popup: {
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
     padding: 0,
   },
+
   glassTint: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 26,
+    borderRadius: 20,
   },
-  dragHandleWrapper: {
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-  },
+
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     paddingBottom: 8,
   },
+
   stationName: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: 0.8,
     maxWidth: '55%',
   },
+
   filterBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   freshnessBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -525,59 +526,71 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(0, 122, 255, 0.12)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 122, 255, 0.25)',
   },
+
   freshnessText: {
     fontSize: 10,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
   },
+
   bodyScroll: {
-    maxHeight: SCREEN_HEIGHT * 0.5,
-    marginHorizontal: 24,
+    maxHeight: SCREEN_HEIGHT * 0.45,
+    marginHorizontal: 18,
   },
+
   bodyScrollContent: {
-    paddingBottom: 22,
+    paddingBottom: 18,
   },
+
   lineSection: {
-    marginBottom: 20,
+    marginBottom: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.06)',
   },
+
   lineRowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
+
   lineColorBar: {
-    width: 3.5,
-    height: 14,
+    width: 3,
+    height: 13,
     borderRadius: 1.5,
     marginRight: 8,
   },
+
   lineName: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
+
   arrivalsList: {
-    gap: 8,
+    gap: 1,
   },
+
   arrivalRow: {
-    // Outer Animated.View wrapper — layout managed by the internal Pressable
     overflow: 'visible',
   },
+
   arrivalRowPressable: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: 3,
     flex: 1,
   },
+
   arrivalPip: {
     width: 3,
     height: 12,
@@ -585,21 +598,25 @@ const styles = StyleSheet.create({
     marginRight: 6,
     flexShrink: 0,
   },
+
   arrivalInfo: {
     flex: 1,
     marginRight: 10,
   },
+
   arrivalDest: {
     fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.9)',
   },
+
   branchText: {
     fontSize: 9,
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 1,
   },
+
   arrivalTimeDue: {
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -607,6 +624,7 @@ const styles = StyleSheet.create({
     color: '#2ecc71',
     fontWeight: '700',
   },
+
   arrivalTimeStandard: {
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -614,28 +632,33 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
   },
+
   suspendedText: {
     fontSize: 11,
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.35)',
     paddingVertical: 4,
   },
+
   lineFooter: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.06)',
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 6,
   },
+
   lineFooterText: {
     fontSize: 9,
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.38)',
   },
+
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 36,
   },
+
   emptyText: {
     fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',

@@ -75,12 +75,12 @@ function ArrivalRowItem({
 
   const timeColor = useMemo(() => {
     if (isDue) {
-      return isFirstDue ? '#30D158' : 'rgba(255, 255, 255, 0.9)';
+      return isFirstDue ? '#30D158' : 'rgba(255, 255, 255, 0.85)';
     }
-    if (arrival.minutesAway <= 5) {
-      return '#FFD60A';
+    if (arrival.minutesAway <= 2) {
+      return 'rgba(255, 255, 255, 0.85)';
     }
-    return 'rgba(255, 255, 255, 0.9)';
+    return 'rgba(255, 255, 255, 0.55)';
   }, [isDue, isFirstDue, arrival.minutesAway]);
 
   const fontWeight = isDue && isFirstDue ? '700' : '500';

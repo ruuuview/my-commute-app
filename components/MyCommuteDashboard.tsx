@@ -470,19 +470,7 @@ const MyCommuteDashboard: React.FC = () => {
         style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}
         pointerEvents="box-none"
       >
-        {/* Background interaction layer — always mounted, sits at zIndex 0 below cards.
-            Tap empty space while editing → exit edit mode.
-            Cards sit at zIndex 1 above this, so their gestures always win.
-            FIX 4: Long-press entry into edit mode removed from here. Reordering now
-            begins directly on the card via NestableDraggableFlatList's onDragBegin
-            (see the lists below) — holding the item you want to move, not empty
-            space, matching the platform convention this whole feature is modeled on. */}
-        <Pressable
-          style={[StyleSheet.absoluteFillObject, dash.backgroundLayer]}
-          onPress={isEditing ? handleBackdropPress : undefined}
-          accessibilityLabel={isEditing ? 'Exit edit mode' : undefined}
-          accessibilityRole={isEditing ? 'button' : undefined}
-        />
+
 
         {/* ── Content — zIndex 1 sits above backdrop ── */}
         <NestableScrollContainer
@@ -635,6 +623,14 @@ const MyCommuteDashboard: React.FC = () => {
                     }}
                   />
                 </View>
+              )}
+
+              {/* Tap target between sections — exits edit mode */}
+              {isEditing && sortedLines.length > 0 && (selectedStations.length > 0 || isEditing) && (
+                <Pressable
+                  style={{ height: 24 }}
+                  onPress={handleBackdropPress}
+                />
               )}
 
               {(selectedStations.length > 0 || isEditing) && (
@@ -837,10 +833,6 @@ const MyCommuteDashboard: React.FC = () => {
 
 const dash = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
-  // Background interaction layer — zIndex 0, always below cards (zIndex 1)
-  backgroundLayer: {
-    zIndex: 0,
-  },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },

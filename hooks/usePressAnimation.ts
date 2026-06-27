@@ -2,7 +2,6 @@
 import { useSharedValue, useAnimatedStyle, withSpring, withSequence, useReducedMotion } from 'react-native-reanimated';
 import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
-import { playSound } from '../utils/sound';
 
 export const PRESS_PRESETS = {
   LINE_PILL_SELECT:   { scaleDown: 0.96, damping: 12, stiffness: 90 },
@@ -55,19 +54,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
 
     const isPill = mappedKey === 'LINE_PILL_SELECT' || mappedKey === 'LINE_PILL_DESELECT';
     if (!isPill) {
-      try {
-        if (mappedKey === 'BACK_BTN') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          playSound('deselect');
-        } else if (mappedKey === 'SKIP_BTN') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } else {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          playSound('select');
-        }
-      } catch (e) {
-        console.log('Error triggering press feedback:', e);
-      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
     const target = config.scaleDown;

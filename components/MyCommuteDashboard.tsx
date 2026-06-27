@@ -81,6 +81,7 @@ interface LineData {
   name: string;
   color: string;
   status: string;
+  reason?: string;
 }
 
 interface ArrivalEntry {
@@ -354,6 +355,7 @@ const MyCommuteDashboard: React.FC = () => {
         name: String(item?.name ?? ''),
         color: LINE_COLORS[String(item?.id ?? '')] || '#888',
         status: String(item?.status ?? ''),
+        reason: String(item?.reason ?? ''),
       }));
 
       let freshStations: StationData[] = [];

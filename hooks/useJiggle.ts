@@ -21,7 +21,7 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
 
   useEffect(() => {
     isActiveShared.value = isActive ? 1 : 0;
-  }, [isActive]);
+  }, [isActive, isActiveShared]);
 
   useEffect(() => {
     zIndex.value = isActive ? 999 : isEditing ? 1 : 0;
@@ -50,7 +50,7 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       translateX.value = withSpring(0, { damping: 15, stiffness: 200 });
       translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
     }
-  }, [isEditing, isActive, phaseDelay]);
+  }, [isEditing, isActive, phaseDelay, rotation, translateX, translateY, zIndex]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const scaleVal = isActiveShared.value === 1 ? 1.05 : 1;

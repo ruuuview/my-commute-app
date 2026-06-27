@@ -137,6 +137,7 @@ export function LineCard({
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);
+  const deletePressAnim = usePressAnimation('line_deselect', disabled);
 
   const combinedStyle = useAnimatedStyle(() => {
     const scale = pressAnim.animatedStyle.transform?.[0]?.scale ?? 1;
@@ -321,16 +322,20 @@ export function LineCard({
           style={styles.deleteBadgeContainer}
         >
           <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
-            <Pressable
-              style={styles.deleteBadge}
-              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                onDelete(line.id);
-              }}
-            >
-              <Text style={styles.deleteIcon}>−</Text>
-            </Pressable>
+            <Animated.View style={deletePressAnim.animatedStyle}>
+              <Pressable
+                style={styles.deleteBadge}
+                hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                onPressIn={deletePressAnim.onPressIn}
+                onPressOut={deletePressAnim.onPressOut}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  onDelete(line.id);
+                }}
+              >
+                <Text style={styles.deleteIcon}>−</Text>
+              </Pressable>
+            </Animated.View>
           </Animated.View>
         </Animated.View>
       )}

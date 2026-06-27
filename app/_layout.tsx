@@ -104,14 +104,18 @@ export default function RootLayout() {
   // Register background task once store hydrates
   useEffect(() => {
     if (_hasHydrated) {
-      registerBackgroundFetchAsync();
+      void registerBackgroundFetchAsync().catch(() => {
+        console.warn('Failed to register background fetch');
+      });
     }
   }, [_hasHydrated]);
 
   // Synchronize geofences whenever hydration is complete, location permissions change, or pinned stations change
   useEffect(() => {
     if (_hasHydrated) {
-      syncGeofencesAsync(pinnedStations);
+      void syncGeofencesAsync(pinnedStations).catch(() => {
+        console.warn('Failed to synchronize geofences');
+      });
     }
   }, [_hasHydrated, locationGranted, pinnedStations]);
 
@@ -119,14 +123,18 @@ export default function RootLayout() {
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);
   useEffect(() => {
     if (_hasHydrated) {
-      syncToWidget(selectedLines);
+      void syncToWidget(selectedLines).catch(() => {
+        console.warn('Failed to synchronize widget state');
+      });
     }
   }, [_hasHydrated, selectedLines]);
 
   // Synchronize push token and lines preferences with Vercel backend
   useEffect(() => {
     if (_hasHydrated && notificationsGranted) {
-      syncPushTokenWithBackend(selectedLines);
+      void syncPushTokenWithBackend(selectedLines).catch(() => {
+        console.warn('Failed to synchronize push token');
+      });
     }
   }, [_hasHydrated, notificationsGranted, selectedLines]);
 
@@ -199,15 +207,14 @@ export default function RootLayout() {
       atHydrationCompletedOnboarding.current = false;
       
       const pathSegments = segments as string[];
-      const inOnboarding = pathSegments[0] === 'onboarding';
       const onRootIndex = pathSegments.length === 0 || pathSegments[0] === 'index';
+      const targetPath = onboardingStep === 1
+        ? '/onboarding/stations'
+        : '/onboarding/lines';
+      const currentPath = `/${pathSegments.join('/')}`;
       
-      if (!inOnboarding && !onRootIndex) {
+      if (!onRootIndex && currentPath !== targetPath) {
         const t = setTimeout(() => {
-          let targetPath = '/onboarding/lines';
-          if (onboardingStep === 1) {
-            targetPath = '/onboarding/stations';
-          }
           router.replace(targetPath as any);
         }, 100);
         return () => clearTimeout(t);

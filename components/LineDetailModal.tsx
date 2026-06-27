@@ -9,6 +9,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
@@ -18,7 +19,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { playSound } from '../utils/sound';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -122,17 +122,24 @@ export function LineDetailModal({
   statusLabel,
   anchorRect,
 }: LineDetailModalProps) {
+  const insets = useSafeAreaInsets();
+  const MIN_ALLOWED_TOP = insets.top + 12;
+
   // ── Compute anchored position ──
   const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
 
   const popupTop = useMemo(() => {
-    if (!anchorRect) return SCREEN_HEIGHT / 2 - ESTIMATED_POPUP_HEIGHT / 2;
+    if (!anchorRect) return Math.max(SCREEN_HEIGHT / 2 - ESTIMATED_POPUP_HEIGHT / 2, MIN_ALLOWED_TOP);
     const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
     if (spaceBelow < 300) {
       return Math.max(60, anchorRect.y - ESTIMATED_POPUP_HEIGHT - 8);
     }
     return anchorRect.y + anchorRect.height + 8;
-  }, [anchorRect]);
+  }, [anchorRect, MIN_ALLOWED_TOP]);
+
+  const safePopupTop = useMemo(() => {
+    return Math.max(popupTop, MIN_ALLOWED_TOP);
+  }, [popupTop, MIN_ALLOWED_TOP]);
 
   // ── Spring animation values ──
   const translateY = useSharedValue(0);
@@ -143,7 +150,7 @@ export function LineDetailModal({
     if (visible) {
       // Start from anchor bottom position
       const startOffset = anchorRect
-        ? (anchorRect.y + anchorRect.height) - popupTop
+        ? (anchorRect.y + anchorRect.height) - safePopupTop
         : 12;
       translateY.value = startOffset;
       scale.value = 0.92;
@@ -158,7 +165,7 @@ export function LineDetailModal({
       scale.value = 0.92;
       opacity.value = 0;
     }
-  }, [visible, anchorRect, popupTop, opacity, scale, translateY]);
+  }, [visible, anchorRect, safePopupTop, opacity, scale, translateY]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [
@@ -194,7 +201,6 @@ export function LineDetailModal({
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    playSound('deselect', 0.35);
     onClose();
   };
 
@@ -219,8 +225,8 @@ export function LineDetailModal({
         />
 
         {/* Anchored popup */}
-        <Animated.View style={[styles.popupShadow, animStyle]}>
-          <View style={styles.popup}>
+        <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
+          <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
             {Platform.OS !== 'android' && (
               <BlurView
                 intensity={45}
@@ -260,12 +266,13 @@ export function LineDetailModal({
 
             {/* ── Full text description reason string ── */}
             {(() => {
+              if (statusType === 'good') return false;
               const descTrimmed = reasonText.trim();
               const descLower = descTrimmed.toLowerCase();
               const titleLower = (statusLabel || '').trim().toLowerCase();
               const isDuplicate = descLower === titleLower;
               const isTooShort = descTrimmed.length < 20;
-              const shouldHide = statusType !== 'good' && (isDuplicate || isTooShort);
+              const shouldHide = isDuplicate || isTooShort;
               return !shouldHide;
             })() ? (
               <ScrollView
@@ -276,7 +283,7 @@ export function LineDetailModal({
                 <Text style={styles.bodyText}>{reasonText}</Text>
               </ScrollView>
             ) : null}
-          </View>
+          </Pressable>
         </Animated.View>
       </View>
     </Modal>

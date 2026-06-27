@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -33,7 +34,6 @@ import { cleanDisplayStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { processStationArrivals } from '../utils/groupStationDepartures';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { playSound } from '../utils/sound';
 import { APP_CONFIG } from '../config/app.config';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -49,9 +49,41 @@ interface AnchorRect {
 
 // ─── Pressable Arrival Row with haptics, spring bounce, and line color pip ───
 
-function ArrivalRowItem({ arrival, lineColor }: { arrival: ArrivalRow; lineColor: string }) {
+function ArrivalRowItem({
+  arrival,
+  lineColor,
+  isFirstDue,
+}: {
+  arrival: ArrivalRow;
+  lineColor: string;
+  isFirstDue: boolean;
+}) {
   const pressAnim = usePressAnimation('station_row', false);
   const isDue = arrival.minutesAway === 0;
+
+  const finalDest = useMemo(() => {
+    return arrival.destination
+      .replace(/(Northbound|Southbound|Eastbound|Westbound)\s*-?\s*/gi, '')
+      .trim();
+  }, [arrival.destination]);
+
+  const platformText = useMemo(() => {
+    if (!arrival.platform) return '';
+    const cleaned = arrival.platform.replace(/Platform\s+/i, 'P');
+    return cleaned.startsWith('P') ? cleaned : `P${cleaned}`;
+  }, [arrival.platform]);
+
+  const timeColor = useMemo(() => {
+    if (isDue) {
+      return isFirstDue ? '#30D158' : 'rgba(255, 255, 255, 0.9)';
+    }
+    if (arrival.minutesAway <= 5) {
+      return '#FFD60A';
+    }
+    return 'rgba(255, 255, 255, 0.9)';
+  }, [isDue, isFirstDue, arrival.minutesAway]);
+
+  const fontWeight = isDue && isFirstDue ? '700' : '500';
 
   return (
     <Animated.View style={[styles.arrivalRow, pressAnim.animatedStyle]}>
@@ -65,7 +97,12 @@ function ArrivalRowItem({ arrival, lineColor }: { arrival: ArrivalRow; lineColor
 
         <View style={styles.arrivalInfo}>
           <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail">
-            {arrival.destination}
+            {finalDest}
+            {platformText ? (
+              <Text style={styles.arrivalPlatformInline}>
+                {`  ${platformText}`}
+              </Text>
+            ) : null}
           </Text>
           {arrival.branchName ? (
             <Text style={styles.branchText} numberOfLines={1} ellipsizeMode="tail">
@@ -75,7 +112,10 @@ function ArrivalRowItem({ arrival, lineColor }: { arrival: ArrivalRow; lineColor
         </View>
 
         <Text
-          style={[isDue ? styles.arrivalTimeDue : styles.arrivalTimeStandard]}
+          style={[
+            styles.arrivalTimeStandard,
+            { color: timeColor, fontWeight },
+          ]}
           numberOfLines={1}
         >
           {isDue ? 'Due' : `${arrival.minutesAway} min`}
@@ -111,6 +151,9 @@ export function StationDetailModal({
   const toggleFilter = useUserPreferencesStore(state => state.toggleStationFilter);
   const departuresFromStore = useStationDataStore(state => state.departures[stationId]);
 
+  const insets = useSafeAreaInsets();
+  const MIN_ALLOWED_TOP = insets.top + 12;
+
   const refreshPressAnim = usePressAnimation('back_btn', false);
   const filterPressAnim = usePressAnimation('line_select', false);
 
@@ -122,15 +165,20 @@ export function StationDetailModal({
 
   // ── Compute anchored position ──
   const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
+  const ESTIMATED_POPUP_HEIGHT = 280;
 
   const popupTop = useMemo(() => {
-    if (!anchorRect) return SCREEN_HEIGHT / 2 - 200;
+    if (!anchorRect) return SCREEN_HEIGHT / 2 - ESTIMATED_POPUP_HEIGHT / 2;
     const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
     if (spaceBelow < 300) {
-      return Math.max(60, anchorRect.y - 400 - 8);
+      return Math.max(60, anchorRect.y - ESTIMATED_POPUP_HEIGHT - 8);
     }
     return anchorRect.y + anchorRect.height + 8;
   }, [anchorRect]);
+
+  const safePopupTop = useMemo(() => {
+    return Math.max(popupTop, MIN_ALLOWED_TOP);
+  }, [popupTop, MIN_ALLOWED_TOP]);
 
   // Shift accessibility focus to station name header
   const focusOnTitle = useCallback(() => {
@@ -153,7 +201,7 @@ export function StationDetailModal({
 
       // Start from anchor bottom
       const startOffset = anchorRect
-        ? (anchorRect.y + anchorRect.height) - popupTop
+        ? (anchorRect.y + anchorRect.height) - safePopupTop
         : 12;
       translateY.value = startOffset;
       scale.value = 0.92;
@@ -173,7 +221,7 @@ export function StationDetailModal({
       opacity.value = 0;
       translateY.value = 0;
     }
-  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, popupTop]);
+  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, safePopupTop]);
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -207,7 +255,6 @@ export function StationDetailModal({
     Haptics.impactAsync(
       nextState ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
     ).catch(() => {});
-    playSound(nextState ? 'select' : 'deselect', nextState ? 0.45 : 0.35);
     toggleFilter(stationId);
   };
 
@@ -317,11 +364,11 @@ export function StationDetailModal({
         />
 
         <Animated.View
-          style={[styles.popupShadow, cardAnimStyle]}
+          style={[styles.popupShadow, { top: safePopupTop }, cardAnimStyle]}
           accessibilityViewIsModal={true}
           importantForAccessibility="yes"
         >
-          <View style={styles.popup}>
+          <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
             {Platform.OS !== 'android' && (
               <BlurView
                 intensity={45}
@@ -421,13 +468,20 @@ export function StationDetailModal({
                         <Text style={styles.suspendedText}>No arrivals currently running</Text>
                       ) : (
                         <View style={styles.arrivalsList}>
-                          {sortedArrivals.slice(0, 3).map((arrival, arrIdx) => (
-                            <ArrivalRowItem
-                              key={`${arrival.destination}-${arrIdx}`}
-                              arrival={arrival}
-                              lineColor={line.lineColor}
-                            />
-                          ))}
+                          {sortedArrivals.slice(0, 3).map((arrival, arrIdx) => {
+                            const firstDueIndexInLine = sortedArrivals.findIndex(
+                              (arr) => arr.minutesAway === 0
+                            );
+                            const isFirstDue = arrival.minutesAway === 0 && arrIdx === firstDueIndexInLine;
+                            return (
+                              <ArrivalRowItem
+                                key={`${arrival.destination}-${arrIdx}`}
+                                arrival={arrival}
+                                lineColor={line.lineColor}
+                                isFirstDue={isFirstDue}
+                              />
+                            );
+                          })}
                         </View>
                       )}
 
@@ -450,7 +504,7 @@ export function StationDetailModal({
                 })
               )}
             </ScrollView>
-          </View>
+          </Pressable>
         </Animated.View>
       </View>
     </Modal>
@@ -520,13 +574,12 @@ const styles = StyleSheet.create({
   freshnessBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: 'rgba(0, 122, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 122, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
 
   freshnessText: {
@@ -608,6 +661,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
   },
 
+  arrivalPlatformInline: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 9,
+    color: 'rgba(255, 255, 255, 0.35)',
+  },
+
   branchText: {
     fontSize: 9,
     fontFamily: 'SpaceGrotesk_400Regular',
@@ -615,13 +674,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  arrivalTimeDue: {
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'right',
-    color: '#2ecc71',
-    fontWeight: '700',
-  },
+
 
   arrivalTimeStandard: {
     fontSize: 12,

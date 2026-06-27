@@ -33,6 +33,7 @@ import { cleanDisplayStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { processStationArrivals } from '../utils/groupStationDepartures';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { playSound } from '../utils/sound';
 import { APP_CONFIG } from '../config/app.config';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -49,28 +50,14 @@ interface AnchorRect {
 // ─── Pressable Arrival Row with haptics, spring bounce, and line color pip ───
 
 function ArrivalRowItem({ arrival, lineColor }: { arrival: ArrivalRow; lineColor: string }) {
-  const scale = useSharedValue(1);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const onPressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    scale.value = withSpring(0.97, { damping: 20, stiffness: 260 });
-  };
-
-  const onPressOut = () => {
-    scale.value = withSpring(1, { damping: 20, stiffness: 260 });
-  };
-
+  const pressAnim = usePressAnimation('station_row', false);
   const isDue = arrival.minutesAway === 0;
 
   return (
-    <Animated.View style={[styles.arrivalRow, animStyle]}>
+    <Animated.View style={[styles.arrivalRow, pressAnim.animatedStyle]}>
       <Pressable
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
+        onPressIn={pressAnim.onPressIn}
+        onPressOut={pressAnim.onPressOut}
         style={styles.arrivalRowPressable}
       >
         {/* Dynamic colored route pip */}
@@ -125,7 +112,7 @@ export function StationDetailModal({
   const departuresFromStore = useStationDataStore(state => state.departures[stationId]);
 
   const refreshPressAnim = usePressAnimation('back_btn', false);
-  const filterPressAnim = usePressAnimation('back_btn', false);
+  const filterPressAnim = usePressAnimation('line_select', false);
 
   // Transition freezing state
   const [freezeUpdates, setFreezeUpdates] = useState(true);
@@ -157,7 +144,7 @@ export function StationDetailModal({
 
   // Sync snapshot cache and trigger haptic scaling feedback
   useEffect(() => {
-    if (visible && anchorRect) {
+    if (visible) {
       setFreezeUpdates(true);
       const currentCache = useStationDataStore.getState().departures[stationId];
       setSnapshotData(currentCache);
@@ -165,7 +152,9 @@ export function StationDetailModal({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
       // Start from anchor bottom
-      const startOffset = (anchorRect.y + anchorRect.height) - popupTop;
+      const startOffset = anchorRect
+        ? (anchorRect.y + anchorRect.height) - popupTop
+        : 12;
       translateY.value = startOffset;
       scale.value = 0.92;
       opacity.value = 0;
@@ -179,7 +168,7 @@ export function StationDetailModal({
       });
       scale.value = withSpring(1, { damping: 18, stiffness: 200 });
       opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
-    } else if (!visible) {
+    } else {
       scale.value = 0.92;
       opacity.value = 0;
       translateY.value = 0;
@@ -213,6 +202,15 @@ export function StationDetailModal({
     onClose();
   };
 
+  const handleFilterToggle = () => {
+    const nextState = !showAllDepartures;
+    Haptics.impactAsync(
+      nextState ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
+    ).catch(() => {});
+    playSound(nextState ? 'select' : 'deselect', nextState ? 0.45 : 0.35);
+    toggleFilter(stationId);
+  };
+
   // Manual cache validation fetch
   const handleManualRefresh = async () => {
     try {
@@ -221,11 +219,14 @@ export function StationDetailModal({
 
       const resolvedIds = resolveTflStopIds(stationId);
       const responses = await Promise.all(
-        resolvedIds.map(id =>
-          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
+        resolvedIds.map(id => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 8000);
+          return fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: controller.signal })
             .then(res => (res.ok ? res.json() : null))
             .catch(() => null)
-        )
+            .finally(() => clearTimeout(timer));
+        })
       );
 
       const allRawDepartures: any[] = [];
@@ -361,22 +362,19 @@ export function StationDetailModal({
                 </Animated.View>
               </View>
 
-              {/* ⊞ Grid icon */}
+              {/* Opacity-toggled 44x44pt filter grid toggle button */}
               {shouldShowFilterBtn && (
                 <Animated.View style={filterPressAnim.animatedStyle}>
                   <Pressable
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    style={[
-                      styles.filterBtn,
-                      { opacity: freezeUpdates ? 0.4 : showAllDepartures ? 1.0 : 0.4 },
-                    ]}
-                    onPress={() => toggleFilter(stationId)}
+                    style={[styles.filterBtn, { opacity: showAllDepartures ? 1.0 : 0.4 }]}
+                    onPress={handleFilterToggle}
                     onPressIn={filterPressAnim.onPressIn}
                     onPressOut={filterPressAnim.onPressOut}
                     accessibilityLabel={showAllDepartures ? 'Switch to Pinned Lines filter' : 'Switch to All Departures filter'}
                     accessibilityRole="button"
                   >
-                    <Ionicons name="grid-outline" size={18} color="#FFFFFF" />
+                    <Ionicons name="grid-outline" size={20} color="#FFFFFF" />
                   </Pressable>
                 </Animated.View>
               )}
@@ -483,8 +481,8 @@ const styles = StyleSheet.create({
   popup: {
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
     padding: 0,
   },

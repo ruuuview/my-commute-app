@@ -18,6 +18,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -139,9 +140,11 @@ export function LineDetailModal({
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    if (visible && anchorRect) {
+    if (visible) {
       // Start from anchor bottom position
-      const startOffset = (anchorRect.y + anchorRect.height) - popupTop;
+      const startOffset = anchorRect
+        ? (anchorRect.y + anchorRect.height) - popupTop
+        : 12;
       translateY.value = startOffset;
       scale.value = 0.92;
       opacity.value = 0;
@@ -150,7 +153,7 @@ export function LineDetailModal({
       translateY.value = withSpring(0, { damping: 18, stiffness: 200 });
       scale.value = withSpring(1, { damping: 18, stiffness: 200 });
       opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
-    } else if (!visible) {
+    } else {
       translateY.value = 0;
       scale.value = 0.92;
       opacity.value = 0;
@@ -190,7 +193,8 @@ export function LineDetailModal({
   }, [line, statusType, statusLabel]);
 
   const handleClose = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    playSound('deselect', 0.35);
     onClose();
   };
 
@@ -303,8 +307,8 @@ const styles = StyleSheet.create({
   popup: {
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
     padding: 0,
   },

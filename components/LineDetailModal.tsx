@@ -158,7 +158,7 @@ export function LineDetailModal({
       scale.value = 0.92;
       opacity.value = 0;
     }
-  }, [visible, anchorRect, popupTop]);
+  }, [visible, anchorRect, popupTop, opacity, scale, translateY]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [

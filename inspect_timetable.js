@@ -13,35 +13,30 @@ https.get(url, options, (res) => {
   res.on('end', () => {
     try {
       const data = JSON.parse(body);
-      console.log("Top-level keys:", Object.keys(data));
       if (data.disambiguation && data.disambiguation.disambiguationOptions) {
-        console.log("Found disambiguation options:");
-        data.disambiguation.disambiguationOptions.forEach(opt => {
-          console.log(`  - Description: ${opt.description}, URI: ${opt.uri}`);
-        });
-        
-        // Let's fetch the first disambiguated URI
         const nextUri = 'https://api.tfl.gov.uk' + data.disambiguation.disambiguationOptions[0].uri;
-        console.log(`\nFetching disambiguated URI: ${nextUri}...`);
         https.get(nextUri, options, (res2) => {
           let body2 = '';
           res2.on('data', (chunk) => body2 += chunk);
           res2.on('end', () => {
             const data2 = JSON.parse(body2);
-            console.log("Timetable keys:", Object.keys(data2));
-            if (data2.timetable) {
-              const tt = data2.timetable;
-              console.log("timetable keys:", Object.keys(tt));
-              if (tt.routes && tt.routes.length > 0) {
-                const route = tt.routes[0];
-                console.log("Route keys:", Object.keys(route));
-                console.log("Route name:", route.name);
-                console.log("Route description:", route.description);
-                console.log("Route stationIntervals length:", route.stationIntervals ? route.stationIntervals.length : 0);
-                if (route.schedules && route.schedules.length > 0) {
-                  console.log("Schedule keys:", Object.keys(route.schedules[0]));
+            if (data2.stations && data2.stations.length > 0) {
+                console.log("Last station in data2.stations:", data2.stations[data2.stations.length - 1].name);
+            }
+            if (data2.timetable && data2.timetable.routes && data2.timetable.routes.length > 0) {
+                const route = data2.timetable.routes[0];
+                if (route.stationIntervals && route.stationIntervals.length > 0) {
+                    const interval = route.stationIntervals[0];
+                    if (interval.intervals && interval.intervals.length > 0) {
+                        const lastInterval = interval.intervals[interval.intervals.length - 1];
+                        console.log("Last interval in stationIntervals:", lastInterval.stopId);
+                        // Let's find this stopId in data2.stops or data2.stations
+                        const stop = (data2.stops || []).find(s => s.id === lastInterval.stopId);
+                        if (stop) console.log("Found stop name:", stop.name);
+                        const station = (data2.stations || []).find(s => s.id === lastInterval.stopId);
+                        if (station) console.log("Found station name:", station.name);
+                    }
                 }
-              }
             }
           });
         });

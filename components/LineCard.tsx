@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -15,7 +15,6 @@ import Animated, {
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
 import * as Haptics from 'expo-haptics';
-import { playSound } from '../utils/sound';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
@@ -109,6 +108,15 @@ export function LineCard({
 
   const opacityVal = useSharedValue(0);
   const jiggleStyle = useJiggle(index, isEditing, isActive);
+  const [touchReady, setTouchReady] = useState(true);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setTouchReady(false);
+      const t = setTimeout(() => setTouchReady(true), 150);
+      return () => clearTimeout(t);
+    }
+  }, [isEditing]);
 
   useEffect(() => {
     if (statusType !== 'loading') {
@@ -139,23 +147,19 @@ export function LineCard({
 
   const handlePress = () => {
     if (disabled) return;
-    if (isEditing) return;
+    if (isEditing || !touchReady) return;
 
     if (mode === 'select') {
       if (selected) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        playSound('deselect', 0.35);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        playSound('select', 0.45);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
 
       if (onPress) onPress();
     } else {
-      // FIX 3: Removed playSound in display mode — app-wide decision is haptics only.
-      // playSound('select', 0.45) was hitting stripped sound system and throwing.
       if (onPress) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         onPress();
       }
     }
@@ -322,7 +326,6 @@ export function LineCard({
               hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                playSound('deselect', 0.35);
                 onDelete(line.id);
               }}
             >

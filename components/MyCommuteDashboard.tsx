@@ -355,7 +355,7 @@ const MyCommuteDashboard: React.FC = () => {
         name: String(item?.name ?? ''),
         color: LINE_COLORS[String(item?.id ?? '')] || '#888',
         status: String(item?.status ?? ''),
-        reason: String(item?.reason ?? ''),
+        reason: item?.reason || '',
       }));
 
       let freshStations: StationData[] = [];
@@ -461,7 +461,7 @@ const MyCommuteDashboard: React.FC = () => {
   }, [isDragging]);
 
   return (
-    <Pressable
+    <View
       style={dash.root}
     >
       <DashboardGradient severity={networkSeverity} />
@@ -493,6 +493,8 @@ const MyCommuteDashboard: React.FC = () => {
           onScrollBeginDrag={() => setIsScrolling(true)}
           onScrollEndDrag={() => setIsScrolling(false)}
           onMomentumScrollEnd={() => setIsScrolling(false)}
+          directionalLockEnabled={true}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={isLoading}
@@ -832,7 +834,7 @@ const MyCommuteDashboard: React.FC = () => {
           </View>
         </Modal>
       </Animated.View>
-    </Pressable>
+    </View>
   );
 };
 

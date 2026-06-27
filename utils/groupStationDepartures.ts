@@ -177,7 +177,6 @@ export function processStationArrivals(
 
   // 5. Build StationLineData entries
   const sortedLineKeys = Object.keys(groups).sort();
-  const result: StationLineData[] = [];
 
   // Collect lines in a deterministic order for stable rendering
   const lineOrder = new Map<string, StationLineData>();
@@ -187,7 +186,6 @@ export function processStationArrivals(
     const first = entries[0];
     const { lineId, cleanLineId } = normaliseLineId(first.line);
     const lineColor = LINE_COLORS[cleanLineId] || '#888';
-    const dest = first._dest;
 
     // Cap arrivals to TRAINS_PER_ROUTE
     const cappedArrivals = entries.slice(0, TRAINS_PER_ROUTE);

@@ -18,10 +18,15 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   const translateY = useSharedValue(0);
   const zIndex = useSharedValue(0);
   const isActiveShared = useSharedValue(isActive ? 1 : 0);
+  const isEditingShared = useSharedValue(isEditing ? 1 : 0);
 
   useEffect(() => {
     isActiveShared.value = isActive ? 1 : 0;
   }, [isActive, isActiveShared]);
+
+  useEffect(() => {
+    isEditingShared.value = isEditing ? 1 : 0;
+  }, [isEditing, isEditingShared]);
 
   useEffect(() => {
     zIndex.value = isActive ? 999 : isEditing ? 1 : 0;
@@ -53,12 +58,14 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   }, [isEditing, isActive, phaseDelay, rotation, translateX, translateY, zIndex]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scaleVal = isActiveShared.value === 1 ? 1.05 : 1;
+    const active = isActiveShared.value === 1;
+    const editing = isEditingShared.value === 1;
+    const scaleVal = active ? 1.05 : 1;
 
     // Explicit reset locks when edit mode is inactive to prevent permanent shifts/tilts
-    const rotStr = isEditing ? `${rotation.value}deg` : '0deg';
-    const tx = isEditing ? translateX.value : 0;
-    const ty = isEditing ? translateY.value : 0;
+    const rotStr = editing ? `${rotation.value}deg` : '0deg';
+    const tx = editing ? translateX.value : 0;
+    const ty = editing ? translateY.value : 0;
 
     return {
       transform: [
@@ -68,9 +75,9 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
         { scale: withSpring(scaleVal, { damping: 18, stiffness: 250 }) }
       ],
       zIndex: zIndex.value,
-      shadowOpacity: isActive ? 0.5 : 0,
-      shadowRadius: isActive ? 24 : 0,
-      elevation: isActive ? 12 : 0,
+      shadowOpacity: active ? 0.5 : 0,
+      shadowRadius: active ? 24 : 0,
+      elevation: active ? 12 : 0,
     };
   });
 

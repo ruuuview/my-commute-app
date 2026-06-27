@@ -19,7 +19,6 @@ import { useJiggle } from '../hooks/useJiggle';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useStationDataStore } from '../store/stationDataStore';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { playSound } from '../utils/sound';
 
 // ─── Constants & Styling Tokens ──────────────────────────────────────────────
 const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
@@ -72,6 +71,15 @@ export default function DepartureCard({
   const cachedData = useStationDataStore(state => state.departures[stationId]);
 
   const [useNativeShimmer, setUseNativeShimmer] = useState(false);
+  const [touchReady, setTouchReady] = useState(true);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setTouchReady(false);
+      const t = setTimeout(() => setTouchReady(true), 150);
+      return () => clearTimeout(t);
+    }
+  }, [isEditing]);
   const [contentHeight, setContentHeight] = useState(160);
   const heightVal = useSharedValue(160);
   const arrivalsOpacity = useSharedValue(1);
@@ -259,7 +267,7 @@ export default function DepartureCard({
         </View>
         <Pressable
           onPress={() => {
-            if (isEditing) return;
+            if (isEditing || !touchReady) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             if (onPress) onPress();
           }}
@@ -276,7 +284,6 @@ export default function DepartureCard({
           hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            playSound('deselect', 0.35);
             if (onDelete) {
               onDelete(stationId);
             }

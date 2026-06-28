@@ -600,13 +600,6 @@ const MyCommuteDashboard: React.FC = () => {
                       isDragging.value = false;
                       reorderLines(data.map((l) => l.id));
                     }}
-                    // FIX 1: Added onDragCancel — previously isDragging was never
-                    // reset when the gesture was abandoned (no drag actually happened).
-                    // This left the scroll container in a frozen locked state.
-                    onRelease={() => {
-                      // Fires when finger lifts without completing a drag
-                      isDragging.value = false;
-                    }}
                     renderItem={({ item, drag, isActive, getIndex }) => {
                       const index = getIndex();
                       return (
@@ -703,12 +696,8 @@ const MyCommuteDashboard: React.FC = () => {
                       onDragEnd={({ data }) => {
                         isDragging.value = false;
                         reorderStations(data);
-                      }}
-                      // FIX 1: Same onRelease guard for stations list
-                      onRelease={() => {
-                        isDragging.value = false;
-                      }}
-                      renderItem={({ item, drag, isActive, getIndex }) => {
+                        }}
+                        renderItem={({ item, drag, isActive, getIndex }) => {
                         const index = getIndex();
                         return (
                           <StaggeredCardWrapper

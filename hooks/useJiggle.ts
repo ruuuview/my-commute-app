@@ -31,20 +31,25 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   useEffect(() => {
     zIndex.value = isActive ? 999 : isEditing ? 1 : 1;
 
-    if (isEditing) {
-      // ±1.5° rotation jiggle with multi-axis fluid loop
-      // Also runs on the dragged card (isActive=true) so all cards jiggle simultaneously in edit mode
+    if (isEditing || isActive) {
+      // When actively dragged (isActive), jiggle harder to signal edit intent
+      const rotAmp = isActive ? -3.5 : -1.5;
+      const txAmp = isActive ? -1.5 : -0.5;
+      const tyAmp = isActive ? 1.5 : 0.5;
+      const duration = isActive ? 90 : 110;
+
+      // ±rotAmp° rotation jiggle with multi-axis fluid loop
       rotation.value = withDelay(
         phaseDelay,
-        withRepeat(withSequence(withTiming(-1.5, { duration: 110 }), withTiming(1.5, { duration: 110 })), -1, true)
+        withRepeat(withSequence(withTiming(rotAmp, { duration }), withTiming(-rotAmp, { duration })), -1, true)
       );
       translateX.value = withDelay(
         phaseDelay,
-        withRepeat(withSequence(withTiming(-0.5, { duration: 90 }), withTiming(0.5, { duration: 90 })), -1, true)
+        withRepeat(withSequence(withTiming(txAmp, { duration: duration - 20 }), withTiming(-txAmp, { duration: duration - 20 })), -1, true)
       );
       translateY.value = withDelay(
         phaseDelay,
-        withRepeat(withSequence(withTiming(0.5, { duration: 95 }), withTiming(-0.5, { duration: 95 })), -1, true)
+        withRepeat(withSequence(withTiming(tyAmp, { duration: duration - 15 }), withTiming(-tyAmp, { duration: duration - 15 })), -1, true)
       );
     } else {
       // Soft-rest return to base values when exiting edit mode or during active drag
@@ -62,27 +67,30 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
     const active = isActiveShared.value === 1;
     const editing = isEditingShared.value === 1;
 
-    // FIX: When not in edit mode, return CLEAN transforms with zero rotation/translation
-    // regardless of what may still be springing in the shared values.
-    // This prevents freeze/tilt from lingering animation state after isEditing flips.
-    if (!editing) {
+    // Show jiggle transforms when editing OR when actively dragged (long-pressed)
+    if (!editing && !active) {
       return {
-        transform: [{ scale: active ? 1.05 : 1 }],
-        zIndex: active ? 999 : 1,
-        shadowOpacity: active ? 0.5 : 0,
-        shadowRadius: active ? 24 : 0,
-        elevation: active ? 12 : 0,
+        transform: [{ scale: 1 }],
+        zIndex: 1,
+        shadowOpacity: 0,
+        shadowRadius: 0,
+        elevation: 0,
       };
     }
 
+    // Amplify jiggle on the actively-dragged card so it stands out from the crowd
+    const rotStr = `${rotation.value}deg`;
+    const tx = translateX.value;
+    const ty = translateY.value;
+
     return {
       transform: [
-        { rotate: `${rotation.value}deg` },
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { scale: active ? 1.05 : 1 },
+        { rotate: rotStr },
+        { translateX: tx },
+        { translateY: ty },
+        { scale: active ? 0.92 : 1 },
       ],
-      zIndex: zIndex.value,
+      zIndex: active ? 999 : 1,
       shadowOpacity: active ? 0.5 : 0,
       shadowRadius: active ? 24 : 0,
       elevation: active ? 12 : 0,

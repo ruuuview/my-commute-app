@@ -5,12 +5,12 @@ import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
   withDelay,
   useReducedMotion,
   LinearTransition,
-  FadeOut
+  FadeOut,
+  Easing,
 } from 'react-native-reanimated';
 
 import { LINE_COLORS } from '../constants/lineColors';
@@ -138,7 +138,7 @@ export default function DepartureCard({
       heightVal.value = targetHeight;
       arrivalsOpacity.value = targetOpacity;
     } else {
-      heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
+      heightVal.value = withTiming(targetHeight, { duration: 280, easing: Easing.out(Easing.poly(3)) });
 
       if (isEditing) {
         arrivalsOpacity.value = withTiming(0.3, { duration: 150 });
@@ -152,7 +152,7 @@ export default function DepartureCard({
 
   const containerStyle = useAnimatedStyle(() => {
     const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
-    const marginVal = reducedMotion ? (hideCard ? 0 : 12) : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
+    const marginVal = reducedMotion ? (hideCard ? 0 : 12) : withTiming(hideCard ? 0 : 12, { duration: 200, easing: Easing.out(Easing.poly(3)) });
     const borderVal = reducedMotion ? (hideCard ? 0 : StyleSheet.hairlineWidth) : withTiming(hideCard ? 0 : StyleSheet.hairlineWidth, { duration: 100 });
 
     return {
@@ -170,7 +170,7 @@ export default function DepartureCard({
   const deleteScale = useSharedValue(isEditing ? 1 : 0);
 
   useEffect(() => {
-    deleteScale.value = withSpring(isEditing ? 1 : 0, { damping: 15, stiffness: 180 });
+    deleteScale.value = withTiming(isEditing ? 1 : 0, { duration: 200, easing: Easing.out(Easing.poly(3)) });
   }, [isEditing, deleteScale]);
 
   const deleteBadgeStyle = useAnimatedStyle(() => ({
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
     borderRadius: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 0,
     overflow: 'hidden', // Accordion clip!
   },

@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
   Easing,
   runOnJS,
@@ -213,14 +212,14 @@ export function StationDetailModal({
       scale.value = 0.92;
       opacity.value = 0;
 
-      // Spring to final position
-      translateY.value = withSpring(0, { damping: 18, stiffness: 200, overshootClamping: true }, (isFinished) => {
+      // Spring to final position — using withTiming for clean non-bouncy entry
+      translateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.poly(3)) }, (isFinished) => {
         if (isFinished) {
           runOnJS(setFreezeUpdates)(false);
           runOnJS(focusOnTitle)();
         }
       });
-      scale.value = withSpring(1, { damping: 18, stiffness: 200, overshootClamping: true });
+      scale.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.poly(3)) });
       opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
     } else {
       scale.value = 0.92;

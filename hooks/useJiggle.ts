@@ -61,19 +61,26 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
     const editing = isEditingShared.value === 1;
-    const scaleVal = active ? 1.05 : 1;
 
-    // Explicit reset locks when edit mode is inactive to prevent permanent shifts/tilts
-    const rotStr = editing ? `${rotation.value}deg` : '0deg';
-    const tx = editing ? translateX.value : 0;
-    const ty = editing ? translateY.value : 0;
+    // FIX: When not in edit mode, return CLEAN transforms with zero rotation/translation
+    // regardless of what may still be springing in the shared values.
+    // This prevents freeze/tilt from lingering animation state after isEditing flips.
+    if (!editing) {
+      return {
+        transform: [{ scale: active ? 1.05 : 1 }],
+        zIndex: active ? 999 : 1,
+        shadowOpacity: active ? 0.5 : 0,
+        shadowRadius: active ? 24 : 0,
+        elevation: active ? 12 : 0,
+      };
+    }
 
     return {
       transform: [
-        { rotate: rotStr },
-        { translateX: tx },
-        { translateY: ty },
-        { scale: withSpring(scaleVal, { damping: 18, stiffness: 250 }) }
+        { rotate: `${rotation.value}deg` },
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: active ? 1.05 : 1 },
       ],
       zIndex: zIndex.value,
       shadowOpacity: active ? 0.5 : 0,

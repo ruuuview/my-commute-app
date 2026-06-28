@@ -14,7 +14,6 @@ import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
@@ -160,9 +159,9 @@ export function LineDetailModal({
       scale.value = 0.92;
       opacity.value = 0;
 
-      // Spring to final position
-      translateY.value = withSpring(0, { damping: 18, stiffness: 200, overshootClamping: true });
-      scale.value = withSpring(1, { damping: 18, stiffness: 200, overshootClamping: true });
+      // Spring to final position — using withTiming for clean non-bouncy entry
+      translateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.poly(3)) });
+      scale.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.poly(3)) });
       opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
     } else {
       translateY.value = 0;

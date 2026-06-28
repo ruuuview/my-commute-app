@@ -459,15 +459,25 @@ const MyCommuteDashboard: React.FC = () => {
 
   const networkSeverity = useMemo(() => worstSeverity(sortedLines), [sortedLines]);
 
-  // FIX 2: Backdrop dismiss moved outside NestableScrollContainer.
-  // Previously this Pressable was inside the scroll container with pointerEvents="box-none"
-  // which caused the scroll container to swallow the touch before the Pressable caught it.
-  // Now it's a sibling absolute layer rendered at the root level below the scroll content.
+  // FIX 2: Backdrop dismiss moved OUTSIDE NestableScrollContainer as a proper
+  // absolute-positioned sibling layer. Previously it was inside the scroll container
+  // where pointerEvents="box-none" on the scroll container allowed scroll gestures
+  // to swallow touch events on empty areas before the Pressable could catch them.
+  // Now the backdrop sits between the cards and the scroll — catches anything
+  // the scroll's children miss (empty space between/after cards).
   const handleBackdropPress = useCallback(() => {
     if (isDragging.value) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsEditing(false);
   }, [isDragging]);
+
+  // Safety net: if isDragging somehow gets stuck (drag gesture cancelled),
+  // reset it whenever isEditing is explicitly turned off.
+  useEffect(() => {
+    if (!isEditing) {
+      isDragging.value = false;
+    }
+  }, [isEditing, isDragging]);
 
   return (
     <View
@@ -480,6 +490,15 @@ const MyCommuteDashboard: React.FC = () => {
         pointerEvents="box-none"
       >
 
+
+        {/* ── Absolute backdrop for "tap anywhere to exit edit mode" ── */}
+        {/* Sits behind the scroll container. When isEditing, catches taps on */}
+        {/* empty areas that the scroll container's children don't cover. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={isEditing ? handleBackdropPress : undefined}
+          pointerEvents={isEditing ? 'auto' : 'none'}
+        />
 
         {/* ── Content — zIndex 1 sits above backdrop ── */}
         <NestableScrollContainer
@@ -637,13 +656,7 @@ const MyCommuteDashboard: React.FC = () => {
                 </View>
               )}
 
-              {/* Tap target between sections — exits edit mode */}
-              {isEditing && sortedLines.length > 0 && (selectedStations.length > 0 || isEditing) && (
-                <Pressable
-                  style={{ height: 24 }}
-                  onPress={handleBackdropPress}
-                />
-              )}
+              {/* Tap target between sections removed — replaced by absolute backdrop above */}
 
               {(selectedStations.length > 0 || isEditing) && (
                 <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
@@ -737,11 +750,7 @@ const MyCommuteDashboard: React.FC = () => {
                 </View>
               )}
 
-              {/* Spacer filling remaining height */}
-              <Pressable
-                style={{ flex: 1, minHeight: 250 }}
-                onPress={isEditing ? handleBackdropPress : undefined}
-              />
+              {/* Spacer removed — replaced by absolute backdrop above */}
             </>
           )}
         </NestableScrollContainer>

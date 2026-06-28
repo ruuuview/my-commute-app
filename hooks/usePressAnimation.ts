@@ -4,14 +4,14 @@ import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 
 export const PRESS_PRESETS = {
-  LINE_PILL_SELECT:   { scaleDown: 0.96, damping: 12, stiffness: 90 },
-  LINE_PILL_DESELECT: { scaleDown: 0.96, damping: 12, stiffness: 90 },
-  STATION_ROW:        { scaleDown: 0.96, damping: 20, stiffness: 260 },
-  CONTINUE_BTN:       { scaleDown: 0.96, damping: 14, stiffness: 180 },
-  BACK_BTN:           { scaleDown: 0.95, damping: 18, stiffness: 200 },
-  SKIP_BTN:           { scaleDown: 0.97, damping: 22, stiffness: 240 },
-  NAV_BAR_ITEM:       { scaleDown: 0.88, scaleUp: 1.00, damping: 10, stiffness: 220 },
-  DEPARTURE_CARD:     { scaleDown: 0.98, damping: 24, stiffness: 300 }
+  LINE_PILL_SELECT:   { scaleDown: 0.94, damping: 8, stiffness: 200 },
+  LINE_PILL_DESELECT: { scaleDown: 0.94, damping: 8, stiffness: 200 },
+  STATION_ROW:        { scaleDown: 0.94, damping: 8, stiffness: 200 },
+  CONTINUE_BTN:       { scaleDown: 0.94, damping: 8, stiffness: 180 },
+  BACK_BTN:           { scaleDown: 0.94, damping: 8, stiffness: 200 },
+  SKIP_BTN:           { scaleDown: 0.95, damping: 10, stiffness: 220 },
+  NAV_BAR_ITEM:       { scaleDown: 0.88, scaleUp: 1.04, damping: 8, stiffness: 200 },
+  DEPARTURE_CARD:     { scaleDown: 0.94, damping: 8, stiffness: 200 }
 } as const;
 
 export type PressType =

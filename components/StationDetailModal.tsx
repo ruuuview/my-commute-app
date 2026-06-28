@@ -69,8 +69,12 @@ function ArrivalRowItem({
 
   const platformText = useMemo(() => {
     if (!arrival.platform) return '';
-    const cleaned = arrival.platform.replace(/Platform\s+/i, 'P');
-    return cleaned.startsWith('P') ? cleaned : `P${cleaned}`;
+    const stripped = arrival.platform
+      .replace(/(Northbound|Southbound|Eastbound|Westbound)\s*-?\s*/gi, '')
+      .replace(/Platform\s+/i, 'P')
+      .trim();
+    const match = stripped.match(/P\d+[a-zA-Z]?/i);
+    return match ? match[0].toUpperCase() : '';
   }, [arrival.platform]);
 
   const timeColor = useMemo(() => {
@@ -201,7 +205,7 @@ export function StationDetailModal({
 
       // Start from anchor bottom
       const startOffset = anchorRect
-        ? (anchorRect.y + anchorRect.height) - safePopupTop
+        ? Math.min((anchorRect.y + anchorRect.height) - safePopupTop, 40)
         : 12;
       translateY.value = startOffset;
       scale.value = 0.92;

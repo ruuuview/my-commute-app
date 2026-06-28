@@ -150,7 +150,7 @@ export function LineDetailModal({
     if (visible) {
       // Start from anchor bottom position
       const startOffset = anchorRect
-        ? (anchorRect.y + anchorRect.height) - safePopupTop
+        ? Math.min((anchorRect.y + anchorRect.height) - safePopupTop, 40)
         : 12;
       translateY.value = startOffset;
       scale.value = 0.92;

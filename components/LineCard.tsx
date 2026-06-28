@@ -190,7 +190,7 @@ export function LineCard({
         styles.outerCard,
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
         mode === 'display' && { marginBottom: 12 },
-        isEditing && jiggleStyle
+        jiggleStyle
       ]}
     >
       <Animated.View

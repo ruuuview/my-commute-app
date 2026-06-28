@@ -265,7 +265,7 @@ const MyCommuteDashboard: React.FC = () => {
   useEffect(() => {
     if (!isEditing) {
       setTouchReady(false);
-      const t = setTimeout(() => setTouchReady(true), 150);
+      const t = setTimeout(() => setTouchReady(true), 600);
       return () => clearTimeout(t);
     }
   }, [isEditing]);
@@ -606,10 +606,12 @@ const MyCommuteDashboard: React.FC = () => {
                               if (!isEditing && !isScrolling && touchReady) {
                                 const node = lineCardRefs.current.get(item.id);
                                 if (node) {
-                                  node.measureInWindow((x: number, y: number, width: number, height: number) => {
-                                    if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
-                                    setSelectedLineModal({ line: item, anchor: { x, y, width, height } });
-                                  });
+                                  setTimeout(() => {
+                                    node.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                      if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
+                                      setSelectedLineModal({ line: item, anchor: { x, y, width, height } });
+                                    });
+                                  }, 50);
                                 }
                               }
                             }}
@@ -713,10 +715,12 @@ const MyCommuteDashboard: React.FC = () => {
                                 if (!isEditing && !isScrolling && touchReady) {
                                   const node = stationCardRefs.current.get(item.id);
                                   if (node) {
-                                    node.measureInWindow((x: number, y: number, width: number, height: number) => {
-                                      if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
-                                      setSelectedStationModal({ stationId: item.id, anchor: { x, y, width, height } });
-                                    });
+                                    setTimeout(() => {
+                                      node.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                        if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
+                                        setSelectedStationModal({ stationId: item.id, anchor: { x, y, width, height } });
+                                      });
+                                    }, 50);
                                   }
                                 }
                               }}

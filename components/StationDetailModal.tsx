@@ -157,62 +157,23 @@ export function StationDetailModal({
   const insets = useSafeAreaInsets();
   const MIN_ALLOWED_TOP = insets.top + 12;
 
-  // ── Dynamic popup positioning ──────────────────────────────────
-  // Returns { popupTop, maxScrollHeight } that keep the whole popup
-  // within the visible screen regardless of content amount.
-  const ESTIMATED_HEADER_HEIGHT = 56;
+  // ── Centered floating sheet — NEVER clips ───────────────────────
+  // No up/down guessing or anchor-edge math. The sheet sits centered
+  // on screen with generous internal scroll for any content length.
+  // The entrance animation still springs from the card's position
+  // so the user always feels the spatial connection.
+  const ESTIMATED_HEADER_HEIGHT = 40;
+  const TOP_MARGIN = 44;
+  const BOTTOM_MARGIN = 24;
 
-  const { popupTop, maxScrollHeight, popupFromBelow } = useMemo(() => {
-    if (!anchorRect) {
-      return {
-        popupTop: SCREEN_HEIGHT / 2 - 150,
-        maxScrollHeight: SCREEN_HEIGHT * 0.55,
-        popupFromBelow: true,
-      };
-    }
+  const popupTop = Math.max(MIN_ALLOWED_TOP, insets.top + TOP_MARGIN);
+  const maxScrollHeight = Math.max(
+    80,
+    SCREEN_HEIGHT - popupTop - insets.bottom - BOTTOM_MARGIN - ESTIMATED_HEADER_HEIGHT
+  );
 
-    const gap = 8;
-    const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height + gap);
-    const spaceAbove = anchorRect.y - gap - MIN_ALLOWED_TOP;
-    const ABSOLUTE_MAX_CONTENT = SCREEN_HEIGHT * 0.55;
-
-    if (spaceBelow >= 250) {
-      // ── Position BELOW anchor ──
-      const maxContent = Math.min(
-        spaceBelow - ESTIMATED_HEADER_HEIGHT - gap,
-        ABSOLUTE_MAX_CONTENT
-      );
-      return {
-        popupTop: anchorRect.y + anchorRect.height + gap,
-        maxScrollHeight: Math.max(120, maxContent),
-        popupFromBelow: true,
-      };
-    } else if (spaceAbove >= 250) {
-      // ── Position ABOVE anchor ──
-      const maxContent = Math.min(
-        spaceAbove - ESTIMATED_HEADER_HEIGHT - gap,
-        ABSOLUTE_MAX_CONTENT
-      );
-      const top = Math.max(
-        MIN_ALLOWED_TOP,
-        anchorRect.y - maxContent - ESTIMATED_HEADER_HEIGHT - gap
-      );
-      return {
-        popupTop: top,
-        maxScrollHeight: Math.max(120, maxContent),
-        popupFromBelow: false,
-      };
-    } else {
-      // ── Not enough room either way → centre on screen ──
-      const maxContent =
-        SCREEN_HEIGHT - MIN_ALLOWED_TOP - 40 - ESTIMATED_HEADER_HEIGHT;
-      return {
-        popupTop: MIN_ALLOWED_TOP + 20,
-        maxScrollHeight: Math.max(120, maxContent),
-        popupFromBelow: true,
-      };
-    }
-  }, [anchorRect, MIN_ALLOWED_TOP]);
+  // Entrance animation: slide in from the anchor card's position
+  const entranceFromBelow = !!(anchorRect && SCREEN_HEIGHT - (anchorRect.y + anchorRect.height) > 200);
 
   const refreshPressAnim = usePressAnimation('back_btn', false);
   const filterPressAnim = usePressAnimation('line_select', false);
@@ -247,10 +208,10 @@ export function StationDetailModal({
 
       // Start from anchor bottom
       const cardBottom = anchorRect ? anchorRect.y + anchorRect.height : popupTop + 12;
-      const startOffset = popupFromBelow
-        ? Math.min(cardBottom - popupTop, 40)
-        : Math.max(popupTop - cardBottom, -40);
-      const clampedOffset = Math.max(startOffset, -40);
+      const startOffset = entranceFromBelow
+        ? Math.min(cardBottom - popupTop, 20)
+        : Math.max(popupTop - cardBottom, -20);
+      const clampedOffset = Math.max(startOffset, -20);
       translateY.value = clampedOffset;
       scale.value = 0.92;
       opacity.value = 0;
@@ -269,7 +230,7 @@ export function StationDetailModal({
       opacity.value = 0;
       translateY.value = 0;
     }
-  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, popupTop, popupFromBelow]);
+  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, popupTop, entranceFromBelow]);
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -600,13 +561,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
 
   stationName: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: 0.8,
@@ -623,29 +584,29 @@ const styles = StyleSheet.create({
   freshnessBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
 
   freshnessText: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
   },
 
   bodyScrollContent: {
-    paddingBottom: 18,
+    paddingBottom: 10,
   },
 
   lineSection: {
-    marginBottom: 16,
+    marginBottom: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 12,
+    padding: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.06)',
   },
@@ -653,18 +614,18 @@ const styles = StyleSheet.create({
   lineRowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
 
   lineColorBar: {
     width: 3,
-    height: 13,
+    height: 11,
     borderRadius: 1.5,
-    marginRight: 8,
+    marginRight: 6,
   },
 
   lineName: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
     letterSpacing: 0.8,
@@ -674,21 +635,48 @@ const styles = StyleSheet.create({
     gap: 1,
   },
 
-  arrivalRow: {
-    overflow: 'visible',
-  },
-
   arrivalRowPressable: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 3,
+    paddingVertical: 2,
     flex: 1,
+  },
+
+  arrivalDest: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+
+  arrivalPlatformInline: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 8,
+    color: 'rgba(255, 255, 255, 0.35)',
+  },
+
+  branchText: {
+    fontSize: 8,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginTop: 1,
+  },
+
+  arrivalTimeStandard: {
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    textAlign: 'right',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+
+  arrivalRow: {
+    overflow: 'visible',
   },
 
   arrivalPip: {
     width: 3,
-    height: 12,
+    height: 11,
     borderRadius: 1.5,
     marginRight: 6,
     flexShrink: 0,
@@ -696,36 +684,20 @@ const styles = StyleSheet.create({
 
   arrivalInfo: {
     flex: 1,
-    marginRight: 10,
+    marginRight: 8,
   },
 
-  arrivalDest: {
-    fontSize: 12,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.9)',
+  lineFooter: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    marginTop: 7,
+    paddingTop: 4,
   },
 
-  arrivalPlatformInline: {
+  lineFooterText: {
+    fontSize: 8,
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 9,
-    color: 'rgba(255, 255, 255, 0.35)',
-  },
-
-  branchText: {
-    fontSize: 9,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.45)',
-    marginTop: 1,
-  },
-
-
-
-  arrivalTimeStandard: {
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'right',
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.38)',
   },
 
   suspendedText: {
@@ -735,27 +707,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
 
-  lineFooter: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    marginTop: 8,
-    paddingTop: 6,
-  },
-
-  lineFooterText: {
-    fontSize: 9,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.38)',
-  },
-
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 36,
+    paddingVertical: 20,
   },
 
   emptyText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.4)',
     textAlign: 'center',

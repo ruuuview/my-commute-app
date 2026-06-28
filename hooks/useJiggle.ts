@@ -29,10 +29,11 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   }, [isEditing, isEditingShared]);
 
   useEffect(() => {
-    zIndex.value = isActive ? 999 : isEditing ? 1 : 0;
+    zIndex.value = isActive ? 999 : isEditing ? 1 : 1;
 
-    if (isEditing && !isActive) {
+    if (isEditing) {
       // ±1.5° rotation jiggle with multi-axis fluid loop
+      // Also runs on the dragged card (isActive=true) so all cards jiggle simultaneously in edit mode
       rotation.value = withDelay(
         phaseDelay,
         withRepeat(withSequence(withTiming(-1.5, { duration: 110 }), withTiming(1.5, { duration: 110 })), -1, true)

@@ -104,7 +104,9 @@ export default function DepartureCard({
 
   // Flatten and sort arrivals from cache
   const cachedLines = cachedData?.lines || [];
-  const allArrivals = cachedLines.flatMap(line => 
+  const allArrivals = cachedLines
+    .filter(line => selectedLines.includes(line.lineId))
+    .flatMap(line => 
     line.arrivals.map(arr => ({
       ...arr,
       lineId: line.lineId,

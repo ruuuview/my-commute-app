@@ -204,10 +204,12 @@ export function StationDetailModal({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
       // Start from anchor bottom
+      const cardBottom = anchorRect ? anchorRect.y + anchorRect.height : safePopupTop + 12;
       const startOffset = anchorRect
-        ? Math.min((anchorRect.y + anchorRect.height) - safePopupTop, 40)
+        ? Math.min(cardBottom - safePopupTop, 40)
         : 12;
-      translateY.value = startOffset;
+      const clampedOffset = Math.max(startOffset, -40);
+      translateY.value = clampedOffset;
       scale.value = 0.92;
       opacity.value = 0;
 

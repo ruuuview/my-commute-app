@@ -149,10 +149,14 @@ export function LineDetailModal({
   useEffect(() => {
     if (visible) {
       // Start from anchor bottom position
+      const cardBottom = anchorRect ? anchorRect.y + anchorRect.height : safePopupTop + 12;
       const startOffset = anchorRect
-        ? Math.min((anchorRect.y + anchorRect.height) - safePopupTop, 40)
+        ? Math.min(cardBottom - safePopupTop, 40)
         : 12;
-      translateY.value = startOffset;
+      // Clamp: negative offset means popup is above card, positive means below
+      // The spring emerges from the card's edge toward final position
+      const clampedOffset = Math.max(startOffset, -40);
+      translateY.value = clampedOffset;
       scale.value = 0.92;
       opacity.value = 0;
 

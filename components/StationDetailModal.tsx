@@ -157,6 +157,63 @@ export function StationDetailModal({
   const insets = useSafeAreaInsets();
   const MIN_ALLOWED_TOP = insets.top + 12;
 
+  // ── Dynamic popup positioning ──────────────────────────────────
+  // Returns { popupTop, maxScrollHeight } that keep the whole popup
+  // within the visible screen regardless of content amount.
+  const ESTIMATED_HEADER_HEIGHT = 56;
+
+  const { popupTop, maxScrollHeight, popupFromBelow } = useMemo(() => {
+    if (!anchorRect) {
+      return {
+        popupTop: SCREEN_HEIGHT / 2 - 150,
+        maxScrollHeight: SCREEN_HEIGHT * 0.55,
+        popupFromBelow: true,
+      };
+    }
+
+    const gap = 8;
+    const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height + gap);
+    const spaceAbove = anchorRect.y - gap - MIN_ALLOWED_TOP;
+    const ABSOLUTE_MAX_CONTENT = SCREEN_HEIGHT * 0.55;
+
+    if (spaceBelow >= 250) {
+      // ── Position BELOW anchor ──
+      const maxContent = Math.min(
+        spaceBelow - ESTIMATED_HEADER_HEIGHT - gap,
+        ABSOLUTE_MAX_CONTENT
+      );
+      return {
+        popupTop: anchorRect.y + anchorRect.height + gap,
+        maxScrollHeight: Math.max(120, maxContent),
+        popupFromBelow: true,
+      };
+    } else if (spaceAbove >= 250) {
+      // ── Position ABOVE anchor ──
+      const maxContent = Math.min(
+        spaceAbove - ESTIMATED_HEADER_HEIGHT - gap,
+        ABSOLUTE_MAX_CONTENT
+      );
+      const top = Math.max(
+        MIN_ALLOWED_TOP,
+        anchorRect.y - maxContent - ESTIMATED_HEADER_HEIGHT - gap
+      );
+      return {
+        popupTop: top,
+        maxScrollHeight: Math.max(120, maxContent),
+        popupFromBelow: false,
+      };
+    } else {
+      // ── Not enough room either way → centre on screen ──
+      const maxContent =
+        SCREEN_HEIGHT - MIN_ALLOWED_TOP - 40 - ESTIMATED_HEADER_HEIGHT;
+      return {
+        popupTop: MIN_ALLOWED_TOP + 20,
+        maxScrollHeight: Math.max(120, maxContent),
+        popupFromBelow: true,
+      };
+    }
+  }, [anchorRect, MIN_ALLOWED_TOP]);
+
   const refreshPressAnim = usePressAnimation('back_btn', false);
   const filterPressAnim = usePressAnimation('line_select', false);
 
@@ -168,20 +225,6 @@ export function StationDetailModal({
 
   // ── Compute anchored position ──
   const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
-  const ESTIMATED_POPUP_HEIGHT = 280;
-
-  const popupTop = useMemo(() => {
-    if (!anchorRect) return SCREEN_HEIGHT / 2 - ESTIMATED_POPUP_HEIGHT / 2;
-    const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
-    if (spaceBelow < 300) {
-      return Math.max(60, anchorRect.y - ESTIMATED_POPUP_HEIGHT - 8);
-    }
-    return anchorRect.y + anchorRect.height + 8;
-  }, [anchorRect]);
-
-  const safePopupTop = useMemo(() => {
-    return Math.max(popupTop, MIN_ALLOWED_TOP);
-  }, [popupTop, MIN_ALLOWED_TOP]);
 
   // Shift accessibility focus to station name header
   const focusOnTitle = useCallback(() => {
@@ -203,10 +246,10 @@ export function StationDetailModal({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
       // Start from anchor bottom
-      const cardBottom = anchorRect ? anchorRect.y + anchorRect.height : safePopupTop + 12;
-      const startOffset = anchorRect
-        ? Math.min(cardBottom - safePopupTop, 40)
-        : 12;
+      const cardBottom = anchorRect ? anchorRect.y + anchorRect.height : popupTop + 12;
+      const startOffset = popupFromBelow
+        ? Math.min(cardBottom - popupTop, 40)
+        : Math.max(popupTop - cardBottom, -40);
       const clampedOffset = Math.max(startOffset, -40);
       translateY.value = clampedOffset;
       scale.value = 0.92;
@@ -226,7 +269,7 @@ export function StationDetailModal({
       opacity.value = 0;
       translateY.value = 0;
     }
-  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, safePopupTop]);
+  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, popupTop, popupFromBelow]);
 
   // Freshness badge text mapping
   useEffect(() => {
@@ -369,7 +412,7 @@ export function StationDetailModal({
         />
 
         <Animated.View
-          style={[styles.popupShadow, { top: safePopupTop }, cardAnimStyle]}
+          style={[styles.popupShadow, { top: popupTop }, cardAnimStyle]}
           accessibilityViewIsModal={true}
           importantForAccessibility="yes"
         >
@@ -432,9 +475,10 @@ export function StationDetailModal({
               )}
             </View>
 
-            {/* Body scroll area */}
+            {/* Body scroll area — height dynamically constrained to */}
+            {/* the space available above/below the anchor card */}
             <ScrollView
-              style={styles.bodyScroll}
+              style={{ maxHeight: maxScrollHeight, marginHorizontal: 18 }}
               contentContainerStyle={styles.bodyScrollContent}
               showsVerticalScrollIndicator={false}
             >
@@ -591,11 +635,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
-  },
-
-  bodyScroll: {
-    maxHeight: SCREEN_HEIGHT * 0.45,
-    marginHorizontal: 18,
   },
 
   bodyScrollContent: {

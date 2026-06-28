@@ -506,6 +506,7 @@ const MyCommuteDashboard: React.FC = () => {
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
+          pointerEvents={isEditing ? 'box-none' : undefined}
           onScrollBeginDrag={() => setIsScrolling(true)}
           onScrollEndDrag={() => setIsScrolling(false)}
           onMomentumScrollEnd={() => setIsScrolling(false)}
@@ -518,7 +519,6 @@ const MyCommuteDashboard: React.FC = () => {
               tintColor="rgba(255,255,255,0.6)"
             />
           }
-          pointerEvents="box-none"
         >
 
           {/* ── Global header ── */}

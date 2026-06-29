@@ -1,10 +1,9 @@
 /**
  * DepartureCard.tsx
  * ─────────────────────────────────────────────────────────────────
- * Collapsed departure card (station name + next train countdown).
+ * Expanded departure card showing station header + up to 3 arrival rows.
  * Tap → calls onCardTap (opens StationDetailModal via DashboardGrid).
  * Long-press → triggers jiggle/edit mode in parent.
- * hideCard = true → collapses to height 0 (search-active state).
  *
  * PRESERVED:
  *  • usePressAnimation for tactile scale feedback
@@ -13,7 +12,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -21,7 +20,6 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -29,18 +27,16 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withRepeat,
   useReducedMotion,
 } from 'react-native-reanimated';
 import { LINE_COLORS } from '../constants/lineColors';
-import { IMMINENT_BLUE } from '../theme/colors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 
 // ─── Constants ────────────────────────────────────────────────────
-const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
-const COLLAPSED_HEIGHT = 56;
+const DUE_GREEN = '#30D158';
+const MAX_ROWS = 3;
 
 // ─── Interfaces ──────────────────────────────────────────────────
 interface Arrival {
@@ -49,6 +45,7 @@ interface Arrival {
   lineColor: string;
   minutesAway: number;
   destination: string;
+  platform: string;
   expectedArrival: string;
 }
 
@@ -58,37 +55,17 @@ export interface DepartureCardProps {
   isEditing?: boolean;
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
-  /** Called when user taps the card — parent opens StationDetailModal */
   onCardTap?: (stationId: string, stationName: string) => void;
-  /** Set true when the search bar is active (Screen 2 collapse logic) */
   hideCard?: boolean;
-  /** Only show arrivals for these line IDs */
   selectedLines?: string[];
 }
 
-// ─── Imminent countdown blink ─────────────────────────────────────
-function ImminentCountdown({
-  text,
-  style,
-}: {
-  text: string;
-  style?: any;
-}) {
-  const opacity = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    opacity.value = withRepeat(withTiming(0.35, { duration: 600 }), -1, true);
-  }, [reducedMotion, opacity]);
-
-  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  return (
-    <Animated.Text style={[style, { color: IMMINENT_BLUE }, animStyle]} numberOfLines={1}>
-      {text}
-    </Animated.Text>
-  );
+// ─── Helper: clean platform text ─────────────────────────────────
+function cleanPlatform(platform: string): string {
+  if (!platform) return '';
+  return String(platform)
+    .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+    .trim();
 }
 
 // ─── Main component ──────────────────────────────────────────────
@@ -106,11 +83,7 @@ export default function DepartureCard({
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Press animation — governs tactile scale feel (DO NOT REMOVE)
   const pressAnim = usePressAnimation('departure_card');
-
-  // Height shared value — drives hideCard collapse animation
-  const heightVal = useSharedValue(hideCard ? 0 : COLLAPSED_HEIGHT);
 
   // ── Fetch live arrivals ───────────────────────────────────────
   const fetchArrivals = useCallback(
@@ -156,11 +129,11 @@ export default function DepartureCard({
               .replace(' DLR Station', '')
               .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
               .trim(),
+            platform: String(dep.platform || ''),
             expectedArrival: dep.expected_arrival,
           };
         });
 
-        // Filter by selectedLines if provided
         const filtered = selectedLines?.length
           ? mapped.filter(a => selectedLines.includes(a.lineId))
           : mapped;
@@ -193,119 +166,96 @@ export default function DepartureCard({
     )
     .trim();
 
-  const nextTimeText = useMemo(() => {
-    if (loading) return '...';
-    if (arrivals.length === 0) return 'No trains';
-    const a = arrivals[0];
-    return a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`;
-  }, [loading, arrivals]);
-
-  const isFirstDue = !loading && arrivals.length > 0 && arrivals[0].minutesAway === 0;
-
-  const isImminent =
-    !loading && arrivals.length > 0 && arrivals[0].minutesAway <= 2;
+  const displayArrivals = arrivals.slice(0, MAX_ROWS);
 
   // ── Search-collapse animation (hideCard prop) ─────────────────
+  const collapseOpacity = useSharedValue(hideCard ? 0 : 1);
+  const collapseMargin = useSharedValue(hideCard ? 0 : 12);
+
   useEffect(() => {
-    const targetH = hideCard ? 0 : COLLAPSED_HEIGHT;
     if (reducedMotion) {
-      heightVal.value = targetH;
+      collapseOpacity.value = hideCard ? 0 : 1;
+      collapseMargin.value = hideCard ? 0 : 12;
     } else {
-      heightVal.value = withSpring(targetH, { damping: 22, stiffness: 240 });
+      collapseOpacity.value = withTiming(hideCard ? 0 : 1, { duration: 150 });
+      collapseMargin.value = withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
     }
-  }, [hideCard, heightVal, reducedMotion]);
+  }, [hideCard, reducedMotion, collapseOpacity, collapseMargin]);
 
-  const containerStyle = useAnimatedStyle(() => {
-    const opacityVal = reducedMotion
-      ? hideCard ? 0 : 1
-      : withTiming(hideCard ? 0 : 1, { duration: 150 });
-    const marginVal = reducedMotion
-      ? hideCard ? 0 : 12
-      : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
-    const borderVal = reducedMotion
-      ? hideCard ? 0 : 1
-      : withTiming(hideCard ? 0 : 1, { duration: 100 });
-    return {
-      height: heightVal.value,
-      opacity: opacityVal,
-      marginBottom: marginVal,
-      borderWidth: borderVal,
-    };
-  });
+  const containerAnimStyle = useAnimatedStyle(() => ({
+    opacity: collapseOpacity.value,
+    marginBottom: collapseMargin.value,
+  }));
 
-  // ── Tap handler → open popup via parent callback ──────────────
+  // ── Tap handler ───────────────────────────────────────────────
   const handlePress = () => {
-    if (isEditing) return; // Ignore taps while in jiggle/edit mode
+    if (isEditing) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onCardTap?.(stationId, stationName);
   };
 
+  if (hideCard) return null;
+
   return (
     <Animated.View
-      style={[styles.container, containerStyle, pressAnim.animatedStyle]}
+      style={[styles.container, containerAnimStyle, pressAnim.animatedStyle]}
       testID={`departure-card-${stationId}`}
     >
       <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-      <View style={styles.innerContent}>
-        <Pressable
-          onPress={handlePress}
-          onLongPress={onLongPress}
-          onPressIn={pressAnim.onPressIn}
-          onPressOut={pressAnim.onPressOut}
-          style={styles.headerPressable}
-          testID={`departure-card-pressable-${stationId}`}
-        >
-          <View style={styles.header}>
-            {/* Station name */}
-            <View style={styles.titleColumn}>
-              <Text style={styles.stationName} numberOfLines={1}>
-                {cleanName}
-              </Text>
-            </View>
+      <Pressable
+        onPress={handlePress}
+        onLongPress={onLongPress}
+        onPressIn={pressAnim.onPressIn}
+        onPressOut={pressAnim.onPressOut}
+        style={styles.pressable}
+        testID={`departure-card-pressable-${stationId}`}
+      >
+        {/* Station header */}
+        <View style={styles.headerRow}>
+          <Text style={styles.stationName} numberOfLines={1}>{cleanName}</Text>
 
-            {/* Collapsed header: next train + forward chevron */}
-            {!isEditing && (
-              <View style={styles.headerRight}>
-                {arrivals.length > 0 && (
-                  <Text style={styles.lineName} numberOfLines={1}>
-                    {arrivals[0].lineName}
-                  </Text>
-                )}
-                {isImminent && !isFirstDue ? (
-                  <ImminentCountdown
-                    text={nextTimeText}
-                    style={styles.nextTimeText}
-                  />
-                ) : isFirstDue ? (
-                  <Text style={[styles.nextTimeText, styles.dueGreen]}>{nextTimeText}</Text>
-                ) : (
-                  <Text style={styles.nextTimeText}>{nextTimeText}</Text>
-                )}
-                <Ionicons
-                  name="chevron-forward"
-                  size={14}
-                  color="rgba(255,255,255,0.25)"
-                />
+          {isEditing && onDelete && (
+            <Pressable
+              style={styles.deleteBadge}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onDelete(stationId);
+              }}
+              testID={`departure-card-delete-${stationId}`}
+            >
+              <Text style={styles.deleteIcon}>−</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Departure rows */}
+        {loading ? (
+          <Text style={styles.loadingText}>...</Text>
+        ) : displayArrivals.length === 0 ? (
+          <Text style={styles.emptyText}>No trains</Text>
+        ) : (
+          displayArrivals.map((arr, idx) => {
+            const isDue = arr.minutesAway <= 0;
+            const timeText = isDue ? 'Due' : `${arr.minutesAway} min`;
+            const platform = cleanPlatform(arr.platform);
+
+            return (
+              <View key={`${arr.lineId}-${idx}`} style={styles.arrivalRow} testID={`departure-row-${idx}`}>
+                <View style={[styles.lineBar, { backgroundColor: arr.lineColor }]} />
+                <Text style={styles.arrLineName} numberOfLines={1}>{arr.lineName}</Text>
+                <View style={styles.destPlatform}>
+                  <Text style={styles.arrDest} numberOfLines={1}>{arr.destination}</Text>
+                  {platform ? <Text style={styles.arrPlatform} numberOfLines={1}>{platform}</Text> : null}
+                </View>
+                <Text style={[styles.arrTime, isDue && styles.arrTimeDue]} numberOfLines={1}>
+                  {timeText}
+                </Text>
               </View>
-            )}
-
-            {/* Edit mode: delete badge */}
-            {isEditing && onDelete && (
-              <Pressable
-                style={styles.deleteBadge}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onDelete(stationId);
-                }}
-                testID={`departure-card-delete-${stationId}`}
-              >
-                <Text style={styles.deleteIcon}>−</Text>
-              </Pressable>
-            )}
-          </View>
-        </Pressable>
-      </View>
+            );
+          })
+        )}
+      </Pressable>
     </Animated.View>
   );
 }
@@ -317,57 +267,83 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 0,
     marginBottom: 12,
     overflow: 'hidden',
   },
-  innerContent: {
+  pressable: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
     width: '100%',
   },
-  headerPressable: {
-    height: COLLAPSED_HEIGHT,
-    justifyContent: 'center',
-    width: '100%',
-  },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    gap: 10,
-  },
-  titleColumn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    marginBottom: 8,
   },
   stationName: {
+    flex: 1,
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+    fontSize: 16,
     color: '#FFFFFF',
   },
-  headerRight: {
+  arrivalRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
     gap: 6,
   },
-  nextTimeText: {
+  lineBar: {
+    width: 3,
+    height: 16,
+    borderRadius: 2,
+  },
+  arrLineName: {
+    width: 72,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+  },
+  destPlatform: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  arrDest: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    flexShrink: 1,
+  },
+  arrPlatform: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+  },
+  arrTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: DEPARTURE_COUNTDOWN,
+    color: '#FFFFFF',
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    textAlign: 'right',
+    minWidth: 48,
   },
-  dueGreen: {
-    color: '#30D158',
-    fontWeight: '700',
+  arrTimeDue: {
+    color: DUE_GREEN,
   },
-  lineName: {
+  loadingText: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
-    marginRight: 4,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    paddingVertical: 4,
+  },
+  emptyText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    paddingVertical: 4,
   },
   deleteBadge: {
     position: 'absolute',

@@ -255,8 +255,9 @@ const LinePill: React.FC<{
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
         <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-        <View style={[pill.dot, { backgroundColor: statusColor }]} />
-        <Text style={pill.chevron}>›</Text>
+        <View style={[pill.dotOuter, { borderColor: statusColor }]}>
+          <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
+        </View>
         {isEditing && (
           <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
             <Text style={pill.deleteIcon}>−</Text>
@@ -273,8 +274,8 @@ const pill = StyleSheet.create({
   name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   spacer: { flex: 1 },
   statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
+  dotOuter: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  dotInner: { width: 8, height: 8, borderRadius: 4 },
   deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
   deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });

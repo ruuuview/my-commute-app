@@ -30,8 +30,7 @@ import Animated, {
   Easing,
   useReducedMotion,
   cancelAnimation,
-  withSpring,
-  withDelay
+  withSpring
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -43,7 +42,7 @@ import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
-import AddManageModal from '../app/AddManageModal';
+import { ManageLinesModal } from './ManageLinesModal';
 import { DashboardGradient } from './DashboardGradient';
 import DashboardGrid from './DashboardGrid';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -413,13 +412,13 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
     removeLine: s.toggleLine,
     removeStation: s.unpinStation,
-    setLines: s.reorderLines,
+
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
   })));
@@ -593,12 +592,6 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing((v) => !v);
   }, []);
 
-  // ✅ The exact fix for the "onSave is undefined" bug
-  const handleModalSave = useCallback((lines: string[], _stations: string[]) => {
-    setLines(lines);
-    setModalVisible(false);
-  }, [setLines]);
-
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   const sortedLines = useMemo(() => [...myLines].sort((a, b) => {
@@ -707,12 +700,9 @@ const MyCommuteDashboard: React.FC = () => {
         </ScrollView>
 
         {/* ✅ Modal rendered HERE with all props correctly wired */}
-        <AddManageModal
+        <ManageLinesModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
-          savedLines={selectedLines}
-          savedStations={selectedStations}
-          onSave={handleModalSave}
         />
 
         {/* Deferred Notification Modal */}

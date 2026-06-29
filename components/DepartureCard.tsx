@@ -62,6 +62,8 @@ export interface DepartureCardProps {
   onCardTap?: (stationId: string, stationName: string) => void;
   /** Set true when the search bar is active (Screen 2 collapse logic) */
   hideCard?: boolean;
+  /** Only show arrivals for these line IDs */
+  selectedLines?: string[];
 }
 
 // ─── Imminent countdown blink ─────────────────────────────────────
@@ -98,6 +100,7 @@ export default function DepartureCard({
   onLongPress,
   onCardTap,
   hideCard = false,
+  selectedLines,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
@@ -150,19 +153,26 @@ export default function DepartureCard({
             minutesAway: dep.minutes_away,
             destination: String(dep.destination || '')
               .replace(' Underground Station', '')
-              .replace(' DLR Station', ''),
+              .replace(' DLR Station', '')
+              .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+              .trim(),
             expectedArrival: dep.expected_arrival,
           };
         });
 
+        // Filter by selectedLines if provided
+        const filtered = selectedLines?.length
+          ? mapped.filter(a => selectedLines.includes(a.lineId))
+          : mapped;
+
         if (!active.current) return;
-        setArrivals(mapped);
+        setArrivals(filtered);
         setLoading(false);
       } catch (err) {
         console.log('[DepartureCard] fetch error:', err);
       }
     },
-    [stationId]
+    [stationId, selectedLines]
   );
 
   useEffect(() => {
@@ -189,6 +199,8 @@ export default function DepartureCard({
     const a = arrivals[0];
     return a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`;
   }, [loading, arrivals]);
+
+  const isFirstDue = !loading && arrivals.length > 0 && arrivals[0].minutesAway === 0;
 
   const isImminent =
     !loading && arrivals.length > 0 && arrivals[0].minutesAway <= 2;
@@ -255,11 +267,18 @@ export default function DepartureCard({
             {/* Collapsed header: next train + forward chevron */}
             {!isEditing && (
               <View style={styles.headerRight}>
-                {isImminent ? (
+                {arrivals.length > 0 && (
+                  <Text style={styles.lineName} numberOfLines={1}>
+                    {arrivals[0].lineName}
+                  </Text>
+                )}
+                {isImminent && !isFirstDue ? (
                   <ImminentCountdown
                     text={nextTimeText}
                     style={styles.nextTimeText}
                   />
+                ) : isFirstDue ? (
+                  <Text style={[styles.nextTimeText, styles.dueGreen]}>{nextTimeText}</Text>
                 ) : (
                   <Text style={styles.nextTimeText}>{nextTimeText}</Text>
                 )}
@@ -339,6 +358,16 @@ const styles = StyleSheet.create({
     color: DEPARTURE_COUNTDOWN,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+  },
+  dueGreen: {
+    color: '#30D158',
+    fontWeight: '700',
+  },
+  lineName: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.55)',
+    marginRight: 4,
   },
   deleteBadge: {
     position: 'absolute',

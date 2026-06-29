@@ -46,9 +46,16 @@ const JigglingCardWrapper = memo(
   ({ children, index, isJiggling }: JigglingCardWrapperProps) => {
     const rotation = useSharedValue(0);
     const translateX = useSharedValue(0);
+    const translateY = useSharedValue(0);
     const entranceY = useSharedValue(16);
     const opacity = useSharedValue(0);
     const reducedMotion = useReducedMotion();
+
+    // Bridge JS booleans → shared values for safe worklet reads
+    const isJigglingShared = useSharedValue(isJiggling ? 1 : 0);
+    useEffect(() => {
+      isJigglingShared.value = isJiggling ? 1 : 0;
+    }, [isJiggling, isJigglingShared]);
 
     // ── Entrance animation: runs once on mount ──────────────────
     useEffect(() => {
@@ -69,36 +76,53 @@ const JigglingCardWrapper = memo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [index, reducedMotion]);
 
-    // ── Jiggle: subtle ±1deg oscillation while isJiggling ───────
+    // ── Jiggle: ±1.5deg rotation, ±0.5 translate, staggered phase ──
     useEffect(() => {
       if (reducedMotion) return;
 
       if (isJiggling) {
-        // Phase offset so adjacent cards are NOT synchronised (iOS feel)
-        const phase = (index % 2 === 0) ? 0 : 45;
+        const phase = (index * 23) % 150;
         rotation.value = withDelay(
           phase,
           withRepeat(
             withSequence(
-              withTiming(-1, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-              withTiming(1, { duration: 90, easing: Easing.inOut(Easing.sin) })
+              withTiming(-1.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+              withTiming(1.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
+            ),
+            -1,
+            false
+          )
+        );
+        translateX.value = withDelay(
+          phase,
+          withRepeat(
+            withSequence(
+              withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+              withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
+            ),
+            -1,
+            false
+          )
+        );
+        translateY.value = withDelay(
+          phase,
+          withRepeat(
+            withSequence(
+              withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+              withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
             ),
             -1,
             false
           )
         );
       } else {
-        // BUG FIX: cancel and explicitly spring ALL transforms back to 0
+        // BUG FIX: cancel BEFORE withSpring reset to prevent corrupted end state
         cancelAnimation(rotation);
         cancelAnimation(translateX);
-        rotation.value = withSpring(0, {
-          damping: 24,
-          stiffness: 320,
-        });
-        translateX.value = withSpring(0, {
-          damping: 24,
-          stiffness: 320,
-        });
+        cancelAnimation(translateY);
+        rotation.value = withSpring(0, { damping: 24, stiffness: 320 });
+        translateX.value = withSpring(0, { damping: 24, stiffness: 320 });
+        translateY.value = withSpring(0, { damping: 24, stiffness: 320 });
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isJiggling, reducedMotion, index]);
@@ -109,6 +133,7 @@ const JigglingCardWrapper = memo(
         { translateY: entranceY.value },
         { rotate: `${rotation.value}deg` },
         { translateX: translateX.value },
+        { translateY: translateY.value },
       ],
     }));
 
@@ -129,6 +154,8 @@ export interface DashboardGridProps {
   onLongPressCard: () => void;
   /** Called whenever scroll should be enabled/disabled in the parent ScrollView */
   onScrollEnabledChange: (enabled: boolean) => void;
+  /** User's pinned line IDs for modal filtering */
+  selectedLines?: string[];
 }
 
 export default function DashboardGrid({
@@ -138,6 +165,7 @@ export default function DashboardGrid({
   onDelete,
   onLongPressCard,
   onScrollEnabledChange,
+  selectedLines,
 }: DashboardGridProps) {
   const [selectedStation, setSelectedStation] = useState<SelectedStation | null>(null);
   // Stable ref map: station.id → measured View ref
@@ -189,6 +217,7 @@ export default function DashboardGrid({
               onDelete={onDelete}
               onLongPress={onLongPressCard}
               onCardTap={handleCardTap}
+              selectedLines={selectedLines}
             />
           </JigglingCardWrapper>
         </View>
@@ -202,6 +231,7 @@ export default function DashboardGrid({
           anchorPageY={selectedStation.pageY}
           anchorCardHeight={selectedStation.cardHeight}
           onDismiss={handleDismiss}
+          selectedLines={selectedLines}
         />
       )}
     </View>

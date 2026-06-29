@@ -30,7 +30,8 @@ import Animated, {
   Easing,
   useReducedMotion,
   cancelAnimation,
-  withSpring
+  withSpring,
+  withDelay
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -54,6 +55,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { TFL_STATIONS, FULL_STATIONS } from '../data/tflStations';
+
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -153,37 +155,88 @@ NetworkHealthDot.displayName = 'NetworkHealthDot';
 // ─── Status configuration removed in favor of direct styling in LinePill
 
 
-// ─── Jiggle Hook (LinePills) — subtle ±1deg, clean exit ──────────
-const useJiggle = (isEditing: boolean) => {
+// ─── Jiggle Hook (LinePills) — ±1.5deg, ±0.5 translate, clean exit ──
+const useJiggle = (isEditing: boolean, index: number = 0) => {
   const rotation = useSharedValue(0);
+  const jiggleX = useSharedValue(0);
+  const jiggleY = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
+  // Bridge JS boolean → shared value for safe worklet reads
+  const isEditingShared = useSharedValue(isEditing ? 1 : 0);
   useEffect(() => {
-    if (isEditing && !reducedMotion) {
-      rotation.value = withRepeat(
-        withSequence(
-          withTiming(-1, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-          withTiming(1, { duration: 90, easing: Easing.inOut(Easing.sin) })
-        ),
-        -1,
-        false
+    isEditingShared.value = isEditing ? 1 : 0;
+  }, [isEditing, isEditingShared]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+
+    if (isEditing) {
+      const phase = (index * 23) % 150;
+      rotation.value = withDelay(
+        phase,
+        withRepeat(
+          withSequence(
+            withTiming(-1.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+            withTiming(1.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
+        )
+      );
+      jiggleX.value = withDelay(
+        phase,
+        withRepeat(
+          withSequence(
+            withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+            withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
+        )
+      );
+      jiggleY.value = withDelay(
+        phase,
+        withRepeat(
+          withSequence(
+            withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+            withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
+        )
       );
     } else {
-      // BUG FIX: explicitly animate rotation back to 0 to prevent stuck tilts
+      // BUG FIX: cancel BEFORE withSpring reset
       cancelAnimation(rotation);
+      cancelAnimation(jiggleX);
+      cancelAnimation(jiggleY);
       rotation.value = withSpring(0, { damping: 24, stiffness: 320 });
+      jiggleX.value = withSpring(0, { damping: 24, stiffness: 320 });
+      jiggleY.value = withSpring(0, { damping: 24, stiffness: 320 });
     }
-  }, [isEditing, reducedMotion, rotation]);
+  }, [isEditing, reducedMotion, rotation, jiggleX, jiggleY, index]);
 
   return useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { translateX: jiggleX.value },
+      { translateY: jiggleY.value },
+    ],
   }));
 };
 
 // ─── LinePill ───────────────────────────────────────────────────
-const LinePill: React.ReactNode | any = ({ line, isEditing, onDelete, onLongPress, onPress }: any) => {
+const LinePill: React.FC<{
+  line: LineData;
+  isEditing: boolean;
+  index: number;
+  onDelete: (id: string) => void;
+  onLongPress?: () => void;
+  onPress?: (info: any) => void;
+}> = ({ line, isEditing, index, onDelete, onLongPress, onPress }) => {
   const pillRef = useRef<View>(null);
-  const jiggleStyle = useJiggle(isEditing);
+  const jiggleStyle = useJiggle(isEditing, index);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
@@ -439,6 +492,8 @@ const MyCommuteDashboard: React.FC = () => {
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
 
+
+
   const subtitle = useMemo(() => {
     const myLines = data.lines.filter(l => selectedLines.includes(l.id));
     const disruptedSelected = myLines.filter(l => parseSeverity(l.status) !== 'good');
@@ -602,6 +657,14 @@ const MyCommuteDashboard: React.FC = () => {
     setIsEditing((v) => !v);
   }, []);
 
+  // ── Backdrop tap exits jiggle ─────────────────────────────────
+  const handleBackdropPress = useCallback(() => {
+    if (isEditing) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIsEditing(false);
+    }
+  }, [isEditing]);
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   const sortedLines = useMemo(() => [...myLines].sort((a, b) => {
@@ -616,7 +679,7 @@ const MyCommuteDashboard: React.FC = () => {
       <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
         {/* ── Content ── */}
         <ScrollView
-          style={dash.scroll}
+          style={[dash.scroll, { zIndex: 1 }]}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={scrollEnabled}
@@ -668,10 +731,15 @@ const MyCommuteDashboard: React.FC = () => {
                 onPressAdd={() => setModalVisible(true)}
                 isEditing={isEditing}
               />
-              {sortedLines.map((line) => (
-                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} onPress={(info: any) => setSelectedLineInfo(info)} />
+              {sortedLines.map((line, idx) => (
+                <LinePill key={line.id} line={line} index={idx} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} onPress={(info: any) => setSelectedLineInfo(info)} />
               ))}
             </View>
+          )}
+
+          {/* Spacer between sections — catches backdrop taps */}
+          {isEditing && sortedLines.length > 0 && (
+            <Pressable style={{ height: 24 }} onPress={handleBackdropPress} />
           )}
 
           {sortedLines.length > 0 && (
@@ -703,11 +771,30 @@ const MyCommuteDashboard: React.FC = () => {
                   onDelete={removeStation}
                   onLongPressCard={() => setIsEditing(true)}
                   onScrollEnabledChange={setScrollEnabled}
+                  selectedLines={selectedLines}
                 />
               )}
             </View>
           )}
+
+          {/* Bottom spacer — catches backdrop taps below all cards */}
+          {isEditing && (
+            <Pressable
+              style={{ flex: 1, minHeight: 250 }}
+              onPress={handleBackdropPress}
+            />
+          )}
         </ScrollView>
+
+        {/* Full-screen absolute backdrop behind scroll — catches all empty space */}
+        {isEditing && (
+          <Pressable
+            style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
+            onPress={handleBackdropPress}
+          />
+        )}
+
+
 
         {/* ✅ Modal rendered HERE with all props correctly wired */}
         <ManageLinesModal

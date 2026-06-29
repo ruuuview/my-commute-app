@@ -247,6 +247,12 @@ export default function StationDetailModal({
     const lastTerminal = destinations.length > 1 ? destinations[destinations.length - 1] : '';
     const isNightTube = NIGHT_TUBE_LINES.has(group.lineId);
 
+    // First and last with timings
+    const firstDep = group.departures[0];
+    const lastDep = group.departures.length > 1 ? group.departures[group.departures.length - 1] : null;
+    const firstTime = firstDep ? (firstDep.minutes_away <= 0 ? 'Due' : `${firstDep.minutes_away} min`) : '';
+    const lastTime = lastDep ? (lastDep.minutes_away <= 0 ? 'Due' : `${lastDep.minutes_away} min`) : '';
+
     return (
       <View key={group.lineId} style={idx > 0 ? { marginTop: 16 } : undefined} testID={`modal-line-${group.lineId}`}>
         {/* Line header: color bar + name in small caps */}
@@ -267,12 +273,14 @@ export default function StationDetailModal({
         {/* Hairline separator */}
         <View style={s.hairline} />
 
-        {/* First / Last footer — terminal names, not compass */}
+        {/* First / Last footer — terminal names + timings */}
         {(firstTerminal || lastTerminal) && (
           <View style={s.footerRow}>
-            {firstTerminal ? <Text style={s.footerText}>First → {firstTerminal}</Text> : null}
-            {lastTerminal && lastTerminal !== firstTerminal ? (
-              <Text style={s.footerText}>Last → {lastTerminal}</Text>
+            {firstTerminal ? (
+              <Text style={s.footerText}>First → {firstTerminal} · {firstTime}</Text>
+            ) : null}
+            {lastTerminal && lastTerminal !== firstTerminal && lastDep ? (
+              <Text style={s.footerText}>Last → {lastTerminal} · {lastTime}</Text>
             ) : null}
           </View>
         )}
@@ -312,7 +320,7 @@ export default function StationDetailModal({
         >
           {/* Frosted glass */}
           {Platform.OS === 'ios' ? (
-            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={60} tint="systemMaterialDark" style={StyleSheet.absoluteFillObject} />
           ) : (
             <View style={[StyleSheet.absoluteFillObject, s.androidBg]} />
           )}
@@ -401,8 +409,8 @@ const s = StyleSheet.create({
   panel: {
     position: 'absolute',
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
@@ -411,7 +419,7 @@ const s = StyleSheet.create({
     elevation: 24,
   },
   androidBg: {
-    backgroundColor: 'rgba(10,10,15,0.95)',
+    backgroundColor: 'rgba(20,20,30,0.92)',
   },
   content: {
     paddingHorizontal: 16,

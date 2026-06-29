@@ -255,7 +255,7 @@ const LinePill: React.FC<{
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
         <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-        <View style={[pill.dotOuter, { borderColor: statusColor }]}>
+        <View style={pill.dotOuter}>
           <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
         </View>
         {isEditing && (
@@ -269,13 +269,36 @@ const LinePill: React.FC<{
 };
 
 const pill = StyleSheet.create({
-  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', borderRadius: 12, marginBottom: 8, overflow: 'hidden', position: 'relative' },
+  container: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+    position: 'relative'
+  },
   colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
   name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
   spacer: { flex: 1 },
   statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
-  dotOuter: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
-  dotInner: { width: 8, height: 8, borderRadius: 4 },
+  dotOuter: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4
+  },
+  dotInner: { width: 6, height: 6, borderRadius: 3 },
   deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
   deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
 });

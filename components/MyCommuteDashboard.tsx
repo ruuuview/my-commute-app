@@ -45,7 +45,7 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 // ✅ Modal now managed HERE, not upstream
 import AddManageModal from '../app/AddManageModal';
 import { DashboardGradient } from './DashboardGradient';
-import DepartureCard from './DepartureCard';
+import DashboardGrid from './DashboardGrid';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -153,27 +153,30 @@ NetworkHealthDot.displayName = 'NetworkHealthDot';
 // ─── Status configuration removed in favor of direct styling in LinePill
 
 
-// ─── Jiggle Hook (Sinusoidal) ─────────────────────────
+// ─── Jiggle Hook (LinePills) — subtle ±1deg, clean exit ──────────
 const useJiggle = (isEditing: boolean) => {
   const rotation = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (isEditing && !reducedMotion) {
-      rotation.value = -1.5;
       rotation.value = withRepeat(
-        withTiming(1.5, { duration: 140, easing: Easing.inOut(Easing.sin) }),
+        withSequence(
+          withTiming(-1, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1, { duration: 90, easing: Easing.inOut(Easing.sin) })
+        ),
         -1,
-        true
+        false
       );
     } else {
+      // BUG FIX: explicitly animate rotation back to 0 to prevent stuck tilts
       cancelAnimation(rotation);
-      rotation.value = withTiming(0, { duration: 150 });
+      rotation.value = withSpring(0, { damping: 24, stiffness: 320 });
     }
   }, [isEditing, reducedMotion, rotation]);
 
   return useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }]
+    transform: [{ rotate: `${rotation.value}deg` }],
   }));
 };
 
@@ -452,6 +455,7 @@ const MyCommuteDashboard: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   const subtitle = useMemo(() => {
     const myLines = data.lines.filter(l => selectedLines.includes(l.id));
@@ -639,6 +643,7 @@ const MyCommuteDashboard: React.FC = () => {
           style={dash.scroll}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
           {/* ── Global header ── */}
@@ -715,18 +720,14 @@ const MyCommuteDashboard: React.FC = () => {
                   <Text style={dash.addCardText}>Add your first station</Text>
                 </Pressable>
               ) : (
-                selectedStations.map((station: any, index: number) => (
-                  <StaggeredCardWrapper key={station.id} index={index}>
-                    <DepartureCard
-                      stationId={station.id}
-                      stationName={station.name}
-                      isEditing={isEditing}
-                      onDelete={removeStation}
-                      onLongPress={handleEdit}
-                      defaultExpanded={true}
-                    />
-                  </StaggeredCardWrapper>
-                ))
+                <DashboardGrid
+                  stations={selectedStations}
+                  isJiggling={isEditing}
+                  onExitJiggle={() => setIsEditing(false)}
+                  onDelete={removeStation}
+                  onLongPressCard={() => setIsEditing(true)}
+                  onScrollEnabledChange={setScrollEnabled}
+                />
               )}
             </View>
           )}

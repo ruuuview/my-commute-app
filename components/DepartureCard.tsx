@@ -1,22 +1,48 @@
+/**
+ * DepartureCard.tsx
+ * ─────────────────────────────────────────────────────────────────
+ * Collapsed departure card (station name + next train countdown).
+ * Tap → calls onCardTap (opens StationDetailModal via DashboardGrid).
+ * Long-press → triggers jiggle/edit mode in parent.
+ * hideCard = true → collapses to height 0 (search-active state).
+ *
+ * PRESERVED:
+ *  • usePressAnimation for tactile scale feedback
+ *  • hideCard search-collapse Reanimated logic
+ *  • isEditing delete badge
+ * ─────────────────────────────────────────────────────────────────
+ */
+
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, withRepeat, useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { LINE_COLORS } from '../constants/lineColors';
 import { IMMINENT_BLUE } from '../theme/colors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 
-// ─── Constants & Styling Tokens ──────────────────────────────────────────────
-const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
-const TEXT_GHOST     = 'rgba(255,255,255,0.3)';
+// ─── Constants ────────────────────────────────────────────────────
 const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
+const COLLAPSED_HEIGHT = 56;
 
-
-
-// ─── Interfaces ──────────────────────────────────────────────────────────────
+// ─── Interfaces ──────────────────────────────────────────────────
 interface Arrival {
   lineId: string;
   lineName: string;
@@ -26,200 +52,167 @@ interface Arrival {
   expectedArrival: string;
 }
 
-interface DepartureCardProps {
+export interface DepartureCardProps {
   stationId: string;
   stationName: string;
   isEditing?: boolean;
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
-  defaultExpanded?: boolean;
+  /** Called when user taps the card — parent opens StationDetailModal */
+  onCardTap?: (stationId: string, stationName: string) => void;
+  /** Set true when the search bar is active (Screen 2 collapse logic) */
   hideCard?: boolean;
 }
 
-const getDepTimeStyle = (minutes: number | 'now') => {
-  if (minutes === 0 || minutes === 'now') {
-    return { color: IMMINENT_BLUE, fontWeight: '700' as const };
-  }
-  if (typeof minutes === 'number' && minutes <= 2) {
-    return { color: IMMINENT_BLUE, fontWeight: '700' as const };
-  }
-  if (typeof minutes === 'number' && minutes <= 9) {
-    return { color: 'rgba(255,255,255,0.90)', fontWeight: '700' as const };
-  }
-  return { color: 'rgba(255,255,255,0.45)', fontWeight: '700' as const };
-};
-
-function ImminentCountdown({ text, color, style }: { text: string; color: string; style?: any }) {
+// ─── Imminent countdown blink ─────────────────────────────────────
+function ImminentCountdown({
+  text,
+  style,
+}: {
+  text: string;
+  style?: any;
+}) {
   const opacity = useSharedValue(1);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (reducedMotion) return;
-    opacity.value = withRepeat(
-      withTiming(0.4, { duration: 600 }),
-      -1,
-      true
-    );
+    opacity.value = withRepeat(withTiming(0.35, { duration: 600 }), -1, true);
   }, [reducedMotion, opacity]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <Animated.Text
-      style={[
-        style,
-        { color },
-        animatedStyle,
-      ]}
-      numberOfLines={1}
-    >
+    <Animated.Text style={[style, { color: IMMINENT_BLUE }, animStyle]} numberOfLines={1}>
       {text}
     </Animated.Text>
   );
 }
 
-const COLLAPSED_HEIGHT = 56;
-
+// ─── Main component ──────────────────────────────────────────────
 export default function DepartureCard({
   stationId,
   stationName,
   isEditing = false,
   onDelete,
   onLongPress,
-  defaultExpanded = false,
+  onCardTap,
   hideCard = false,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  
-  const [contentHeight, setContentHeight] = useState(160);
-  const heightVal = useSharedValue(defaultExpanded ? 160 : COLLAPSED_HEIGHT);
-  const chevronRotation = useSharedValue(defaultExpanded ? 180 : 0);
-  const arrivalsOpacity = useSharedValue(defaultExpanded ? 1 : 0);
 
-  // Fetch arrivals for this station
-  const fetchArrivals = useCallback(async (active: { current: boolean }) => {
-    try {
-      const resolvedIds = resolveTflStopIds(stationId);
-      const responses = await Promise.all(
-        resolvedIds.map(id =>
-          fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
-            .then(res => (res.ok ? res.json() : null))
-            .catch(() => null)
-        )
-      );
+  // Press animation — governs tactile scale feel (DO NOT REMOVE)
+  const pressAnim = usePressAnimation('departure_card');
 
-      if (!active.current) return;
+  // Height shared value — drives hideCard collapse animation
+  const heightVal = useSharedValue(hideCard ? 0 : COLLAPSED_HEIGHT);
 
-      const allRawDepartures: any[] = [];
-      responses.forEach(sData => {
-        if (sData && Array.isArray(sData.departures)) {
-          allRawDepartures.push(...sData.departures);
-        }
-      });
+  // ── Fetch live arrivals ───────────────────────────────────────
+  const fetchArrivals = useCallback(
+    async (active: { current: boolean }) => {
+      try {
+        const resolvedIds = resolveTflStopIds(stationId);
+        const responses = await Promise.all(
+          resolvedIds.map(id =>
+            fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+              .then(res => (res.ok ? res.json() : null))
+              .catch(() => null)
+          )
+        );
 
-      const dedupedRaw: any[] = [];
-      const seenKeys = new Set<string>();
+        if (!active.current) return;
 
-      allRawDepartures.forEach(dep => {
-        const dest = String(dep.destination || '');
-        if (dest.includes('DELETE') || dest.includes('⚠️')) {
-          return;
-        }
-        const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          dedupedRaw.push(dep);
-        }
-      });
+        const allRaw: any[] = [];
+        responses.forEach(sData => {
+          if (sData?.departures) allRaw.push(...sData.departures);
+        });
 
-      dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+        const seen = new Set<string>();
+        const deduped = allRaw.filter(dep => {
+          const dest = String(dep.destination || '');
+          if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
+          const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
 
-      const mappedArrivals = dedupedRaw.map((dep: any) => {
-        const { lineId, cleanLineId } = normaliseLineId(dep.line);
-        return {
-          lineId,
-          lineName: dep.line,
-          lineColor: LINE_COLORS[cleanLineId] || '#888',
-          minutesAway: dep.minutes_away,
-          destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-          expectedArrival: dep.expected_arrival,
-        };
-      });
+        deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
 
-      if (!active.current) return;
-      setArrivals(mappedArrivals);
-      setLoading(false);
-    } catch (err) {
-      console.log('Error fetching in DepartureCard:', err);
-    }
-  }, [stationId]);
+        const mapped = deduped.map((dep: any) => {
+          const { lineId, cleanLineId } = normaliseLineId(dep.line);
+          return {
+            lineId,
+            lineName: dep.line,
+            lineColor: LINE_COLORS[cleanLineId] || '#888',
+            minutesAway: dep.minutes_away,
+            destination: String(dep.destination || '')
+              .replace(' Underground Station', '')
+              .replace(' DLR Station', ''),
+            expectedArrival: dep.expected_arrival,
+          };
+        });
+
+        if (!active.current) return;
+        setArrivals(mapped);
+        setLoading(false);
+      } catch (err) {
+        console.log('[DepartureCard] fetch error:', err);
+      }
+    },
+    [stationId]
+  );
 
   useEffect(() => {
     const active = { current: true };
     fetchArrivals(active);
-    // Poll arrivals every 30 seconds
-    const interval = setInterval(() => fetchArrivals(active), 30000);
+    const interval = setInterval(() => fetchArrivals(active), 30_000);
     return () => {
       active.current = false;
       clearInterval(interval);
     };
   }, [fetchArrivals]);
 
-  // Format clean station name
+  // ── Derived values ───────────────────────────────────────────
   const cleanName = String(stationName ?? '')
-    .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
+    .replace(
+      /\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i,
+      ''
+    )
     .trim();
 
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsExpanded(prev => !prev);
-  };
-
-  const onInnerLayout = (event: any) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > COLLAPSED_HEIGHT) {
-      setContentHeight(height);
-    }
-  };
-
-
-
-  // Format next time string for the collapsed view
   const nextTimeText = useMemo(() => {
     if (loading) return '...';
-    if (arrivals.length === 0) return 'No departures';
+    if (arrivals.length === 0) return 'No trains';
     const a = arrivals[0];
     return a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`;
   }, [loading, arrivals]);
 
+  const isImminent =
+    !loading && arrivals.length > 0 && arrivals[0].minutesAway <= 2;
+
+  // ── Search-collapse animation (hideCard prop) ─────────────────
   useEffect(() => {
-    const targetHeight = hideCard ? 0 : (isExpanded ? contentHeight : COLLAPSED_HEIGHT);
+    const targetH = hideCard ? 0 : COLLAPSED_HEIGHT;
     if (reducedMotion) {
-      heightVal.value = targetHeight;
-      chevronRotation.value = isExpanded && !hideCard ? 180 : 0;
-      arrivalsOpacity.value = isExpanded && !hideCard ? 1 : 0;
+      heightVal.value = targetH;
     } else {
-      heightVal.value = withSpring(targetHeight, { damping: 22, stiffness: 240 });
-      chevronRotation.value = withSpring(isExpanded && !hideCard ? 180 : 0, { damping: 22, stiffness: 240 });
-      
-      if (isExpanded && !hideCard) {
-        arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
-      } else {
-        arrivalsOpacity.value = withTiming(0, { duration: 100 });
-      }
+      heightVal.value = withSpring(targetH, { damping: 22, stiffness: 240 });
     }
-  }, [isExpanded, contentHeight, heightVal, chevronRotation, arrivalsOpacity, hideCard, reducedMotion]);
+  }, [hideCard, heightVal, reducedMotion]);
 
   const containerStyle = useAnimatedStyle(() => {
-    const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
-    const marginVal = reducedMotion ? (hideCard ? 0 : 12) : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
-    const borderVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 100 });
-
+    const opacityVal = reducedMotion
+      ? hideCard ? 0 : 1
+      : withTiming(hideCard ? 0 : 1, { duration: 150 });
+    const marginVal = reducedMotion
+      ? hideCard ? 0 : 12
+      : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
+    const borderVal = reducedMotion
+      ? hideCard ? 0 : 1
+      : withTiming(hideCard ? 0 : 1, { duration: 100 });
     return {
       height: heightVal.value,
       opacity: opacityVal,
@@ -228,54 +221,57 @@ export default function DepartureCard({
     };
   });
 
-  const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${chevronRotation.value}deg` }],
-  }));
-
-
-  const arrivalsStyle = useAnimatedStyle(() => ({
-    opacity: arrivalsOpacity.value,
-  }));
+  // ── Tap handler → open popup via parent callback ──────────────
+  const handlePress = () => {
+    if (isEditing) return; // Ignore taps while in jiggle/edit mode
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onCardTap?.(stationId, stationName);
+  };
 
   return (
-    <Animated.View style={[styles.container, containerStyle]}>
+    <Animated.View
+      style={[styles.container, containerStyle, pressAnim.animatedStyle]}
+      testID={`departure-card-${stationId}`}
+    >
       <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-      <View onLayout={onInnerLayout} style={styles.innerContent}>
+
+      <View style={styles.innerContent}>
         <Pressable
           onPress={handlePress}
           onLongPress={onLongPress}
+          onPressIn={pressAnim.onPressIn}
+          onPressOut={pressAnim.onPressOut}
           style={styles.headerPressable}
+          testID={`departure-card-pressable-${stationId}`}
         >
           <View style={styles.header}>
+            {/* Station name */}
             <View style={styles.titleColumn}>
               <Text style={styles.stationName} numberOfLines={1}>
                 {cleanName}
               </Text>
             </View>
 
+            {/* Collapsed header: next train + forward chevron */}
             {!isEditing && (
               <View style={styles.headerRight}>
-                {arrivals.length > 0 && arrivals[0].minutesAway <= 2 ? (
+                {isImminent ? (
                   <ImminentCountdown
                     text={nextTimeText}
-                    color={IMMINENT_BLUE}
                     style={styles.nextTimeText}
                   />
                 ) : (
-                  <Text style={styles.nextTimeText}>
-                    {nextTimeText}
-                  </Text>
+                  <Text style={styles.nextTimeText}>{nextTimeText}</Text>
                 )}
-                <Animated.View style={chevronStyle}>
-                  <Ionicons
-                    name="chevron-down"
-                    size={16}
-                    color="rgba(255,255,255,0.3)"
-                  />
-                </Animated.View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color="rgba(255,255,255,0.25)"
+                />
               </View>
             )}
 
+            {/* Edit mode: delete badge */}
             {isEditing && onDelete && (
               <Pressable
                 style={styles.deleteBadge}
@@ -283,61 +279,19 @@ export default function DepartureCard({
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onDelete(stationId);
                 }}
+                testID={`departure-card-delete-${stationId}`}
               >
                 <Text style={styles.deleteIcon}>−</Text>
               </Pressable>
             )}
           </View>
         </Pressable>
-
-        <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-              <Text style={styles.loadingText}>Fetching departures...</Text>
-            </View>
-          ) : arrivals.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
-            </View>
-          ) : (
-            arrivals.slice(0, 3).map((a, i) => {
-              const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
-              const depStyle = getDepTimeStyle(depVal);
-              const isImminent = depVal === 'now' || (typeof depVal === 'number' && depVal <= 2);
-              return (
-                <View
-                  key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
-                  style={styles.arrivalRow}
-                >
-                  <View style={[styles.arrivalDot, { backgroundColor: a.lineColor }]} />
-                  <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
-                    {a.lineName}
-                  </Text>
-                  <Text style={styles.arrivalDest} numberOfLines={1}>
-                    {a.destination}
-                  </Text>
-                  {isImminent ? (
-                    <ImminentCountdown
-                      text={depVal === 'now' ? 'Due' : `${depVal} min`}
-                      color={IMMINENT_BLUE}
-                      style={styles.arrivalTime}
-                    />
-                  ) : (
-                    <Text style={[styles.arrivalTime, depStyle]}>
-                      {`${depVal} min`}
-                    </Text>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </Animated.View>
       </View>
     </Animated.View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'transparent',
@@ -347,7 +301,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 0,
     marginBottom: 12,
-    overflow: 'hidden', // Accordion clip!
+    overflow: 'hidden',
   },
   innerContent: {
     width: '100%',
@@ -374,86 +328,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFFFFF',
   },
-  roleBadge: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 8,
-    color: TEXT_SECONDARY,
-    letterSpacing: 0.8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   nextTimeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
     color: DEPARTURE_COUNTDOWN,
     fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-    marginRight: 8,
-  },
-  arrivalsContainer: {
-    marginTop: 0,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  loadingText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: TEXT_SECONDARY,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  emptyText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: TEXT_GHOST,
-  },
-  arrivalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 5,
-    gap: 8,
-  },
-  arrivalDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    flexShrink: 0,
-  },
-  arrivalLineName: {
-    width: 72,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  arrivalDest: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  arrivalTime: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 13,
-    color: '#FFFFFF',
-    textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
   deleteBadge: {
@@ -476,4 +360,3 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 });
-

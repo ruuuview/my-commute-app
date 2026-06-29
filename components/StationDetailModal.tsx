@@ -228,6 +228,8 @@ export default function StationDetailModal({
   };
 
   // ── Render a line section ─────────────────────────────────────
+  const NIGHT_TUBE_LINES = new Set(['central', 'jubilee', 'northern', 'piccadilly', 'victoria']);
+
   const renderLineSection = (group: LineGroup, idx: number) => {
     const sliced = group.departures.slice(0, 3);
     let firstDueSeen = false;
@@ -236,6 +238,7 @@ export default function StationDetailModal({
     const destinations = group.departures.map(d => cleanDestination(d.destination));
     const firstTerminal = destinations[0] || '';
     const lastTerminal = destinations.length > 1 ? destinations[destinations.length - 1] : '';
+    const isNightTube = NIGHT_TUBE_LINES.has(group.lineId);
 
     return (
       <View key={group.lineId} style={idx > 0 ? { marginTop: 16 } : undefined} testID={`modal-line-${group.lineId}`}>
@@ -243,6 +246,7 @@ export default function StationDetailModal({
         <View style={s.lineHeader}>
           <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
           <Text style={s.lineHeaderName}>{group.lineName.toUpperCase()}</Text>
+          {isNightTube && <Text style={s.nightTubeBadge}>24hr Service</Text>}
         </View>
 
         {/* Arrival rows — max 3 */}
@@ -476,6 +480,13 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+  },
+  nightTubeBadge: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.35)',
+    marginLeft: 6,
+    letterSpacing: 0.5,
   },
   arrivalRow: {
     flexDirection: 'row',

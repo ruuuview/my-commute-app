@@ -65,6 +65,7 @@ function cleanPlatform(platform: string): string {
   if (!platform) return '';
   return String(platform)
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+    .replace(/Platform\s*/i, 'P')
     .trim();
 }
 

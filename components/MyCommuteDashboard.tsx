@@ -5,70 +5,56 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useCallback, useEffect, useState, useMemo, memo, forwardRef, useRef } from 'react';
-
+import React, { useCallback, useEffect, useState, useMemo, memo } from 'react';
 import {
+  LayoutAnimation,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   UIManager,
   View,
   RefreshControl,
-  Modal,
-  AppState,
-  AppStateStatus,
+  Modal
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withRepeat,
+  withSequence,
   Easing,
   useReducedMotion,
+  cancelAnimation,
   withSpring,
   withDelay
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import {
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-} from 'react-native-draggable-flatlist';
-
 // ✅ Wired directly to our Zustand + MMKV Brain
-import { useUserPreferencesStore, UserPreferencesState } from '../store/userPreferencesStore';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useLineDataStore } from '../store/lineDataStore';
-
 import { useTflPoller } from '../hooks/useTflPoller';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
-import { usePressAnimation } from '../hooks/usePressAnimation';
-import { ManageLinesModal } from './ManageLinesModal';
-import { ManageStationsModal } from './ManageStationsModal';
-import { LineDetailModal } from './LineDetailModal';
-import { LineCard } from './LineCard';
-import { APP_CONFIG } from '../config/app.config';
+// ✅ Modal now managed HERE, not upstream
+import AddManageModal from '../app/AddManageModal';
 import { DashboardGradient } from './DashboardGradient';
-import DepartureCard from './DepartureCard';
-// @ts-ignore - IDE caching issue for newly created file
-import { StationDetailModal } from './StationDetailModal'; // Resolved import
-import { useStationDataStore } from '../store/stationDataStore';
+import DashboardGrid from './DashboardGrid';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
+import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
-import { processStationArrivals } from '../utils/groupStationDepartures';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
-import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
-import { LINE_SHORT_NAMES } from '../data/lineMetadata';
+import { TFL_STATIONS, FULL_STATIONS } from '../data/tflStations';
 
-// FIX 3: LayoutAnimation removed entirely — it conflicts with Reanimated springs
-// on StaggeredCardWrapper when toggling edit mode, causing card jump/misalignment.
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -81,7 +67,6 @@ interface LineData {
   name: string;
   color: string;
   status: string;
-  reason?: string;
 }
 
 interface ArrivalEntry {
@@ -107,10 +92,9 @@ interface DashboardData {
 function parseSeverity(statusText: string): Severity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
-  if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
-  if (text.includes('minor') || text.includes('reduced') || text.includes('part')) return 'minor';
+  if (text.includes('minor')) return 'minor';
+  if (text.includes('suspended') || text.includes('closure')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
-  if (text.includes('offline')) return 'offline';
   return 'good';
 }
 
@@ -124,37 +108,136 @@ function worstSeverity(lines: LineData[]): Severity {
   return 'good';
 }
 
-const SectionHeader: React.FC<{
-  title: string;
-  onPressAdd?: () => void;
-  isEditing: boolean;
-  plusRef?: React.RefObject<any>;
-}> = ({ title, onPressAdd, isEditing, plusRef }) => {
-  const pressAnim = usePressAnimation('back_btn', false);
+// ─── Smart Heartbeat Dot ─────────────────────────────────────────
+const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
+  const opacity = useSharedValue(0.8);
+  const reducedMotion = useReducedMotion();
+
+  let color = '#4CAF50';
+  let duration = 2400;
+  
+  if (severity === 'minor') {
+    color = '#F2A002';
+    duration = 1200;
+  } else if (severity === 'severe') {
+    color = '#E32017';
+    duration = 600;
+  } else if (severity === 'suspended') {
+    color = '#E32017';
+    duration = 300;
+  } else if (severity === 'offline' || severity === 'unknown') {
+    color = '#9CA3AF';
+    duration = 2400;
+  }
+
+  useEffect(() => {
+    if (reducedMotion) {
+      opacity.value = 0.8;
+      return;
+    }
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.3, { duration, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1, true
+    );
+  }, [severity, opacity, reducedMotion, duration]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return <Animated.View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, animStyle]} />;
+});
+NetworkHealthDot.displayName = 'NetworkHealthDot';
+
+// ─── Status configuration removed in favor of direct styling in LinePill
+
+
+// ─── Jiggle Hook (LinePills) — subtle ±1deg, clean exit ──────────
+const useJiggle = (isEditing: boolean) => {
+  const rotation = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (isEditing && !reducedMotion) {
+      rotation.value = withRepeat(
+        withSequence(
+          withTiming(-1, { duration: 90, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1, { duration: 90, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      // BUG FIX: explicitly animate rotation back to 0 to prevent stuck tilts
+      cancelAnimation(rotation);
+      rotation.value = withSpring(0, { damping: 24, stiffness: 320 });
+    }
+  }, [isEditing, reducedMotion, rotation]);
+
+  return useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+};
+
+// ─── LinePill ───────────────────────────────────────────────────
+const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ line, isEditing, onDelete, onLongPress }) => {
+  const jiggleStyle = useJiggle(isEditing);
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
+  const severity = parseSeverity(line.status);
+  const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
+
   return (
-    <View style={[section.row, isEditing && { marginBottom: 20 }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-        <Text style={section.title}>{title}</Text>
-      </View>
-      {onPressAdd && (
-        <Pressable
-          onPress={onPressAdd}
-          onPressIn={pressAnim.onPressIn}
-          onPressOut={pressAnim.onPressOut}
-        >
-          <Animated.View style={[section.addBtn, isEditing && { marginRight: 12 }, pressAnim.animatedStyle]}>
-            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <Ionicons name="add" size={16} color="#FFFFFF" style={{ alignSelf: 'center' }} />
-          </Animated.View>
-        </Pressable>
-      )}
-    </View>
+    <Animated.View style={[jiggleStyle, animatedStyle]}>
+      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[pill.colorBar, { backgroundColor: line.color }]} />
+        <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
+        <View style={pill.spacer} />
+        <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
+        <View style={[pill.dot, { backgroundColor: statusColor }]} />
+        <Text style={pill.chevron}>›</Text>
+        {isEditing && (
+          <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
+            <Text style={pill.deleteIcon}>−</Text>
+          </Pressable>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
+const pill = StyleSheet.create({
+  container: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', borderRadius: 12, marginBottom: 8, overflow: 'hidden', position: 'relative' },
+  colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
+  name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
+  spacer: { flex: 1 },
+  statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  chevron: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 18, color: 'rgba(255,255,255,0.2)' },
+  deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
+  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
+});
+
+// ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
+
+// ─── Section header ───────────────────────────────────────────────
+const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd?: () => void; isEditing: boolean }> = ({ title, icon, onPressAdd, isEditing }) => (
+  <View style={section.row}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+      {icon}
+      <Text style={section.title}>{title}</Text>
+    </View>
+    {onPressAdd && !isEditing && (
+      <Pressable onPress={onPressAdd} style={section.addBtn} hitSlop={8}>
+        <Text style={section.addBtnText}>+</Text>
+      </Pressable>
+    )}
+  </View>
+);
 const section = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginTop: 4 },
-  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.58)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
+  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.45)' },
   addBtn: {
     width: 28,
     height: 28,
@@ -163,49 +246,173 @@ const section = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  addBtnText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 14,
+    color: '#FFFFFF',
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });
 
-// ─── Staggered Card Wrapper ──────────────────────────────────────
-const StaggeredCardWrapper = memo(
-  forwardRef<View, { children: React.ReactNode; index: number }>(
-    ({ children, index }, ref) => {
-      const translateY = useSharedValue(16);
-      const opacity = useSharedValue(0);
-      const reducedMotion = useReducedMotion();
+// ─── Stale Status Text ──────────────────────────────────────────────
+const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: number }> = ({ staleState, staleMinutes }) => {
+  const opacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+  const [displayText, setDisplayText] = useState('');
 
-      useEffect(() => {
-        if (reducedMotion) {
-          translateY.value = 0;
-          opacity.value = 1;
-          return;
-        }
-        const phaseDelay = (index * 23) % 150;
-        const delay = 120 + phaseDelay;
-        translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
-        opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
-      }, [index, reducedMotion, translateY, opacity]);
+  useEffect(() => {
+    if (staleState === 'offline') setDisplayText(`Offline · Data is ${staleMinutes}m old`);
+    else if (staleState === 'tfl-error') setDisplayText(`TfL unavailable · Last updated ${staleMinutes}m ago`);
+    else if (staleState === 'tfl-delayed') setDisplayText(`TfL data delayed · Last updated ${staleMinutes}m ago`);
+  }, [staleState, staleMinutes]);
 
-      const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: translateY.value }],
-        opacity: opacity.value,
-      }));
-
-      return (
-        <View ref={ref} collapsable={false}>
-          <Animated.View style={animatedStyle}>
-            {children}
-          </Animated.View>
-        </View>
-      );
+  useEffect(() => {
+    if (staleState !== null) {
+      if (reducedMotion) {
+        opacity.value = 0.7;
+      } else {
+        opacity.value = 0.4;
+        opacity.value = withRepeat(
+          withTiming(0.9, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+          -1,
+          true
+        );
+      }
+    } else {
+      cancelAnimation(opacity);
+      opacity.value = withTiming(0, { duration: 300 });
     }
-  )
-);
+  }, [staleState, reducedMotion, opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  if (!displayText) return null;
+
+  return (
+    <Animated.Text style={[dash.staleText, animStyle]}>
+      {displayText}
+    </Animated.Text>
+  );
+};
+
+// ─── Staggered Card Wrapper ──────────────────────────────────────
+const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactNode; index: number }) => {
+  const translateY = useSharedValue(16);
+  const opacity = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      translateY.value = 0;
+      opacity.value = 1;
+      return;
+    }
+    const delay = 120 + index * 60;
+    translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
+  }, [index, reducedMotion, translateY, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      {children}
+    </Animated.View>
+  );
+});
 StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 
+const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
 
+function getDayOfYear(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  return Math.floor(diff / oneDay);
+}
+
+function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], seed: number): string {
+  const allGood = [
+    "Tube's peng today.",
+    "No dramas, all running sweet.",
+    "Bare smooth out there.",
+    "Sorted. Get on it.",
+    "All clear, wagwan."
+  ];
+  
+  const minor = [
+    "[Line]'s a bit dodge.",
+    "Slight faff on the [Line].",
+    "[Line]'s dragging its feet.",
+    "[Line]'s being a bit snakey.",
+    "Don't hold your breath on [Line]."
+  ];
+  
+  const severe = [
+    "[Line]'s having a proper mare.",
+    "[Line]'s cooked.",
+    "Rah, [Line]'s a shambles.",
+    "[Line]'s butters right now.",
+    "[Line]'s gone full muppet."
+  ];
+  
+  const suspended = [
+    "[Line]'s dead. Swerve it.",
+    "Nah fam, [Line]'s finished.",
+    "Forget [Line]. It's cooked.",
+    "[Line]'s gone AWOL."
+  ];
+  
+  const stationDisrupted = [
+    "[Station]'s a bit hectic right now.",
+    "Might wanna swerve [Station] today.",
+    "[Station]'s doing the most.",
+    "Check before you roll up to [Station]."
+  ];
+  
+  const bothDisrupted = [
+    "[Line]'s cooked and [Station]'s chaos. Detour szn.",
+    "Rough one — [Line]'s a mare and [Station]'s peak."
+  ];
+  
+  if (disruptedLines.length > 0 && disruptedStations.length > 0) {
+    const line = disruptedLines[0].name;
+    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
+    const list = bothDisrupted;
+    const template = list[seed % list.length];
+    return template.replace('[Line]', line).replace('[Station]', station);
+  }
+  
+  if (disruptedLines.length > 0) {
+    const worstLine = disruptedLines[0];
+    const line = worstLine.name;
+    const sev = parseSeverity(worstLine.status);
+    let list = minor;
+    if (sev === 'suspended') {
+      list = suspended;
+    } else if (sev === 'severe') {
+      list = severe;
+    }
+    const template = list[seed % list.length];
+    return template.replace('[Line]', line);
+  }
+  
+  if (disruptedStations.length > 0) {
+    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
+    const list = stationDisrupted;
+    const template = list[seed % list.length];
+    return template.replace('[Station]', station);
+  }
+  
+  return allGood[seed % allGood.length];
+}
 
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
@@ -215,6 +422,8 @@ const MyCommuteDashboard: React.FC = () => {
   const revealScale = useSharedValue(0.88);
   const revealOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
+
+  const daySeed = useMemo(() => getDayOfYear(), []);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -231,64 +440,45 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown, calendarGranted, reorderStations, reorderLines } = useUserPreferencesStore(useShallow((s: UserPreferencesState) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, setLines, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
     removeLine: s.toggleLine,
     removeStation: s.unpinStation,
+    setLines: s.reorderLines,
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
-    calendarGranted: s.calendarGranted,
-    reorderStations: s.reorderStations,
-    reorderLines: s.reorderLines,
   })));
 
-  const [linesModalVisible, setLinesModalVisible] = useState(false);
-  const [stationsModalVisible, setStationsModalVisible] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-
-  // ── Anchor rect types for contextual popups ──
-  interface AnchorRect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }
-
-  const [selectedLineModal, setSelectedLineModal] = useState<{ line: LineData; anchor: AnchorRect } | null>(null);
-  const [selectedStationModal, setSelectedStationModal] = useState<{ stationId: string; anchor: AnchorRect } | null>(null);
+  const router = useRouter();
+  const [modalVisible, setModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
-  const [touchReady, setTouchReady] = useState(true);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setTouchReady(false);
-      const t = setTimeout(() => setTouchReady(true), 600);
-      return () => clearTimeout(t);
-    }
-  }, [isEditing]);
-
-  // ── Card refs for measureInWindow ──
-  const lineCardRefs = useRef<Map<string, View>>(new Map());
-  const stationCardRefs = useRef<Map<string, View>>(new Map());
-
-  // Sync unmount guard for deleted/removed selectedStationModal
-  useEffect(() => {
-    if (selectedStationModal) {
-      const isPinned = selectedStations.some(s => s.id === selectedStationModal.stationId);
-      if (!isPinned) {
-        setSelectedStationModal(null);
-      }
-    }
-  }, [selectedStations, selectedStationModal]);
-
-  const linesPlusRef = React.useRef<any>(null);
-  const stationsPlusRef = React.useRef<any>(null);
-  const isDragging = useSharedValue(false);
-  const headerBtnAnim = usePressAnimation('back_btn', false);
-  const addStationPressAnim = usePressAnimation('departure_card', false);
+  const subtitle = useMemo(() => {
+    const myLines = data.lines.filter(l => selectedLines.includes(l.id));
+    const disruptedSelected = myLines.filter(l => parseSeverity(l.status) !== 'good');
+    
+    const severityOrder = ['suspended', 'severe', 'minor'];
+    const sortedDisruptedSelected = [...disruptedSelected].sort((a, b) => {
+      const sevA = parseSeverity(a.status);
+      const sevB = parseSeverity(b.status);
+      return severityOrder.indexOf(sevA) - severityOrder.indexOf(sevB);
+    });
+    
+    const disruptedStationsList = selectedStations.filter((st: any) => {
+      const dbStation = FULL_STATIONS.find(s => s.id === st.id) || TFL_STATIONS.find(s => s.id === st.id);
+      const linesForStation = dbStation ? dbStation.lines : [];
+      return linesForStation.some(lineId => {
+        const lineObj = data.lines.find(l => l.id === lineId);
+        return lineObj && parseSeverity(lineObj.status) !== 'good';
+      });
+    });
+    
+    return getSubtitleText(sortedDisruptedSelected, disruptedStationsList, daySeed);
+  }, [data, selectedLines, selectedStations, daySeed]);
 
   // ✅ Deferred Permission Trigger System (Phase 6)
   const {
@@ -298,20 +488,8 @@ const MyCommuteDashboard: React.FC = () => {
     requestNotificationPermission,
   } = useDeferredPermissionTriggers();
 
-  const sortedLines = useMemo(() => {
-    return selectedLines.map((id) => {
-      const found = data.lines.find((l) => l.id === id);
-      if (found) return found;
-      return {
-        id,
-        name: LINE_SHORT_NAMES[id] || (id.charAt(0).toUpperCase() + id.slice(1)),
-        color: LINE_COLORS[id] || '#888',
-        status: 'Offline',
-      };
-    });
-  }, [data.lines, selectedLines]);
-
-  const hasContent = selectedLines.length > 0 || selectedStations.length > 0;
+  const myLines = data.lines.filter(l => selectedLines.includes(l.id));
+  const hasContent = myLines.length > 0 || selectedStations.length > 0;
 
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [showCalPrompt, setShowCalPrompt] = useState(false);
@@ -329,30 +507,10 @@ const MyCommuteDashboard: React.FC = () => {
     }
   }, [hasContent, shouldShowNotificationPrompt, shouldShowCalendarPrompt]);
 
-  // Calendar commute alert scheduler trigger (Phase 11)
-  useEffect(() => {
-    if (calendarGranted) {
-      scheduleCalendarCommuteAlerts().catch((e) =>
-        console.error('Calendar scheduling failed:', e)
-      );
-    }
-
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active' && calendarGranted) {
-        scheduleCalendarCommuteAlerts().catch((e) =>
-          console.error('Calendar scheduling failed:', e)
-        );
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [calendarGranted]);
-
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, { signal });
+      // 1. Fetch lines
+      const response = await fetch('https://my-commute-backend.vercel.app/api/lines', { signal });
       if (!response.ok) {
         return { status: response.status };
       }
@@ -364,9 +522,9 @@ const MyCommuteDashboard: React.FC = () => {
         name: String(item?.name ?? ''),
         color: LINE_COLORS[String(item?.id ?? '')] || '#888',
         status: String(item?.status ?? ''),
-        reason: item?.reason || '',
       }));
 
+      // 2. Fetch live arrivals for each pinned station in parallel
       let freshStations: StationData[] = [];
       if (Array.isArray(selectedStations) && selectedStations.length > 0) {
         const stationPromises = selectedStations.map(async (st: any) => {
@@ -374,7 +532,7 @@ const MyCommuteDashboard: React.FC = () => {
             const resolvedIds = resolveTflStopIds(st.id);
             const responses = await Promise.all(
               resolvedIds.map(id =>
-                fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal })
+                fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`, { signal })
                   .then(res => (res.ok ? res.json() : null))
                   .catch(() => null)
               )
@@ -387,14 +545,41 @@ const MyCommuteDashboard: React.FC = () => {
               }
             });
 
-            // Delegate all dedup/sort/group/cap logic to the shared utility
-            const stationLineList = processStationArrivals(allRawDepartures, st.id);
-            useStationDataStore.getState().setDepartures(st.id, stationLineList);
+            const dedupedRaw: any[] = [];
+            const seenKeys = new Set<string>();
+
+            allRawDepartures.forEach(dep => {
+              const dest = String(dep.destination || '');
+              if (dest.includes('DELETE') || dest.includes('⚠️')) {
+                return;
+              }
+              // Deduplicate by line, destination, and minutes_away to prevent duplicate-looking rows
+              const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                dedupedRaw.push(dep);
+              }
+            });
+
+            dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+
+            // Map arrivals
+            const arrivals = dedupedRaw.map((dep: any) => {
+              const { lineId, cleanLineId } = normaliseLineId(dep.line);
+              return {
+                lineId,
+                lineName: dep.line,
+                lineColor: LINE_COLORS[cleanLineId] || '#888',
+                minutesAway: dep.minutes_away,
+                destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
+                expectedArrival: dep.expected_arrival
+              };
+            });
 
             return {
               id: st.id,
               name: st.name,
-              arrivals: []
+              arrivals: arrivals
             };
           } catch (e) {
             console.log('Error fetching station arrivals for', st.id, e);
@@ -411,27 +596,6 @@ const MyCommuteDashboard: React.FC = () => {
       };
       setData(fresh);
 
-      useLineDataStore.getState().setLines(raw.map((item: any) => {
-        const s = String(item?.status ?? '').toLowerCase();
-        let status_severity = 1;
-        if (s.includes('part closure') || s.includes('suspended') || s.includes('closure')) {
-          status_severity = 20;
-        } else if (s.includes('severe')) {
-          status_severity = 9;
-        } else if (s.includes('minor') || s.includes('part') || s.includes('reduced')) {
-          status_severity = 5;
-        }
-
-        return {
-          id: String(item?.id ?? ''),
-          name: String(item?.name ?? ''),
-          color: LINE_COLORS[String(item?.id ?? '')] || '#888',
-          status: String(item?.status ?? ''),
-          status_severity,
-          reason: item?.reason || item?.statusSeverityDescription || '',
-        };
-      }));
-
       const myFreshLines = freshLines.filter((l: any) => selectedLines.includes(l.id));
       const worst = worstSeverity(myFreshLines);
       setLastKnown(worst as StatusLevel, freshLines);
@@ -443,107 +607,63 @@ const MyCommuteDashboard: React.FC = () => {
     }
   }, [selectedStations, selectedLines, setLastKnown]);
 
-  const { forceRefresh, isLoading } = useTflPoller(fetchData);
+  const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await forceRefresh();
   }, [forceRefresh]);
 
-  // FIX 3: LayoutAnimation stripped — was conflicting with StaggeredCardWrapper
-  // springs causing card misalignment on edit mode exit. Reanimated owns layout.
   const handleEdit = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsEditing((v) => !v);
   }, []);
 
-  const networkSeverity = useMemo(() => worstSeverity(sortedLines), [sortedLines]);
+  // ✅ The exact fix for the "onSave is undefined" bug
+  const handleModalSave = useCallback((lines: string[], _stations: string[]) => {
+    setLines(lines);
+    setModalVisible(false);
+  }, [setLines]);
 
-  // FIX 2: Backdrop dismiss moved OUTSIDE NestableScrollContainer as a proper
-  // absolute-positioned sibling layer. Previously it was inside the scroll container
-  // where pointerEvents="box-none" on the scroll container allowed scroll gestures
-  // to swallow touch events on empty areas before the Pressable could catch them.
-  // Now the backdrop sits between the cards and the scroll — catches anything
-  // the scroll's children miss (empty space between/after cards).
-  const handleBackdropPress = useCallback(() => {
-    if (isDragging.value) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsEditing(false);
-  }, [isDragging]);
+  const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
-  // Safety net: if isDragging somehow gets stuck (drag gesture cancelled),
-  // reset it whenever isEditing is explicitly turned off.
-  useEffect(() => {
-    if (!isEditing) {
-      isDragging.value = false;
-    }
-  }, [isEditing, isDragging]);
+  const sortedLines = useMemo(() => [...myLines].sort((a, b) => {
+    const sevA = parseSeverity(a.status);
+    const sevB = parseSeverity(b.status);
+    return (SEVERITY_ORDER[sevA] ?? 4) - (SEVERITY_ORDER[sevB] ?? 4);
+  }), [myLines]);
 
   return (
-    <View
-      style={dash.root}
-    >
+    <View style={dash.root}>
       <DashboardGradient severity={networkSeverity} />
-      <Animated.View
-        collapsable={false}
-        style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}
-        pointerEvents="box-none"
-      >
-
-
-        {/* ── Absolute backdrop for "tap anywhere to exit edit mode" ── */}
-        {/* Sits behind the scroll container. When isEditing, catches taps on */}
-        {/* empty areas that the scroll container's children don't cover. */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={isEditing ? handleBackdropPress : undefined}
-          pointerEvents={isEditing ? 'auto' : 'none'}
-        />
-
-        {/* ── Content — zIndex 1 sits above backdrop ── */}
-        <NestableScrollContainer
-          style={[dash.scroll, { zIndex: 1 }]}
+      <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
+        {/* ── Content ── */}
+        <ScrollView
+          style={dash.scroll}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          pointerEvents={isEditing ? 'box-none' : undefined}
-          onScrollBeginDrag={() => setIsScrolling(true)}
-          onScrollEndDrag={() => setIsScrolling(false)}
-          onMomentumScrollEnd={() => setIsScrolling(false)}
-          directionalLockEnabled={true}
-          removeClippedSubviews={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={onRefresh}
-              tintColor="rgba(255,255,255,0.6)"
-            />
-          }
+          scrollEnabled={scrollEnabled}
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
-
           {/* ── Global header ── */}
-          <View style={[dash.header, { paddingHorizontal: 4, zIndex: 1 }]} pointerEvents="box-none">
+          <View style={[dash.header, { paddingHorizontal: 4 }]}>
             <View style={dash.titleRow}>
               <Text style={dash.titleMain}>My Commute</Text>
               <View style={dash.headerActions}>
                 {hasContent && (
-                  <Animated.View style={headerBtnAnim.animatedStyle}>
-                    <Pressable
-                      onPress={handleEdit}
-                      onPressIn={headerBtnAnim.onPressIn}
-                      onPressOut={headerBtnAnim.onPressOut}
-                      style={dash.headerBtn}
-                      hitSlop={8}
-                    >
-                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-                      <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
-                    </Pressable>
-                  </Animated.View>
+                  <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
+                    <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+                  </Pressable>
                 )}
               </View>
             </View>
+            <View style={dash.subheadingArea}>
+              {hasContent && <NetworkHealthDot severity={networkSeverity} />}
+              <Text style={dash.statusTextText}>{subtitle}</Text>
+              <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
+            </View>
           </View>
-
           {!hasContent && (
             <View style={dash.premiumEmptyState}>
               <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
@@ -554,226 +674,79 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
               <Text style={dash.emptyTitle}>Your commute is a blank slate.</Text>
 
-              <BouncyPressable onPress={() => setLinesModalVisible(true)} style={dash.primaryBtn}>
+              <BouncyPressable onPress={() => setModalVisible(true)} style={dash.primaryBtn}>
                 <Text style={dash.primaryBtnTxt}>Add Your First Line</Text>
               </BouncyPressable>
 
-              {__DEV__ && (
-                <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
-                  <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
-                </BouncyPressable>
-              )}
+              <BouncyPressable onPress={() => resetOnboarding()} style={[dash.ghostBtn, { marginTop: 16 }]}>
+                <Text style={[dash.ghostBtnTxt, { color: '#ff4444' }]}>Reset Onboarding (Debug)</Text>
+              </BouncyPressable>
             </View>
           )}
 
-          {hasContent && isLoading && data.lines.length === 0 ? (
-            <DashboardSkeleton />
-          ) : (
-            <>
-              {sortedLines.length > 0 && (
-                <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
-                  <SectionHeader
-                    title="My lines"
-                    onPressAdd={() => setLinesModalVisible(true)}
-                    isEditing={isEditing}
-                    plusRef={linesPlusRef}
-                  />
-                  <NestableDraggableFlatList
-                    data={sortedLines}
-                    keyExtractor={(item) => item.id}
-                    style={{ overflow: 'visible' }}
-                    contentContainerStyle={{ overflow: 'visible' }}
-                    // FIX 4: onDragBegin is now the single entry point into edit mode.
-                    // Holding any card both starts the drag AND flips isEditing — no
-                    // separate background long-press needed first. Haptic fires once,
-                    // only on the transition into edit mode, not on every drag.
-                    onDragBegin={() => {
-                      isDragging.value = true;
-                      setIsEditing((wasEditing) => {
-                        if (!wasEditing) {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        }
-                        return true;
-                      });
-                    }}
-                    onDragEnd={({ data }) => {
-                      isDragging.value = false;
-                      reorderLines(data.map((l) => l.id));
-                    }}
-                    renderItem={({ item, drag, isActive, getIndex }) => {
-                      const index = getIndex();
-                      return (
-                        <StaggeredCardWrapper
-                          ref={(node: View | null) => {
-                            if (node) lineCardRefs.current.set(item.id, node);
-                            else lineCardRefs.current.delete(item.id);
-                          }}
-                          index={index ?? 0}
-                        >
-                          <LineCard
-                            line={item}
-                            selected={false}
-                            onPress={() => {
-                              // Only open modal when NOT in edit mode and NOT scrolling and touchReady is true
-                              if (!isEditing && !isScrolling && touchReady) {
-                                const node = lineCardRefs.current.get(item.id);
-                                if (node) {
-                                  setTimeout(() => {
-                                    node.measureInWindow((x: number, y: number, width: number, height: number) => {
-                                      if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
-                                      setSelectedLineModal({ line: item, anchor: { x, y, width, height } });
-                                    });
-                                  }, 50);
-                                }
-                              }
-                            }}
-                            // FIX 4: Long press is now a single unconditional path: drag.
-                            // It works identically whether edit mode is already active
-                            // or not — onDragBegin above is what flips isEditing. The
-                            // status modal is reachable by tap only, in either state.
-                            onLongPress={drag}
-                            statusType={parseSeverity(item.status)}
-                            statusLabel={item.status}
-                            cardHeight={38}
-                            mode="display"
-                            isEditing={isEditing}
-                            onDelete={removeLine}
-                            drag={isEditing ? drag : undefined}
-                            isActive={isActive}
-                            index={index ?? 0}
-                          />
-                        </StaggeredCardWrapper>
-                      );
-                    }}
-                  />
-                </View>
-              )}
-
-              {/* Tap target between sections removed — replaced by absolute backdrop above */}
-
-              {(selectedStations.length > 0 || isEditing) && (
-                <View style={[dash.section, { zIndex: 1 }]} pointerEvents="box-none">
-                  <SectionHeader
-                    title="My stations"
-                    onPressAdd={() => setStationsModalVisible(true)}
-                    isEditing={isEditing}
-                    plusRef={stationsPlusRef}
-                  />
-                  {selectedStations.length === 0 ? (
-                    <Animated.View style={addStationPressAnim.animatedStyle}>
-                      <Pressable
-                        onPress={() => setStationsModalVisible(true)}
-                        onPressIn={addStationPressAnim.onPressIn}
-                        onPressOut={addStationPressAnim.onPressOut}
-                        style={dash.addStationCard}
-                      >
-                        <BlurView
-                          intensity={45}
-                          tint="dark"
-                          style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                        />
-                        <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
-                        <Text style={dash.addCardText}>Add your first station</Text>
-                      </Pressable>
-                    </Animated.View>
-                  ) : (
-                    <NestableDraggableFlatList
-                      data={selectedStations}
-                      keyExtractor={(item) => item.id}
-                      style={{ overflow: 'visible' }}
-                      contentContainerStyle={{ overflow: 'visible' }}
-                      // FIX 4: Same single-entry-point pattern as the lines list above —
-                      // holding a station card starts the drag and flips isEditing together.
-                      onDragBegin={() => {
-                        isDragging.value = true;
-                        setIsEditing((wasEditing) => {
-                          if (!wasEditing) {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          }
-                          return true;
-                        });
-                      }}
-                      onDragEnd={({ data }) => {
-                        isDragging.value = false;
-                        reorderStations(data);
-                        }}
-                        renderItem={({ item, drag, isActive, getIndex }) => {
-                        const index = getIndex();
-                        return (
-                          <StaggeredCardWrapper
-                          ref={(node: View | null) => {
-                            if (node) stationCardRefs.current.set(item.id, node);
-                            else stationCardRefs.current.delete(item.id);
-                          }}
-                          index={index ?? 0}
-                        >
-                            <DepartureCard
-                              stationId={item.id}
-                              stationName={item.name}
-                              isEditing={isEditing}
-                              onDelete={removeStation}
-                              onLongPress={drag}
-                              onPress={() => {
-                                if (!isEditing && !isScrolling && touchReady) {
-                                  const node = stationCardRefs.current.get(item.id);
-                                  if (node) {
-                                    setTimeout(() => {
-                                      node.measureInWindow((x: number, y: number, width: number, height: number) => {
-                                        if (y <= 0) return; // Coordinate guard to prevent clipping/flying popups
-                                        setSelectedStationModal({ stationId: item.id, anchor: { x, y, width, height } });
-                                      });
-                                    }, 50);
-                                  }
-                                }
-                              }}
-                              drag={drag}
-                              isActive={isActive}
-                              index={index ?? 0}
-                              defaultExpanded={true}
-                            />
-                          </StaggeredCardWrapper>
-                        );
-                      }}
-                    />
-                  )}
-                </View>
-              )}
-
-              {/* Spacer removed — replaced by absolute backdrop above */}
-            </>
+          {sortedLines.length > 0 && (
+            <View style={dash.section}>
+              <SectionHeader 
+                title="My lines" 
+                icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                onPressAdd={() => setModalVisible(true)}
+                isEditing={isEditing}
+              />
+              {sortedLines.map((line) => (
+                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} />
+              ))}
+            </View>
           )}
-        </NestableScrollContainer>
 
-        {/* ✅ Modals rendered at root level — immediate state sync */}
-        <ManageLinesModal
-          visible={linesModalVisible}
-          onClose={() => setLinesModalVisible(false)}
-        />
-        <ManageStationsModal
-          visible={stationsModalVisible}
-          onClose={() => setStationsModalVisible(false)}
-        />
-        <LineDetailModal
-          visible={selectedLineModal !== null}
-          onClose={() => setSelectedLineModal(null)}
-          line={selectedLineModal?.line ?? null}
-          statusType={selectedLineModal ? parseSeverity(selectedLineModal.line.status) : 'loading'}
-          statusLabel={selectedLineModal ? selectedLineModal.line.status : ''}
-          anchorRect={selectedLineModal?.anchor ?? null}
-        />
-        <StationDetailModal
-          visible={selectedStationModal !== null}
-          onClose={() => setSelectedStationModal(null)}
-          stationId={selectedStationModal?.stationId || ''}
-          anchorRect={selectedStationModal?.anchor ?? null}
+          {sortedLines.length > 0 && (
+            <View style={dash.section}>
+              <SectionHeader 
+                title="My stations" 
+                icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                onPressAdd={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                isEditing={isEditing}
+              />
+              {selectedStations.length === 0 ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                  style={dash.addStationCard}
+                >
+                  <BlurView
+                    intensity={20}
+                    tint="dark"
+                    style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                  />
+                  <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
+                  <Text style={dash.addCardText}>Add your first station</Text>
+                </Pressable>
+              ) : (
+                <DashboardGrid
+                  stations={selectedStations}
+                  isJiggling={isEditing}
+                  onExitJiggle={() => setIsEditing(false)}
+                  onDelete={removeStation}
+                  onLongPressCard={() => setIsEditing(true)}
+                  onScrollEnabledChange={setScrollEnabled}
+                />
+              )}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* ✅ Modal rendered HERE with all props correctly wired */}
+        <AddManageModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          savedLines={selectedLines}
+          savedStations={selectedStations}
+          onSave={handleModalSave}
         />
 
         {/* Deferred Notification Modal */}
         <Modal
           visible={showNotifPrompt}
           transparent
-          animationType="slide"
-          presentationStyle="overFullScreen"
+          animationType="fade"
           onRequestClose={() => setShowNotifPrompt(false)}
         >
           <View style={dash.promptScrim}>
@@ -808,8 +781,7 @@ const MyCommuteDashboard: React.FC = () => {
         <Modal
           visible={showCalPrompt}
           transparent
-          animationType="slide"
-          presentationStyle="overFullScreen"
+          animationType="fade"
           onRequestClose={() => setShowCalPrompt(false)}
         >
           <View style={dash.promptScrim}>
@@ -851,24 +823,30 @@ const dash = StyleSheet.create({
   titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.30)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.12)',
-    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   headerBtnText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.80)',
+    color: 'rgba(255,255,255,0.80)'
+  },
+  subheadingArea: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  statusTextText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.6)' },
+  staleText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: '#FF9500',
+    marginTop: 4,
   },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, flexGrow: 1 },
+  scrollContent: { paddingHorizontal: 16 },
   section: { marginBottom: 24 },
   premiumEmptyState: { marginTop: 60, alignItems: 'center', paddingHorizontal: 16 },
   emptyVisual: { marginBottom: 32 },
@@ -889,9 +867,9 @@ const dash = StyleSheet.create({
   promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
   addStationCard: {
     alignSelf: 'stretch',
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
     height: 68,
     flexDirection: 'row',
     alignItems: 'center',

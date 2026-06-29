@@ -1,722 +1,401 @@
-import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
+/**
+ * StationDetailModal.tsx
+ * ─────────────────────────────────────────────────────────────────
+ * Frosted-glass popup anchored to a tapped DepartureCard.
+ * Positions BELOW the card if space allows, flips ABOVE if not.
+ * Uses measureInWindow coordinates — no entrance animation.
+ * ─────────────────────────────────────────────────────────────────
+ */
+
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Modal,
   View,
   Text,
-  StyleSheet,
   Pressable,
-  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
   Dimensions,
   Platform,
-  AccessibilityInfo,
-  findNodeHandle,
-  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-  runOnJS,
-  FadeInUp,
-  LinearTransition,
-} from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
-
-import { useStationDataStore, StationLineData, ArrivalRow } from '../store/stationDataStore';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { cleanDisplayStationName } from '../data/tflStations';
-import { tflCapitalise } from '../utils/tflCapitalise';
-import { processStationArrivals } from '../utils/groupStationDepartures';
-import { usePressAnimation } from '../hooks/usePressAnimation';
-import { APP_CONFIG } from '../config/app.config';
+import { normaliseLineId } from '../utils/normaliseLineId';
+import { LINE_COLORS } from '../constants/lineColors';
+import { IMMINENT_BLUE } from '../theme/colors';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 390);
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-// ─── Anchor rect type ──────────────────────────────────────────────
-interface AnchorRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+interface Departure {
+  destination: string;
+  line: string;
+  platform: string;
+  minutes_away: number;
+  expected_arrival: string;
 }
 
-// ─── Pressable Arrival Row with haptics, spring bounce, and line color pip ───
-
-function ArrivalRowItem({
-  arrival,
-  lineColor,
-  isFirstDue,
-}: {
-  arrival: ArrivalRow;
-  lineColor: string;
-  isFirstDue: boolean;
-}) {
-  const pressAnim = usePressAnimation('station_row', false);
-  const isDue = arrival.minutesAway === 0;
-
-  const finalDest = useMemo(() => {
-    return arrival.destination
-      .replace(/(Northbound|Southbound|Eastbound|Westbound)\s*-?\s*/gi, '')
-      .trim();
-  }, [arrival.destination]);
-
-  const platformText = useMemo(() => {
-    if (!arrival.platform) return '';
-    const stripped = arrival.platform
-      .replace(/(Northbound|Southbound|Eastbound|Westbound)\s*-?\s*/gi, '')
-      .replace(/Platform\s+/i, 'P')
-      .trim();
-    const match = stripped.match(/P\d+[a-zA-Z]?/i);
-    return match ? match[0].toUpperCase() : '';
-  }, [arrival.platform]);
-
-  const timeColor = useMemo(() => {
-    if (isDue) {
-      return isFirstDue ? '#30D158' : 'rgba(255, 255, 255, 0.85)';
-    }
-    if (arrival.minutesAway <= 2) {
-      return 'rgba(255, 255, 255, 0.85)';
-    }
-    return 'rgba(255, 255, 255, 0.55)';
-  }, [isDue, isFirstDue, arrival.minutesAway]);
-
-  const fontWeight = isDue && isFirstDue ? '700' : '500';
-
-  return (
-    <Animated.View style={[styles.arrivalRow, pressAnim.animatedStyle]}>
-      <Pressable
-        onPressIn={pressAnim.onPressIn}
-        onPressOut={pressAnim.onPressOut}
-        style={styles.arrivalRowPressable}
-      >
-        {/* Dynamic colored route pip */}
-        <View style={[styles.arrivalPip, { backgroundColor: lineColor }]} />
-
-        <View style={styles.arrivalInfo}>
-          <Text style={styles.arrivalDest} numberOfLines={1} ellipsizeMode="tail">
-            {finalDest}
-            {platformText ? (
-              <Text style={styles.arrivalPlatformInline}>
-                {`  ${platformText}`}
-              </Text>
-            ) : null}
-          </Text>
-          {arrival.branchName ? (
-            <Text style={styles.branchText} numberOfLines={1} ellipsizeMode="tail">
-              {arrival.branchName}
-            </Text>
-          ) : null}
-        </View>
-
-        <Text
-          style={[
-            styles.arrivalTimeStandard,
-            { color: timeColor, fontWeight },
-          ]}
-          numberOfLines={1}
-        >
-          {isDue ? 'Due' : `${arrival.minutesAway} min`}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-interface StationDetailModalProps {
-  visible: boolean;
-  onClose: () => void;
+export interface StationDetailModalProps {
   stationId: string;
-  anchorRect: AnchorRect | null;
+  stationName: string;
+  /** pageY from measureInWindow on the tapped card wrapper */
+  anchorPageY: number;
+  /** measured height of the tapped card */
+  anchorCardHeight: number;
+  onDismiss: () => void;
 }
 
-export function StationDetailModal({
-  visible,
-  onClose,
+// ─── Helpers ──────────────────────────────────────────────────────
+function getLineColor(lineName: string): string {
+  const { cleanLineId } = normaliseLineId(lineName);
+  return LINE_COLORS[cleanLineId] || '#888888';
+}
+
+function formatTime(minutes: number): string {
+  if (minutes <= 0) return 'Due';
+  return `${minutes} min`;
+}
+
+function cleanDestination(dest: string): string {
+  return String(dest || '')
+    .replace(' Underground Station', '')
+    .replace(' DLR Station', '')
+    .replace(' Rail Station', '')
+    .trim();
+}
+
+// ─── Component ───────────────────────────────────────────────────
+export default function StationDetailModal({
   stationId,
-  anchorRect,
+  stationName,
+  anchorPageY,
+  anchorCardHeight,
+  onDismiss,
 }: StationDetailModalProps) {
-  const scale = useSharedValue(0.92);
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(0);
+  const { bottom: safeAreaBottom, top: safeAreaTop } = useSafeAreaInsets();
+  const [departures, setDepartures] = useState<Departure[]>([]);
+  const [loading, setLoading] = useState(true);
+  // Dynamic height measured from onLayout — used for flip math
+  const [popupHeight, setPopupHeight] = useState(0);
 
-  const titleRef = useRef<Text>(null);
+  const cleanName = String(stationName ?? '')
+    .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
+    .trim();
 
-  // Zustand stores
-  const selectedLines = useUserPreferencesStore(state => state.selectedLines || []);
-  const pinnedStations = useUserPreferencesStore(state => state.pinnedStations || []);
-  const showAllDepartures = useUserPreferencesStore(state => state.stationFilterToggles[stationId] || false);
-  const toggleFilter = useUserPreferencesStore(state => state.toggleStationFilter);
-  const departuresFromStore = useStationDataStore(state => state.departures[stationId]);
-
-  const insets = useSafeAreaInsets();
-  const MIN_ALLOWED_TOP = insets.top + 12;
-
-  // ── Centered floating sheet — NEVER clips ───────────────────────
-  // No up/down guessing or anchor-edge math. The sheet sits centered
-  // on screen with generous internal scroll for any content length.
-  // The entrance animation still springs from the card's position
-  // so the user always feels the spatial connection.
-  const ESTIMATED_HEADER_HEIGHT = 40;
-  const TOP_MARGIN = 44;
-  const BOTTOM_MARGIN = 24;
-
-  const popupTop = Math.max(MIN_ALLOWED_TOP, insets.top + TOP_MARGIN);
-  const maxScrollHeight = Math.max(
-    80,
-    SCREEN_HEIGHT - popupTop - insets.bottom - BOTTOM_MARGIN - ESTIMATED_HEADER_HEIGHT
-  );
-
-  // Entrance animation: slide in from the anchor card's position
-  const entranceFromBelow = !!(anchorRect && SCREEN_HEIGHT - (anchorRect.y + anchorRect.height) > 200);
-
-  const refreshPressAnim = usePressAnimation('back_btn', false);
-  const filterPressAnim = usePressAnimation('line_select', false);
-
-  // Transition freezing state
-  const [freezeUpdates, setFreezeUpdates] = useState(true);
-  const [snapshotData, setSnapshotData] = useState<any>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [freshnessString, setFreshnessString] = useState('Live');
-
-  // ── Compute anchored position ──
-  const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
-
-  // Shift accessibility focus to station name header
-  const focusOnTitle = useCallback(() => {
-    if (titleRef.current) {
-      const reactTag = findNodeHandle(titleRef.current);
-      if (reactTag) {
-        AccessibilityInfo.setAccessibilityFocus(reactTag);
-      }
-    }
-  }, []);
-
-  // Sync snapshot cache and trigger haptic scaling feedback
-  useEffect(() => {
-    if (visible) {
-      setFreezeUpdates(true);
-      const currentCache = useStationDataStore.getState().departures[stationId];
-      setSnapshotData(currentCache);
-
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-
-      // Start from anchor bottom
-      const cardBottom = anchorRect ? anchorRect.y + anchorRect.height : popupTop + 12;
-      const startOffset = entranceFromBelow
-        ? Math.min(cardBottom - popupTop, 20)
-        : Math.max(popupTop - cardBottom, -20);
-      const clampedOffset = Math.max(startOffset, -20);
-      translateY.value = clampedOffset;
-      scale.value = 0.92;
-      opacity.value = 0;
-
-      // Spring to final position — using withTiming for clean non-bouncy entry
-      translateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.poly(3)) }, (isFinished) => {
-        if (isFinished) {
-          runOnJS(setFreezeUpdates)(false);
-          runOnJS(focusOnTitle)();
-        }
-      });
-      scale.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.poly(3)) });
-      opacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.poly(3)) });
-    } else {
-      scale.value = 0.92;
-      opacity.value = 0;
-      translateY.value = 0;
-    }
-  }, [visible, stationId, scale, opacity, translateY, focusOnTitle, anchorRect, popupTop, entranceFromBelow]);
-
-  // Freshness badge text mapping
-  useEffect(() => {
-    const updateFreshness = () => {
-      if (!departuresFromStore) {
-        setFreshnessString('Live');
-        return;
-      }
-      const diffSec = (Date.now() - departuresFromStore.lastFetched) / 1000;
-      if (diffSec <= 30) {
-        setFreshnessString('Live');
-      } else if (diffSec <= 60) {
-        setFreshnessString('30s ago');
-      } else {
-        setFreshnessString('1m+ ago');
-      }
-    };
-
-    updateFreshness();
-    const interval = setInterval(updateFreshness, 10000);
-    return () => clearInterval(interval);
-  }, [departuresFromStore]);
-
-  const handleClose = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    onClose();
-  };
-
-  const handleFilterToggle = () => {
-    const nextState = !showAllDepartures;
-    Haptics.impactAsync(
-      nextState ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
-    ).catch(() => {});
-    toggleFilter(stationId);
-  };
-
-  // Manual cache validation fetch
-  const handleManualRefresh = async () => {
+  // ── Fetch departures ──────────────────────────────────────────
+  const fetchDepartures = useCallback(async () => {
     try {
-      setIsRefreshing(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-
+      setLoading(true);
       const resolvedIds = resolveTflStopIds(stationId);
       const responses = await Promise.all(
-        resolvedIds.map(id => {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 8000);
-          return fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: controller.signal })
+        resolvedIds.map(id =>
+          fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
             .then(res => (res.ok ? res.json() : null))
             .catch(() => null)
-            .finally(() => clearTimeout(timer));
-        })
+        )
       );
 
-      const allRawDepartures: any[] = [];
-      responses.forEach(sData => {
-        if (sData && Array.isArray(sData.departures)) {
-          allRawDepartures.push(...sData.departures);
-        }
+      const allRaw: any[] = [];
+      responses.forEach(data => {
+        if (data?.departures) allRaw.push(...data.departures);
       });
 
-      const stationLineList = processStationArrivals(allRawDepartures, stationId);
-      useStationDataStore.getState().setDepartures(stationId, stationLineList);
+      const seen = new Set<string>();
+      const deduped = allRaw.filter(dep => {
+        const dest = String(dep.destination || '');
+        if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
+        const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+      setDepartures(deduped);
     } catch (e) {
-      console.log('Manual refresh failed inside modal:', e);
+      console.log('[StationDetailModal] fetch error:', e);
     } finally {
-      setIsRefreshing(false);
+      setLoading(false);
     }
+  }, [stationId]);
+
+  useEffect(() => {
+    fetchDepartures();
+  }, [fetchDepartures]);
+
+  // ── Group by direction ────────────────────────────────────────
+  const { northbound, southbound, other } = useMemo(() => {
+    const nb: Departure[] = [];
+    const sb: Departure[] = [];
+    const ot: Departure[] = [];
+    departures.forEach(dep => {
+      const p = String(dep.platform || '').toLowerCase();
+      if (p.includes('northbound') || p.includes('eastbound')) nb.push(dep);
+      else if (p.includes('southbound') || p.includes('westbound')) sb.push(dep);
+      else ot.push(dep);
+    });
+    return { northbound: nb, southbound: sb, other: ot };
+  }, [departures]);
+
+  // ── Flip-position math ────────────────────────────────────────
+  const measured = popupHeight > 0;
+
+  const popupTop = useMemo(() => {
+    if (!measured) {
+      // Off-screen while measuring; snaps into place on first layout
+      return anchorPageY + anchorCardHeight + 8;
+    }
+    const spaceBelow =
+      SCREEN_HEIGHT - safeAreaBottom - (anchorPageY + anchorCardHeight);
+
+    if (spaceBelow >= popupHeight + 8) {
+      // Enough room below — position below card
+      return anchorPageY + anchorCardHeight + 8;
+    }
+    // Flip above card, clamp to safe area top
+    const above = anchorPageY - popupHeight - 8;
+    return Math.max(above, safeAreaTop + 8);
+  }, [measured, popupHeight, anchorPageY, anchorCardHeight, safeAreaBottom, safeAreaTop]);
+
+  // ── Render a single departure row ─────────────────────────────
+  const renderDeparture = (dep: Departure, idx: number) => {
+    const lineColor = getLineColor(dep.line);
+    const isImminent = dep.minutes_away <= 2;
+    return (
+      <View key={`dep-${idx}`} style={s.depRow} testID={`modal-dep-row-${idx}`}>
+        <View style={[s.depDot, { backgroundColor: lineColor }]} />
+        <Text style={s.depLine} numberOfLines={1}>
+          {dep.line}
+        </Text>
+        <Text style={s.depDest} numberOfLines={1}>
+          {cleanDestination(dep.destination)}
+        </Text>
+        <Text
+          style={[s.depTime, isImminent && s.depTimeImminent]}
+          numberOfLines={1}
+        >
+          {formatTime(dep.minutes_away)}
+        </Text>
+      </View>
+    );
   };
 
-  // Active snapshot / live stream routing
-  const activeData = freezeUpdates ? snapshotData : departuresFromStore;
-  const cachedLines = useMemo(() => activeData?.lines || [], [activeData]);
+  // ── Render a direction section ────────────────────────────────
+  const renderSection = (
+    label: string,
+    deps: Departure[],
+    testIdKey: string
+  ) => {
+    if (deps.length === 0) return null;
+    return (
+      <View style={s.section} testID={`modal-section-${testIdKey}`}>
+        <Text style={s.dirLabel}>{label}</Text>
+        {deps.slice(0, 3).map(renderDeparture)}
+      </View>
+    );
+  };
 
-  // Pinned station information
-  const stationInfo = pinnedStations.find(s => s.id === stationId);
-  const stationLines = stationInfo ? stationInfo.lines : [];
-
-  // Hide ⊞ filter toggle if station services only 1 line
-  const shouldShowFilterBtn = stationLines.length > 1;
-
-  // Cognitive Sort Order rendering loop
-  const sortedLines = useMemo(() => {
-    if (!showAllDepartures) {
-      return selectedLines
-        .map(lineId => cachedLines.find((l: StationLineData) => l.lineId === lineId))
-        .filter(Boolean) as StationLineData[];
-    } else {
-      return [...cachedLines].sort((a, b) => {
-        const idxA = selectedLines.indexOf(a.lineId);
-        const idxB = selectedLines.indexOf(b.lineId);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-        if (idxA !== -1) return -1;
-        if (idxB !== -1) return 1;
-        return a.lineName.localeCompare(b.lineName);
-      });
-    }
-  }, [cachedLines, selectedLines, showAllDepartures]);
-
-  // Clean title header station name — canonical util, shared with StationCard/ManageStationsModal
-  const cleanTitleName = useMemo(() => {
-    if (!stationInfo) return '';
-    return tflCapitalise(cleanDisplayStationName(stationInfo.name));
-  }, [stationInfo]);
-
-  // Aligned empty states checks
-  const hasDepartures = sortedLines.some((l: StationLineData) => l.arrivals.length > 0);
-  const isAnyLineNightTube = cachedLines.some((l: StationLineData) => l.isNightTube);
-  const emptyStateMessage = isAnyLineNightTube
-    ? 'Night Tube active — service resuming shortly.'
-    : 'Station service currently suspended.';
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: popupLeft },
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
-    opacity: opacity.value,
-  }));
-
-  if (!stationInfo) return null;
+  const dirLabel = (deps: Departure[], defaultLabel: string): string => {
+    if (deps.length === 0) return defaultLabel;
+    const p = String(deps[0].platform || '').toLowerCase();
+    if (p.includes('eastbound')) return '→ EASTBOUND';
+    if (p.includes('westbound')) return '← WESTBOUND';
+    return defaultLabel;
+  };
 
   return (
     <Modal
-      visible={visible}
+      visible
       transparent
-      presentationStyle="overFullScreen"
       animationType="none"
-      onRequestClose={handleClose}
+      onRequestClose={onDismiss}
+      testID="station-detail-modal"
     >
-      <View style={styles.root}>
-        {/* Whisper scrim — blocks underlying touch bleed */}
+      {/* Full-screen hit area: scrim absorbs background touches */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
         <Pressable
-          style={[StyleSheet.absoluteFillObject, styles.scrim]}
-          onPress={handleClose}
-          pointerEvents="auto"
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss station details"
+          style={[StyleSheet.absoluteFillObject, s.scrim]}
+          onPress={onDismiss}
+          testID="station-modal-scrim"
         />
 
-        <Animated.View
-          style={[styles.popupShadow, { top: popupTop }, cardAnimStyle]}
-          accessibilityViewIsModal={true}
-          importantForAccessibility="yes"
+        {/* ── Popup panel — absolutely positioned, NO entrance animation ── */}
+        <View
+          style={[
+            s.panel,
+            {
+              top: popupTop,
+              opacity: measured ? 1 : 0,
+            },
+          ]}
+          onLayout={e => setPopupHeight(e.nativeEvent.layout.height)}
+          testID="station-detail-popup"
         >
-          <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS !== 'android' && (
-              <BlurView
-                intensity={45}
-                tint="dark"
-                style={StyleSheet.absoluteFillObject}
-              />
-            )}
+          {/* Frosted glass background */}
+          <BlurView
+            intensity={55}
+            tint="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+          {/* Additional tint overlay */}
+          <View style={s.panelTint} pointerEvents="none" />
 
-            <View style={styles.glassTint} pointerEvents="none" />
-
-            {/* Header Layout Row */}
-            <View style={styles.heroHeader}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 10 }}>
-                <Text
-                  ref={titleRef}
-                  style={styles.stationName}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {cleanTitleName.toUpperCase()}
-                </Text>
-
-                {/* Freshness Badge */}
-                <Animated.View style={refreshPressAnim.animatedStyle}>
-                  <Pressable
-                    onPress={handleManualRefresh}
-                    onPressIn={refreshPressAnim.onPressIn}
-                    onPressOut={refreshPressAnim.onPressOut}
-                    style={styles.freshnessBadge}
-                  >
-                    {isRefreshing ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" style={{ transform: [{ scale: 0.7 }] }} />
-                    ) : (
-                      <Ionicons name="time-outline" size={12} color="#FFFFFF" />
-                    )}
-                    <Text style={styles.freshnessText}>{freshnessString}</Text>
-                  </Pressable>
-                </Animated.View>
-              </View>
-
-              {/* Opacity-toggled 44x44pt filter grid toggle button */}
-              {shouldShowFilterBtn && (
-                <Animated.View style={filterPressAnim.animatedStyle}>
-                  <Pressable
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    style={[styles.filterBtn, { opacity: showAllDepartures ? 1.0 : 0.4 }]}
-                    onPress={handleFilterToggle}
-                    onPressIn={filterPressAnim.onPressIn}
-                    onPressOut={filterPressAnim.onPressOut}
-                    accessibilityLabel={showAllDepartures ? 'Switch to Pinned Lines filter' : 'Switch to All Departures filter'}
-                    accessibilityRole="button"
-                  >
-                    <Ionicons name="grid-outline" size={20} color="#FFFFFF" />
-                  </Pressable>
-                </Animated.View>
-              )}
+          {/* Content */}
+          <View style={s.content}>
+            {/* Header row */}
+            <View style={s.header}>
+              <Text style={s.stationName} numberOfLines={1} testID="modal-station-name">
+                {cleanName}
+              </Text>
+              <Pressable
+                onPress={onDismiss}
+                hitSlop={12}
+                style={s.closeHitArea}
+                testID="station-modal-close"
+              >
+                <Text style={s.closeBtn}>✕</Text>
+              </Pressable>
             </View>
 
-            {/* Body scroll area — height dynamically constrained to */}
-            {/* the space available above/below the anchor card */}
-            <ScrollView
-              style={{ maxHeight: maxScrollHeight, marginHorizontal: 18 }}
-              contentContainerStyle={styles.bodyScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {!hasDepartures ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>{emptyStateMessage}</Text>
-                </View>
-              ) : (
-                sortedLines.map((line, idx) => {
-                  const entering = idx < 6
-                    ? FadeInUp.delay(idx * 50).springify().damping(18)
-                    : undefined;
-
-                  // Integrity-first chronological sort before cap
-                  const sortedArrivals = [...line.arrivals].sort(
-                    (a, b) => a.minutesAway - b.minutesAway
-                  );
-
-                  return (
-                    <Animated.View
-                      key={line.lineId}
-                      layout={LinearTransition.springify().mass(0.8)}
-                      entering={entering}
-                      style={styles.lineSection}
-                    >
-                      {/* Line row header */}
-                      <View style={styles.lineRowHeader}>
-                        <View style={[styles.lineColorBar, { backgroundColor: line.lineColor }]} />
-                        <Text style={styles.lineName} numberOfLines={1} ellipsizeMode="tail">
-                          {line.lineName.toUpperCase()}
-                        </Text>
-                      </View>
-
-                      {/* Arrivals mapping — capped at 3 per line */}
-                      {sortedArrivals.length === 0 ? (
-                        <Text style={styles.suspendedText}>No arrivals currently running</Text>
-                      ) : (
-                        <View style={styles.arrivalsList}>
-                          {sortedArrivals.slice(0, 3).map((arrival, arrIdx) => {
-                            const firstDueIndexInLine = sortedArrivals.findIndex(
-                              (arr) => arr.minutesAway === 0
-                            );
-                            const isFirstDue = arrival.minutesAway === 0 && arrIdx === firstDueIndexInLine;
-                            return (
-                              <ArrivalRowItem
-                                key={`${arrival.destination}-${arrIdx}`}
-                                arrival={arrival}
-                                lineColor={line.lineColor}
-                                isFirstDue={isFirstDue}
-                              />
-                            );
-                          })}
-                        </View>
-                      )}
-
-                      {/* Timetable footer */}
-                      {(line.isNightTube || (line.firstTrain && line.lastTrain)) && (
-                        <View style={styles.lineFooter}>
-                          {line.isNightTube ? (
-                            <Text style={styles.lineFooterText} numberOfLines={1} ellipsizeMode="tail">
-                              24hr Service
-                            </Text>
-                          ) : (
-                            <Text style={styles.lineFooterText} numberOfLines={1} ellipsizeMode="tail">
-                              First: {line.firstTrain} {line.firstTrainDestination || ''} │ Last: {line.lastTrain} {line.lastTrainDestination || ''}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    </Animated.View>
-                  );
-                })
-              )}
-            </ScrollView>
-          </Pressable>
-        </Animated.View>
+            {/* Body */}
+            {loading ? (
+              <View style={s.loadingRow}>
+                <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+                <Text style={s.loadingText}>Fetching departures…</Text>
+              </View>
+            ) : departures.length === 0 ? (
+              <Text style={s.emptyText} testID="modal-empty">
+                No trains right now
+              </Text>
+            ) : (
+              <>
+                {renderSection(
+                  dirLabel(northbound, '↑ NORTHBOUND'),
+                  northbound,
+                  'northbound'
+                )}
+                {renderSection(
+                  dirLabel(southbound, '↓ SOUTHBOUND'),
+                  southbound,
+                  'southbound'
+                )}
+                {/* Fallback: ungrouped departures (no direction info) */}
+                {northbound.length === 0 &&
+                  southbound.length === 0 &&
+                  renderSection('DEPARTURES', other, 'all')}
+              </>
+            )}
+          </View>
+        </View>
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+// ─── Styles ───────────────────────────────────────────────────────
+const s = StyleSheet.create({
   scrim: {
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
-
-  popupShadow: {
+  panel: {
     position: 'absolute',
-    top: 0,
     left: 0,
-    width: POPUP_WIDTH,
-    borderRadius: 20,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 15,
-  },
-
-  popup: {
-    borderRadius: 20,
+    right: 0,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
-    padding: 0,
   },
-
-  glassTint: {
+  panelTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
-
-  heroHeader: {
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 4,
+    marginBottom: 14,
   },
-
   stationName: {
-    fontSize: 13,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-    maxWidth: '55%',
-  },
-
-  filterBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  freshnessBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-
-  freshnessText: {
-    fontSize: 9,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
-  },
-
-  bodyScrollContent: {
-    paddingBottom: 10,
-  },
-
-  lineSection: {
-    marginBottom: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: 12,
-    padding: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-
-  lineRowHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-
-  lineColorBar: {
-    width: 3,
-    height: 11,
-    borderRadius: 1.5,
-    marginRight: 6,
-  },
-
-  lineName: {
-    fontSize: 9,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-  },
-
-  arrivalsList: {
-    gap: 1,
-  },
-
-  arrivalRowPressable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
     flex: 1,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
-
-  arrivalDest: {
-    fontSize: 11,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.9)',
+  closeHitArea: {
+    padding: 4,
   },
-
-  arrivalPlatformInline: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 8,
-    color: 'rgba(255, 255, 255, 0.35)',
+  closeBtn: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
   },
-
-  branchText: {
-    fontSize: 8,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.45)',
-    marginTop: 1,
+  section: {
+    marginBottom: 12,
   },
-
-  arrivalTimeStandard: {
-    fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'right',
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
+  dirLabel: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.40)',
+    letterSpacing: 0.9,
+    marginBottom: 7,
   },
-
-  arrivalRow: {
-    overflow: 'visible',
+  depRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    gap: 8,
   },
-
-  arrivalPip: {
-    width: 3,
-    height: 11,
-    borderRadius: 1.5,
-    marginRight: 6,
+  depDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     flexShrink: 0,
   },
-
-  arrivalInfo: {
+  depLine: {
+    width: 76,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+  },
+  depDest: {
     flex: 1,
-    marginRight: 8,
-  },
-
-  lineFooter: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    marginTop: 7,
-    paddingTop: 4,
-  },
-
-  lineFooterText: {
-    fontSize: 8,
     fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.38)',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.90)',
   },
-
-  suspendedText: {
-    fontSize: 11,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.35)',
-    paddingVertical: 4,
+  depTime: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
-
-  emptyContainer: {
+  depTimeImminent: {
+    color: IMMINENT_BLUE,
+    fontWeight: '700',
+  },
+  loadingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
+    gap: 8,
+    paddingVertical: 14,
   },
-
+  loadingText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.35)',
+  },
   emptyText: {
-    fontSize: 11,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.4)',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
+    paddingVertical: 14,
   },
 });

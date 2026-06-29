@@ -1,160 +1,218 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
+/**
+ * DepartureCard.tsx
+ * ─────────────────────────────────────────────────────────────────
+ * Collapsed departure card (station name + next train countdown).
+ * Tap → calls onCardTap (opens StationDetailModal via DashboardGrid).
+ * Long-press → triggers jiggle/edit mode in parent.
+ * hideCard = true → collapses to height 0 (search-active state).
+ *
+ * PRESERVED:
+ *  • usePressAnimation for tactile scale feedback
+ *  • hideCard search-collapse Reanimated logic
+ *  • isEditing delete badge
+ * ─────────────────────────────────────────────────────────────────
+ */
+
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  Platform,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  withSpring,
   withTiming,
-  withDelay,
+  withRepeat,
   useReducedMotion,
-  LinearTransition,
-  FadeOut,
-  Easing,
 } from 'react-native-reanimated';
-
 import { LINE_COLORS } from '../constants/lineColors';
-import { LINE_SHORT_NAMES } from '../data/lineMetadata';
-import { useJiggle } from '../hooks/useJiggle';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { useStationDataStore } from '../store/stationDataStore';
+import { IMMINENT_BLUE } from '../theme/colors';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
+import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 
-// ─── Constants & Styling Tokens ──────────────────────────────────────────────
-const TEXT_SECONDARY = 'rgba(255,255,255,0.4)';
-const TEXT_GHOST = 'rgba(255,255,255,0.3)';
+// ─── Constants ────────────────────────────────────────────────────
+const DEPARTURE_COUNTDOWN = 'rgba(255,255,255,0.9)';
+const COLLAPSED_HEIGHT = 56;
 
-interface DepartureCardProps {
+// ─── Interfaces ──────────────────────────────────────────────────
+interface Arrival {
+  lineId: string;
+  lineName: string;
+  lineColor: string;
+  minutesAway: number;
+  destination: string;
+  expectedArrival: string;
+}
+
+export interface DepartureCardProps {
   stationId: string;
   stationName: string;
   isEditing?: boolean;
   onDelete?: (id: string) => void;
   onLongPress?: () => void;
-  onPress?: () => void;
-  defaultExpanded?: boolean;
+  /** Called when user taps the card — parent opens StationDetailModal */
+  onCardTap?: (stationId: string, stationName: string) => void;
+  /** Set true when the search bar is active (Screen 2 collapse logic) */
   hideCard?: boolean;
-  drag?: () => void;
-  isActive?: boolean;
-  index?: number;
 }
 
-const getDepTimeStyle = (minutes: number | 'now') => {
-  if (minutes === 0 || minutes === 'now') {
-    return { color: '#30D158', fontFamily: 'SpaceGrotesk_700Bold', fontWeight: '700' as const };
-  }
-  if (typeof minutes === 'number' && minutes <= 2) {
-    return { color: 'rgba(255,255,255,0.85)', fontWeight: '500' as const };
-  }
-  return { color: 'rgba(255,255,255,0.55)', fontWeight: '500' as const };
-};
+// ─── Imminent countdown blink ─────────────────────────────────────
+function ImminentCountdown({
+  text,
+  style,
+}: {
+  text: string;
+  style?: any;
+}) {
+  const opacity = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
 
+  useEffect(() => {
+    if (reducedMotion) return;
+    opacity.value = withRepeat(withTiming(0.35, { duration: 600 }), -1, true);
+  }, [reducedMotion, opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.Text style={[style, { color: IMMINENT_BLUE }, animStyle]} numberOfLines={1}>
+      {text}
+    </Animated.Text>
+  );
+}
+
+// ─── Main component ──────────────────────────────────────────────
 export default function DepartureCard({
   stationId,
   stationName,
   isEditing = false,
   onDelete,
   onLongPress,
-  onPress,
-  defaultExpanded = false,
+  onCardTap,
   hideCard = false,
-  drag,
-  isActive = false,
-  index = 0,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
-  const jiggleStyle = useJiggle(index, isEditing, isActive);
-  const pressAnim = usePressAnimation('departure_card', isEditing || hideCard);
+  const [arrivals, setArrivals] = useState<Arrival[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Global preferences and cached departures
-  const selectedLines = useUserPreferencesStore(state => state.selectedLines || []);
-  const pinnedStations = useUserPreferencesStore(state => state.pinnedStations || []);
-  const cachedData = useStationDataStore(state => state.departures[stationId]);
+  // Press animation — governs tactile scale feel (DO NOT REMOVE)
+  const pressAnim = usePressAnimation('departure_card');
 
-  const [useNativeShimmer, setUseNativeShimmer] = useState(false);
-  const [touchReady, setTouchReady] = useState(true);
+  // Height shared value — drives hideCard collapse animation
+  const heightVal = useSharedValue(hideCard ? 0 : COLLAPSED_HEIGHT);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setTouchReady(false);
-      const t = setTimeout(() => setTouchReady(true), 150);
-      return () => clearTimeout(t);
-    }
-  }, [isEditing]);
-  const [contentHeight, setContentHeight] = useState(160);
-  const heightVal = useSharedValue(160);
-  const arrivalsOpacity = useSharedValue(1);
+  // ── Fetch live arrivals ───────────────────────────────────────
+  const fetchArrivals = useCallback(
+    async (active: { current: boolean }) => {
+      try {
+        const resolvedIds = resolveTflStopIds(stationId);
+        const responses = await Promise.all(
+          resolvedIds.map(id =>
+            fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+              .then(res => (res.ok ? res.json() : null))
+              .catch(() => null)
+          )
+        );
 
-  // Cold launch shimmer logic: if data is empty, wait 3 seconds before showing native indicator
-  useEffect(() => {
-    if (!cachedData) {
-      const timer = setTimeout(() => {
-        setUseNativeShimmer(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setUseNativeShimmer(false);
-    }
-  }, [cachedData]);
+        if (!active.current) return;
 
-  // Determine lines for placeholder shimmers
-  const stationInfo = pinnedStations.find(s => s.id === stationId);
-  const stationLines = stationInfo ? stationInfo.lines : [];
-  const userLinesAtStation = stationLines.filter(lineId => selectedLines.includes(lineId));
-  const shimmerLines = userLinesAtStation.length > 0 ? userLinesAtStation : stationLines.slice(0, 3);
+        const allRaw: any[] = [];
+        responses.forEach(sData => {
+          if (sData?.departures) allRaw.push(...sData.departures);
+        });
 
-  // Flatten and sort arrivals from cache
-  const cachedLines = cachedData?.lines || [];
-  const allArrivals = cachedLines
-    .filter(line => selectedLines.includes(line.lineId))
-    .flatMap(line => 
-    line.arrivals.map(arr => ({
-      ...arr,
-      lineId: line.lineId,
-      lineName: line.lineName,
-      lineColor: line.lineColor,
-    }))
+        const seen = new Set<string>();
+        const deduped = allRaw.filter(dep => {
+          const dest = String(dep.destination || '');
+          if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
+          const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+
+        const mapped = deduped.map((dep: any) => {
+          const { lineId, cleanLineId } = normaliseLineId(dep.line);
+          return {
+            lineId,
+            lineName: dep.line,
+            lineColor: LINE_COLORS[cleanLineId] || '#888',
+            minutesAway: dep.minutes_away,
+            destination: String(dep.destination || '')
+              .replace(' Underground Station', '')
+              .replace(' DLR Station', ''),
+            expectedArrival: dep.expected_arrival,
+          };
+        });
+
+        if (!active.current) return;
+        setArrivals(mapped);
+        setLoading(false);
+      } catch (err) {
+        console.log('[DepartureCard] fetch error:', err);
+      }
+    },
+    [stationId]
   );
-  const sortedArrivals = allArrivals.sort((a, b) => a.minutesAway - b.minutesAway);
-  const visibleArrivals = sortedArrivals.slice(0, 3);
-  const isLoading = !cachedData;
 
-  // Clean station name format
+  useEffect(() => {
+    const active = { current: true };
+    fetchArrivals(active);
+    const interval = setInterval(() => fetchArrivals(active), 30_000);
+    return () => {
+      active.current = false;
+      clearInterval(interval);
+    };
+  }, [fetchArrivals]);
+
+  // ── Derived values ───────────────────────────────────────────
   const cleanName = String(stationName ?? '')
-    .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
+    .replace(
+      /\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i,
+      ''
+    )
     .trim();
 
-  const onInnerLayout = (event: any) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > 0) {
-      setContentHeight(height);
-    }
-  };
+  const nextTimeText = useMemo(() => {
+    if (loading) return '...';
+    if (arrivals.length === 0) return 'No trains';
+    const a = arrivals[0];
+    return a.minutesAway === 0 ? 'Due' : `${a.minutesAway} min`;
+  }, [loading, arrivals]);
 
+  const isImminent =
+    !loading && arrivals.length > 0 && arrivals[0].minutesAway <= 2;
+
+  // ── Search-collapse animation (hideCard prop) ─────────────────
   useEffect(() => {
-    const targetHeight = hideCard ? 0 : contentHeight;
-    const targetOpacity = isEditing ? 0.3 : (hideCard ? 0 : 1);
-
+    const targetH = hideCard ? 0 : COLLAPSED_HEIGHT;
     if (reducedMotion) {
-      heightVal.value = targetHeight;
-      arrivalsOpacity.value = targetOpacity;
+      heightVal.value = targetH;
     } else {
-      heightVal.value = withTiming(targetHeight, { duration: 280, easing: Easing.out(Easing.poly(3)) });
-
-      if (isEditing) {
-        arrivalsOpacity.value = withTiming(0.3, { duration: 150 });
-      } else if (!hideCard) {
-        arrivalsOpacity.value = withDelay(180, withTiming(1, { duration: 180 }));
-      } else {
-        arrivalsOpacity.value = withTiming(0, { duration: 100 });
-      }
+      heightVal.value = withSpring(targetH, { damping: 22, stiffness: 240 });
     }
-  }, [isEditing, contentHeight, heightVal, arrivalsOpacity, hideCard, reducedMotion]);
+  }, [hideCard, heightVal, reducedMotion]);
 
   const containerStyle = useAnimatedStyle(() => {
-    const opacityVal = reducedMotion ? (hideCard ? 0 : 1) : withTiming(hideCard ? 0 : 1, { duration: 150 });
-    const marginVal = reducedMotion ? (hideCard ? 0 : 12) : withTiming(hideCard ? 0 : 12, { duration: 200, easing: Easing.out(Easing.poly(3)) });
-    const borderVal = reducedMotion ? (hideCard ? 0 : StyleSheet.hairlineWidth) : withTiming(hideCard ? 0 : StyleSheet.hairlineWidth, { duration: 100 });
-
+    const opacityVal = reducedMotion
+      ? hideCard ? 0 : 1
+      : withTiming(hideCard ? 0 : 1, { duration: 150 });
+    const marginVal = reducedMotion
+      ? hideCard ? 0 : 12
+      : withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
+    const borderVal = reducedMotion
+      ? hideCard ? 0 : 1
+      : withTiming(hideCard ? 0 : 1, { duration: 100 });
     return {
       height: heightVal.value,
       opacity: opacityVal,
@@ -163,248 +221,129 @@ export default function DepartureCard({
     };
   });
 
-  const arrivalsStyle = useAnimatedStyle(() => ({
-    opacity: arrivalsOpacity.value,
-  }));
-
-  const deleteScale = useSharedValue(isEditing ? 1 : 0);
-
-  useEffect(() => {
-    deleteScale.value = withTiming(isEditing ? 1 : 0, { duration: 200, easing: Easing.out(Easing.poly(3)) });
-  }, [isEditing, deleteScale]);
-
-  const deleteBadgeStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: deleteScale.value }],
-    opacity: deleteScale.value,
-  }));
-
-  const renderShimmerRows = () => {
-    return shimmerLines.map((lineId, index) => {
-      const lineColor = LINE_COLORS[lineId] || 'rgba(255,255,255,0.12)';
-      const lineShortName = LINE_SHORT_NAMES[lineId] || lineId;
-      return (
-        <View key={`${lineId}-${index}`} style={[styles.arrivalRow, { opacity: 0.3 }]}>
-          <View style={[styles.arrivalBar, { backgroundColor: lineColor }]} />
-          <Text style={styles.arrivalLineName} numberOfLines={1}>
-            {lineShortName}
-          </Text>
-          <View style={styles.arrivalDestContainer}>
-            <View style={{ height: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, width: '60%' }} />
-          </View>
-          <View style={{ height: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, width: 24 }} />
-        </View>
-      );
-    });
+  // ── Tap handler → open popup via parent callback ──────────────
+  const handlePress = () => {
+    if (isEditing) return; // Ignore taps while in jiggle/edit mode
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onCardTap?.(stationId, stationName);
   };
 
   return (
     <Animated.View
-      layout={isActive ? undefined : LinearTransition.springify().mass(0.8).damping(15)}
-      exiting={FadeOut.duration(200)}
-      style={[{ position: 'relative', overflow: 'visible' }, jiggleStyle]}
+      style={[styles.container, containerStyle, pressAnim.animatedStyle]}
+      testID={`departure-card-${stationId}`}
     >
-      <Animated.View style={[styles.container, containerStyle, pressAnim.animatedStyle]}>
-        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-        <View onLayout={onInnerLayout} style={styles.innerContent} pointerEvents="none">
-          <View style={styles.headerPressable}>
-            <View style={styles.header}>
-              <View style={styles.titleColumn}>
-                <Text
-                  style={styles.stationName}
-                  numberOfLines={1}
-                >
-                  {cleanName}
-                </Text>
-              </View>
-            </View>
-          </View>
+      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-          <Animated.View style={[styles.arrivalsContainer, arrivalsStyle]}>
-            {isLoading ? (
-              useNativeShimmer ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-                  <Text style={styles.loadingText}>Fetching departures...</Text>
-                </View>
-              ) : (
-                <View style={{ paddingVertical: 5 }}>
-                  {renderShimmerRows()}
-                </View>
-              )
-            ) : visibleArrivals.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No trains in the next 30 minutes</Text>
-              </View>
-            ) : (
-              visibleArrivals.map((a, i) => {
-                const depVal = a.minutesAway === 0 ? 'now' : a.minutesAway;
-                const depStyle = getDepTimeStyle(depVal);
-                return (
-                  <View
-                    key={`${a.lineId}-${a.destination}-${a.minutesAway}-${i}`}
-                    style={styles.arrivalRow}
-                  >
-                    <View style={[styles.arrivalBar, { backgroundColor: a.lineColor }]} />
-                    <Text style={styles.arrivalLineName} numberOfLines={1} ellipsizeMode="tail">
-                      {a.lineName}
-                    </Text>
-                    <View style={styles.arrivalDestContainer}>
-                      <Text style={styles.arrivalDest} numberOfLines={1}>
-                        {a.destination}
-                        {a.platform ? (
-                          <Text style={styles.arrivalPlatformInline}>
-                            {`  ${a.platform.replace('Platform ', 'P')}`}
-                          </Text>
-                        ) : null}
-                      </Text>
-                    </View>
-                    <Text style={[styles.arrivalTime, depStyle]}>
-                      {depVal === 'now' || depVal === 0 ? 'Due' : `${depVal} min`}
-                    </Text>
-                  </View>
-                );
-              })
-            )}
-          </Animated.View>
-        </View>
+      <View style={styles.innerContent}>
         <Pressable
-          onPress={() => {
-            if (isEditing || !touchReady) return;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            if (onPress) onPress();
-          }}
+          onPress={handlePress}
           onLongPress={onLongPress}
           onPressIn={pressAnim.onPressIn}
           onPressOut={pressAnim.onPressOut}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </Animated.View>
-
-      <Animated.View style={[styles.deleteBadgeContainer, deleteBadgeStyle]} pointerEvents={isEditing ? 'auto' : 'none'}>
-        <Pressable
-          style={styles.deleteBadge}
-          hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            if (onDelete) {
-              onDelete(stationId);
-            }
-          }}
+          style={styles.headerPressable}
+          testID={`departure-card-pressable-${stationId}`}
         >
-          <Text style={styles.deleteIcon}>−</Text>
+          <View style={styles.header}>
+            {/* Station name */}
+            <View style={styles.titleColumn}>
+              <Text style={styles.stationName} numberOfLines={1}>
+                {cleanName}
+              </Text>
+            </View>
+
+            {/* Collapsed header: next train + forward chevron */}
+            {!isEditing && (
+              <View style={styles.headerRight}>
+                {isImminent ? (
+                  <ImminentCountdown
+                    text={nextTimeText}
+                    style={styles.nextTimeText}
+                  />
+                ) : (
+                  <Text style={styles.nextTimeText}>{nextTimeText}</Text>
+                )}
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color="rgba(255,255,255,0.25)"
+                />
+              </View>
+            )}
+
+            {/* Edit mode: delete badge */}
+            {isEditing && onDelete && (
+              <Pressable
+                style={styles.deleteBadge}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onDelete(stationId);
+                }}
+                testID={`departure-card-delete-${stationId}`}
+              >
+                <Text style={styles.deleteIcon}>−</Text>
+              </Pressable>
+            )}
+          </View>
         </Pressable>
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.05)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 16,
-    paddingHorizontal: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
     paddingVertical: 0,
-    overflow: 'hidden', // Accordion clip!
+    marginBottom: 12,
+    overflow: 'hidden',
   },
   innerContent: {
     width: '100%',
   },
   headerPressable: {
-    paddingVertical: 9,
+    height: COLLAPSED_HEIGHT,
+    justifyContent: 'center',
     width: '100%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    width: '100%',
+    gap: 10,
   },
   titleColumn: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    gap: 8,
   },
   stationName: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 14,
+    fontSize: 15,
     color: '#FFFFFF',
-    letterSpacing: -0.2,
   },
-  arrivalsContainer: {
-    paddingBottom: 9,
-  },
-  loadingContainer: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
+    gap: 6,
   },
-  loadingText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: TEXT_SECONDARY,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  emptyText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: TEXT_GHOST,
-  },
-  arrivalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 5,
-  },
-  arrivalBar: {
-    width: 3,
-    height: 12,
-    borderRadius: 1.5,
-    marginRight: 6,
-    flexShrink: 0,
-  },
-  arrivalLineName: {
-    width: 64,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    marginRight: 8,
-  },
-  arrivalDestContainer: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  arrivalDest: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.9)',
-    lineHeight: 14,
-  },
-  arrivalPlatformInline: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
-  },
-  arrivalTime: {
+  nextTimeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-    color: '#FFFFFF',
-    textAlign: 'right',
+    fontSize: 13,
+    color: DEPARTURE_COUNTDOWN,
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
-  deleteBadgeContainer: {
+  deleteBadge: {
     position: 'absolute',
     top: -6,
-    right: -6,
-    zIndex: 10,
-  },
-  deleteBadge: {
+    left: -6,
     width: 22,
     height: 22,
     borderRadius: 11,

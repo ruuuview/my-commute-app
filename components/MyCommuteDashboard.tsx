@@ -299,34 +299,7 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 };
 
 // ─── Staggered Card Wrapper ──────────────────────────────────────
-const StaggeredCardWrapper = memo(({ children, index }: { children: React.ReactNode; index: number }) => {
-  const translateY = useSharedValue(16);
-  const opacity = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    if (reducedMotion) {
-      translateY.value = 0;
-      opacity.value = 1;
-      return;
-    }
-    const delay = 120 + index * 60;
-    translateY.value = withDelay(delay, withSpring(0, { damping: 22, stiffness: 200 }));
-    opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) }));
-  }, [index, reducedMotion, translateY, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      {children}
-    </Animated.View>
-  );
-});
-StaggeredCardWrapper.displayName = 'StaggeredCardWrapper';
 
 const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
 

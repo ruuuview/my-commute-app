@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { LINE_COLORS } from '../constants/lineColors';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -93,8 +94,14 @@ export default function StationDetailModal({
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
   const [popupHeight, setPopupHeight] = useState(0);
-  const [showAll, setShowAll] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+
+  const showAll = useUserPreferencesStore(
+    state => (state as any).stationFilterToggles[stationId] || false
+  );
+  const toggleFilter = useUserPreferencesStore(
+    state => (state as any).toggleStationFilter
+  );
 
   const cleanName = String(stationName ?? '')
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
@@ -323,7 +330,7 @@ export default function StationDetailModal({
                 ) : null}
                 {/* ⊞ toggle */}
                 <Pressable
-                  onPress={() => setShowAll(v => !v)}
+                  onPress={() => toggleFilter(stationId)}
                   hitSlop={8}
                   style={[s.toggleBtn, showAll && s.toggleBtnActive]}
                   testID="station-toggle-filter"

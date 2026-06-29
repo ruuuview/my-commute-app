@@ -94,14 +94,10 @@ const JigglingCardWrapper = memo(
         rotation.value = withSpring(0, {
           damping: 24,
           stiffness: 320,
-          restDisplacementThreshold: 0.001,
-          restSpeedThreshold: 0.001,
         });
         translateX.value = withSpring(0, {
           damping: 24,
           stiffness: 320,
-          restDisplacementThreshold: 0.001,
-          restSpeedThreshold: 0.001,
         });
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +119,7 @@ JigglingCardWrapper.displayName = 'JigglingCardWrapper';
 
 // ─── DashboardGrid ────────────────────────────────────────────────
 export interface DashboardGridProps {
-  stations: Array<{ id: string; name: string }>;
+  stations: { id: string; name: string }[];
   /** Driven by isEditing in parent — controls both jiggle + edit badges */
   isJiggling: boolean;
   /** Called when background tap should exit jiggle mode */

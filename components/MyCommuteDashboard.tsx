@@ -45,6 +45,7 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 import { ManageLinesModal } from './ManageLinesModal';
 import { DashboardGradient } from './DashboardGradient';
 import DashboardGrid from './DashboardGrid';
+import { LineDetailModal } from './LineDetailModal';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -180,7 +181,7 @@ const useJiggle = (isEditing: boolean) => {
 };
 
 // ─── LinePill ───────────────────────────────────────────────────
-const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: string) => void; onLongPress?: () => void; }> = ({ line, isEditing, onDelete, onLongPress }) => {
+const LinePill: React.ReactNode | any = ({ line, isEditing, onDelete, onLongPress, onPress }: any) => {
   const jiggleStyle = useJiggle(isEditing);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
@@ -188,7 +189,7 @@ const LinePill: React.FC<{ line: LineData; isEditing: boolean; onDelete: (id: st
 
   return (
     <Animated.View style={[jiggleStyle, animatedStyle]}>
-      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
+      <Pressable onPress={() => { if (!isEditing && onPress) onPress(); }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
         <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
@@ -428,6 +429,8 @@ const MyCommuteDashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineId) || null, [data.lines, selectedLineId]);
 
   const subtitle = useMemo(() => {
     const myLines = data.lines.filter(l => selectedLines.includes(l.id));
@@ -659,7 +662,7 @@ const MyCommuteDashboard: React.FC = () => {
                 isEditing={isEditing}
               />
               {sortedLines.map((line) => (
-                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} />
+                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} onPress={() => setSelectedLineId(line.id)} />
               ))}
             </View>
           )}
@@ -774,6 +777,21 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
           </View>
         </Modal>
+
+        {/* Line Detail Modal */}
+        {selectedLineForModal && (
+          <LineDetailModal
+            visible={!!selectedLineId}
+            onClose={() => setSelectedLineId(null)}
+            line={{
+              id: selectedLineForModal.id,
+              name: selectedLineForModal.name,
+              color: selectedLineForModal.color,
+              status: selectedLineForModal.status,
+            }}
+            statusType={parseSeverity(selectedLineForModal.status)}
+          />
+        )}
       </Animated.View>
     </View>
   );

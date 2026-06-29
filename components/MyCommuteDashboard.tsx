@@ -5,7 +5,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useCallback, useEffect, useState, useMemo, memo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import {
   LayoutAnimation,
   Platform,
@@ -182,14 +182,21 @@ const useJiggle = (isEditing: boolean) => {
 
 // ─── LinePill ───────────────────────────────────────────────────
 const LinePill: React.ReactNode | any = ({ line, isEditing, onDelete, onLongPress, onPress }: any) => {
+  const pillRef = useRef<View>(null);
   const jiggleStyle = useJiggle(isEditing);
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
   const severity = parseSeverity(line.status);
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
 
   return (
-    <Animated.View style={[jiggleStyle, animatedStyle]}>
-      <Pressable onPress={() => { if (!isEditing && onPress) onPress(); }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
+    <Animated.View ref={pillRef as any} style={[jiggleStyle, animatedStyle]}>
+      <Pressable onPress={() => { 
+        if (!isEditing && onPress && pillRef.current) {
+          pillRef.current.measureInWindow((x, y, width, height) => {
+            onPress({ id: line.id, anchorRect: { x, y, width, height } });
+          });
+        }
+      }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
         <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
@@ -429,8 +436,8 @@ const MyCommuteDashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
-  const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineId) || null, [data.lines, selectedLineId]);
+  const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
+  const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
 
   const subtitle = useMemo(() => {
     const myLines = data.lines.filter(l => selectedLines.includes(l.id));
@@ -662,7 +669,7 @@ const MyCommuteDashboard: React.FC = () => {
                 isEditing={isEditing}
               />
               {sortedLines.map((line) => (
-                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} onPress={() => setSelectedLineId(line.id)} />
+                <LinePill key={line.id} line={line} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} onPress={(info: any) => setSelectedLineInfo(info)} />
               ))}
             </View>
           )}
@@ -779,10 +786,10 @@ const MyCommuteDashboard: React.FC = () => {
         </Modal>
 
         {/* Line Detail Modal */}
-        {selectedLineForModal && (
+        {selectedLineForModal && selectedLineInfo && (
           <LineDetailModal
-            visible={!!selectedLineId}
-            onClose={() => setSelectedLineId(null)}
+            visible={!!selectedLineInfo}
+            onClose={() => setSelectedLineInfo(null)}
             line={{
               id: selectedLineForModal.id,
               name: selectedLineForModal.name,
@@ -790,6 +797,8 @@ const MyCommuteDashboard: React.FC = () => {
               status: selectedLineForModal.status,
             }}
             statusType={parseSeverity(selectedLineForModal.status)}
+            statusLabel={selectedLineForModal.status}
+            anchorRect={selectedLineInfo.anchorRect}
           />
         )}
       </Animated.View>

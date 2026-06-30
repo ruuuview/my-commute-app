@@ -3,8 +3,8 @@
  * ─────────────────────────────────────────────────────────────────
  * Full-screen pushed view for station details.
  * Replaces the anchored popup approach — no flip/position math,
- * no scrim, no BlurView wrapper. Content sits full-width on the
- * dark screen background.
+ * no scrim, no BlurView wrapper. Content sits on the DashboardGradient
+ * background with per-line glass cards matching DepartureCard/LineCard.
  * ─────────────────────────────────────────────────────────────────
  */
 
@@ -19,13 +19,19 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { DashboardGradient } from './DashboardGradient';
+
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useLineDataStore } from '../store/lineDataStore';
 import { APP_CONFIG } from '../config/app.config';
+import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 const DUE_GREEN = '#30D158';
 
@@ -54,6 +60,28 @@ export interface StationDetailScreenProps {
   stationName: string;
   /** User's pinned line IDs for ⊞ toggle filtering */
   selectedLines?: string[];
+}
+
+// ─── Severity (copied from MyCommuteDashboard to avoid circular dep) ─
+type ScreenSeverity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'unknown';
+
+function parseSeverity(statusText: string): ScreenSeverity {
+  const text = String(statusText ?? '').toLowerCase();
+  if (text.includes('good')) return 'good';
+  if (text.includes('minor')) return 'minor';
+  if (text.includes('suspended') || text.includes('closure')) return 'suspended';
+  if (text.includes('severe') || text.includes('delay')) return 'severe';
+  return 'good';
+}
+
+function worstSeverity(lines: any[]): ScreenSeverity {
+  if (!lines.length) return 'unknown';
+  const severities = lines.map((l: any) => parseSeverity(l.status));
+  if (severities.includes('suspended')) return 'suspended';
+  if (severities.includes('severe')) return 'severe';
+  if (severities.includes('minor')) return 'minor';
+  if (severities.includes('offline')) return 'offline';
+  return 'good';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -86,8 +114,17 @@ export default function StationDetailScreen({
   const { top: safeAreaTop } = useSafeAreaInsets();
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+
+  // Read line statuses from the global store (populated by MyCommuteDashboard poller)
+  const lineStoreLines = useLineDataStore(state => state.lines);
+  const networkSeverity = useMemo<ScreenSeverity>(() => {
+    const myLines = selectedLines.length > 0
+      ? selectedLines.map(id => lineStoreLines[id]).filter(Boolean)
+      : Object.values(lineStoreLines);
+    return worstSeverity(myLines);
+  }, [lineStoreLines, selectedLines]);
 
   const showAll = useUserPreferencesStore(
     state => (state as any).stationFilterToggles[stationId] || false
@@ -99,8 +136,6 @@ export default function StationDetailScreen({
   const cleanName = String(stationName ?? '')
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
     .trim();
-
-
 
   // ── Group departures by line ──────────────────────────────────
   const lineGroups: LineGroup[] = useMemo(() => {
@@ -180,12 +215,11 @@ export default function StationDetailScreen({
       console.log('[StationDetailScreen] fetch error:', e);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [stationId]);
 
   const refreshDepartures = useCallback(async () => {
-    setRefreshing(true);
+
     try {
       const resolvedIds = resolveTflStopIds(stationId);
       const responses = await Promise.all(
@@ -220,7 +254,7 @@ export default function StationDetailScreen({
     } catch (e) {
       console.log('[StationDetailScreen] refresh error:', e);
     } finally {
-      setRefreshing(false);
+      // Done refreshing
     }
   }, [stationId]);
 
@@ -262,7 +296,7 @@ export default function StationDetailScreen({
     );
   };
 
-  // ── Render a line section ─────────────────────────────────────
+  // ── Render a line section as a glass card ─────────────────────
   const NIGHT_TUBE_LINES = new Set(['central', 'jubilee', 'northern', 'piccadilly', 'victoria']);
 
   const renderLineSection = (group: LineGroup, idx: number) => {
@@ -275,7 +309,7 @@ export default function StationDetailScreen({
     const firstTerminal = firstDep?.firstTrainDestination
       ? cleanDestination(firstDep.firstTrainDestination)
       : (firstDep ? cleanDestination(firstDep.destination) : '');
-      
+
     const lastTerminal = firstDep?.lastTrainDestination
       ? cleanDestination(firstDep.lastTrainDestination)
       : (lastDep ? cleanDestination(lastDep.destination) : '');
@@ -286,84 +320,117 @@ export default function StationDetailScreen({
     const isNightTube = firstDep?.isNightTube ?? NIGHT_TUBE_LINES.has(group.lineId);
 
     return (
-      <View key={group.lineId} style={idx > 0 ? { marginTop: 16 } : undefined} testID={`screen-line-${group.lineId}`}>
-        {/* Line header: color bar + name in small caps */}
-        <View style={s.lineHeader}>
-          <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
-          <Text style={s.lineHeaderName}>{group.lineName.toUpperCase()}</Text>
-          {isNightTube && <Text style={s.nightTubeBadge}>24hr Service</Text>}
-        </View>
+      <View
+        key={group.lineId}
+        style={idx > 0 ? [s.lineCard, s.lineCardGap] : s.lineCard}
+        testID={`screen-line-${group.lineId}`}
+      >
+        {/* Glass background — exactly matching DepartureCard/LineCard */}
+        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject}>
+          <GlassRim />
+        </BlurView>
 
-        {/* Arrival rows — max 3 */}
-        {sliced.map((dep, arrIdx) => {
-          const isDue = dep.minutes_away <= 0;
-          const isFirstDue = isDue && !firstDueSeen;
-          if (isDue) firstDueSeen = true;
-          return renderArrival(dep, arrIdx, isFirstDue);
-        })}
-
-        {/* Hairline separator */}
-        <View style={s.hairline} />
-
-        {/* First / Last footer */}
-        {(firstTerminal || lastTerminal) && (
-          <View style={s.footerRow}>
-            {firstTerminal ? (
-              <Text style={s.footerText}>First → {firstTerminal} · {firstTime}</Text>
-            ) : null}
-            {lastTerminal && (lastTerminal !== firstTerminal || lastTime !== firstTime) ? (
-              <Text style={s.footerText}>Last → {lastTerminal} · {lastTime}</Text>
-            ) : null}
+        {/* Card inner content */}
+        <View style={s.lineCardInner}>
+          {/* Line header: color bar + name in small caps */}
+          <View style={s.lineHeader}>
+            <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
+            <Text style={s.lineHeaderName}>{group.lineName.toUpperCase()}</Text>
+            {isNightTube && <Text style={s.nightTubeBadge}>24hr Service</Text>}
           </View>
-        )}
+
+          {/* Subtle line divider to give definition to the line name */}
+          <View style={s.lineHeaderDivider} />
+
+          {/* Arrival rows — max 3 */}
+          {sliced.map((dep, arrIdx) => {
+            const isDue = dep.minutes_away <= 0;
+            const isFirstDue = isDue && !firstDueSeen;
+            if (isDue) firstDueSeen = true;
+            return renderArrival(dep, arrIdx, isFirstDue);
+          })}
+
+          {/* Internal divider between arrivals and footer */}
+          <View style={s.hairline} />
+
+          {/* First / Last footer */}
+          {(firstTerminal || lastTerminal) && (
+            <View style={s.footerRow}>
+              {firstTerminal ? (
+                <Text style={s.footerText}>First → {firstTerminal} · {firstTime}</Text>
+              ) : null}
+              {lastTerminal && (lastTerminal !== firstTerminal || lastTime !== firstTime) ? (
+                <Text style={s.footerText}>Last → {lastTerminal} · {lastTime}</Text>
+              ) : null}
+            </View>
+          )}
+        </View>
       </View>
     );
   };
 
   return (
     <View style={[s.root, { paddingTop: safeAreaTop }]} testID="station-detail-screen">
-      {/* Header bar */}
+      {/* Background gradient — same as MyCommuteDashboard */}
+      <DashboardGradient severity={networkSeverity} />
+
+      {/* Header bar — glass treatment matching rest of app */}
       <BlurView intensity={60} tint="systemMaterialDark" style={s.headerBlur}>
         <View style={s.header}>
-          {/* Left: "Commute" back button */}
+          {/* Left: back button */}
           <Pressable
             onPress={() => router.back()}
-            hitSlop={12}
-            style={s.backHitArea}
+            hitSlop={8}
+            style={s.backPill}
             testID="station-screen-back"
           >
-            <Text style={s.backText}>Commute</Text>
+            <Text style={s.backPillText}>Commute</Text>
           </Pressable>
 
-          {/* Center: station name */}
-          <Text style={s.stationName} numberOfLines={1} testID="screen-station-name">
-            {cleanName}
-          </Text>
+          {/* Center: station name + icon (perfectly centered on screen) */}
+          <View style={s.stationNameContainer}>
+            <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.45)" style={{ marginRight: 3 }} />
+            <Text style={s.stationName} numberOfLines={1} testID="screen-station-name">
+              {cleanName}
+            </Text>
+          </View>
 
-          {/* Right: freshness badge + toggle */}
+          {/* Right: toggle only */}
           <View style={s.headerRight}>
-            {freshnessText ? (
-              <Text style={s.freshnessBadge} testID="screen-freshness-badge">{freshnessText}</Text>
-            ) : null}
             <Pressable
               onPress={() => toggleFilter(stationId)}
               hitSlop={8}
-              style={[s.toggleBtn, showAll && s.toggleBtnActive]}
+              style={[s.toggleBtn, showAll ? s.toggleBtnActive : s.toggleBtnInactive]}
               testID="screen-toggle-filter"
             >
-              <Text style={s.toggleIcon}>⊞</Text>
+              <Text style={[s.toggleIcon, { color: showAll ? '#FFFFFF' : 'rgba(255,255,255,0.45)' }]}>⊞</Text>
             </Pressable>
           </View>
         </View>
-
-        {/* Subtle glass divider to give definition to the station name */}
-        <View style={s.divider} />
-
-        {/* Toggle label */}
-        <Text style={s.filterLabel}>
-          {showAll ? 'All Departures' : 'Your Lines'}
-        </Text>
       </BlurView>
+
+      {/* Sub-header row: Toggle label & Refresh indicator (outside the dark banner) */}
+      <View style={s.subHeaderContainer}>
+        <View style={s.subHeaderRow}>
+          <View style={s.filterLabelContainer}>
+            <Ionicons name="train-outline" size={11} color="rgba(255,255,255,0.35)" style={{ marginRight: 4 }} />
+            <Text style={s.filterLabel}>
+              {showAll ? 'All Departures' : 'Your Lines'}
+            </Text>
+          </View>
+          {freshnessText ? (
+            <Pressable
+              onPress={() => fetchDepartures()}
+              style={s.refreshBtn}
+              hitSlop={8}
+              testID="screen-refresh-button"
+            >
+              <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.35)" style={{ marginRight: 3 }} />
+              <Text style={s.freshnessBadge}>{freshnessText}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
 
       {/* Body — full remaining height scroll */}
       {loading ? (
@@ -388,7 +455,10 @@ export default function StationDetailScreen({
             <>
               <View style={s.separatorRow}>
                 <View style={s.separatorLine} />
-                <Text style={s.separatorText}>Other lines</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginHorizontal: 8 }}>
+                  <Ionicons name="train-outline" size={11} color="rgba(255,255,255,0.25)" />
+                  <Text style={s.separatorText}>Other lines</Text>
+                </View>
                 <View style={s.separatorLine} />
               </View>
               {filteredGroups.unpinned.map((group, idx) =>
@@ -406,31 +476,46 @@ export default function StationDetailScreen({
 const s = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    // No backgroundColor — DashboardGradient provides the full background.
   },
   headerBlur: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.10)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
     marginTop: 8,
   },
-  backHitArea: {
-    paddingVertical: 4,
-    paddingRight: 12,
+  backPill: {
+    position: 'absolute',
+    left: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
   },
-  backText: {
+  backPillText: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.65)',
-    letterSpacing: -0.2,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.80)',
+  },
+  stationNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: '65%',
   },
   stationName: {
-    flex: 1,
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 16,
     color: '#FFFFFF',
@@ -439,9 +524,21 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   headerRight: {
+    position: 'absolute',
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
   },
   freshnessBadge: {
     fontFamily: 'SpaceGrotesk_400Regular',
@@ -452,12 +549,17 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+  },
+  toggleBtnInactive: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   toggleBtnActive: {
-    backgroundColor: 'rgba(255,255,255,0.20)',
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderColor: PREMIUM_BUTTON.borderColor,
   },
   toggleIcon: {
     fontSize: 16,
@@ -468,6 +570,20 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginVertical: 6,
   },
+  subHeaderContainer: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  subHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   filterLabel: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 10,
@@ -475,7 +591,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginTop: 0,
-    marginBottom: 2,
+    marginBottom: 0,
   },
   scrollBody: {
     flex: 1,
@@ -485,11 +601,34 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
   },
+
+  // ── Line section glass card —─────────────────────────────────
+  lineCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderSide,
+    backgroundColor: GLASS.background,
+  },
+  lineCardGap: {
+    marginTop: 14,
+  },
+  lineCardInner: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+
   lineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 4,
+  },
+  lineHeaderDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginBottom: 8,
   },
   lineColorBar: {
     width: 3,

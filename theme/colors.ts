@@ -37,3 +37,26 @@ export const ONBOARDING_GRADIENT = {
   end: { x: 0.5, y: 1 },
 };
 export const IMMINENT_BLUE = '#60A5FA';
+
+// ─── Glassmorphism tokens (single source of truth) ─────────────────────────
+export const GLASS = {
+  background: 'rgba(255,255,255,0.07)',
+  borderTop: 'rgba(255,255,255,0.35)',
+  borderSide: 'rgba(255,255,255,0.08)',
+  blurIntensity: 45,
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 8 } as const,
+  shadowOpacity: 0.3,
+  shadowRadius: 16,
+};
+
+export const PREMIUM_BUTTON = {
+  background: 'rgba(255,255,255,0.12)',
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.30)',
+  shadowOpacity: 0.15,
+  shadowRadius: 6,
+};
+
+/** The interactive accent colour used across the app (not iOS blue) */
+export const ACCENT_INTERACTIVE = '#0098D4';

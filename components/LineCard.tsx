@@ -19,6 +19,8 @@ import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { StatusBezel } from './StatusBezel';
+import { GLASS } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -132,7 +134,7 @@ export function LineCard({
 
   const selectedBorderStyle = {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: GLASS.borderSide,
   };
 
   const configKey = selected ? 'line_deselect' : 'line_select';
@@ -202,10 +204,12 @@ export function LineCard({
         ]}
       >
         <BlurView
-          intensity={45}
+          intensity={GLASS.blurIntensity}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
-        />
+        >
+          <GlassRim />
+        </BlurView>
 
         {/* Selected state overlay (select mode only) */}
         {mode === 'select' && selected && (
@@ -349,6 +353,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     position: 'relative',
     overflow: 'visible',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
   },
   cardInner: {
     flex: 1,
@@ -357,7 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: GLASS.background,
   },
   accentBar: {
     position: 'absolute',

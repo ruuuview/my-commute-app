@@ -34,6 +34,8 @@ import Animated, {
   withDelay
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { GlassRim } from './GlassRim';
+import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -55,6 +57,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
+import { useLineDataStore } from '../store/lineDataStore';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -251,7 +254,8 @@ const LinePill: React.FC<{
           });
         }
       }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
-        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <GlassRim borderRadius={12} />
         <View style={[pill.colorBar, { backgroundColor: line.color }]} />
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
@@ -276,9 +280,9 @@ const pill = StyleSheet.create({
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: GLASS.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: GLASS.borderSide,
     borderRadius: 12,
     marginBottom: 8,
     overflow: 'hidden',
@@ -327,11 +331,11 @@ const section = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: PREMIUM_BUTTON.background,
   },
   addBtnText: {
     fontFamily: 'SpaceGrotesk_400Regular',
@@ -479,8 +483,12 @@ const MyCommuteDashboard: React.FC = () => {
         name: String(item?.name ?? ''),
         color: LINE_COLORS[String(item?.id ?? '')] || '#888',
         status: String(item?.status ?? ''),
+        status_severity: item?.status_severity ?? 10,
         reason: String(item?.reason ?? ''),
       }));
+
+      // Populate global line status store so StationDetailScreen reads live severity
+      useLineDataStore.getState().setLines(freshLines);
 
       // 2. Fetch live arrivals for each pinned station in parallel
       let freshStations: StationData[] = [];
@@ -830,9 +838,9 @@ const dash = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    backgroundColor: PREMIUM_BUTTON.background,
     alignItems: 'center',
     justifyContent: 'center'
   },

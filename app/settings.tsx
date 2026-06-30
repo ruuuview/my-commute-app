@@ -21,7 +21,9 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
-
+import { BlurView } from 'expo-blur';
+import { GLASS, PREMIUM_BUTTON, ACCENT_INTERACTIVE } from '../theme/colors';
+import { GlassRim } from '../components/GlassRim';
 
 interface UserPreferences {
   saved_lines: string[];
@@ -263,7 +265,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <Ionicons name="arrow-back" size={28} color="#000" />
+            <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
           </Pressable>
         </Animated.View>
         <Text style={styles.headerTitle}>Settings</Text>
@@ -278,9 +280,10 @@ export default function SettingsScreen() {
             <View style={{ height: 190 }}>
               {/* Front Side Card */}
               <Animated.View style={[styles.frontCard, frontAnimatedStyle]}>
+                <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
                 <View style={styles.cardHeaderRow}>
-                  <Ionicons name="notifications-outline" size={24} color="#007AFF" />
-                  <Text style={styles.cardHeaderTitle}>{"The Central line doesn’t text you when it’s cooked. We do."}</Text>
+                  <Ionicons name="notifications-outline" size={24} color="#30D158" />
+                  <Text style={styles.cardHeaderTitle}>{"The Central line doesn't text you when it's cooked. We do."}</Text>
                 </View>
                 <Text style={styles.cardBodyText}>
                   Get live disruption alerts and leave-by reminders, straight to your lock screen.
@@ -301,6 +304,7 @@ export default function SettingsScreen() {
               
               {/* Back Side (Tutorial Video) */}
               <Animated.View style={[styles.backCard, backAnimatedStyle]} pointerEvents={showBack ? 'auto' : 'none'}>
+                <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
                 <View style={styles.tutorialContainer}>
                   <Image
                     source={require('../assets/widget_tutorial.gif')}
@@ -313,11 +317,12 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <View style={styles.enabledCard}>
-              <View style={styles.enabledRow}>
-                <View style={styles.enabledInfo}>
-                  <Text style={styles.enabledTitle}>Live Disruption Alerts</Text>
-                  <Text style={styles.enabledDescription}>Enabled & Monitoring</Text>
-                </View>
+                <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+                <View style={styles.enabledRow}>
+                  <View style={styles.enabledInfo}>
+                    <Text style={styles.enabledTitle}>Live Disruption Alerts</Text>
+                    <Text style={styles.enabledDescription}>Enabled & Monitoring</Text>
+                  </View>
                 <Switch
                   value={true}
                   onValueChange={handleToggleOff}
@@ -341,20 +346,22 @@ export default function SettingsScreen() {
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>Notification Preferences</Text>
             <Pressable onPress={showQuietHoursInfo}>
-              <Ionicons name="information-circle-outline" size={20} color="#666" />
+              <Ionicons name="information-circle-outline" size={20} color="rgba(255,255,255,0.45)" />
             </Pressable>
           </View>
           
           {isLoadingSettings ? (
             <View style={styles.settingCard}>
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
               <Text style={styles.loadingText}>Loading settings…</Text>
             </View>
           ) : (
             <View style={styles.settingCard}>
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
                   <View style={styles.settingLabelRow}>
-                    <Ionicons name="notifications" size={20} color="#007AFF" style={styles.iconMargin} />
+                    <Ionicons name="notifications" size={20} color="#30D158" style={styles.iconMargin} />
                     <Text style={styles.settingLabel}>Enable Notifications</Text>
                   </View>
                   <Text style={styles.settingDescription}>
@@ -422,14 +429,14 @@ export default function SettingsScreen() {
                     >
                       <View style={styles.settingInfo}>
                         <View style={styles.settingLabelRow}>
-                          <Ionicons name="time" size={18} color="#666" style={styles.iconMargin} />
+                          <Ionicons name="time" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                           <Text style={styles.settingLabel}>Notification Hours</Text>
                         </View>
                         <Text style={styles.settingDescription}>
                           {notificationSettings.time_window_start} - {notificationSettings.time_window_end}
                         </Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                      <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
                     </Pressable>
                   </Animated.View>
 
@@ -438,7 +445,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="phone-portrait" size={18} color="#666" style={styles.iconMargin} />
+                        <Ionicons name="phone-portrait" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Device Notifications</Text>
                       </View>
                       <Text style={[styles.settingDescription, { color: '#FFA500' }]}>
@@ -452,7 +459,8 @@ export default function SettingsScreen() {
           )}
 
           <View style={styles.infoCard}>
-            <Ionicons name="information-circle" size={24} color="#007AFF" />
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Ionicons name="information-circle" size={24} color="rgba(255,255,255,0.45)" />
             <Text style={styles.infoText}>
               Notifications will only alert you about lines and stations you&apos;ve saved to your dashboard.
             </Text>
@@ -464,8 +472,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>About</Text>
           
           <View style={styles.aboutCard}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
             <View style={styles.aboutRow}>
-              <Ionicons name="information-circle-outline" size={24} color="#666" />
+              <Ionicons name="information-circle-outline" size={24} color="rgba(255,255,255,0.45)" />
               <View style={styles.aboutInfo}>
                 <Text style={styles.aboutLabel}>App Version</Text>
                 <Text style={styles.aboutValue}>1.0.3</Text>
@@ -475,7 +484,7 @@ export default function SettingsScreen() {
             <View style={styles.divider} />
             
             <View style={styles.aboutRow}>
-              <Ionicons name="subway-outline" size={24} color="#666" />
+              <Ionicons name="subway-outline" size={24} color="rgba(255,255,255,0.45)" />
               <View style={styles.aboutInfo}>
                 <Text style={styles.aboutLabel}>Transport Data</Text>
                 <Text style={styles.aboutValue}>Powered by TfL</Text>
@@ -488,6 +497,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Debug Options</Text>
           <View style={styles.aboutCard}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
             <Animated.View style={resetPressAnim.animatedStyle}>
               <Pressable
                 style={styles.aboutRow}
@@ -516,7 +526,7 @@ export default function SettingsScreen() {
                   <Text style={[styles.aboutLabel, { color: '#DC3545', fontWeight: '600' }]}>Reset Onboarding</Text>
                   <Text style={styles.settingDescription}>Start the setup flow from the beginning</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
               </Pressable>
             </Animated.View>
           </View>
@@ -531,7 +541,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#0A0A0F',
   },
   header: {
     flexDirection: 'row',
@@ -539,9 +549,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
+    borderBottomColor: 'rgba(255,255,255,0.10)',
   },
   backButton: {
     padding: 8,
@@ -549,7 +559,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: '#FFFFFF',
   },
   headerSpacer: {
     width: 40,
@@ -564,7 +574,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(0, 0, 0, 0.58)',
+    color: 'rgba(255,255,255,0.55)',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
@@ -575,10 +585,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   settingCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderRadius: 12,
     padding: 16,
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
   },
   settingRow: {
     flexDirection: 'row',
@@ -598,41 +607,40 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   settingDescription: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.55)',
     marginTop: 2,
   },
   loadingText: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
     paddingVertical: 8,
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F0F7FF',
+    backgroundColor: GLASS.background,
     borderRadius: 12,
     padding: 16,
     marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#D0E6FF',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderSide,
   },
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: 'rgba(255,255,255,0.75)',
     marginLeft: 12,
     lineHeight: 20,
   },
   statusCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: GLASS.background,
     borderRadius: 12,
     padding: 16,
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
   },
   statusRow: {
     flexDirection: 'row',
@@ -646,12 +654,12 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   statusDescription: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.55)',
   },
   planBadge: {
     paddingHorizontal: 16,
@@ -686,13 +694,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
   aboutCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: GLASS.background,
     borderRadius: 12,
     padding: 16,
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
   },
   aboutRow: {
     flexDirection: 'row',
@@ -705,13 +712,13 @@ const styles = StyleSheet.create({
   },
   aboutLabel: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.55)',
     marginBottom: 4,
   },
   aboutValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
   },
   iconMargin: { marginRight: 8 },
   spacer40: { height: 40 },
@@ -721,29 +728,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   frontCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-    borderRadius: 16,
+    backgroundColor: GLASS.background,
+    borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderSide,
+    overflow: 'hidden',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
     elevation: 3,
     height: 190,
     justifyContent: 'space-between',
   },
   backCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 16,
+    backgroundColor: GLASS.background,
+    borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderSide,
+    overflow: 'hidden',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
     elevation: 3,
     height: 190,
   },
@@ -755,21 +764,23 @@ const styles = StyleSheet.create({
   cardHeaderTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: '#FFFFFF',
     marginLeft: 8,
     flex: 1,
   },
   cardBodyText: {
     fontSize: 13,
-    color: '#636366',
+    color: 'rgba(255,255,255,0.65)',
     lineHeight: 18,
     marginBottom: 12,
   },
   ctaButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: PREMIUM_BUTTON.background,
     borderRadius: 20,
     paddingVertical: 10,
     alignItems: 'center',
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
   },
   ctaButtonText: {
     color: '#FFFFFF',
@@ -789,20 +800,20 @@ const styles = StyleSheet.create({
   tutorialText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: 'rgba(255,255,255,0.45)',
     marginTop: 8,
     textAlign: 'center',
   },
   enabledCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: GLASS.background,
     borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderSide,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
     elevation: 2,
   },
   enabledRow: {
@@ -816,11 +827,11 @@ const styles = StyleSheet.create({
   enabledTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: '#FFFFFF',
   },
   enabledDescription: {
     fontSize: 14,
-    color: '#28A745',
+    color: '#30D158',
     fontWeight: '600',
     marginTop: 2,
   },

@@ -23,6 +23,8 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { GlassRim } from './GlassRim';
+import { GLASS } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../data/tflStations';
@@ -72,10 +74,11 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
     >
       <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
         <BlurView
-          intensity={80}
+          intensity={GLASS.blurIntensity}
           tint="dark"
           style={StyleSheet.absoluteFillObject}
         />
+        <GlassRim borderRadius={14} />
         <View style={styles.compactCardContent}>
           <View style={styles.compactMainRow}>
             <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
@@ -519,8 +522,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 6,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: GLASS.borderSide,
     minHeight: 62,
+    backgroundColor: GLASS.background,
   },
   compactCardInner: {
     flex: 1,

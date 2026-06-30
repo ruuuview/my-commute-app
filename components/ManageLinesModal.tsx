@@ -22,6 +22,8 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { LineCard } from './LineCard';
 import { LINE_COLORS } from '../constants/lineColors';
 import { SCREEN_PADDING, COLUMN_GAP, ONBOARDING_CARD_HEIGHT } from '../constants/layout';
+import { GLASS } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 const MAX_LINES = 5;
 
@@ -230,7 +232,9 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
         {/* Bottom sheet — 78% of screen height */}
         <View style={[styles.sheet, { height: sheetHeight }]}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFill}>
+            <GlassRim />
+          </BlurView>
 
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
@@ -300,6 +304,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
+    backgroundColor: GLASS.background,
+    borderColor: GLASS.borderSide,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   dragHandleWrap: {
     alignItems: 'center',

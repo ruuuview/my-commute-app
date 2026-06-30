@@ -13,6 +13,8 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { getPillColors } from '../utils/pillColors';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { APP_CONFIG } from '../config/app.config';
+import { GLASS } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 const cleanPlatformName = (platform: string): string => {
   if (!platform) return '';
@@ -294,10 +296,12 @@ export function StationCard({
       <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
         {/* Dark smoked glass background */}
         <BlurView
-          intensity={45}
+          intensity={GLASS.blurIntensity}
           tint="dark"
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
-        />
+        >
+          <GlassRim borderRadius={16} />
+        </BlurView>
 
         <View style={styles.cardContent}>
           <View style={styles.cardHeaderRow}>
@@ -358,8 +362,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 6,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: GLASS.borderSide,
     minHeight: 68,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
   },
   outerCardPressed: {
     opacity: 0.65,
@@ -370,7 +378,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurBackground: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : GLASS.background,
   },
   cardContent: {
     paddingHorizontal: 16,

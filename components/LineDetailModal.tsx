@@ -18,6 +18,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { GLASS } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -232,10 +234,12 @@ export function LineDetailModal({
           <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
             {Platform.OS !== 'android' && (
               <BlurView
-                intensity={45}
+                intensity={GLASS.blurIntensity}
                 tint="dark"
                 style={StyleSheet.absoluteFillObject}
-              />
+              >
+                <GlassRim />
+              </BlurView>
             )}
 
             {/* Outer glass tint */}
@@ -307,10 +311,10 @@ const styles = StyleSheet.create({
     left: 0,
     width: POPUP_WIDTH,
     borderRadius: 20,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
     elevation: 15,
   },
 
@@ -318,8 +322,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
+    borderColor: GLASS.borderSide,
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     padding: 0,
   },
 
@@ -338,7 +342,7 @@ const styles = StyleSheet.create({
   },
 
   colorBar: {
-    width: 4,
+    width: 3,
     height: 20,
     borderRadius: 2,
     marginRight: 12,

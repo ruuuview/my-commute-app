@@ -18,6 +18,8 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GLASS } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -84,7 +86,9 @@ export default function LinePopupModal({
           testID="line-popup-panel"
         >
           {Platform.OS === 'ios' ? (
-            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject}>
+              <GlassRim borderRadius={20} />
+            </BlurView>
           ) : (
             <View style={[StyleSheet.absoluteFillObject, s.androidBg]} />
           )}
@@ -114,13 +118,13 @@ const s = StyleSheet.create({
     position: 'absolute',
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: GLASS.borderSide,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 24,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 15,
   },
   androidBg: {
     backgroundColor: 'rgba(10,10,15,0.95)',
@@ -137,7 +141,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   colorBar: {
-    width: 4,
+    width: 3,
     height: 20,
     borderRadius: 2,
   },

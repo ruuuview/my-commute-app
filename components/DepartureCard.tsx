@@ -34,6 +34,8 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { APP_CONFIG } from '../config/app.config';
+import { GLASS } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 // ─── Constants ────────────────────────────────────────────────────
 const DUE_GREEN = '#30D158';
@@ -208,7 +210,9 @@ export default function DepartureCard({
       style={[styles.container, containerAnimStyle, pressAnim.animatedStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject}>
+        <GlassRim />
+      </BlurView>
 
       <Pressable
         onPress={handlePress}
@@ -275,10 +279,14 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: GLASS.borderSide,
     borderRadius: 14,
     marginBottom: 12,
     overflow: 'hidden',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
   },
   pressable: {
     paddingHorizontal: 14,

@@ -54,6 +54,7 @@ import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
+import { APP_CONFIG } from '../config/app.config';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -466,7 +467,7 @@ const MyCommuteDashboard: React.FC = () => {
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       // 1. Fetch lines
-      const response = await fetch('https://my-commute-backend.vercel.app/api/lines', { signal });
+      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, { signal });
       if (!response.ok) {
         return { status: response.status };
       }
@@ -489,7 +490,7 @@ const MyCommuteDashboard: React.FC = () => {
             const resolvedIds = resolveTflStopIds(st.id);
             const responses = await Promise.all(
               resolvedIds.map(id =>
-                fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`, { signal })
+                fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal })
                   .then(res => (res.ok ? res.json() : null))
                   .catch(() => null)
               )
@@ -511,7 +512,9 @@ const MyCommuteDashboard: React.FC = () => {
                 return;
               }
               // Deduplicate by line, destination, and minutes_away to prevent duplicate-looking rows
-              const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
+              const mins = dep.minutes_away ?? 0;
+              const dueKey = mins <= 0 ? 'due' : mins;
+              const key = `${dep.line}-${dep.destination}-${dueKey}`;
               if (!seenKeys.has(key)) {
                 seenKeys.add(key);
                 dedupedRaw.push(dep);

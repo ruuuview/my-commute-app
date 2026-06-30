@@ -132,7 +132,12 @@ export default function StationDetailModal({
       const deduped = allRaw.filter(dep => {
         const dest = String(dep.destination || '');
         if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
-        const key = `${dep.line}-${dep.platform || dep.destination}-${dep.expected_arrival}`;
+        
+        // Collapse all minutes_away <= 0 (e.g. Due) to the same key to prevent duplicate due trains on the same platform
+        const mins = dep.minutes_away ?? 0;
+        const dueKey = mins <= 0 ? 'due' : mins;
+        const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
+        
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

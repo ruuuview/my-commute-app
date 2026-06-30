@@ -25,6 +25,7 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { APP_CONFIG } from '../config/app.config';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -37,6 +38,11 @@ interface Departure {
   platform: string;
   minutes_away: number;
   expected_arrival: string;
+  firstTrain?: string;
+  lastTrain?: string;
+  firstTrainDestination?: string;
+  lastTrainDestination?: string;
+  isNightTube?: boolean;
 }
 
 interface LineGroup {
@@ -111,7 +117,7 @@ export default function StationDetailModal({
       const resolvedIds = resolveTflStopIds(stationId);
       const responses = await Promise.all(
         resolvedIds.map(id =>
-          fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
             .then(res => (res.ok ? res.json() : null))
             .catch(() => null)
         )
@@ -240,15 +246,22 @@ export default function StationDetailModal({
 
     // Determine first and last terminals from all departures for this line
     const destinations = group.departures.map(d => cleanDestination(d.destination));
-    const firstTerminal = destinations[0] || '';
-    const lastTerminal = destinations.length > 1 ? destinations[destinations.length - 1] : '';
-    const isNightTube = NIGHT_TUBE_LINES.has(group.lineId);
-
-    // First and last with timings
     const firstDep = group.departures[0];
     const lastDep = group.departures.length > 1 ? group.departures[group.departures.length - 1] : null;
-    const firstTime = firstDep ? (firstDep.minutes_away <= 0 ? 'Due' : `${firstDep.minutes_away} min`) : '';
-    const lastTime = lastDep ? (lastDep.minutes_away <= 0 ? 'Due' : `${lastDep.minutes_away} min`) : '';
+
+    // Use backend scheduled timetable if available, otherwise fallback to live predictions
+    const firstTerminal = firstDep?.firstTrainDestination
+      ? cleanDestination(firstDep.firstTrainDestination)
+      : (destinations[0] || '');
+      
+    const lastTerminal = firstDep?.lastTrainDestination
+      ? cleanDestination(firstDep.lastTrainDestination)
+      : (destinations.length > 1 ? destinations[destinations.length - 1] : '');
+
+    const firstTime = firstDep?.firstTrain || (firstDep ? (firstDep.minutes_away <= 0 ? 'Due' : `${firstDep.minutes_away} min`) : '');
+    const lastTime = firstDep?.lastTrain || (lastDep ? (lastDep.minutes_away <= 0 ? 'Due' : `${lastDep.minutes_away} min`) : '');
+
+    const isNightTube = firstDep?.isNightTube ?? NIGHT_TUBE_LINES.has(group.lineId);
 
     return (
       <View key={group.lineId} style={idx > 0 ? { marginTop: 16 } : undefined} testID={`modal-line-${group.lineId}`}>
@@ -276,7 +289,7 @@ export default function StationDetailModal({
             {firstTerminal ? (
               <Text style={s.footerText}>First → {firstTerminal} · {firstTime}</Text>
             ) : null}
-            {lastTerminal && lastTerminal !== firstTerminal && lastDep ? (
+            {lastTerminal && (lastTerminal !== firstTerminal || lastTime !== firstTime) ? (
               <Text style={s.footerText}>Last → {lastTerminal} · {lastTime}</Text>
             ) : null}
           </View>

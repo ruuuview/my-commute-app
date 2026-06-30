@@ -33,6 +33,7 @@ import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { APP_CONFIG } from '../config/app.config';
 
 // ─── Constants ────────────────────────────────────────────────────
 const DUE_GREEN = '#30D158';
@@ -93,7 +94,7 @@ export default function DepartureCard({
         const resolvedIds = resolveTflStopIds(stationId);
         const responses = await Promise.all(
           resolvedIds.map(id =>
-            fetch(`https://my-commute-backend.vercel.app/api/stations/${id}`)
+            fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
               .then(res => (res.ok ? res.json() : null))
               .catch(() => null)
           )

@@ -12,11 +12,11 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   HUBCAW: ['940GZZLUCYF', '940GZZDLCAN', '910GCANWHRF'], // Canary Wharf (Jubilee + DLR + Elizabeth)
   HUBWAT: ['940GZZLUWLO'],                      // Waterloo
   HUBPAD: ['940GZZLUPAD', '940GZZLUHAC'],       // Paddington (Bakerloo/District/Circle/Elizabeth + H&C/Circle)
-  HUBLST: ['940GZZLULVT'],                      // Liverpool Street
+  HUBLST: ['940GZZLULVT', '910GLIVST'],       // Liverpool Street
   HUBVIC: ['940GZZLUVIC'],                      // Victoria
   HUBEUS: ['940GZZLUEUS', '910GEUSTON'],        // Euston (Underground + Overground)
   HUBSRA: ['940GZZLUSTD', '910GSTFD'],          // Stratford (Underground + Rail)
-  HUBTCR: ['940GZZLUTCR'],                      // Tottenham Court Road
+  HUBTCR: ['940GZZLUTCR', '910GTOTCTRD'],       // Tottenham Court Road
   HUBKGX: ['940GZZLUKSX'],                      // King's Cross St. Pancras
   HUBBKG: ['940GZZLUBKG', '910GBARKING'],       // Barking (Underground + Overground)
   HUBCHX: ['940GZZLUCHX'],                      // Charing Cross
@@ -31,6 +31,8 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   HUBCAN: ['940GZZLUCGT', '940GZZDLCGT'],       // Canning Town (Jubilee + DLR)
   HUBCUS: ['940GZZDLCUS', '910GCUSTMHS'],       // Custom House (DLR + Elizabeth)
   HUBHHY: ['940GZZLUHAI', '910GHGHI'],          // Highbury & Islington (Victoria + Overground)
+  HUBBDS: ['940GZZLUBND', '910GBONDST'],        // Bond Street (Underground + Elizabeth)
+  HUBZFD: ['940GZZLUFCN', '910GFRNDXR'],        // Farringdon (Underground + Elizabeth)
   
   // Whitechapel: 940GZZLUWPL serves all lines (District, H&C, Elizabeth, Overground)
   // No split required — single NaPTAN returns complete departures
@@ -42,6 +44,7 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'monument':        ['940GZZLUMMT'],
   'canary-wharf':    ['940GZZLUCYF', '940GZZDLCAN', '910GCANWHRF'],
   'london-waterloo': ['940GZZLUWLO'],
+  'waterloo':        ['940GZZLUWLO'],
   'london-bridge':   ['940GZZLULBG'],
   'stratford':       ['940GZZLUSTD', '910GSTFD'],
   'paddington':      ['940GZZLUPAD', '940GZZLUHAC'],
@@ -58,6 +61,16 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'heathrow-t4':     ['940GZZLUHR4', '910GHTRWTM4'],
   'heathrow-t5':     ['940GZZLUHR5', '910GHTRWTM5'],
   'whitechapel':     ['940GZZLUWPL'],
+  'totten-court-rd':  ['940GZZLUTCR', '910GTOTCTRD'],
+  'tottenham-court-road': ['940GZZLUTCR', '910GTOTCTRD'],
+  'kensington-oly':   ['940GZZLUKOY', '910GKENOLYM'],
+  'shepherd-bush':    ['940GZZLUSBC', '910GSHPDSB'],
+  'shoreditch-high':  ['910GSHRDHST'],
+  'st-james-park':    ['940GZZLUSJP'],
+  'st-pauls':         ['940GZZLUSTP'],
+  'liverpool-street': ['940GZZLULVT', '910GLIVST'],
+  'bond-street':      ['940GZZLUBND', '910GBONDST'],
+  'farringdon':       ['940GZZLUFCN', '910GFRNDXR'],
 };
 
 // ── 2. Auto-built slug → NaPTAN map from full dataset ─────────────────────────

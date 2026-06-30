@@ -54,7 +54,6 @@ import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
-import { TFL_STATIONS, FULL_STATIONS } from '../data/tflStations';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -387,89 +386,7 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 
 const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
 
-function getDayOfYear(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const oneDay = 1000 * 60 * 60 * 24;
-  return Math.floor(diff / oneDay);
-}
 
-function getSubtitleText(disruptedLines: LineData[], disruptedStations: any[], seed: number): string {
-  const allGood = [
-    "Tube's peng today.",
-    "No dramas, all running sweet.",
-    "Bare smooth out there.",
-    "Sorted. Get on it.",
-    "All clear, wagwan."
-  ];
-  
-  const minor = [
-    "[Line]'s a bit dodge.",
-    "Slight faff on the [Line].",
-    "[Line]'s dragging its feet.",
-    "[Line]'s being a bit snakey.",
-    "Don't hold your breath on [Line]."
-  ];
-  
-  const severe = [
-    "[Line]'s having a proper mare.",
-    "[Line]'s cooked.",
-    "Rah, [Line]'s a shambles.",
-    "[Line]'s butters right now.",
-    "[Line]'s gone full muppet."
-  ];
-  
-  const suspended = [
-    "[Line]'s dead. Swerve it.",
-    "Nah fam, [Line]'s finished.",
-    "Forget [Line]. It's cooked.",
-    "[Line]'s gone AWOL."
-  ];
-  
-  const stationDisrupted = [
-    "[Station]'s a bit hectic right now.",
-    "Might wanna swerve [Station] today.",
-    "[Station]'s doing the most.",
-    "Check before you roll up to [Station]."
-  ];
-  
-  const bothDisrupted = [
-    "[Line]'s cooked and [Station]'s chaos. Detour szn.",
-    "Rough one — [Line]'s a mare and [Station]'s peak."
-  ];
-  
-  if (disruptedLines.length > 0 && disruptedStations.length > 0) {
-    const line = disruptedLines[0].name;
-    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
-    const list = bothDisrupted;
-    const template = list[seed % list.length];
-    return template.replace('[Line]', line).replace('[Station]', station);
-  }
-  
-  if (disruptedLines.length > 0) {
-    const worstLine = disruptedLines[0];
-    const line = worstLine.name;
-    const sev = parseSeverity(worstLine.status);
-    let list = minor;
-    if (sev === 'suspended') {
-      list = suspended;
-    } else if (sev === 'severe') {
-      list = severe;
-    }
-    const template = list[seed % list.length];
-    return template.replace('[Line]', line);
-  }
-  
-  if (disruptedStations.length > 0) {
-    const station = disruptedStations[0].name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '').trim();
-    const list = stationDisrupted;
-    const template = list[seed % list.length];
-    return template.replace('[Station]', station);
-  }
-  
-  return allGood[seed % allGood.length];
-}
 
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
@@ -480,7 +397,6 @@ const MyCommuteDashboard: React.FC = () => {
   const revealOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
 
-  const daySeed = useMemo(() => getDayOfYear(), []);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -518,28 +434,6 @@ const MyCommuteDashboard: React.FC = () => {
 
 
 
-  const subtitle = useMemo(() => {
-    const myLines = data.lines.filter(l => selectedLines.includes(l.id));
-    const disruptedSelected = myLines.filter(l => parseSeverity(l.status) !== 'good');
-    
-    const severityOrder = ['suspended', 'severe', 'minor'];
-    const sortedDisruptedSelected = [...disruptedSelected].sort((a, b) => {
-      const sevA = parseSeverity(a.status);
-      const sevB = parseSeverity(b.status);
-      return severityOrder.indexOf(sevA) - severityOrder.indexOf(sevB);
-    });
-    
-    const disruptedStationsList = selectedStations.filter((st: any) => {
-      const dbStation = FULL_STATIONS.find(s => s.id === st.id) || TFL_STATIONS.find(s => s.id === st.id);
-      const linesForStation = dbStation ? dbStation.lines : [];
-      return linesForStation.some(lineId => {
-        const lineObj = data.lines.find(l => l.id === lineId);
-        return lineObj && parseSeverity(lineObj.status) !== 'good';
-      });
-    });
-    
-    return getSubtitleText(sortedDisruptedSelected, disruptedStationsList, daySeed);
-  }, [data, selectedLines, selectedStations, daySeed]);
 
   // ✅ Deferred Permission Trigger System (Phase 6)
   const {
@@ -723,7 +617,6 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
             <View style={dash.subheadingArea}>
               {hasContent && <NetworkHealthDot severity={networkSeverity} />}
-              <Text style={dash.statusTextText}>{subtitle}</Text>
               <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
             </View>
           </View>
@@ -939,7 +832,7 @@ const dash = StyleSheet.create({
     color: 'rgba(255,255,255,0.80)'
   },
   subheadingArea: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  statusTextText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.6)' },
+
   staleText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12,

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
+import { GlassRim } from './GlassRim';
 
 interface ProStatusCardProps {
   isPro: boolean;
@@ -19,6 +20,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
   if (isPro) {
     return (
       <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.cardWrapper}>
+        <GlassRim />
         <View style={styles.card}>
           <View style={styles.row}>
             <Ionicons name="shield-checkmark" size={24} color="#30D158" style={styles.icon} />
@@ -35,6 +37,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
   if (trialDaysRemaining > 0) {
     return (
       <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.cardWrapper}>
+        <GlassRim />
         <View style={styles.card}>
           <View style={styles.row}>
             <Ionicons name="time" size={24} color="#30D158" style={styles.icon} />
@@ -55,6 +58,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
 
   return (
     <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.cardWrapper}>
+      <GlassRim />
       <View style={styles.card}>
         <View style={styles.row}>
           <Ionicons name="lock-closed" size={24} color="#FF453A" style={styles.icon} />

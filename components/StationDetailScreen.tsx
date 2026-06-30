@@ -86,6 +86,7 @@ export default function StationDetailScreen({
   const { top: safeAreaTop } = useSafeAreaInsets();
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
 
   const showAll = useUserPreferencesStore(
@@ -179,16 +180,57 @@ export default function StationDetailScreen({
       console.log('[StationDetailScreen] fetch error:', e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  }, [stationId]);
+
+  const refreshDepartures = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const resolvedIds = resolveTflStopIds(stationId);
+      const responses = await Promise.all(
+        resolvedIds.map(id =>
+          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
+            .then(res => (res.ok ? res.json() : null))
+            .catch(() => null)
+        )
+      );
+
+      const allRaw: any[] = [];
+      responses.forEach(data => {
+        if (data?.departures) allRaw.push(...data.departures);
+      });
+
+      const seen = new Set<string>();
+      const deduped = allRaw.filter(dep => {
+        const dest = String(dep.destination || '');
+        if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
+        const mins = dep.minutes_away ?? 0;
+        const dueKey = mins <= 0 ? 'due' : mins;
+        const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
+
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+      setDepartures(deduped);
+      setFetchedAt(new Date());
+    } catch (e) {
+      console.log('[StationDetailScreen] refresh error:', e);
+    } finally {
+      setRefreshing(false);
     }
   }, [stationId]);
 
   useEffect(() => {
     fetchDepartures();
     const interval = setInterval(() => {
-      fetchDepartures();
+      refreshDepartures();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [stationId, fetchDepartures]);
+  }, [stationId, fetchDepartures, refreshDepartures]);
 
   // ── Render a single arrival row ───────────────────────────────
   const renderArrival = (dep: Departure, idx: number, isFirstDueForLine: boolean) => {
@@ -196,8 +238,8 @@ export default function StationDetailScreen({
     const platform = cleanPlatform(dep.platform);
     const dest = cleanDestination(dep.destination);
 
-    let timeText: string;
-    let timeStyle: any[];
+    let timeText: string = '';
+    let timeStyle: any[] = [];
 
     if (isDue) {
       timeText = 'Due';

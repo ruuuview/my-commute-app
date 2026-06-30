@@ -22,8 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 import { BlurView } from 'expo-blur';
-import { GLASS, PREMIUM_BUTTON, ACCENT_INTERACTIVE } from '../theme/colors';
-import { GlassRim } from '../components/GlassRim';
+import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 
 interface UserPreferences {
   saved_lines: string[];

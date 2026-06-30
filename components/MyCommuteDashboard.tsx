@@ -616,7 +616,6 @@ const MyCommuteDashboard: React.FC = () => {
               </View>
             </View>
             <View style={dash.subheadingArea}>
-              {hasContent && <NetworkHealthDot severity={networkSeverity} />}
               <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
             </View>
           </View>

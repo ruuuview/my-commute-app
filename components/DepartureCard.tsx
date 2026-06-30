@@ -2,7 +2,7 @@
  * DepartureCard.tsx
  * ─────────────────────────────────────────────────────────────────
  * Expanded departure card showing station header + up to 3 arrival rows.
- * Tap → calls onCardTap (opens StationDetailModal via DashboardGrid).
+ * Tap → calls onCardTap (opens StationDetailScreen via router push).
  * Long-press → triggers jiggle/edit mode in parent.
  *
  * PRESERVED:
@@ -236,6 +236,9 @@ export default function DepartureCard({
           )}
         </View>
 
+        {/* Subtle glass divider to give definition to the station name */}
+        <View style={styles.divider} />
+
         {/* Departure rows */}
         {loading ? (
           <Text style={styles.loadingText}>...</Text>
@@ -286,6 +289,11 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 6,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginBottom: 8,
   },
   stationName: {

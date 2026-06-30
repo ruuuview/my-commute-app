@@ -1,34 +1,31 @@
 /**
- * StationDetailModal.tsx
+ * StationDetailScreen.tsx
  * ─────────────────────────────────────────────────────────────────
- * Frosted-glass popup anchored to a tapped DepartureCard.
- * Positions BELOW the card if space allows, flips ABOVE if not.
- * Groups departures by line, shows ⊞ toggle for Your Lines / All.
+ * Full-screen pushed view for station details.
+ * Replaces the anchored popup approach — no flip/position math,
+ * no scrim, no BlurView wrapper. Content sits full-width on the
+ * dark screen background.
  * ─────────────────────────────────────────────────────────────────
  */
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
-  Modal,
   View,
   Text,
   Pressable,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const DUE_GREEN = '#30D158';
 
@@ -52,18 +49,14 @@ interface LineGroup {
   departures: Departure[];
 }
 
-export interface StationDetailModalProps {
+export interface StationDetailScreenProps {
   stationId: string;
   stationName: string;
-  anchorPageY: number;
-  anchorCardHeight: number;
-  onDismiss: () => void;
   /** User's pinned line IDs for ⊞ toggle filtering */
   selectedLines?: string[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
-
 
 function cleanDestination(dest: string): string {
   return String(dest || '')
@@ -77,7 +70,6 @@ function cleanDestination(dest: string): string {
 /** Extract platform number only — strip compass directions */
 function cleanPlatform(platform: string): string {
   if (!platform) return '';
-  // "Eastbound - P6" → "P6", "Northbound - Platform 1" → "Platform 1"
   const stripped = String(platform)
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
     .trim();
@@ -85,18 +77,15 @@ function cleanPlatform(platform: string): string {
 }
 
 // ─── Component ───────────────────────────────────────────────────
-export default function StationDetailModal({
+export default function StationDetailScreen({
   stationId,
   stationName,
-  anchorPageY,
-  anchorCardHeight,
-  onDismiss,
   selectedLines = [],
-}: StationDetailModalProps) {
+}: StationDetailScreenProps) {
+  const router = useRouter();
   const { top: safeAreaTop } = useSafeAreaInsets();
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
-  const [popupHeight, setPopupHeight] = useState(0);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
 
   const showAll = useUserPreferencesStore(
@@ -109,6 +98,48 @@ export default function StationDetailModal({
   const cleanName = String(stationName ?? '')
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
     .trim();
+
+
+
+  // ── Group departures by line ──────────────────────────────────
+  const lineGroups: LineGroup[] = useMemo(() => {
+    const map = new Map<string, LineGroup>();
+    departures.forEach(dep => {
+      const { lineId, cleanLineId } = normaliseLineId(dep.line);
+      if (!map.has(lineId)) {
+        map.set(lineId, {
+          lineId,
+          lineName: dep.line,
+          lineColor: LINE_COLORS[cleanLineId] || '#888',
+          departures: [],
+        });
+      }
+      map.get(lineId)!.departures.push(dep);
+    });
+    return Array.from(map.values());
+  }, [departures]);
+
+  // ── Filter by ⊞ toggle: Your Lines vs All Departures ─────────
+  const filteredGroups = useMemo(() => {
+    if (showAll) {
+      const pinned = lineGroups.filter(g => selectedLines.includes(g.lineId));
+      const unpinned = lineGroups.filter(g => !selectedLines.includes(g.lineId));
+      return { pinned, unpinned };
+    }
+    const pinned = selectedLines.length > 0
+      ? lineGroups.filter(g => selectedLines.includes(g.lineId))
+      : lineGroups;
+    return { pinned, unpinned: [] as LineGroup[] };
+  }, [lineGroups, selectedLines, showAll]);
+
+  // ── Freshness badge ───────────────────────────────────────────
+  const freshnessText = useMemo(() => {
+    if (!fetchedAt) return '';
+    const secs = Math.round((Date.now() - fetchedAt.getTime()) / 1000);
+    if (secs < 10) return 'Just now';
+    if (secs < 60) return `${secs}s ago`;
+    return `${Math.floor(secs / 60)}m ago`;
+  }, [fetchedAt]);
 
   // ── Fetch departures ──────────────────────────────────────────
   const fetchDepartures = useCallback(async () => {
@@ -132,12 +163,10 @@ export default function StationDetailModal({
       const deduped = allRaw.filter(dep => {
         const dest = String(dep.destination || '');
         if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
-        
-        // Collapse all minutes_away <= 0 (e.g. Due) to the same key to prevent duplicate due trains on the same platform
         const mins = dep.minutes_away ?? 0;
         const dueKey = mins <= 0 ? 'due' : mins;
         const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
-        
+
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -147,7 +176,7 @@ export default function StationDetailModal({
       setDepartures(deduped);
       setFetchedAt(new Date());
     } catch (e) {
-      console.log('[StationDetailModal] fetch error:', e);
+      console.log('[StationDetailScreen] fetch error:', e);
     } finally {
       setLoading(false);
     }
@@ -155,62 +184,11 @@ export default function StationDetailModal({
 
   useEffect(() => {
     fetchDepartures();
-  }, [fetchDepartures]);
-
-  // ── Group departures by line ──────────────────────────────────
-  const lineGroups: LineGroup[] = useMemo(() => {
-    const map = new Map<string, LineGroup>();
-    departures.forEach(dep => {
-      const { lineId, cleanLineId } = normaliseLineId(dep.line);
-      if (!map.has(lineId)) {
-        map.set(lineId, {
-          lineId,
-          lineName: dep.line,
-          lineColor: LINE_COLORS[cleanLineId] || '#888',
-          departures: [],
-        });
-      }
-      map.get(lineId)!.departures.push(dep);
-    });
-    return Array.from(map.values());
-  }, [departures]);
-
-  // ── Filter by ⊞ toggle: Your Lines vs All Departures ─────────
-  const filteredGroups = useMemo(() => {
-    if (showAll) {
-      // Pinned first, then unpinned with separator handled in render
-      const pinned = lineGroups.filter(g => selectedLines.includes(g.lineId));
-      const unpinned = lineGroups.filter(g => !selectedLines.includes(g.lineId));
-      return { pinned, unpinned };
-    }
-    // Your Lines only
-    const pinned = selectedLines.length > 0
-      ? lineGroups.filter(g => selectedLines.includes(g.lineId))
-      : lineGroups;
-    return { pinned, unpinned: [] as LineGroup[] };
-  }, [lineGroups, selectedLines, showAll]);
-
-  // ── Freshness badge ───────────────────────────────────────────
-  const freshnessText = useMemo(() => {
-    if (!fetchedAt) return '';
-    const secs = Math.round((Date.now() - fetchedAt.getTime()) / 1000);
-    if (secs < 10) return 'Just now';
-    if (secs < 60) return `${secs}s ago`;
-    return `${Math.floor(secs / 60)}m ago`;
-  }, [fetchedAt]);
-
-  // ── Flip-position math ────────────────────────────────────────
-  const measured = popupHeight > 0;
-  const popupTop = useMemo(() => {
-    if (!measured) return anchorPageY + anchorCardHeight + 8;
-    const spaceBelow = SCREEN_HEIGHT - (anchorPageY + anchorCardHeight);
-    if (spaceBelow >= SCREEN_HEIGHT * 0.6) {
-      return anchorPageY + anchorCardHeight + 8;
-    }
-    const above = anchorPageY - popupHeight - 8;
-    const floor = safeAreaTop + 12;
-    return Math.max(above, floor);
-  }, [measured, popupHeight, anchorPageY, anchorCardHeight, safeAreaTop]);
+    const interval = setInterval(() => {
+      fetchDepartures();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [stationId, fetchDepartures]);
 
   // ── Render a single arrival row ───────────────────────────────
   const renderArrival = (dep: Departure, idx: number, isFirstDueForLine: boolean) => {
@@ -234,7 +212,7 @@ export default function StationDetailModal({
     }
 
     return (
-      <View key={`arr-${idx}`} style={s.arrivalRow} testID={`modal-arrival-${idx}`}>
+      <View key={`arr-${idx}`} style={s.arrivalRow} testID={`screen-arrival-${idx}`}>
         <Text style={s.arrivalDest} numberOfLines={1}>{dest}</Text>
         {platform ? <Text style={s.arrivalPlatform} numberOfLines={1}>{platform}</Text> : null}
         <Text style={timeStyle} numberOfLines={1}>{timeText}</Text>
@@ -249,19 +227,16 @@ export default function StationDetailModal({
     const sliced = group.departures.slice(0, 3);
     let firstDueSeen = false;
 
-    // Determine first and last terminals from all departures for this line
-    const destinations = group.departures.map(d => cleanDestination(d.destination));
     const firstDep = group.departures[0];
     const lastDep = group.departures.length > 1 ? group.departures[group.departures.length - 1] : null;
 
-    // Use backend scheduled timetable if available, otherwise fallback to live predictions
     const firstTerminal = firstDep?.firstTrainDestination
       ? cleanDestination(firstDep.firstTrainDestination)
-      : (destinations[0] || '');
+      : (firstDep ? cleanDestination(firstDep.destination) : '');
       
     const lastTerminal = firstDep?.lastTrainDestination
       ? cleanDestination(firstDep.lastTrainDestination)
-      : (destinations.length > 1 ? destinations[destinations.length - 1] : '');
+      : (lastDep ? cleanDestination(lastDep.destination) : '');
 
     const firstTime = firstDep?.firstTrain || (firstDep ? (firstDep.minutes_away <= 0 ? 'Due' : `${firstDep.minutes_away} min`) : '');
     const lastTime = firstDep?.lastTrain || (lastDep ? (lastDep.minutes_away <= 0 ? 'Due' : `${lastDep.minutes_away} min`) : '');
@@ -269,7 +244,7 @@ export default function StationDetailModal({
     const isNightTube = firstDep?.isNightTube ?? NIGHT_TUBE_LINES.has(group.lineId);
 
     return (
-      <View key={group.lineId} style={idx > 0 ? { marginTop: 16 } : undefined} testID={`modal-line-${group.lineId}`}>
+      <View key={group.lineId} style={idx > 0 ? { marginTop: 16 } : undefined} testID={`screen-line-${group.lineId}`}>
         {/* Line header: color bar + name in small caps */}
         <View style={s.lineHeader}>
           <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
@@ -288,7 +263,7 @@ export default function StationDetailModal({
         {/* Hairline separator */}
         <View style={s.hairline} />
 
-        {/* First / Last footer — terminal names + timings */}
+        {/* First / Last footer */}
         {(firstTerminal || lastTerminal) && (
           <View style={s.footerRow}>
             {firstTerminal ? (
@@ -304,147 +279,113 @@ export default function StationDetailModal({
   };
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="none"
-      onRequestClose={onDismiss}
-      testID="station-detail-modal"
-    >
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-        {/* Scrim */}
-        <Pressable
-          style={[StyleSheet.absoluteFillObject, s.scrim]}
-          onPress={onDismiss}
-          testID="station-modal-scrim"
-        />
+    <View style={[s.root, { paddingTop: safeAreaTop }]} testID="station-detail-screen">
+      {/* Header bar */}
+      <BlurView intensity={60} tint="systemMaterialDark" style={s.headerBlur}>
+        <View style={s.header}>
+          {/* Left: "Commute" back button */}
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            style={s.backHitArea}
+            testID="station-screen-back"
+          >
+            <Text style={s.backText}>Commute</Text>
+          </Pressable>
 
-        {/* Popup panel */}
-        <View
-          style={[
-            s.panel,
-            {
-              top: popupTop,
-              left: 16,
-              width: SCREEN_WIDTH - 32,
-              opacity: measured ? 1 : 0,
-            },
-          ]}
-          onLayout={e => setPopupHeight(e.nativeEvent.layout.height)}
-          testID="station-detail-popup"
-        >
-          {/* Frosted glass */}
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={60} tint="systemMaterialDark" style={StyleSheet.absoluteFillObject} />
-          ) : (
-            <View style={[StyleSheet.absoluteFillObject, s.androidBg]} />
-          )}
+          {/* Center: station name */}
+          <Text style={s.stationName} numberOfLines={1} testID="screen-station-name">
+            {cleanName}
+          </Text>
 
-          <View style={s.content}>
-            {/* Header row */}
-            <View style={s.header}>
-              <Text style={s.stationName} numberOfLines={1} testID="modal-station-name">
-                {cleanName}
-              </Text>
-              <View style={s.headerRight}>
-                {/* Freshness badge */}
-                {freshnessText ? (
-                  <Text style={s.freshnessBadge} testID="freshness-badge">{freshnessText}</Text>
-                ) : null}
-                {/* ⊞ toggle */}
-                <Pressable
-                  onPress={() => toggleFilter(stationId)}
-                  hitSlop={8}
-                  style={[s.toggleBtn, showAll && s.toggleBtnActive]}
-                  testID="station-toggle-filter"
-                >
-                  <Text style={s.toggleIcon}>⊞</Text>
-                </Pressable>
-                {/* Close */}
-                <Pressable
-                  onPress={onDismiss}
-                  hitSlop={12}
-                  style={s.closeHitArea}
-                  testID="station-modal-close"
-                >
-                  <Text style={s.closeBtn}>✕</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Toggle label */}
-            <Text style={s.filterLabel}>
-              {showAll ? 'All Departures' : 'Your Lines'}
-            </Text>
-
-            {/* Scrollable body */}
-            {loading ? (
-              <View style={s.loadingRow}>
-                <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-                <Text style={s.loadingText}>Fetching departures…</Text>
-              </View>
-            ) : departures.length === 0 ? (
-              <Text style={s.emptyText} testID="modal-empty">
-                No trains right now
-              </Text>
-            ) : (
-              <ScrollView
-                style={{ maxHeight: SCREEN_HEIGHT * 0.55 }}
-                showsVerticalScrollIndicator={false}
-                testID="modal-scroll-body"
-              >
-                {filteredGroups.pinned.map((group, idx) => renderLineSection(group, idx))}
-
-                {showAll && filteredGroups.unpinned.length > 0 && (
-                  <>
-                    <View style={s.separatorRow}>
-                      <View style={s.separatorLine} />
-                      <Text style={s.separatorText}>Other lines</Text>
-                      <View style={s.separatorLine} />
-                    </View>
-                    {filteredGroups.unpinned.map((group, idx) =>
-                      renderLineSection(group, filteredGroups.pinned.length + idx)
-                    )}
-                  </>
-                )}
-              </ScrollView>
-            )}
+          {/* Right: freshness badge + toggle */}
+          <View style={s.headerRight}>
+            {freshnessText ? (
+              <Text style={s.freshnessBadge} testID="screen-freshness-badge">{freshnessText}</Text>
+            ) : null}
+            <Pressable
+              onPress={() => toggleFilter(stationId)}
+              hitSlop={8}
+              style={[s.toggleBtn, showAll && s.toggleBtnActive]}
+              testID="screen-toggle-filter"
+            >
+              <Text style={s.toggleIcon}>⊞</Text>
+            </Pressable>
           </View>
         </View>
-      </View>
-    </Modal>
+
+        {/* Subtle glass divider to give definition to the station name */}
+        <View style={s.divider} />
+
+        {/* Toggle label */}
+        <Text style={s.filterLabel}>
+          {showAll ? 'All Departures' : 'Your Lines'}
+        </Text>
+      </BlurView>
+
+      {/* Body — full remaining height scroll */}
+      {loading ? (
+        <View style={s.loadingRow}>
+          <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
+          <Text style={s.loadingText}>Fetching departures…</Text>
+        </View>
+      ) : departures.length === 0 ? (
+        <Text style={s.emptyText} testID="screen-empty">
+          No trains right now
+        </Text>
+      ) : (
+        <ScrollView
+          style={s.scrollBody}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+          testID="screen-scroll-body"
+        >
+          {filteredGroups.pinned.map((group, idx) => renderLineSection(group, idx))}
+
+          {showAll && filteredGroups.unpinned.length > 0 && (
+            <>
+              <View style={s.separatorRow}>
+                <View style={s.separatorLine} />
+                <Text style={s.separatorText}>Other lines</Text>
+                <View style={s.separatorLine} />
+              </View>
+              {filteredGroups.unpinned.map((group, idx) =>
+                renderLineSection(group, filteredGroups.pinned.length + idx)
+              )}
+            </>
+          )}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  scrim: {
-    backgroundColor: 'rgba(0,0,0,0.25)',
+  root: {
+    flex: 1,
+    backgroundColor: '#0A0A0F',
   },
-  panel: {
-    position: 'absolute',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 24,
-  },
-  androidBg: {
-    backgroundColor: 'rgba(20,20,30,0.92)',
-  },
-  content: {
+  headerBlur: {
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.10)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginTop: 8,
+  },
+  backHitArea: {
+    paddingVertical: 4,
+    paddingRight: 12,
+  },
+  backText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.65)',
+    letterSpacing: -0.2,
   },
   stationName: {
     flex: 1,
@@ -452,6 +393,8 @@ const s = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     letterSpacing: -0.3,
+    textTransform: 'uppercase',
+    textAlign: 'center',
   },
   headerRight: {
     flexDirection: 'row',
@@ -478,12 +421,10 @@ const s = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },
-  closeHitArea: {
-    padding: 4,
-  },
-  closeBtn: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginVertical: 6,
   },
   filterLabel: {
     fontFamily: 'SpaceGrotesk_500Medium',
@@ -491,7 +432,16 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.35)',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    marginBottom: 12,
+    marginTop: 0,
+    marginBottom: 2,
+  },
+  scrollBody: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
   },
   lineHeader: {
     flexDirection: 'row',
@@ -584,6 +534,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
+    marginTop: 40,
   },
   loadingText: {
     fontFamily: 'SpaceGrotesk_400Regular',
@@ -596,5 +547,6 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
     paddingVertical: 14,
+    marginTop: 40,
   },
 });

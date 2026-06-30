@@ -535,8 +535,8 @@ function getTestStats() {
     } catch { /* ignore */ }
   }
 
-  var testDirNames = ['tests', 'test', '__tests__', 'src', 'v3'];
-  for (var i = 0; i < testDirNames.length; i++) {
+  let testDirNames = ['tests', 'test', '__tests__', 'src', 'v3'];
+  for (let i = 0; i < testDirNames.length; i++) {
     countTestFiles(path.join(CWD, testDirNames[i]));
   }
 
@@ -575,8 +575,8 @@ function getIntegrationStatus() {
 
 // Session stats (pure file reads)
 function getSessionStats() {
-  var sessionPaths = ['.claude-flow/session.json', '.claude/session.json'];
-  for (var i = 0; i < sessionPaths.length; i++) {
+  let sessionPaths = ['.claude-flow/session.json', '.claude/session.json'];
+  for (let i = 0; i < sessionPaths.length; i++) {
     const data = readJSON(path.join(CWD, sessionPaths[i]));
     if (data && data.startTime) {
       const diffMs = Date.now() - new Date(data.startTime).getTime();

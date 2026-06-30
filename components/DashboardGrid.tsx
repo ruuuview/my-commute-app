@@ -6,11 +6,11 @@
  *  • Per-card jiggle in edit/jiggle mode (±1 deg, alternating phase)
  *  • Clean exit: rotation and translateX snap back to 0 via withSpring
  *  • Background Pressable that dismisses jiggle mode
- *  • StationDetailModal triggered by card tap via measureInWindow
+ *  • StationDetailScreen triggered by card tap via router.push
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useRef, useState, useEffect, useCallback, memo } from 'react';
+import React, { memo, useCallback, useEffect } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -25,15 +25,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import DepartureCard from './DepartureCard';
-import StationDetailModal from './StationDetailModal';
-
-// ─── Types ────────────────────────────────────────────────────────
-interface SelectedStation {
-  id: string;
-  name: string;
-  pageY: number;
-  cardHeight: number;
-}
 
 // ─── Per-card wrapper: stagger entrance + jiggle animation ────────
 interface JigglingCardWrapperProps {
@@ -156,6 +147,8 @@ export interface DashboardGridProps {
   onScrollEnabledChange: (enabled: boolean) => void;
   /** User's pinned line IDs for modal filtering */
   selectedLines?: string[];
+  /** Called when a station card is tapped — navigates to full-screen StationDetailScreen */
+  onStationTap?: (stationId: string, stationName: string) => void;
 }
 
 export default function DashboardGrid({
@@ -166,30 +159,16 @@ export default function DashboardGrid({
   onLongPressCard,
   onScrollEnabledChange,
   selectedLines,
+  onStationTap,
 }: DashboardGridProps) {
-  const [selectedStation, setSelectedStation] = useState<SelectedStation | null>(null);
-  // Stable ref map: station.id → measured View ref
-  const cardRefsMap = useRef<Record<string, View | null>>({});
-
-  // Disable parent scroll while popup is open
-  useEffect(() => {
-    onScrollEnabledChange(selectedStation === null);
-  }, [selectedStation, onScrollEnabledChange]);
-
-  // ── Card tap handler: measure position then show popup ────────
+  // ── Card tap handler: navigate to full-screen StationDetailScreen ─
   const handleCardTap = useCallback(
     (stationId: string, stationName: string) => {
       if (isJiggling) return; // Block popup while in jiggle/edit mode
-      const ref = cardRefsMap.current[stationId];
-      if (!ref) return;
-      ref.measureInWindow((x, y, width, height) => {
-        setSelectedStation({ id: stationId, name: stationName, pageY: y, cardHeight: height });
-      });
+      onStationTap?.(stationId, stationName);
     },
-    [isJiggling]
+    [isJiggling, onStationTap]
   );
-
-  const handleDismiss = useCallback(() => setSelectedStation(null), []);
 
   return (
     <View style={styles.container} testID="dashboard-grid">
@@ -205,7 +184,6 @@ export default function DashboardGrid({
       {stations.map((station, index) => (
         <View
           key={station.id}
-          ref={r => { cardRefsMap.current[station.id] = r; }}
           collapsable={false}
           testID={`card-wrapper-${station.id}`}
         >
@@ -222,18 +200,6 @@ export default function DashboardGrid({
           </JigglingCardWrapper>
         </View>
       ))}
-
-      {/* Popup — rendered here, floats over everything via Modal */}
-      {selectedStation && (
-        <StationDetailModal
-          stationId={selectedStation.id}
-          stationName={selectedStation.name}
-          anchorPageY={selectedStation.pageY}
-          anchorCardHeight={selectedStation.cardHeight}
-          onDismiss={handleDismiss}
-          selectedLines={selectedLines}
-        />
-      )}
     </View>
   );
 }

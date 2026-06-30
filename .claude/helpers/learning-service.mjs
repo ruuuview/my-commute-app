@@ -24,6 +24,8 @@ import { fileURLToPath } from 'url';
 import { execSync, spawn } from 'child_process';
 import Database from 'better-sqlite3';
 
+import { Buffer } from 'buffer';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '../..');

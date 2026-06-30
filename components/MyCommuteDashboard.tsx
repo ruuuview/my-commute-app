@@ -693,6 +693,11 @@ const MyCommuteDashboard: React.FC = () => {
                   onLongPressCard={() => setIsEditing(true)}
                   onScrollEnabledChange={setScrollEnabled}
                   selectedLines={selectedLines}
+                  onStationTap={(stationId, stationName) =>
+                    router.push(
+                      `/station-detail?stationId=${encodeURIComponent(stationId)}&stationName=${encodeURIComponent(stationName)}`
+                    )
+                  }
                 />
               )}
             </View>

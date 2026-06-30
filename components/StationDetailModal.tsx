@@ -57,10 +57,7 @@ export interface StationDetailModalProps {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
-function getLineColor(lineName: string): string {
-  const { cleanLineId } = normaliseLineId(lineName);
-  return LINE_COLORS[cleanLineId] || '#888888';
-}
+
 
 function cleanDestination(dest: string): string {
   return String(dest || '')

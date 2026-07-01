@@ -181,11 +181,21 @@ export function LineCard({
     statusTextColor = '#FF3B30';
   }
 
+  // Selection glow shadow configuration (Apple pill design)
+  const selectedShadowStyle = (mode === 'select' && selected) ? {
+    shadowColor: line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : line.color,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: line.id === 'northern' ? 0.6 : (line.id === 'jubilee' ? 0.65 : 0.5),
+    shadowRadius: line.id === 'northern' ? 10 : 8,
+    elevation: 5,
+  } : null;
+
   return (
     <Animated.View
       style={[
         styles.outerCard,
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
+        selectedShadowStyle,
         mode === 'display' && { marginBottom: 12 },
         jiggleStyle
       ]}
@@ -193,7 +203,15 @@ export function LineCard({
       <Animated.View
         style={[
           styles.cardInner,
-          { borderRadius: cardRadius, backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)' },
+          {
+            borderRadius: cardRadius,
+            backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
+            overflow: 'hidden',
+            borderWidth: mode === 'select' && selected ? 1.5 : StyleSheet.hairlineWidth,
+            borderColor: mode === 'select' && selected
+              ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : withAlpha(line.color, 'B3'))
+              : 'rgba(255, 255, 255, 0.18)',
+          },
           combinedStyle,
         ]}
       >

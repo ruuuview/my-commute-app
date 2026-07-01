@@ -8,7 +8,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -116,6 +116,7 @@ export default function StationDetailScreen({
   const [loading, setLoading] = useState(true);
 
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+  const requestIdRef = useRef(0);
 
   // Read line statuses from the global store (populated by MyCommuteDashboard poller)
   const lineStoreLines = useLineDataStore(state => state.lines);
@@ -179,16 +180,21 @@ export default function StationDetailScreen({
 
   // ── Fetch departures (single source of truth) ─────────────────
   const loadDepartures = useCallback(async (showLoader: boolean = false) => {
+    const requestId = ++requestIdRef.current;
     try {
       if (showLoader) setLoading(true);
       const resolvedIds = resolveTflStopIds(stationId);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
       const responses = await Promise.all(
         resolvedIds.map(id =>
-          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
+          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: controller.signal })
             .then(res => (res.ok ? res.json() : null))
             .catch(() => null)
         )
       );
+      clearTimeout(timeoutId);
+      if (requestId !== requestIdRef.current) return;
 
       const allRaw: any[] = [];
       responses.forEach(data => {
@@ -214,7 +220,9 @@ export default function StationDetailScreen({
     } catch (e) {
       console.log('[StationDetailScreen] departures error:', e);
     } finally {
-      if (showLoader) setLoading(false);
+      if (requestId === requestIdRef.current) {
+        if (showLoader) setLoading(false);
+      }
     }
   }, [stationId]);
 
@@ -395,7 +403,7 @@ export default function StationDetailScreen({
           <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
           <Text style={s.loadingText}>Fetching departures…</Text>
         </View>
-      ) : departures.length === 0 ? (
+      ) : filteredGroups.pinned.length === 0 && filteredGroups.unpinned.length === 0 ? (
         <Text style={s.emptyText} testID="screen-empty">
           No trains right now
         </Text>

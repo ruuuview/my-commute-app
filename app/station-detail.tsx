@@ -1,19 +1,28 @@
 // app/station-detail.tsx
 // Expo Router file-based route for StationDetailScreen
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import StationDetailScreen from '../components/StationDetailScreen';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 export default function StationDetailRoute() {
+  const router = useRouter();
   const { stationId, stationName } = useLocalSearchParams<{
     stationId: string;
     stationName: string;
   }>();
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);
 
-  if (!stationId || !stationName) {
+  const missingParams = !stationId || !stationName;
+
+  useEffect(() => {
+    if (missingParams) {
+      router.back();
+    }
+  }, [missingParams, router]);
+
+  if (missingParams) {
     return (
       <View style={s.errorContainer}>
         <Stack.Screen options={{ headerShown: false }} />

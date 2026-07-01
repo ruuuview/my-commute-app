@@ -61,6 +61,7 @@ const styles = StyleSheet.create({
   container: {
     padding: HAIRLINE,
     overflow: 'hidden',
+    flex: 1,
   },
   inner: {
     flex: 1,

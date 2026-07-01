@@ -254,20 +254,21 @@ const LinePill: React.FC<{
           });
         }
       }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
-        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-        <GlassRim borderRadius={12} />
-        <View style={[pill.colorBar, { backgroundColor: line.color }]} />
-        <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
-        <View style={pill.spacer} />
-        <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-        <View style={pill.dotOuter}>
-          <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
-        </View>
-        {isEditing && (
-          <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
-            <Text style={pill.deleteIcon}>−</Text>
-          </Pressable>
-        )}
+        <GlassRim borderRadius={12}>
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View style={[pill.colorBar, { backgroundColor: line.color }]} />
+          <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
+          <View style={pill.spacer} />
+          <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
+          <View style={pill.dotOuter}>
+            <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
+          </View>
+          {isEditing && (
+            <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
+              <Text style={pill.deleteIcon}>−</Text>
+            </Pressable>
+          )}
+        </GlassRim>
       </Pressable>
     </Animated.View>
   );
@@ -280,12 +281,7 @@ const pill = StyleSheet.create({
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: GLASS.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
-    borderRadius: 12,
     marginBottom: 8,
-    overflow: 'hidden',
     position: 'relative'
   },
   colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },

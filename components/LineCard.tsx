@@ -132,10 +132,7 @@ export function LineCard({
     opacity: opacityVal.value,
   }));
 
-  const selectedBorderStyle = {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
-  };
+  const selectedBorderStyle = undefined;
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);
@@ -195,21 +192,18 @@ export function LineCard({
         jiggleStyle
       ]}
     >
-      <Animated.View
-        style={[
-          styles.cardInner,
-          { borderRadius: cardRadius },
-          selectedBorderStyle,
-          combinedStyle,
-        ]}
-      >
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
+      <GlassRim borderRadius={cardRadius}>
+        <Animated.View
+          style={[
+            styles.cardInner,
+            combinedStyle,
+          ]}
         >
-          <GlassRim />
-        </BlurView>
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
 
         {/* Selected state overlay (select mode only) */}
         {mode === 'select' && selected && (
@@ -317,6 +311,7 @@ export function LineCard({
         )}
 
       </Animated.View>
+      </GlassRim>
 
       {/* Delete badge (edit mode only) */}
       {isEditing && onDelete && (
@@ -362,10 +357,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
     position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: GLASS.background,
   },
   accentBar: {
     position: 'absolute',

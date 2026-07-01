@@ -72,14 +72,14 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
         pressed && { opacity: 0.65 },
       ]}
     >
-      <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
-        <GlassRim borderRadius={14} />
-        <View style={styles.compactCardContent}>
+      <GlassRim borderRadius={14}>
+        <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.compactCardContent}>
           <View style={styles.compactMainRow}>
             <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
               {cleanName}
@@ -124,6 +124,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
           </View>
         </View>
       </Animated.View>
+      </GlassRim>
     </Pressable>
   );
 }
@@ -521,14 +522,10 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     borderRadius: 14,
     marginBottom: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
     minHeight: 62,
-    backgroundColor: GLASS.background,
   },
   compactCardInner: {
     flex: 1,
-    borderRadius: 14,
     overflow: 'hidden',
   },
   compactCardContent: {

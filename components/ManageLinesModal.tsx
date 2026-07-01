@@ -232,9 +232,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
         {/* Bottom sheet — 78% of screen height */}
         <View style={[styles.sheet, { height: sheetHeight }]}>
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFill}>
-            <GlassRim />
-          </BlurView>
+          <GlassRim borderRadius={28} containerStyle={{ borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
 
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
@@ -283,7 +281,8 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             ]}
             showsVerticalScrollIndicator={false}
           />
-        </View>
+        </GlassRim>
+      </View>
       </View>
     </Modal>
   );
@@ -301,12 +300,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: GLASS.background,
-    borderColor: GLASS.borderSide,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   dragHandleWrap: {
     alignItems: 'center',

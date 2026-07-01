@@ -19,33 +19,54 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
 
   if (isPro) {
     return (
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.cardWrapper}>
-        <GlassRim />
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Ionicons name="shield-checkmark" size={24} color="#30D158" style={styles.icon} />
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>You are a Pro Member</Text>
-              <Text style={styles.subtitle}>You have unlimited lifetime access.</Text>
+      <GlassRim borderRadius={12}>
+        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Ionicons name="shield-checkmark" size={24} color="#30D158" style={styles.icon} />
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>You are a Pro Member</Text>
+                <Text style={styles.subtitle}>You have unlimited lifetime access.</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </BlurView>
+        </BlurView>
+      </GlassRim>
     );
   }
 
   if (trialDaysRemaining > 0) {
     return (
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.cardWrapper}>
-        <GlassRim />
+      <GlassRim borderRadius={12}>
+        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Ionicons name="time" size={24} color="#30D158" style={styles.icon} />
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>Pro Trial Active</Text>
+                <Text style={styles.subtitle}>
+                  You have {trialDaysRemaining} days of all-access features remaining.
+                </Text>
+              </View>
+            </View>
+            <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
+              <Text style={styles.buttonText}>Upgrade for Life - £7.99</Text>
+            </Pressable>
+          </View>
+        </BlurView>
+      </GlassRim>
+    );
+  }
+
+  return (
+    <GlassRim borderRadius={12}>
+      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Ionicons name="time" size={24} color="#30D158" style={styles.icon} />
+            <Ionicons name="lock-closed" size={24} color="#FF453A" style={styles.icon} />
             <View style={styles.textContainer}>
-              <Text style={styles.title}>Pro Trial Active</Text>
-              <Text style={styles.subtitle}>
-                You have {trialDaysRemaining} days of all-access features remaining.
-              </Text>
+              <Text style={styles.title}>You are on the Free Plan</Text>
+              <Text style={styles.subtitle}>You are limited to 3 items. Upgrade for unlimited access.</Text>
             </View>
           </View>
           <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
@@ -53,40 +74,17 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
           </Pressable>
         </View>
       </BlurView>
-    );
-  }
-
-  return (
-    <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.cardWrapper}>
-      <GlassRim />
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Ionicons name="lock-closed" size={24} color="#FF453A" style={styles.icon} />
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>You are on the Free Plan</Text>
-            <Text style={styles.subtitle}>You are limited to 3 items. Upgrade for unlimited access.</Text>
-          </View>
-        </View>
-        <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
-          <Text style={styles.buttonText}>Upgrade for Life - £7.99</Text>
-        </Pressable>
-      </View>
-    </BlurView>
+    </GlassRim>
   );
 };
 
 const styles = StyleSheet.create({
-  cardWrapper: {
-    borderRadius: 12,
+  blurFill: {
+    borderRadius: 11,
     overflow: 'hidden',
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
   },
   card: {
     padding: 16,
-    backgroundColor: 'transparent',
   },
   row: {
     flexDirection: 'row',
@@ -100,26 +98,26 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: '#FFFFFF',
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '400',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.60)',
+    lineHeight: 16,
   },
   button: {
-    backgroundColor: PREMIUM_BUTTON.background,
-    borderWidth: PREMIUM_BUTTON.borderWidth,
-    borderColor: PREMIUM_BUTTON.borderColor,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
+    ...PREMIUM_BUTTON,
+    marginTop: 14,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: '#07103a',
   },
 });

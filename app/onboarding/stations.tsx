@@ -474,16 +474,17 @@ export default function StationsScreen() {
                        onPress={() => handleRecentPress(item)}
                        style={styles.recentSearchCard}
                     >
-                      <BlurView
-                        intensity={45}
-                        tint="dark"
-                        style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
-                      />
-                      <GlassRim borderRadius={18} />
-                      <Text style={styles.recentSearchText} numberOfLines={1}>
-                        {tflCapitalise(cleanDisplayStationName(item.name))}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+                      <GlassRim borderRadius={18}>
+                        <BlurView
+                          intensity={45}
+                          tint="dark"
+                          style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
+                        />
+                        <Text style={styles.recentSearchText} numberOfLines={1}>
+                          {tflCapitalise(cleanDisplayStationName(item.name))}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+                      </GlassRim>
                     </Pressable>
                   )}
                   contentContainerStyle={styles.recentListContent}
@@ -727,13 +728,10 @@ const styles = StyleSheet.create({
   recentSearchCard: {
     height: 52,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: GLASS.borderSide,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     position: 'relative',
-    overflow: 'hidden',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,

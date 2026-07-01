@@ -282,16 +282,12 @@ export default function StationDetailScreen({
     return (
       <View
         key={group.lineId}
-        style={idx > 0 ? [s.lineCard, s.lineCardGap] : s.lineCard}
         testID={`screen-line-${group.lineId}`}
+        style={idx > 0 ? { marginTop: 14 } : undefined}
       >
-        {/* Glass background — exactly matching DepartureCard/LineCard */}
-        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject}>
-          <GlassRim />
-        </BlurView>
-
-        {/* Card inner content */}
-        <View style={s.lineCardInner}>
+          <GlassRim borderRadius={14}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <View style={s.lineCardInner}>
           {/* Line header: color bar + name in small caps */}
           <View style={s.lineHeader}>
             <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
@@ -325,6 +321,7 @@ export default function StationDetailScreen({
             </View>
           )}
         </View>
+        </GlassRim>
       </View>
     );
   };
@@ -564,10 +561,6 @@ const s = StyleSheet.create({
 
   // ── Line section glass card —─────────────────────────────────
   lineCard: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
     backgroundColor: GLASS.background,
   },
   lineCardGap: {

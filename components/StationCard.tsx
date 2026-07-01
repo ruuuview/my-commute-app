@@ -293,15 +293,14 @@ export function StationCard({
         pressed && styles.outerCardPressed,
       ]}
     >
-      <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
-        {/* Dark smoked glass background */}
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
-        >
-          <GlassRim borderRadius={16} />
-        </BlurView>
+      <GlassRim borderRadius={16}>
+        <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
+          {/* Dark smoked glass background */}
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="dark"
+            style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
+          />
 
         <View style={styles.cardContent}>
           <View style={styles.cardHeaderRow}>
@@ -352,18 +351,15 @@ export function StationCard({
           )}
         </View>
       </Animated.View>
+      </GlassRim>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   outerCard: {
-    alignSelf: 'stretch',
+    marginBottom: 14,
     borderRadius: 16,
-    marginBottom: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
-    minHeight: 68,
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
@@ -374,7 +370,6 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     flex: 1,
-    borderRadius: 16,
     overflow: 'hidden',
   },
   blurBackground: {

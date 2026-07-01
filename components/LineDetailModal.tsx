@@ -231,14 +231,14 @@ export function LineDetailModal({
 
         {/* Anchored popup */}
         <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
-          <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
+          <GlassRim borderRadius={20}>
+            <Pressable style={styles.popupInner} onPress={(e) => e.stopPropagation()}>
             {Platform.OS !== 'android' && (
               <BlurView
                 intensity={GLASS.blurIntensity}
                 tint="dark"
                 style={StyleSheet.absoluteFillObject}
               >
-                <GlassRim />
               </BlurView>
             )}
 
@@ -291,6 +291,7 @@ export function LineDetailModal({
               </ScrollView>
             ) : null}
           </Pressable>
+          </GlassRim>
         </Animated.View>
       </View>
     </Modal>
@@ -318,11 +319,7 @@ const styles = StyleSheet.create({
     elevation: 15,
   },
 
-  popup: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderSide,
+  popupInner: {
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     padding: 0,
   },

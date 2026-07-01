@@ -210,11 +210,10 @@ export default function DepartureCard({
       style={[styles.container, containerAnimStyle, pressAnim.animatedStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject}>
-        <GlassRim />
-      </BlurView>
+      <GlassRim borderRadius={14}>
+        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-      <Pressable
+        <Pressable
         onPress={handlePress}
         onLongPress={onLongPress}
         onPressIn={pressAnim.onPressIn}
@@ -270,6 +269,7 @@ export default function DepartureCard({
           })
         )}
       </Pressable>
+      </GlassRim>
     </Animated.View>
   );
 }
@@ -278,11 +278,8 @@ export default function DepartureCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: GLASS.borderSide,
     borderRadius: 14,
     marginBottom: 12,
-    overflow: 'hidden',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,

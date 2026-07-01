@@ -26,6 +26,7 @@ import { ProgressDots } from '../../components/ProgressDots';
 import { LineCard } from '../../components/LineCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { PREMIUM_BUTTON } from '../../theme/colors';
 import { LINE_COLORS } from '../../constants/lineColors';
 import {
   SCREEN_PADDING,
@@ -462,6 +463,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     zIndex: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   skipAbsoluteText: {
     fontSize: 12,

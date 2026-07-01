@@ -36,6 +36,8 @@ import { SkeletonCard } from '../../components/SkeletonCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
+import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
+import { GlassRim } from '../../components/GlassRim';
 
 const MAX_PINS = 5;
 
@@ -355,8 +357,8 @@ export default function StationsScreen() {
   }, [pinnedIds, handleToggleStation]);
 
   const searchFocusedStyle = isFocused 
-    ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' } 
-    : { borderWidth: 0, borderColor: 'transparent', backgroundColor: 'rgba(255, 255, 255, 0.06)' };
+    ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: GLASS.background } 
+    : { borderWidth: 1, borderColor: GLASS.borderSide, backgroundColor: GLASS.background };
 
   const isShowRecents = query === '' && isFocused && recentStations.length > 0;
 
@@ -477,6 +479,7 @@ export default function StationsScreen() {
                         tint="dark"
                         style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
                       />
+                      <GlassRim borderRadius={18} />
                       <Text style={styles.recentSearchText} numberOfLines={1}>
                         {tflCapitalise(cleanDisplayStationName(item.name))}
                       </Text>
@@ -675,23 +678,25 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: PREMIUM_BUTTON.background,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: 'rgba(0,0,0,0.12)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 3,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   addCircle: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: PREMIUM_BUTTON.background,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   recentsContainer: {
     flex: 1,
@@ -723,15 +728,19 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: GLASS.borderSide,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     position: 'relative',
     overflow: 'hidden',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
   },
   recentCardBlur: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: GLASS.background,
   },
   recentSearchText: {
     fontSize: 15,
@@ -778,13 +787,20 @@ const styles = StyleSheet.create({
   },
   skipPressable: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
+    alignSelf: 'center',
   },
   skipText: {
     fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255, 255, 255, 0.35)',
-    textDecorationLine: 'underline',
   },
   backButtonPressable: {
     flexDirection: 'row',
@@ -792,6 +808,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 16,
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   backButtonPressed: {
     backgroundColor: 'rgba(255,255,255,0.12)',

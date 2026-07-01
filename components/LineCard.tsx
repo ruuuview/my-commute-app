@@ -132,7 +132,6 @@ export function LineCard({
     opacity: opacityVal.value,
   }));
 
-  const selectedBorderStyle = undefined;
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled);

@@ -15,14 +15,14 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { LineCard } from './LineCard';
 import { LINE_COLORS } from '../constants/lineColors';
 import { SCREEN_PADDING, COLUMN_GAP, ONBOARDING_CARD_HEIGHT } from '../constants/layout';
-import { GLASS } from '../theme/colors';
+
 import { GlassRim } from './GlassRim';
 
 const MAX_LINES = 5;

@@ -35,7 +35,6 @@ import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
-import { GlassRim } from './GlassRim';
 
 // ─── Constants ────────────────────────────────────────────────────
 const DUE_GREEN = '#30D158';
@@ -210,10 +209,9 @@ export default function DepartureCard({
       style={[styles.container, containerAnimStyle, pressAnim.animatedStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <GlassRim borderRadius={14}>
-        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-        <Pressable
+      <Pressable
         onPress={handlePress}
         onLongPress={onLongPress}
         onPressIn={pressAnim.onPressIn}
@@ -269,7 +267,6 @@ export default function DepartureCard({
           })
         )}
       </Pressable>
-      </GlassRim>
     </Animated.View>
   );
 }
@@ -277,9 +274,12 @@ export default function DepartureCard({
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'transparent',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: 14,
     marginBottom: 12,
+    overflow: 'hidden',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,

@@ -34,7 +34,6 @@ import Animated, {
   withDelay
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { GlassRim } from './GlassRim';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
@@ -254,21 +253,21 @@ const LinePill: React.FC<{
           });
         }
       }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
-        <GlassRim borderRadius={12}>
+        {Platform.OS !== 'android' && (
           <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={[pill.colorBar, { backgroundColor: line.color }]} />
-          <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
-          <View style={pill.spacer} />
-          <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-          <View style={pill.dotOuter}>
-            <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
-          </View>
-          {isEditing && (
-            <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
-              <Text style={pill.deleteIcon}>−</Text>
-            </Pressable>
-          )}
-        </GlassRim>
+        )}
+        <View style={[pill.colorBar, { backgroundColor: line.color }]} />
+        <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
+        <View style={pill.spacer} />
+        <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
+        <View style={pill.dotOuter}>
+          <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
+        </View>
+        {isEditing && (
+          <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
+            <Text style={pill.deleteIcon}>−</Text>
+          </Pressable>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -282,7 +281,12 @@ const pill = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    position: 'relative'
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
   },
   colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
   name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },

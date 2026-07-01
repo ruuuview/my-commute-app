@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -20,7 +20,6 @@ import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { StatusBezel } from './StatusBezel';
 import { GLASS } from '../theme/colors';
-import { GlassRim } from './GlassRim';
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -191,25 +190,23 @@ export function LineCard({
         jiggleStyle
       ]}
     >
-      <GlassRim borderRadius={cardRadius}>
-        <Animated.View
-          style={[
-            styles.cardInner,
-            combinedStyle,
-          ]}
-        >
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="dark"
-            style={StyleSheet.absoluteFillObject}
-          />
+      <Animated.View
+        style={[
+          styles.cardInner,
+          { borderRadius: cardRadius, backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)' },
+          combinedStyle,
+        ]}
+      >
+        <BlurView
+          intensity={GLASS.blurIntensity}
+          tint="dark"
+          style={StyleSheet.absoluteFillObject}
+        />
 
-        {/* Selected state overlay (select mode only) */}
         {mode === 'select' && selected && (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: withAlpha(line.color, '1A') }]} />
         )}
 
-        {/* Left vertical accent bar */}
         <View
           style={[
             styles.accentBar,
@@ -222,7 +219,6 @@ export function LineCard({
           ]}
         />
 
-        {/* Interactive pressing body */}
         <Pressable
           onPress={handlePress}
           onLongPress={handleLongPress}
@@ -261,12 +257,7 @@ export function LineCard({
                           <StatusBezel statusType={statusType} />
                         </>
                       ) : (
-                        <>
-                          <StatusBezel statusType={statusType} />
-                          <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
-                            {STATUS_SHORT[statusLabel] || statusLabel}
-                          </Text>
-                        </>
+                        <StatusBezel statusType={statusType} />
                       )}
                     </Animated.View>
                   )}
@@ -309,10 +300,9 @@ export function LineCard({
           </Animated.View>
         )}
 
-      </Animated.View>
-      </GlassRim>
 
-      {/* Delete badge (edit mode only) */}
+      </Animated.View>
+
       {isEditing && onDelete && (
         <Animated.View
           entering={FadeIn.duration(150)}

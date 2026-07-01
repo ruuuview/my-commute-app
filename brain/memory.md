@@ -71,7 +71,13 @@ This document tracks execution state, updates, and current tasks.
 
 ---
 
-## 5. Pending Roadmap Tasks
+## 5. Recent Commits & Changes (Jul 1, 2026)
+
+* **GlassRim Component Removal:** Globally removed the `GlassRim` component from the codebase to address container height collapses and nested border complexities. Restored direct, clean, and stable styling (`borderWidth: StyleSheet.hairlineWidth`, `borderColor: 'rgba(255, 255, 255, 0.18)'`) across 11 cards, modals, and sheets in onboarding, dashboard, and settings screens.
+
+---
+
+## 6. Pending Roadmap Tasks
 
 1. **Audio Integration (Step 6):** Embed real physical audio thud files for transitions (currently mocked).
 2. **Legal Gating (Step 8):** Add hosted Terms of Service and Privacy Policy agreements.

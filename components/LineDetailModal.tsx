@@ -19,7 +19,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
-import { GlassRim } from './GlassRim';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -231,8 +230,7 @@ export function LineDetailModal({
 
         {/* Anchored popup */}
         <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
-          <GlassRim borderRadius={20}>
-            <Pressable style={styles.popupInner} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={styles.popupInner} onPress={(e) => e.stopPropagation()}>
             {Platform.OS !== 'android' && (
               <BlurView
                 intensity={GLASS.blurIntensity}
@@ -291,7 +289,6 @@ export function LineDetailModal({
               </ScrollView>
             ) : null}
           </Pressable>
-          </GlassRim>
         </Animated.View>
       </View>
     </Modal>
@@ -308,10 +305,8 @@ const styles = StyleSheet.create({
 
   popupShadow: {
     position: 'absolute',
-    top: 0,
     left: 0,
     width: POPUP_WIDTH,
-    borderRadius: 20,
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
@@ -320,6 +315,10 @@ const styles = StyleSheet.create({
   },
 
   popupInner: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     padding: 0,
   },

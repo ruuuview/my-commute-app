@@ -23,7 +23,6 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { GlassRim } from './GlassRim';
 import { GLASS } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -72,61 +71,59 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
         pressed && { opacity: 0.65 },
       ]}
     >
-      <GlassRim borderRadius={14}>
-        <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="dark"
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={styles.compactCardContent}>
-          <View style={styles.compactMainRow}>
-            <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
-              {cleanName}
-            </Text>
-            
-            {/* Fix 4: Add Button / Checkmark on the far right */}
-            <View style={styles.compactAddBtnContainer}>
-              {selected ? (
-                <View style={styles.compactCheckmarkBadge}>
-                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-                </View>
-              ) : (
-                <View style={styles.compactAddBtn}>
-                  <Ionicons name="add" size={14} color="#FFFFFF" />
-                </View>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.compactPillsContainer}>
-            {visibleLines.map((lineId) => {
-              const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-              const brandColor = LINE_COLORS[lineId] || '#888';
-              const colors = getPillColors(lineId, brandColor);
-
-              return (
-                <View
-                  key={lineId}
-                  style={[styles.compactPillItem, { borderColor: colors.borderColor }]}
-                >
-                  <View style={[styles.compactPillColorLayer, { backgroundColor: colors.backgroundColor }]} />
-                  <View style={[styles.compactPillBar, { backgroundColor: colors.dotColor }]} />
-                  <Text style={[styles.compactPillText, { color: colors.textColor }]}>{shortName}</Text>
-                </View>
-              );
-            })}
-            {overflowCount > 0 && (
-              <View style={styles.compactOverflowBadge}>
-                <Text style={styles.compactOverflowText}>+{overflowCount}</Text>
+      <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
+        <BlurView
+          intensity={GLASS.blurIntensity}
+          tint="dark"
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.compactCardContent}>
+        <View style={styles.compactMainRow}>
+          <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
+            {cleanName}
+          </Text>
+          
+          {/* Fix 4: Add Button / Checkmark on the far right */}
+          <View style={styles.compactAddBtnContainer}>
+            {selected ? (
+              <View style={styles.compactCheckmarkBadge}>
+                <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+              </View>
+            ) : (
+              <View style={styles.compactAddBtn}>
+                <Ionicons name="add" size={14} color="#FFFFFF" />
               </View>
             )}
           </View>
         </View>
-      </Animated.View>
-      </GlassRim>
-    </Pressable>
-  );
+
+        <View style={styles.compactPillsContainer}>
+          {visibleLines.map((lineId) => {
+            const shortName = LINE_SHORT_NAMES[lineId] || lineId;
+            const brandColor = LINE_COLORS[lineId] || '#888';
+            const colors = getPillColors(lineId, brandColor);
+
+            return (
+              <View
+                key={lineId}
+                style={[styles.compactPillItem, { borderColor: colors.borderColor }]}
+              >
+                <View style={[styles.compactPillColorLayer, { backgroundColor: colors.backgroundColor }]} />
+                <View style={[styles.compactPillBar, { backgroundColor: colors.dotColor }]} />
+                <Text style={[styles.compactPillText, { color: colors.textColor }]}>{shortName}</Text>
+              </View>
+            );
+          })}
+          {overflowCount > 0 && (
+            <View style={styles.compactOverflowBadge}>
+              <Text style={styles.compactOverflowText}>+{overflowCount}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  </Pressable>
+);
 }
 
 export function ManageStationsModal({ visible, onClose }: ManageStationsModalProps) {
@@ -527,6 +524,9 @@ const styles = StyleSheet.create({
   compactCardInner: {
     flex: 1,
     overflow: 'hidden',
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   compactCardContent: {
     flex: 1,

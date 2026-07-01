@@ -7,6 +7,7 @@ import {
   FlatList,
   Pressable,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -16,6 +17,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -23,7 +25,7 @@ import { LineCard } from './LineCard';
 import { LINE_COLORS } from '../constants/lineColors';
 import { SCREEN_PADDING, COLUMN_GAP, ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 
-import { GlassRim } from './GlassRim';
+
 
 const MAX_LINES = 5;
 
@@ -231,9 +233,11 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
         />
 
         {/* Bottom sheet — 78% of screen height */}
-        <View style={[styles.sheet, { height: sheetHeight }]}>
-          <GlassRim borderRadius={28} containerStyle={{ borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
-
+        <BlurView
+          intensity={80}
+          tint="dark"
+          style={[styles.sheet, { height: sheetHeight }]}
+        >
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
             <View style={styles.dragHandle} />
@@ -281,8 +285,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             ]}
             showsVerticalScrollIndicator={false}
           />
-        </GlassRim>
-      </View>
+        </BlurView>
       </View>
     </Modal>
   );
@@ -300,6 +303,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.08)',
   },
   dragHandleWrap: {
     alignItems: 'center',

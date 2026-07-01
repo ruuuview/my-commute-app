@@ -31,7 +31,6 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore } from '../store/lineDataStore';
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
-import { GlassRim } from './GlassRim';
 
 const DUE_GREEN = '#30D158';
 
@@ -293,9 +292,8 @@ export default function StationDetailScreen({
         testID={`screen-line-${group.lineId}`}
         style={idx > 0 ? { marginTop: 14 } : undefined}
       >
-          <GlassRim borderRadius={14}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <View style={s.lineCardInner}>
+        <View style={s.lineCardInner}>
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
           {/* Line header: color bar + name in small caps */}
           <View style={s.lineHeader}>
             <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
@@ -329,7 +327,6 @@ export default function StationDetailScreen({
             </View>
           )}
         </View>
-        </GlassRim>
       </View>
     );
   };
@@ -578,6 +575,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 10,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
 
   lineHeader: {

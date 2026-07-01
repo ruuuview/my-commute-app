@@ -14,7 +14,6 @@ import { getPillColors } from '../utils/pillColors';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
-import { GlassRim } from './GlassRim';
 
 const cleanPlatformName = (platform: string): string => {
   if (!platform) return '';
@@ -293,14 +292,13 @@ export function StationCard({
         pressed && styles.outerCardPressed,
       ]}
     >
-      <GlassRim borderRadius={16}>
-        <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
-          {/* Dark smoked glass background */}
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="dark"
-            style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
-          />
+      <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
+        {/* Dark smoked glass background */}
+        <BlurView
+          intensity={GLASS.blurIntensity}
+          tint="dark"
+          style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
+        />
 
         <View style={styles.cardContent}>
           <View style={styles.cardHeaderRow}>
@@ -351,7 +349,6 @@ export function StationCard({
           )}
         </View>
       </Animated.View>
-      </GlassRim>
     </Pressable>
   );
 }
@@ -371,6 +368,9 @@ const styles = StyleSheet.create({
   cardInner: {
     flex: 1,
     overflow: 'hidden',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   blurBackground: {
     backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : GLASS.background,

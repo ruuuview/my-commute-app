@@ -37,7 +37,6 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
-import { GlassRim } from '../../components/GlassRim';
 
 const MAX_PINS = 5;
 
@@ -474,17 +473,15 @@ export default function StationsScreen() {
                        onPress={() => handleRecentPress(item)}
                        style={styles.recentSearchCard}
                     >
-                      <GlassRim borderRadius={18}>
-                        <BlurView
-                          intensity={45}
-                          tint="dark"
-                          style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
-                        />
-                        <Text style={styles.recentSearchText} numberOfLines={1}>
-                          {tflCapitalise(cleanDisplayStationName(item.name))}
-                        </Text>
-                        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
-                      </GlassRim>
+                      <BlurView
+                        intensity={45}
+                        tint="dark"
+                        style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
+                      />
+                      <Text style={styles.recentSearchText} numberOfLines={1}>
+                        {tflCapitalise(cleanDisplayStationName(item.name))}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
                     </Pressable>
                   )}
                   contentContainerStyle={styles.recentListContent}
@@ -732,6 +729,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     position: 'relative',
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,

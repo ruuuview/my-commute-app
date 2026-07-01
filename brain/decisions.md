@@ -23,7 +23,7 @@ This document captures the immutable constraints and structural design decisions
 ## 3. UI/UX Style Constraints
 
 * **Theme Overlay:** The foyer (onboarding) uses Option C gradients. The dashboard uses dynamic gradients matching the worst active disruption status (Suspended/Severe -> Red, Minor -> Amber, Good -> Deep Space).
-* **Glassmorphism Tokens:** Dashboard card components apply frosted glass styling (`BlurView` intensity 45 or 80) paired with translucent borders (`rgba(255, 255, 255, 0.18)`).
+* **Glassmorphic Borders:** Avoid utilizing nested gradient border wrapper components (like `GlassRim`) as they lead to container height collapse issues in layout systems using absolutely positioned children. Instead, render translucent borders directly on the card or panel outer containers (such as `BlurView` or `View`) using `borderWidth: StyleSheet.hairlineWidth` and `borderColor: 'rgba(255, 255, 255, 0.18)'`.
 * **Layout Height Gating:** LineCards are locked to a strict height of **38px** on the dashboard and **68px** (default collapsed state / `ONBOARDING_CARD_HEIGHT` baseline) on onboarding/management screens, and StationCards to **68px** to preserve screen real estate and scroll bounds.
 * **Chevron-Free Line Layout:** LineCards in display mode do not render right-pointing chevron indicators (`›`) to maintain a cleaner, minimal visual design.
 * **Modal Configuration (iOS Blur Preservation):** Modals that require frosted glass overlays must never use `pageSheet` style, which overrides blurs with solid system colors. They must use `presentationStyle="overFullScreen"`, `transparent={true}`, and `animationType="slide"`.

@@ -53,6 +53,7 @@ import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { StatusBezel } from './StatusBezel';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
@@ -98,7 +99,7 @@ function parseSeverity(statusText: string): Severity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
   if (text.includes('minor')) return 'minor';
-  if (text.includes('suspended') || text.includes('closure')) return 'suspended';
+  if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
   return 'good';
 }
@@ -260,9 +261,7 @@ const LinePill: React.FC<{
         <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
         <View style={pill.spacer} />
         <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-        <View style={pill.dotOuter}>
-          <View style={[pill.dotInner, { backgroundColor: statusColor }]} />
-        </View>
+        <StatusBezel statusType={line.status} style={{ marginRight: 4 }} />
         {isEditing && (
           <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
             <Text style={pill.deleteIcon}>−</Text>

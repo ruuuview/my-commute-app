@@ -28,7 +28,7 @@ export const useLineData = () => {
       lines.forEach((line: any) => {
         const s = String(line?.status ?? '').toLowerCase();
         
-        if (s.includes('part closure') || s.includes('suspended') || s.includes('closure')) {
+        if (s.includes('part closure') || s.includes('suspended') || s.includes('closure') || s.includes('closed')) {
            line.status_severity = 20; // RED (Highest Priority)
         } else if (s.includes('severe')) {
            line.status_severity = 9;  // RED (High Priority)

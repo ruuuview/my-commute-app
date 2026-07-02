@@ -117,7 +117,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
           if (branchData) {
             const statusText = String(branchData.status ?? '').toLowerCase();
             let branchSeverity = 1;
-            if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure')) {
+            if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure') || statusText.includes('closed')) {
               branchSeverity = 20;
             } else if (statusText.includes('severe')) {
               branchSeverity = 9;
@@ -147,7 +147,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       // Map status severity similar to useLineData.ts logic
       const statusText = String(lineData.status ?? '').toLowerCase();
       let currentSeverity = 1; // Green (Good Service)
-      if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure')) {
+      if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure') || statusText.includes('closed')) {
         currentSeverity = 20; // Red (Highest)
       } else if (statusText.includes('severe')) {
         currentSeverity = 9;  // Red (High)

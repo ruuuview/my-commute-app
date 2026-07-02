@@ -45,6 +45,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
 import { ManageLinesModal } from './ManageLinesModal';
+import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
@@ -431,6 +432,7 @@ const MyCommuteDashboard: React.FC = () => {
 
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
+  const [stationModalVisible, setStationModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
@@ -675,12 +677,12 @@ const MyCommuteDashboard: React.FC = () => {
               <SectionHeader 
                 title="My stations" 
                 icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                onPressAdd={() => setStationModalVisible(true)}
                 isEditing={isEditing}
               />
               {selectedStations.length === 0 ? (
                 <Pressable
-                  onPress={() => router.push({ pathname: '/onboarding/stations', params: { openSearch: 'true' } })}
+                  onPress={() => setStationModalVisible(true)}
                   style={dash.addStationCard}
                 >
                   <BlurView
@@ -729,10 +731,14 @@ const MyCommuteDashboard: React.FC = () => {
 
 
 
-        {/* ✅ Modal rendered HERE with all props correctly wired */}
         <ManageLinesModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
+        />
+
+        <ManageStationsModal
+          visible={stationModalVisible}
+          onClose={() => setStationModalVisible(false)}
         />
 
         {/* Deferred Notification Modal */}

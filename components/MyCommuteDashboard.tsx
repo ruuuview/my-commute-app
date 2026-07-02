@@ -247,7 +247,7 @@ const LinePill: React.FC<{
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
 
   return (
-    <Animated.View ref={pillRef as any} style={[pill.shadow, jiggleStyle, animatedStyle]}>
+    <Animated.View ref={pillRef as any} style={[jiggleStyle, animatedStyle]}>
       <Pressable onPress={() => { 
         if (!isEditing && onPress && pillRef.current) {
           pillRef.current.measureInWindow((x, y, width, height) => {
@@ -274,14 +274,6 @@ const LinePill: React.FC<{
 };
 
 const pill = StyleSheet.create({
-  shadow: {
-    borderRadius: 12,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: 6,
-  },
   container: {
     minHeight: 44,
     paddingVertical: 10,

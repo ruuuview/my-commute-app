@@ -3,6 +3,8 @@ import { useSharedValue, useAnimatedStyle, withSpring, withSequence, useReducedM
 import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
+
 export const PRESS_PRESETS = {
   LINE_PILL_SELECT:   { scaleDown: 0.94, damping: 8, stiffness: 200 },
   LINE_PILL_DESELECT: { scaleDown: 0.94, damping: 8, stiffness: 200 },
@@ -39,6 +41,7 @@ const KEY_MAP: Record<string, keyof typeof PRESS_PRESETS> = {
 export function usePressAnimation(configKey: PressType, disabled = false) {
   const scale = useSharedValue(1);
   const reducedMotion = useReducedMotion();
+  const hapticsEnabled = useUserPreferencesStore(state => state.hapticsEnabled !== false);
 
   const mappedKey = (KEY_MAP[configKey] || configKey) as keyof typeof PRESS_PRESETS;
   const config = PRESS_PRESETS[mappedKey];
@@ -53,7 +56,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
     if (disabled || reducedMotion) return;
 
     const isPill = mappedKey === 'LINE_PILL_SELECT' || mappedKey === 'LINE_PILL_DESELECT';
-    if (!isPill) {
+    if (!isPill && hapticsEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
@@ -62,7 +65,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
       damping: config.damping,
       stiffness: config.stiffness,
     });
-  }, [config, mappedKey, disabled, reducedMotion, scale]);
+  }, [config, mappedKey, disabled, reducedMotion, scale, hapticsEnabled]);
 
   const onPressOut = useCallback(() => {
     if (disabled || reducedMotion) {

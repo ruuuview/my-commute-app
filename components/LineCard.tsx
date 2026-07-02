@@ -240,8 +240,12 @@ export function LineCard({
         <Pressable
           onPress={handlePress}
           onLongPress={handleLongPress}
-          onPressIn={pressAnim.onPressIn}
-          onPressOut={pressAnim.onPressOut}
+          onPressIn={() => {
+            if (!isEditing) pressAnim.onPressIn();
+          }}
+          onPressOut={() => {
+            if (!isEditing) pressAnim.onPressOut();
+          }}
           style={StyleSheet.absoluteFillObject}
         >
           <View

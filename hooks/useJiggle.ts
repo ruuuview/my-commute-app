@@ -6,77 +6,57 @@ import {
   withSequence, 
   withTiming, 
   withDelay, 
-  withSpring, 
-  cancelAnimation 
+  cancelAnimation,
+  Easing
 } from 'react-native-reanimated';
 
 export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) => {
-  const phaseDelay = (index * 23) % 150;
+  const phaseDelay = (index * 37) % 120; // prime offset, smaller range
   
   const rotation = useSharedValue(0);
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
   const zIndex = useSharedValue(0);
   const isActiveShared = useSharedValue(isActive ? 1 : 0);
-  const isEditingShared = useSharedValue(isEditing ? 1 : 0);
 
   useEffect(() => {
     isActiveShared.value = isActive ? 1 : 0;
   }, [isActive, isActiveShared]);
 
-  useEffect(() => {
-    isEditingShared.value = isEditing ? 1 : 0;
-  }, [isEditing, isEditingShared]);
+  const JIGGLE_DEG = 1.2;
+  const JIGGLE_MS = 100;
 
   useEffect(() => {
     zIndex.value = isActive ? 999 : isEditing ? 1 : 1;
 
-    if (isEditing || isActive) {
-      // When actively dragged (isActive), jiggle harder to signal edit intent
-      const rotAmp = isActive ? -3.5 : -1.5;
-      const txAmp = isActive ? -1.5 : -0.5;
-      const tyAmp = isActive ? 1.5 : 0.5;
-      const duration = isActive ? 90 : 110;
-
-      // ±rotAmp° rotation jiggle with multi-axis fluid loop
+    if (isActive) {
+      cancelAnimation(rotation);
+      rotation.value = 0;
+    } else if (isEditing) {
+      // ±JIGGLE_DEG rotation jiggle
       rotation.value = withDelay(
         phaseDelay,
-        withRepeat(withSequence(withTiming(rotAmp, { duration }), withTiming(-rotAmp, { duration })), -1, true)
-      );
-      translateX.value = withDelay(
-        phaseDelay,
-        withRepeat(withSequence(withTiming(txAmp, { duration: duration - 20 }), withTiming(-txAmp, { duration: duration - 20 })), -1, true)
-      );
-      translateY.value = withDelay(
-        phaseDelay,
-        withRepeat(withSequence(withTiming(tyAmp, { duration: duration - 15 }), withTiming(-tyAmp, { duration: duration - 15 })), -1, true)
+        withRepeat(
+          withSequence(
+            withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
+            withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
+        )
       );
     } else {
-      // Soft-rest return to base values when exiting edit mode or during active drag
       cancelAnimation(rotation);
-      cancelAnimation(translateX);
-      cancelAnimation(translateY);
-      
       rotation.value = withTiming(0, { duration: 150 });
-      translateX.value = withTiming(0, { duration: 150 });
-      translateY.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, isActive, phaseDelay, rotation, translateX, translateY, zIndex]);
+  }, [isEditing, isActive, phaseDelay, rotation, zIndex]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
-
-    // Amplify jiggle on the actively-dragged card so it stands out from the crowd
     const rotStr = `${rotation.value}deg`;
-    const tx = translateX.value;
-    const ty = translateY.value;
 
     return {
       transform: [
         { rotate: rotStr },
-        { translateX: tx },
-        { translateY: ty },
-        { scale: active ? 0.92 : 1 },
+        { scale: active ? 1.04 : 1 },
       ],
       zIndex: active ? 999 : 1,
       shadowOpacity: active ? 0.5 : 0,

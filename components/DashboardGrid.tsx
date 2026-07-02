@@ -26,8 +26,6 @@ interface JigglingCardWrapperProps {
 const JigglingCardWrapper = memo(
   ({ children, index, isJiggling, isActive = false }: JigglingCardWrapperProps) => {
     const rotation = useSharedValue(0);
-    const translateX = useSharedValue(0);
-    const translateY = useSharedValue(0);
     const entranceY = useSharedValue(16);
     const opacity = useSharedValue(0);
     const reducedMotion = useReducedMotion();
@@ -56,6 +54,10 @@ const JigglingCardWrapper = memo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [index, reducedMotion]);
 
+    // Jiggle params matching iOS feel
+    const JIGGLE_DEG = 1.2;
+    const JIGGLE_MS = 100;
+
     // Jiggle loop with support for freezing during drag (isActive)
     useEffect(() => {
       if (reducedMotion) return;
@@ -63,41 +65,15 @@ const JigglingCardWrapper = memo(
       if (isActive) {
         // Freeze animation during drag
         cancelAnimation(rotation);
-        cancelAnimation(translateX);
-        cancelAnimation(translateY);
         rotation.value = 0;
-        translateX.value = 0;
-        translateY.value = 0;
       } else if (isJiggling) {
-        const phase = (index * 23) % 150;
+        const phase = (index * 37) % 120; // prime offset, smaller range
         rotation.value = withDelay(
           phase,
           withRepeat(
             withSequence(
-              withTiming(-1.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-              withTiming(1.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
-            ),
-            -1,
-            false
-          )
-        );
-        translateX.value = withDelay(
-          phase,
-          withRepeat(
-            withSequence(
-              withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-              withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
-            ),
-            -1,
-            false
-          )
-        );
-        translateY.value = withDelay(
-          phase,
-          withRepeat(
-            withSequence(
-              withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-              withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
+              withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
+              withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
             ),
             -1,
             false
@@ -105,11 +81,7 @@ const JigglingCardWrapper = memo(
         );
       } else {
         cancelAnimation(rotation);
-        cancelAnimation(translateX);
-        cancelAnimation(translateY);
         rotation.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
-        translateX.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
-        translateY.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isJiggling, isActive, reducedMotion, index]);
@@ -119,13 +91,12 @@ const JigglingCardWrapper = memo(
       transform: [
         { translateY: entranceY.value },
         { rotate: `${rotation.value}deg` },
-        { translateX: translateX.value },
-        { translateY: translateY.value },
         { scale: isActiveShared.value === 1 ? 1.04 : 1 }
       ],
+      zIndex: isActiveShared.value === 1 ? 999 : 1,
     }));
 
-    return <Animated.View style={[animatedStyle, { zIndex: isActive ? 999 : 1 }]}>{children}</Animated.View>;
+    return <Animated.View style={animatedStyle}>{children}</Animated.View>;
   }
 );
 JigglingCardWrapper.displayName = 'JigglingCardWrapper';
@@ -217,7 +188,8 @@ export default function DashboardGrid({
           onScrollEnabledChange(true);
           onReorderStations?.(data);
         }}
-        activationDistance={15}
+        activationDistance={8}
+        dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
         simultaneousHandlers={simultaneousHandlers}
         scrollEnabled={false}
       />

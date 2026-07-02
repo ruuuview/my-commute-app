@@ -46,7 +46,17 @@ const TRIAL_DURATION_DAYS = 45;
 export default function SettingsScreen() {
   const { back } = useRouter();
   const insets = useSafeAreaInsets();
-  const resetOnboarding = useUserPreferencesStore((s) => s.resetOnboarding);
+  const {
+    resetOnboarding,
+    hapticsEnabled,
+    setHapticsEnabled,
+    selectedLines,
+    pinnedStations,
+    lineNotificationToggles,
+    stationNotificationToggles,
+    toggleLineNotification,
+    toggleStationNotification,
+  } = useUserPreferencesStore();
 
   const [isGranted, setIsGranted] = useState(false);
   const [showBack, setShowBack] = useState(false);
@@ -84,7 +94,9 @@ export default function SettingsScreen() {
       });
       
       if (status === 'granted') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (hapticsEnabled) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
         playSound('select', 0.45);
         setShowBack(true);
         flipRotation.value = withTiming(180, { duration: 600 });
@@ -452,10 +464,32 @@ export default function SettingsScreen() {
                       </Text>
                     </View>
                   </View>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                      <View style={styles.settingLabelRow}>
+                        <Ionicons name="finger-print" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                        <Text style={styles.settingLabel}>Haptic Feedback</Text>
+                      </View>
+                      <Text style={styles.settingDescription}>
+                        Vibrate on interaction and alerts
+                      </Text>
+                    </View>
+                    <Switch
+                      value={hapticsEnabled}
+                      onValueChange={setHapticsEnabled}
+                      trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
                 </>
               )}
             </View>
           )}
+
+          {/* Disruption Alert Filters UI hidden until push notifications are live */}
 
           <View style={styles.infoCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />

@@ -214,8 +214,12 @@ export default function DepartureCard({
       <Pressable
         onPress={handlePress}
         onLongPress={onLongPress}
-        onPressIn={pressAnim.onPressIn}
-        onPressOut={pressAnim.onPressOut}
+        onPressIn={() => {
+          if (!isEditing) pressAnim.onPressIn();
+        }}
+        onPressOut={() => {
+          if (!isEditing) pressAnim.onPressOut();
+        }}
         style={styles.pressable}
         testID={`departure-card-pressable-${stationId}`}
       >

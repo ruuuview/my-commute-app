@@ -6,6 +6,7 @@ import type { StatusLevel } from '../hooks/useWorstStatus';
 import { useOnboardingStore } from './onboardingStore';
 
 const storage = createMMKV();
+const backgroundStorage = createMMKV({ id: 'background-storage' });
 
 const mmkvStorageAdapter: StateStorage = {
   setItem: (name, value) => {
@@ -54,9 +55,15 @@ export interface UserPreferencesState {
   setLastKnown: (status: StatusLevel, data: any[]) => void;
   stationFilterToggles: Record<string, boolean>;
   toggleStationFilter: (stationId: string) => void;
+  hapticsEnabled: boolean;
+  lineNotificationToggles: Record<string, boolean>;
+  stationNotificationToggles: Record<string, boolean>;
+  setHapticsEnabled: (enabled: boolean) => void;
+  toggleLineNotification: (lineId: string) => void;
+  toggleStationNotification: (stationId: string) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification'> = {
   schemaVersion: 1,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -74,6 +81,9 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   firstOpenTimestamp: null,
   recentSearches: [],
   stationFilterToggles: {},
+  hapticsEnabled: true,
+  lineNotificationToggles: {},
+  stationNotificationToggles: {},
 };
 
 const validateStationZoneCache = (state: UserPreferencesState) => {
@@ -160,6 +170,35 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           current[stationId] = !current[stationId];
           return { stationFilterToggles: current };
         });
+      },
+      setHapticsEnabled: (enabled) => set({ hapticsEnabled: enabled }),
+      toggleLineNotification: (lineId: string) => {
+        set(state => {
+          const current = { ...(state.lineNotificationToggles || {}) };
+          const isEnabled = current[lineId] !== false;
+          current[lineId] = !isEnabled;
+          
+          backgroundStorage.set('notification-toggles', JSON.stringify({
+            lines: current,
+            stations: state.stationNotificationToggles || {}
+          }));
+
+          return { lineNotificationToggles: current };
+        });
+      },
+      toggleStationNotification: (stationId: string) => {
+        set(state => {
+          const current = { ...(state.stationNotificationToggles || {}) };
+          const isEnabled = current[stationId] !== false;
+          current[stationId] = !isEnabled;
+
+          backgroundStorage.set('notification-toggles', JSON.stringify({
+            lines: state.lineNotificationToggles || {},
+            stations: current
+          }));
+
+          return { stationNotificationToggles: current };
+        });
       }
     }),
     {
@@ -167,7 +206,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       version: 1,
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

@@ -14,6 +14,25 @@ const backgroundStorage = createMMKV({ id: 'background-storage' });
 // Offline coordinates dataset for station geofencing lookup
 const stationCoordinates = require('../data/stationCoordinates.json');
 
+function getNotificationToggles() {
+  try {
+    const raw = backgroundStorage.getString('notification-toggles');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        lineNotificationToggles: parsed.lines || {},
+        stationNotificationToggles: parsed.stations || {},
+      };
+    }
+  } catch (e) {
+    console.error('Failed to parse notification-toggles in background task:', e);
+  }
+  return {
+    lineNotificationToggles: {},
+    stationNotificationToggles: {},
+  };
+}
+
 TaskManager.defineTask(GEOFENCING_TASK, async ({ data: { eventType, region }, error }: any) => {
   if (error) {
     console.error(`❌ Background Geofencing Error: ${error.message}`);
@@ -27,25 +46,32 @@ TaskManager.defineTask(GEOFENCING_TASK, async ({ data: { eventType, region }, er
 
     console.log(`📍 Geofencing Event: type ${eventType} for station ${stationName} (${stationId})`);
 
-    // eventType 1 = Enter, 2 = Exit
-    if (eventType === Location.GeofencingEventType.Enter) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Approaching ${stationName}`,
-          body: `Starting live tracking for your commute.`,
-          sound: true,
-        },
-        trigger: null,
-      });
-    } else if (eventType === Location.GeofencingEventType.Exit) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Departed ${stationName}`,
-          body: `Stopping live tracking.`,
-          sound: true,
-        },
-        trigger: null,
-      });
+    const { stationNotificationToggles } = getNotificationToggles();
+    const isStationEnabled = stationNotificationToggles[stationId] !== false;
+
+    if (isStationEnabled) {
+      // eventType 1 = Enter, 2 = Exit
+      if (eventType === Location.GeofencingEventType.Enter) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `Approaching ${stationName}`,
+            body: `Starting live tracking for your commute.`,
+            sound: true,
+          },
+          trigger: null,
+        });
+      } else if (eventType === Location.GeofencingEventType.Exit) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `Departed ${stationName}`,
+            body: `Stopping live tracking.`,
+            sound: true,
+          },
+          trigger: null,
+        });
+      }
+    } else {
+      console.log(`🔕 Geofencing notifications disabled for station ${stationName} (${stationId})`);
     }
   } catch (err) {
     console.error('❌ Background Geofencing Task failed:', err);
@@ -174,36 +200,43 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       if (currentSeverity !== lastSeverity) {
         triggeredAnyAlert = true;
 
-        if (currentSeverity > lastSeverity) {
-          // Severity worsened - trigger disruption alert
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `Disruption on ${lineData.name} line`,
-              body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
-              sound: true,
-            },
-            trigger: null,
-          });
-        } else if (currentSeverity === 1 && lastSeverity > 1) {
-          // Severity cleared - trigger cleared alert
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `Service cleared on ${lineData.name} line`,
-              body: `Good Service has resumed.`,
-              sound: true,
-            },
-            trigger: null,
-          });
+        const { lineNotificationToggles } = getNotificationToggles();
+        const isLineEnabled = lineNotificationToggles[lineId] !== false;
+
+        if (isLineEnabled) {
+          if (currentSeverity > lastSeverity) {
+            // Severity worsened - trigger disruption alert
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `Disruption on ${lineData.name} line`,
+                body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
+                sound: true,
+              },
+              trigger: null,
+            });
+          } else if (currentSeverity === 1 && lastSeverity > 1) {
+            // Severity cleared - trigger cleared alert
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `Service cleared on ${lineData.name} line`,
+                body: `Good Service has resumed.`,
+                sound: true,
+              },
+              trigger: null,
+            });
+          } else {
+            // Severity improved but not fully cleared - trigger improving alert
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `Service improving on ${lineData.name} line`,
+                body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
+                sound: true,
+              },
+              trigger: null,
+            });
+          }
         } else {
-          // Severity improved but not fully cleared - trigger improving alert
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `Service improving on ${lineData.name} line`,
-              body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
-              sound: true,
-            },
-            trigger: null,
-          });
+          console.log(`🔕 Disruption alerts disabled for ${lineData.name} line (${lineId})`);
         }
 
         // Save current severity in MMKV cache

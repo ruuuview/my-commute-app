@@ -30,11 +30,10 @@ import Animated, {
   Easing,
   useReducedMotion,
   cancelAnimation,
-  withSpring,
-  withDelay
+  withSpring
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
+import { PREMIUM_BUTTON } from '../theme/colors';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -47,14 +46,14 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
+import { LineCard } from './LineCard';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
-import { usePressAnimation } from '../hooks/usePressAnimation';
-import { StatusBezel } from './StatusBezel';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
@@ -160,153 +159,7 @@ NetworkHealthDot.displayName = 'NetworkHealthDot';
 // ─── Status configuration removed in favor of direct styling in LinePill
 
 
-// ─── Jiggle Hook (LinePills) — ±1.5deg, ±0.5 translate, clean exit ──
-const useJiggle = (isEditing: boolean, index: number = 0) => {
-  const rotation = useSharedValue(0);
-  const jiggleX = useSharedValue(0);
-  const jiggleY = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
-
-  // Bridge JS boolean → shared value for safe worklet reads
-  const isEditingShared = useSharedValue(isEditing ? 1 : 0);
-  useEffect(() => {
-    isEditingShared.value = isEditing ? 1 : 0;
-  }, [isEditing, isEditingShared]);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-
-    if (isEditing) {
-      const phase = (index * 23) % 150;
-      rotation.value = withDelay(
-        phase,
-        withRepeat(
-          withSequence(
-            withTiming(-1.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-            withTiming(1.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
-          ),
-          -1,
-          false
-        )
-      );
-      jiggleX.value = withDelay(
-        phase,
-        withRepeat(
-          withSequence(
-            withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-            withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
-          ),
-          -1,
-          false
-        )
-      );
-      jiggleY.value = withDelay(
-        phase,
-        withRepeat(
-          withSequence(
-            withTiming(-0.5, { duration: 90, easing: Easing.inOut(Easing.sin) }),
-            withTiming(0.5, { duration: 90, easing: Easing.inOut(Easing.sin) })
-          ),
-          -1,
-          false
-        )
-      );
-    } else {
-      // BUG FIX: cancel BEFORE withSpring reset
-      cancelAnimation(rotation);
-      cancelAnimation(jiggleX);
-      cancelAnimation(jiggleY);
-      rotation.value = withSpring(0, { damping: 24, stiffness: 320 });
-      jiggleX.value = withSpring(0, { damping: 24, stiffness: 320 });
-      jiggleY.value = withSpring(0, { damping: 24, stiffness: 320 });
-    }
-  }, [isEditing, reducedMotion, rotation, jiggleX, jiggleY, index]);
-
-  return useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${rotation.value}deg` },
-      { translateX: jiggleX.value },
-      { translateY: jiggleY.value },
-    ],
-  }));
-};
-
-// ─── LinePill ───────────────────────────────────────────────────
-const LinePill: React.FC<{
-  line: LineData;
-  isEditing: boolean;
-  index: number;
-  onDelete: (id: string) => void;
-  onLongPress?: () => void;
-  onPress?: (info: any) => void;
-}> = ({ line, isEditing, index, onDelete, onLongPress, onPress }) => {
-  const pillRef = useRef<View>(null);
-  const jiggleStyle = useJiggle(isEditing, index);
-  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation('nav_item');
-  const severity = parseSeverity(line.status);
-  const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
-
-  return (
-    <Animated.View ref={pillRef as any} style={[jiggleStyle, animatedStyle]}>
-      <Pressable onPress={() => { 
-        if (!isEditing && onPress && pillRef.current) {
-          pillRef.current.measureInWindow((x, y, width, height) => {
-            onPress({ id: line.id, anchorRect: { x, y, width, height } });
-          });
-        }
-      }} onPressIn={onPressIn} onPressOut={onPressOut} onLongPress={onLongPress} style={pill.container}>
-        {Platform.OS !== 'android' && (
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-        )}
-        <View style={[pill.colorBar, { backgroundColor: line.color }]} />
-        <Text style={pill.name} numberOfLines={1}>{line.name}</Text>
-        <View style={pill.spacer} />
-        <Text style={[pill.statusText, { color: statusColor }]} numberOfLines={1}>{severity === 'good' ? 'Good service' : line.status}</Text>
-        <StatusBezel statusType={line.status} style={{ marginRight: 4 }} />
-        {isEditing && (
-          <Pressable style={pill.deleteBadge} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); onDelete(line.id); }}>
-            <Text style={pill.deleteIcon}>−</Text>
-          </Pressable>
-        )}
-      </Pressable>
-    </Animated.View>
-  );
-};
-
-const pill = StyleSheet.create({
-  container: {
-    minHeight: 44,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    position: 'relative',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-  },
-  colorBar: { width: 3, height: 20, borderRadius: 2, marginRight: 10 },
-  name: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: '#FFFFFF' },
-  spacer: { flex: 1 },
-  statusText: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 12, marginRight: 8 },
-  dotOuter: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4
-  },
-  dotInner: { width: 6, height: 6, borderRadius: 3 },
-  deleteBadge: { position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1E1E1E' },
-  deleteIcon: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: -2 },
-});
+// ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
 // ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
@@ -390,10 +243,6 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 // ─── Staggered Card Wrapper ──────────────────────────────────────
 
 
-const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor: 2, good: 3, unknown: 4 };
-
-
-
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -420,13 +269,14 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
     removeLine: s.toggleLine,
     removeStation: s.unpinStation,
     reorderStations: s.reorderStations,
+    reorderLines: s.reorderLines,
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
   })));
@@ -451,7 +301,11 @@ const MyCommuteDashboard: React.FC = () => {
     requestNotificationPermission,
   } = useDeferredPermissionTriggers();
 
-  const myLines = data.lines.filter(l => selectedLines.includes(l.id));
+  const myLines = useMemo(() => {
+    return selectedLines
+      .map((id: string) => data.lines.find((l: LineData) => l.id === id))
+      .filter((l: LineData | undefined): l is LineData => !!l);
+  }, [data.lines, selectedLines]);
   const hasContent = myLines.length > 0 || selectedStations.length > 0;
 
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
@@ -598,13 +452,56 @@ const MyCommuteDashboard: React.FC = () => {
       setIsEditing(false);
     }
   }, [isEditing]);
-  const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
-  const sortedLines = useMemo(() => [...myLines].sort((a, b) => {
-    const sevA = parseSeverity(a.status);
-    const sevB = parseSeverity(b.status);
-    return (SEVERITY_ORDER[sevA] ?? 4) - (SEVERITY_ORDER[sevB] ?? 4);
-  }), [myLines]);
+  const sortedLines = myLines;
+
+  const itemRefs = useRef<Record<string, View>>({});
+
+  const renderLineItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<LineData>) => {
+    const idx = getIndex() ?? sortedLines.findIndex((l: LineData) => l.id === item.id);
+    const severity = parseSeverity(item.status);
+
+    const handlePress = () => {
+      const ref = itemRefs.current[item.id];
+      if (ref) {
+        ref.measureInWindow((x, y, width, height) => {
+          setSelectedLineInfo({ id: item.id, anchorRect: { x, y, width, height } });
+        });
+      }
+    };
+
+    const handleLongPress = () => {
+      if (isEditing) {
+        drag();
+      } else {
+        handleEdit();
+      }
+    };
+
+    return (
+      <View
+        ref={el => { if (el) itemRefs.current[item.id] = el; }}
+        style={{ height: 38 }}
+      >
+        <LineCard
+          line={item}
+          selected={false}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          statusType={severity}
+          statusLabel={item.status || 'Good service'}
+          cardHeight={38}
+          mode="display"
+          isEditing={isEditing}
+          onDelete={removeLine}
+          drag={isEditing ? drag : undefined}
+          isActive={isActive}
+          index={idx}
+        />
+      </View>
+    );
+  }, [isEditing, sortedLines, removeLine, handleEdit]);
+  const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   return (
     <View style={dash.root}>
@@ -616,7 +513,7 @@ const MyCommuteDashboard: React.FC = () => {
           style={[dash.scroll, { zIndex: 1 }]}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={scrollEnabled}
+          scrollEnabled={scrollEnabled && !isEditing}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
           {/* ── Global header ── */}
@@ -663,9 +560,19 @@ const MyCommuteDashboard: React.FC = () => {
                 onPressAdd={() => setModalVisible(true)}
                 isEditing={isEditing}
               />
-              {sortedLines.map((line, idx) => (
-                <LinePill key={line.id} line={line} index={idx} isEditing={isEditing} onDelete={removeLine} onLongPress={handleEdit} onPress={(info: any) => setSelectedLineInfo(info)} />
-              ))}
+              <DraggableFlatList
+                data={sortedLines}
+                keyExtractor={(item) => item.id}
+                renderItem={renderLineItem}
+                onDragBegin={() => setScrollEnabled(false)}
+                onDragEnd={({ data }) => {
+                  setScrollEnabled(true);
+                  reorderLines(data.map(l => l.id));
+                }}
+                activationDistance={8}
+                dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                scrollEnabled={false}
+              />
             </View>
           )}
 

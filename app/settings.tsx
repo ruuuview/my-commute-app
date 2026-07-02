@@ -50,12 +50,6 @@ export default function SettingsScreen() {
     resetOnboarding,
     hapticsEnabled,
     setHapticsEnabled,
-    selectedLines,
-    pinnedStations,
-    lineNotificationToggles,
-    stationNotificationToggles,
-    toggleLineNotification,
-    toggleStationNotification,
   } = useUserPreferencesStore();
 
   const [isGranted, setIsGranted] = useState(false);

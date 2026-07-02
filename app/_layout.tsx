@@ -59,7 +59,7 @@ export default function RootLayout() {
         await setAudioModeAsync({
           playsInSilentMode: false,
           shouldPlayInBackground: false,
-          interruptionMode: 'doNotMix',
+          interruptionMode: 'duckOthers',
         });
         await preloadSounds();
       } catch (e) {

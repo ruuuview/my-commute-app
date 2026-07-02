@@ -178,8 +178,14 @@ struct CommuteProvider: TimelineProvider {
         let savedLines: [SavedLine]
         do {
             savedLines = try readSavedLines()
+        } catch WidgetError.fileNotFound {
+            return ([], "Open the app to save your commute lines.")
         } catch {
+            #if DEBUG
             return ([], "BRIDGE ERROR: " + error.localizedDescription)
+            #else
+            return ([], "Open the app to sync your commute data.")
+            #endif
         }
         guard !savedLines.isEmpty else {
             return ([], "Open the app to save your commute lines.")
@@ -368,7 +374,7 @@ struct CommutePremiumEntryView: View {
             ZStack {
                 LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
                 Group {
-                    if let msg = entry.debugMessage {
+                    if let msg = entry.debugMessage, entry.lines.isEmpty {
                         DebugView(message: msg, theme: entry.overallLevel)
                     } else if entry.lines.isEmpty {
                         EmptyStateView(theme: entry.overallLevel)
@@ -649,6 +655,7 @@ struct AccessoryRectangularView: View {
                 HStack(spacing: 4) {
                     Image(systemName: worst.level == .good ? "checkmark.circle.fill" :
                                      worst.level == .minor ? "exclamationmark.triangle.fill" :
+                                     worst.level == .suspended ? "xmark.circle.fill" :
                                      "exclamationmark.circle.fill")
                         .font(.system(size: 9))
                     Text(worst.name)
@@ -662,6 +669,7 @@ struct AccessoryRectangularView: View {
                     HStack(spacing: 4) {
                         Image(systemName: second.level == .good ? "checkmark.circle.fill" :
                                          second.level == .minor ? "exclamationmark.triangle.fill" :
+                                         second.level == .suspended ? "xmark.circle.fill" :
                                          "exclamationmark.circle.fill")
                             .font(.system(size: 9))
                         Text(second.name)

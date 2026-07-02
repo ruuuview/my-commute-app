@@ -7,11 +7,13 @@ import {
   withTiming, 
   withDelay, 
   cancelAnimation,
+  useReducedMotion,
   Easing
 } from 'react-native-reanimated';
 
 export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) => {
   const phaseDelay = (index * 37) % 120; // prime offset, smaller range
+  const reducedMotion = useReducedMotion();
   
   const rotation = useSharedValue(0);
   const zIndex = useSharedValue(0);
@@ -27,7 +29,7 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
   useEffect(() => {
     zIndex.value = isActive ? 999 : isEditing ? 1 : 1;
 
-    if (isActive) {
+    if (isActive || reducedMotion) {
       cancelAnimation(rotation);
       rotation.value = 0;
     } else if (isEditing) {
@@ -47,7 +49,7 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, isActive, phaseDelay, rotation, zIndex]);
+  }, [isEditing, isActive, phaseDelay, rotation, zIndex, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;

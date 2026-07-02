@@ -33,13 +33,18 @@ function getNotificationToggles() {
   };
 }
 
-TaskManager.defineTask(GEOFENCING_TASK, async ({ data: { eventType, region }, error }: any) => {
+TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
   if (error) {
     console.error(`❌ Background Geofencing Error: ${error.message}`);
     return;
   }
 
   try {
+    const { eventType, region } = data ?? {};
+    if (!region) {
+      console.log('🔇 Geofencing Event: missing region data.');
+      return;
+    }
     const stationId = region.identifier;
     const stationData = stationCoordinates[stationId];
     const stationName = stationData ? stationData.name : 'Commute Station';
@@ -83,10 +88,9 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     const state = useUserPreferencesStore.getState();
     const { notificationsGranted, selectedLines } = state;
 
-    // 1. Guard check: notifications permission
-    if (!notificationsGranted) {
-      console.log('🔇 Background Fetch: Notifications not granted, exiting.');
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+    const canScheduleNotifications = notificationsGranted;
+    if (!canScheduleNotifications) {
+      console.log('🔇 Background Fetch: Notifications not granted; refreshing widget cache only.');
     }
 
     // 2. Guard check: selected lines
@@ -203,7 +207,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         const { lineNotificationToggles } = getNotificationToggles();
         const isLineEnabled = lineNotificationToggles[lineId] !== false;
 
-        if (isLineEnabled) {
+        if (canScheduleNotifications && isLineEnabled) {
           if (currentSeverity > lastSeverity) {
             // Severity worsened - trigger disruption alert
             await Notifications.scheduleNotificationAsync({
@@ -235,6 +239,8 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
               trigger: null,
             });
           }
+        } else if (!canScheduleNotifications) {
+          console.log(`🔕 Notifications not granted for ${lineData.name} line (${lineId})`);
         } else {
           console.log(`🔕 Disruption alerts disabled for ${lineData.name} line (${lineId})`);
         }

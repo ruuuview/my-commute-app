@@ -88,10 +88,18 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
 
 const validateStationZoneCache = (state: UserPreferencesState) => {
   const pinnedStations = state.pinnedStations;
-  if (!pinnedStations) return;
+  if (!Array.isArray(pinnedStations)) {
+    state.pinnedStations = [];
+    return;
+  }
   const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
-  const cleanedStations = pinnedStations.filter(station => 
-    station.zone !== undefined && !EXCLUDED_IDS.has(station.id)
+  const cleanedStations = pinnedStations.filter((station): station is UserPreferencesState['pinnedStations'][number] =>
+    !!station &&
+    typeof station.id === 'string' &&
+    typeof station.name === 'string' &&
+    Array.isArray(station.lines) &&
+    typeof station.zone === 'number' &&
+    !EXCLUDED_IDS.has(station.id)
   );
   if (cleanedStations.length !== pinnedStations.length) {
     state.pinnedStations = cleanedStations;

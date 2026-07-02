@@ -290,7 +290,7 @@ export default function StationDetailScreen({
       <View
         key={group.lineId}
         testID={`screen-line-${group.lineId}`}
-        style={idx > 0 ? { marginTop: 14 } : undefined}
+        style={[s.lineCardShadow, idx > 0 ? { marginTop: 14 } : undefined]}
       >
         <View style={s.lineCardInner}>
           <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
@@ -567,6 +567,14 @@ const s = StyleSheet.create({
   // ── Line section glass card —─────────────────────────────────
   lineCard: {
     backgroundColor: GLASS.background,
+  },
+  lineCardShadow: {
+    borderRadius: 14,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   lineCardGap: {
     marginTop: 14,

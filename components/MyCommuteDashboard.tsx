@@ -247,7 +247,7 @@ const LinePill: React.FC<{
   const statusColor = severity === 'severe' ? '#FF3B30' : severity === 'minor' ? '#F2A002' : severity === 'suspended' ? '#FF3B30' : '#34C759';
 
   return (
-    <Animated.View ref={pillRef as any} style={[jiggleStyle, animatedStyle]}>
+    <Animated.View ref={pillRef as any} style={[pill.shadow, jiggleStyle, animatedStyle]}>
       <Pressable onPress={() => { 
         if (!isEditing && onPress && pillRef.current) {
           pillRef.current.measureInWindow((x, y, width, height) => {
@@ -274,6 +274,14 @@ const LinePill: React.FC<{
 };
 
 const pill = StyleSheet.create({
+  shadow: {
+    borderRadius: 12,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
+  },
   container: {
     minHeight: 44,
     paddingVertical: 10,
@@ -397,6 +405,7 @@ const SEVERITY_ORDER: Record<string, number> = { suspended: 0, severe: 1, minor:
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
 
   // Premium scale-up center reveal for dashboard transition
   const revealScale = useSharedValue(0.88);
@@ -419,13 +428,13 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
     removeLine: s.toggleLine,
     removeStation: s.unpinStation,
-
+    reorderStations: s.reorderStations,
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
   })));
@@ -611,6 +620,7 @@ const MyCommuteDashboard: React.FC = () => {
       <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
         {/* ── Content ── */}
         <ScrollView
+          ref={scrollRef}
           style={[dash.scroll, { zIndex: 1 }]}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
@@ -702,6 +712,8 @@ const MyCommuteDashboard: React.FC = () => {
                   onLongPressCard={() => setIsEditing(true)}
                   onScrollEnabledChange={setScrollEnabled}
                   selectedLines={selectedLines}
+                  onReorderStations={reorderStations}
+                  simultaneousHandlers={scrollRef}
                   onStationTap={(stationId, stationName) =>
                     router.push(
                       `/station-detail?stationId=${encodeURIComponent(stationId)}&stationName=${encodeURIComponent(stationName)}`

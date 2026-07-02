@@ -520,6 +520,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 6,
     minHeight: 62,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   compactCardInner: {
     flex: 1,

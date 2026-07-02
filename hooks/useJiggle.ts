@@ -57,26 +57,14 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       cancelAnimation(translateX);
       cancelAnimation(translateY);
       
-      rotation.value = withSpring(0, { damping: 15, stiffness: 200 });
-      translateX.value = withSpring(0, { damping: 15, stiffness: 200 });
-      translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
+      rotation.value = withTiming(0, { duration: 150 });
+      translateX.value = withTiming(0, { duration: 150 });
+      translateY.value = withTiming(0, { duration: 150 });
     }
   }, [isEditing, isActive, phaseDelay, rotation, translateX, translateY, zIndex]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
-    const editing = isEditingShared.value === 1;
-
-    // Show jiggle transforms when editing OR when actively dragged (long-pressed)
-    if (!editing && !active) {
-      return {
-        transform: [{ scale: 1 }],
-        zIndex: 1,
-        shadowOpacity: 0,
-        shadowRadius: 0,
-        elevation: 0,
-      };
-    }
 
     // Amplify jiggle on the actively-dragged card so it stands out from the crowd
     const rotStr = `${rotation.value}deg`;

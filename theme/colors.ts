@@ -45,9 +45,9 @@ export const GLASS = {
   borderSide: 'rgba(255,255,255,0.08)',
   blurIntensity: 45,
   shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 8 } as const,
-  shadowOpacity: 0.3,
-  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 6 } as const,
+  shadowOpacity: 0.35,
+  shadowRadius: 12,
 };
 
 export const PREMIUM_BUTTON = {

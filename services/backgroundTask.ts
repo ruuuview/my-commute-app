@@ -54,7 +54,13 @@ TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
     const { stationNotificationToggles } = getNotificationToggles();
     const isStationEnabled = stationNotificationToggles[stationId] !== false;
 
-    if (isStationEnabled) {
+    const lastEventKey = `last_geofence_event_${stationId}`;
+    const lastEvent = backgroundStorage.getString(lastEventKey);
+    const currentEvent = eventType === Location.GeofencingEventType.Enter ? 'enter' : 
+                         eventType === Location.GeofencingEventType.Exit ? 'exit' : null;
+
+    if (isStationEnabled && currentEvent && lastEvent !== currentEvent) {
+      backgroundStorage.set(lastEventKey, currentEvent);
       // eventType 1 = Enter, 2 = Exit
       if (eventType === Location.GeofencingEventType.Enter) {
         await Notifications.scheduleNotificationAsync({
@@ -75,8 +81,10 @@ TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
           trigger: null,
         });
       }
-    } else {
+    } else if (!isStationEnabled) {
       console.log(`🔕 Geofencing notifications disabled for station ${stationName} (${stationId})`);
+    } else {
+      console.log(`🔇 Geofencing Event: duplicate or unhandled event transition (${currentEvent}) ignored for ${stationName}.`);
     }
   } catch (err) {
     console.error('❌ Background Geofencing Task failed:', err);
@@ -198,7 +206,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         id: lineId,
         name: lineData.name,
         status: lineData.status ?? 'Good Service',
-        severity: currentSeverity === 1 ? 10 : (currentSeverity === 5 ? 5 : (currentSeverity === 9 ? 9 : 20)),
+        severity: currentSeverity === 1 ? 10 : (currentSeverity === 5 ? 9 : (currentSeverity === 9 ? 6 : 20)),
       });
 
       if (currentSeverity !== lastSeverity) {
@@ -254,7 +262,10 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     const { WidgetModule } = NativeModules;
     if (WidgetModule && typeof WidgetModule.saveWidgetStatusCache === 'function') {
       try {
-        await WidgetModule.saveWidgetStatusCache(JSON.stringify(selectedLinesData));
+        await Promise.race([
+          WidgetModule.saveWidgetStatusCache(JSON.stringify(selectedLinesData)),
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Widget bridge timeout')), 5000)),
+        ]);
         console.log('✅ Background Fetch bridged statuses successfully.');
       } catch (e) {
         console.error('❌ Failed to bridge background statuses to widget:', e);

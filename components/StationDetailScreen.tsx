@@ -31,7 +31,9 @@ import { LINE_COLORS } from '../constants/lineColors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore } from '../store/lineDataStore';
 import { APP_CONFIG } from '../config/app.config';
-import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
+import { GLASS } from '../theme/colors';
+
+const DUE_GREEN = '#30D158';
 
 interface Departure {
   destination: string;
@@ -243,7 +245,7 @@ export default function StationDetailScreen({
 
     if (isDue) {
       timeText = 'Due';
-      timeStyle = [s.depTime, { ...DUE_TIME_STYLE }];
+      timeStyle = [s.depTime, { color: DUE_GREEN, fontWeight: '700' as const }];
     } else {
       timeText = `${dep.minutes_away} min`;
       timeStyle = [s.depTime];

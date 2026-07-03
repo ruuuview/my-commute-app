@@ -14,7 +14,8 @@ This document tracks execution state, updates, and current tasks.
 * [x] **Step 6:** Grand Reveal cinematic transition animation inside `app/_layout.tsx`.
 * [x] **Step 7:** Dashboard Zero State view and dark glassmorphic `DashboardSkeleton` loading skeleton.
 * [x] **Step 9:** Stale state detection inside `useTflPoller`.
-* [x] **Step 10:** Leave-by scheduling service parser `services/calendarScheduler.ts`.
+* [x] **Step 10:** Calendar Leave-By alert scheduler and sequential foreground/background geofencing.
+* [x] **Step 11:** Station Screen UI/UX Audit Fixes (Compositing seam, Back button, Segmented control, Plain text freshness footer, Platform contrast, and Graduated severity backgrounds).
 
 ---
 
@@ -74,6 +75,18 @@ This document tracks execution state, updates, and current tasks.
 ## 5. Recent Commits & Changes (Jul 1, 2026)
 
 * **GlassRim Component Removal:** Globally removed the `GlassRim` component from the codebase to address container height collapses and nested border complexities. Restored direct, clean, and stable styling (`borderWidth: StyleSheet.hairlineWidth`, `borderColor: 'rgba(255, 255, 255, 0.18)'`) across 11 cards, modals, and sheets in onboarding, dashboard, and settings screens.
+
+---
+
+## 6. Recent Commits & Changes (Jul 3, 2026)
+
+* **Station Detail Screen UI/UX Audit Fixes:**
+  * Replaced the header wrapper `<BlurView>` with a plain `<View>`, ensuring the background `DashboardGradient` runs full-bleed beneath the safe area navigation bar without rendering dark bands or seams.
+  * Removed the unused `isFirstDueForLine` argument from `renderArrival` signature and its call-sites, along with related logic blocks.
+  * Extracted the central `DUE_TIME_STYLE` constant containing color `#FFFFFF` and weight `700` to `theme/colors.ts` and spread it in both components.
+  * Deleted unused `lineCard` and `lineCardGap` styles from the stylesheet.
+  * Graduate status gradients inside `DashboardGradient.tsx` to keep the dark base visible at all severity levels.
+  * Raised platform contrast to `rgba(255,255,255,0.38)` minimum.
 
 ---
 

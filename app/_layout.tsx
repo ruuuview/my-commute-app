@@ -14,8 +14,6 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import { setAudioModeAsync } from 'expo-audio';
-import { preloadSounds } from '../utils/sound';
 import { registerBackgroundFetchAsync, syncGeofencesAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
 import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
@@ -51,23 +49,6 @@ export default function RootLayout() {
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const locationGranted = useUserPreferencesStore(s => s.locationGranted);
   const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted);
-
-  // Preload UI sounds and configure audio ducking
-  useEffect(() => {
-    async function initAudio() {
-      try {
-        await setAudioModeAsync({
-          playsInSilentMode: false,
-          shouldPlayInBackground: false,
-          interruptionMode: 'duckOthers',
-        });
-        await preloadSounds();
-      } catch (e) {
-        console.log('Failed to initialize audio mode or preload sounds:', e);
-      }
-    }
-    initAudio();
-  }, []);
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,

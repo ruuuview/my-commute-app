@@ -34,10 +34,9 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { APP_CONFIG } from '../config/app.config';
-import { GLASS } from '../theme/colors';
+import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 
 // ─── Constants ────────────────────────────────────────────────────
-const DUE_GREEN = '#30D158';
 const MAX_ROWS = 3;
 
 // ─── Interfaces ──────────────────────────────────────────────────
@@ -343,19 +342,19 @@ const styles = StyleSheet.create({
   arrPlatform: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.38)',
   },
   arrTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: 'rgba(255,255,255,0.65)',
+    fontWeight: '500',
     fontVariant: ['tabular-nums'],
     textAlign: 'right',
     minWidth: 48,
   },
   arrTimeDue: {
-    color: DUE_GREEN,
+    ...DUE_TIME_STYLE,
   },
   loadingText: {
     fontFamily: 'SpaceGrotesk_400Regular',

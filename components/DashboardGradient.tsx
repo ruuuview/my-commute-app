@@ -13,9 +13,9 @@ import type { Severity } from './MyCommuteDashboard';
 
 const STATUS_GRADIENTS: Record<Severity, readonly [string, string]> = {
   good: ['#0d5c2e', '#000000'],
-  minor: ['#7a4a00', '#000000'],
-  severe: ['#7a0e0e', '#000000'],
-  suspended: ['#5c0a0a', '#000000'],
+  minor: ['rgba(255, 159, 10, 0.15)', '#000000'],
+  severe: ['rgba(180, 30, 30, 0.55)', '#000000'],
+  suspended: ['rgba(120, 20, 20, 0.70)', '#000000'],
   offline: ['#1a1a2e', '#000000'],
   unknown: ['#1a1a2e', '#000000'],
 } as const;

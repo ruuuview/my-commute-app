@@ -99,11 +99,11 @@ export function LineCard({
   isActive = false,
   index = 0,
 }: LineCardProps) {
-  const isSlim = cardHeight <= 40;
+  const isSlim = cardHeight <= 48;
   const cardRadius = isSlim ? 16 : 18;
-  const lineNameFontSize = isSlim ? 13 : 14;
+  const lineNameFontSize = cardHeight >= 44 ? 14 : (isSlim ? 13 : 14);
   const lineNameFontFamily = isSlim ? 'SpaceGrotesk_600SemiBold' : 'SpaceGrotesk_700Bold';
-  const statusTextFontSize = isSlim ? 11 : 12;
+  const statusTextFontSize = cardHeight >= 44 ? 12 : (isSlim ? 11 : 12);
   const leftAccentBarPosition = isSlim ? 14 : 16;
   const cardPaddingLeft = isSlim ? 30 : 34;
 
@@ -196,7 +196,6 @@ export function LineCard({
         styles.outerCard,
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
         selectedShadowStyle,
-        mode === 'display' && { marginBottom: 12 },
         jiggleStyle
       ]}
     >
@@ -231,8 +230,8 @@ export function LineCard({
             {
               backgroundColor: line.color,
               left: leftAccentBarPosition,
-              height: isSlim ? 20 : 36,
-              top: (cardHeight - (isSlim ? 20 : 36)) / 2,
+              height: isSlim ? (cardHeight - 16) : 36,
+              top: (cardHeight - (isSlim ? (cardHeight - 16) : 36)) / 2,
             },
           ]}
         />

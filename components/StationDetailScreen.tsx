@@ -22,6 +22,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { DashboardGradient } from './DashboardGradient';
 
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
@@ -30,9 +31,7 @@ import { LINE_COLORS } from '../constants/lineColors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore } from '../store/lineDataStore';
 import { APP_CONFIG } from '../config/app.config';
-import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
-
-const DUE_GREEN = '#30D158';
+import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 
 interface Departure {
   destination: string;
@@ -234,7 +233,7 @@ export default function StationDetailScreen({
   }, [stationId, loadDepartures]);
 
   // ── Render a single arrival row ───────────────────────────────
-  const renderArrival = (dep: Departure, idx: number, isFirstDueForLine: boolean) => {
+  const renderArrival = (dep: Departure, idx: number) => {
     const isDue = dep.minutes_away <= 0;
     const platform = cleanPlatform(dep.platform);
     const dest = cleanDestination(dep.destination);
@@ -244,11 +243,7 @@ export default function StationDetailScreen({
 
     if (isDue) {
       timeText = 'Due';
-      if (isFirstDueForLine) {
-        timeStyle = [s.depTime, { color: DUE_GREEN, fontWeight: '700' as const }];
-      } else {
-        timeStyle = [s.depTime, { color: '#FFFFFF' }];
-      }
+      timeStyle = [s.depTime, { ...DUE_TIME_STYLE }];
     } else {
       timeText = `${dep.minutes_away} min`;
       timeStyle = [s.depTime];
@@ -266,9 +261,21 @@ export default function StationDetailScreen({
   // ── Render a line section as a glass card ─────────────────────
   const NIGHT_TUBE_LINES = new Set(['central', 'jubilee', 'northern', 'piccadilly', 'victoria']);
 
+  const formatClockTime = (isoString?: string): string => {
+    if (!isoString) return '';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '';
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    } catch {
+      return '';
+    }
+  };
+
   const renderLineSection = (group: LineGroup, idx: number) => {
     const sliced = group.departures.slice(0, 3);
-    let firstDueSeen = false;
 
     const firstDep = group.departures[0];
     const lastDep = group.departures.length > 1 ? group.departures[group.departures.length - 1] : null;
@@ -281,8 +288,8 @@ export default function StationDetailScreen({
       ? cleanDestination(firstDep.lastTrainDestination)
       : (lastDep ? cleanDestination(lastDep.destination) : '');
 
-    const firstTime = firstDep?.firstTrain || (firstDep ? (firstDep.minutes_away <= 0 ? 'Due' : `${firstDep.minutes_away} min`) : '');
-    const lastTime = firstDep?.lastTrain || (lastDep ? (lastDep.minutes_away <= 0 ? 'Due' : `${lastDep.minutes_away} min`) : '');
+    const firstTime = firstDep?.firstTrain || formatClockTime(firstDep?.expected_arrival);
+    const lastTime = firstDep?.lastTrain || formatClockTime(lastDep?.expected_arrival) || lastDep?.lastTrain || formatClockTime(firstDep?.expected_arrival);
 
     const isNightTube = firstDep?.isNightTube ?? NIGHT_TUBE_LINES.has(group.lineId);
 
@@ -304,13 +311,7 @@ export default function StationDetailScreen({
           {/* Subtle line divider to give definition to the line name */}
           <View style={s.lineHeaderDivider} />
 
-          {/* Arrival rows — max 3 */}
-          {sliced.map((dep, arrIdx) => {
-            const isDue = dep.minutes_away <= 0;
-            const isFirstDue = isDue && !firstDueSeen;
-            if (isDue) firstDueSeen = true;
-            return renderArrival(dep, arrIdx, isFirstDue);
-          })}
+          {sliced.map((dep, arrIdx) => renderArrival(dep, arrIdx))}
 
           {/* Internal divider between arrivals and footer */}
           <View style={s.hairline} />
@@ -332,65 +333,62 @@ export default function StationDetailScreen({
   };
 
   return (
-    <View style={[s.root, { paddingTop: safeAreaTop }]} testID="station-detail-screen">
+    <View style={s.root} testID="station-detail-screen">
       {/* Background gradient — same as MyCommuteDashboard */}
       <DashboardGradient severity={networkSeverity} />
 
-      {/* Header bar — glass treatment matching rest of app */}
-      <BlurView intensity={60} tint="systemMaterialDark" style={s.headerBlur}>
+      {/* Header bar */}
+      <View style={[s.headerBlur, { paddingTop: safeAreaTop }]}>
         <View style={s.header}>
           {/* Left: back button */}
           <Pressable
             onPress={() => router.back()}
             hitSlop={8}
-            style={s.backPill}
+            style={s.backLink}
             testID="station-screen-back"
           >
-            <Text style={s.backPillText}>Commute</Text>
+            <Text style={s.backLinkText}>‹ Back</Text>
           </Pressable>
 
-          {/* Center: station name + icon (perfectly centered on screen) */}
+          {/* Center: station eyebrow + name (perfectly centered on screen) */}
           <View style={s.stationNameContainer}>
-            <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.45)" style={{ marginRight: 3 }} />
+            <Text style={s.eyebrowLabel}>STATION</Text>
             <Text style={s.stationName} numberOfLines={1} testID="screen-station-name">
               {cleanName}
             </Text>
           </View>
-
-          {/* Right: toggle only */}
-          <View style={s.headerRight}>
-            <Pressable
-              onPress={() => toggleFilter(stationId)}
-              hitSlop={8}
-              style={[s.toggleBtn, showAll ? s.toggleBtnActive : s.toggleBtnInactive]}
-              testID="screen-toggle-filter"
-            >
-              <Text style={[s.toggleIcon, { color: showAll ? '#FFFFFF' : 'rgba(255,255,255,0.45)' }]}>⊞</Text>
-            </Pressable>
-          </View>
         </View>
-      </BlurView>
+      </View>
 
-      {/* Sub-header row: Toggle label & Refresh indicator (outside the dark banner) */}
-      <View style={s.subHeaderContainer}>
-        <View style={s.subHeaderRow}>
-          <View style={s.filterLabelContainer}>
-            <Ionicons name="train-outline" size={11} color="rgba(255,255,255,0.35)" style={{ marginRight: 4 }} />
-            <Text style={s.filterLabel}>
-              {showAll ? 'All Departures' : 'Your Lines'}
+      {/* Segmented Control */}
+      <View style={s.segmentContainer}>
+        <View style={s.segmentTrack}>
+          <Pressable
+            onPress={() => {
+              if (showAll) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                toggleFilter(stationId);
+              }
+            }}
+            style={[s.segmentTab, !showAll && s.segmentTabActive]}
+          >
+            <Text style={[s.segmentTabText, !showAll ? s.segmentTabTextActive : s.segmentTabTextInactive]}>
+              Your lines
             </Text>
-          </View>
-          {freshnessText ? (
-            <Pressable
-              onPress={() => loadDepartures(true)}
-              style={s.refreshBtn}
-              hitSlop={8}
-              testID="screen-refresh-button"
-            >
-              <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.35)" style={{ marginRight: 3 }} />
-              <Text style={s.freshnessBadge}>{freshnessText}</Text>
-            </Pressable>
-          ) : null}
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (!showAll) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                toggleFilter(stationId);
+              }
+            }}
+            style={[s.segmentTab, showAll && s.segmentTabActive]}
+          >
+            <Text style={[s.segmentTabText, showAll ? s.segmentTabTextActive : s.segmentTabTextInactive]}>
+              All lines
+            </Text>
+          </Pressable>
         </View>
       </View>
 
@@ -428,6 +426,11 @@ export default function StationDetailScreen({
               )}
             </>
           )}
+
+          {/* Freshness Footer */}
+          {freshnessText ? (
+            <Text style={s.freshnessFooter}>Updated {freshnessText}</Text>
+          ) : null}
         </ScrollView>
       )}
     </View>
@@ -450,110 +453,86 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 36,
-    marginTop: 8,
+    height: 44,
+    marginTop: 4,
   },
-  backPill: {
+  backLink: {
     position: 'absolute',
     left: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: '100%',
     justifyContent: 'center',
-    backgroundColor: PREMIUM_BUTTON.background,
-    borderWidth: PREMIUM_BUTTON.borderWidth,
-    borderColor: PREMIUM_BUTTON.borderColor,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
+    alignItems: 'center',
+    paddingRight: 16,
   },
-  backPillText: {
+  backLinkText: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.80)',
   },
   stationNameContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     maxWidth: '65%',
   },
+  eyebrowLabel: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
   stationName: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
+    fontSize: 17,
     color: '#FFFFFF',
     letterSpacing: -0.3,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
-  headerRight: {
-    position: 'absolute',
-    right: 0,
+  segmentContainer: {
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  segmentTrack: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 16,
+    padding: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
-  refreshBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: PREMIUM_BUTTON.background,
-    borderWidth: PREMIUM_BUTTON.borderWidth,
-    borderColor: PREMIUM_BUTTON.borderColor,
-  },
-  freshnessBadge: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
-  },
-  toggleBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+  segmentTab: {
+    flex: 1,
+    paddingVertical: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 14,
+  },
+  segmentTabActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
   },
-  toggleBtnInactive: {
-    backgroundColor: 'transparent',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  toggleBtnActive: {
-    backgroundColor: PREMIUM_BUTTON.background,
-    borderColor: PREMIUM_BUTTON.borderColor,
-  },
-  toggleIcon: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    marginVertical: 6,
-  },
-  subHeaderContainer: {
-    paddingHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  subHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  filterLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  filterLabel: {
+  segmentTabText: {
     fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+  },
+  segmentTabTextActive: {
+    color: '#FFFFFF',
+  },
+  segmentTabTextInactive: {
+    color: 'rgba(255, 255, 255, 0.40)',
+  },
+  freshnessFooter: {
+    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginTop: 0,
-    marginBottom: 0,
+    color: 'rgba(255, 255, 255, 0.22)',
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 12,
   },
   scrollBody: {
     flex: 1,
@@ -565,12 +544,6 @@ const s = StyleSheet.create({
   },
 
   // ── Line section glass card —─────────────────────────────────
-  lineCard: {
-    backgroundColor: GLASS.background,
-  },
-  lineCardGap: {
-    marginTop: 14,
-  },
   lineCardInner: {
     paddingHorizontal: 14,
     paddingTop: 12,
@@ -626,13 +599,14 @@ const s = StyleSheet.create({
   arrivalPlatform: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.40)',
+    color: 'rgba(255,255,255,0.45)',
     marginRight: 4,
   },
   depTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.65)',
+    fontWeight: '500',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
     minWidth: 48,

@@ -7,7 +7,6 @@
 
 import React, { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import {
-  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
@@ -440,7 +439,6 @@ const MyCommuteDashboard: React.FC = () => {
 
   const handleEdit = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsEditing((v) => !v);
   }, []);
 
@@ -448,7 +446,6 @@ const MyCommuteDashboard: React.FC = () => {
   const handleBackdropPress = useCallback(() => {
     if (isEditing) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setIsEditing(false);
     }
   }, [isEditing]);
@@ -481,7 +478,7 @@ const MyCommuteDashboard: React.FC = () => {
     return (
       <View
         ref={el => { if (el) itemRefs.current[item.id] = el; }}
-        style={{ height: 38 }}
+        style={{ height: 46, marginBottom: 12 }}
       >
         <LineCard
           line={item}
@@ -490,7 +487,7 @@ const MyCommuteDashboard: React.FC = () => {
           onLongPress={handleLongPress}
           statusType={severity}
           statusLabel={item.status || 'Good service'}
-          cardHeight={38}
+          cardHeight={46}
           mode="display"
           isEditing={isEditing}
           onDelete={removeLine}
@@ -571,6 +568,7 @@ const MyCommuteDashboard: React.FC = () => {
                 }}
                 activationDistance={8}
                 dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                simultaneousHandlers={scrollRef}
                 scrollEnabled={false}
               />
             </View>

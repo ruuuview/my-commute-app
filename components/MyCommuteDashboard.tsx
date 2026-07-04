@@ -9,7 +9,6 @@ import React, { useCallback, useEffect, useState, useMemo, memo, useRef } from '
 import {
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   UIManager,
@@ -46,7 +45,7 @@ import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard';
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams } from 'react-native-draggable-flatlist';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -245,7 +244,7 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<any>(null);
 
   // Premium scale-up center reveal for dashboard transition
   const revealScale = useSharedValue(0.88);
@@ -505,7 +504,7 @@ const MyCommuteDashboard: React.FC = () => {
       <DashboardGradient severity={networkSeverity} />
       <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
         {/* ── Content ── */}
-        <ScrollView
+        <NestableScrollContainer
           ref={scrollRef}
           style={[dash.scroll, { zIndex: 1 }]}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
@@ -557,14 +556,14 @@ const MyCommuteDashboard: React.FC = () => {
                 onPressAdd={() => setModalVisible(true)}
                 isEditing={isEditing}
               />
-              <DraggableFlatList
+              <NestableDraggableFlatList
                 data={sortedLines}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item: LineData) => item.id}
                 renderItem={renderLineItem}
                 onDragBegin={() => setScrollEnabled(false)}
                 onDragEnd={({ data }) => {
                   setScrollEnabled(true);
-                  reorderLines(data.map(l => l.id));
+                  reorderLines((data as LineData[]).map(l => l.id));
                 }}
                 activationDistance={8}
                 dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
@@ -628,7 +627,7 @@ const MyCommuteDashboard: React.FC = () => {
               onPress={handleBackdropPress}
             />
           )}
-        </ScrollView>
+        </NestableScrollContainer>
 
         {/* Full-screen absolute backdrop behind scroll — catches all empty space */}
         {isEditing && (

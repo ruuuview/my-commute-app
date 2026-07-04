@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GLASS } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { usePressAnimation } from '../hooks/usePressAnimation';
@@ -133,6 +134,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation = useUserPreferencesStore(s => s.pinStation);
+  const { requestLocationPermission } = useDeferredPermissionTriggers();
 
   useEffect(() => {
     if (visible) {
@@ -233,8 +235,17 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         lines: station.lines,
         zone: station.zone,
       }, role);
+
+      // Trigger location permission request if not already granted
+      const locationGranted = useUserPreferencesStore.getState().locationGranted;
+      if (!locationGranted) {
+        // Request asynchronously after state update
+        setTimeout(() => {
+          requestLocationPermission();
+        }, 100);
+      }
     },
-    [pinnedStations, pinStation, triggerMaxPinsShake]
+    [pinnedStations, pinStation, triggerMaxPinsShake, requestLocationPermission]
   );
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {

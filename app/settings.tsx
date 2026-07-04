@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 import * as Notifications from 'expo-notifications';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancelAnimation } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -50,7 +51,10 @@ export default function SettingsScreen() {
     resetOnboarding,
     hapticsEnabled,
     setHapticsEnabled,
+    locationGranted,
   } = useUserPreferencesStore();
+
+  const { requestLocationPermission } = useDeferredPermissionTriggers();
 
   const [isGranted, setIsGranted] = useState(false);
   const [showBack, setShowBack] = useState(false);
@@ -491,6 +495,54 @@ export default function SettingsScreen() {
             <Text style={styles.infoText}>
               Notifications will only alert you about lines and stations you&apos;ve saved to your dashboard.
             </Text>
+          </View>
+        </View>
+
+        {/* Location & Geofencing Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Location & Geofencing</Text>
+          <View style={styles.settingCard}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <View style={styles.settingLabelRow}>
+                  <Ionicons name="location" size={20} color="#007AFF" style={styles.iconMargin} />
+                  <Text style={styles.settingLabel}>Station Geofencing</Text>
+                </View>
+                <Text style={styles.settingDescription}>
+                  Trigger live commute tracking when approaching pinned stations
+                </Text>
+              </View>
+              <Switch
+                value={locationGranted}
+                onValueChange={async (value) => {
+                  if (value) {
+                    const granted = await requestLocationPermission();
+                    if (!granted) {
+                      Alert.alert(
+                        'Location Permission Required',
+                        'Please enable Always-On Location permissions in iOS Settings to use geofencing.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Go to Settings', onPress: () => Linking.openSettings() }
+                        ]
+                      );
+                    }
+                  } else {
+                    Alert.alert(
+                      'Disable Geofencing',
+                      'To fully disable location access, please turn off location permissions in iOS Settings.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Go to Settings', onPress: () => Linking.openSettings() }
+                      ]
+                    );
+                  }
+                }}
+                trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
           </View>
         </View>
 

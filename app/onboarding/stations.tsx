@@ -37,12 +37,14 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
+import { useDeferredPermissionTriggers } from '../../hooks/useDeferredPermissionTriggers';
 
 const MAX_PINS = 5;
 
 export default function StationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { requestLocationPermission } = useDeferredPermissionTriggers();
   const params = useLocalSearchParams<{ openSearch?: string }>();
   const openSearch = params.openSearch;
   const navigation = useNavigation();
@@ -258,6 +260,11 @@ export default function StationsScreen() {
     
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playSound('confirm');
+
+    const locationGranted = useUserPreferencesStore.getState().locationGranted;
+    if (!locationGranted) {
+      await requestLocationPermission();
+    }
 
     if (hasCompletedOnboarding) {
       if (router.canGoBack()) {

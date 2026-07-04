@@ -12,7 +12,7 @@ import Animated, {
   useReducedMotion,
   Easing,
 } from 'react-native-reanimated';
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import { NestableDraggableFlatList, RenderItemParams } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
 
 // ─── Per-card wrapper: stagger entrance + jiggle animation ────────
@@ -179,7 +179,7 @@ export default function DashboardGrid({
         />
       )}
 
-      <DraggableFlatList
+      <NestableDraggableFlatList
         data={stations}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}

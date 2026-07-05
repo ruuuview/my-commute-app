@@ -698,7 +698,6 @@ struct ContainerBackgroundModifier: ViewModifier {
     }
 }
 
-@main
 struct CommutePremiumWidget: Widget {
     let kind = "CommutePremiumWidget"
     var body: some WidgetConfiguration {
@@ -709,6 +708,14 @@ struct CommutePremiumWidget: Widget {
         .description("Live TfL status, colour-coded by your worst delay.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
         .disableContentMarginsIfAvailable()
+    }
+}
+
+@main
+struct CommuteWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        CommutePremiumWidget()
+        CommuteLiveActivity()
     }
 }
 

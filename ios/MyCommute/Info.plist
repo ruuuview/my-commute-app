@@ -106,5 +106,7 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
   </dict>
 </plist>

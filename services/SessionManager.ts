@@ -1,3 +1,4 @@
+import { NativeModules } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import * as Notifications from 'expo-notifications';
 import { LiveActivityService } from './LiveActivityService';
@@ -166,7 +167,7 @@ export class SessionManager {
           try {
             const lastNext = parseInt(backgroundStorage.getString('last_known_next') || '0', 10);
             const lastFollow = parseInt(backgroundStorage.getString('last_known_follow') || '0', 10);
-            const { LiveActivityModule } = require('react-native').NativeModules;
+            const { LiveActivityModule } = NativeModules;
             if (LiveActivityModule && typeof LiveActivityModule.updateCommuteActivity === 'function') {
               await LiveActivityModule.updateCommuteActivity(lastNext, lastFollow, 'In Transit...');
             }

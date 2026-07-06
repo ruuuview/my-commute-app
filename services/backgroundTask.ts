@@ -6,7 +6,6 @@ import * as Location from 'expo-location';
 import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
-import { LiveActivityService } from './LiveActivityService';
 import { SessionManager } from './SessionManager';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';

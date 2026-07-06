@@ -4,13 +4,15 @@ import SwiftUI
 
 struct CommuteActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        var estimatedArrival: Date // date to count down to
         var nextTrainMinutes: Int
-        var currentStatus: String
+        var followingTrainMinutes: Int
+        var lineStatus: String
     }
 
+    var originStation: String
     var destinationStation: String
-    var destinationLine: String // used for color lookup
+    var lineId: String
+    var lineName: String
 }
 
 func colorForLine(_ lineId: String) -> Color {
@@ -24,7 +26,7 @@ func colorForLine(_ lineId: String) -> Color {
     case "hammersmith-city": return Color(red: 243.0/255.0, green: 169.0/255.0, blue: 187.0/255.0)
     case "jubilee": return Color(red: 134.0/255.0, green: 143.0/255.0, blue: 152.0/255.0)
     case "metropolitan": return Color(red: 155.0/255.0, green: 0.0/255.0, blue: 86.0/255.0)
-    case "northern": return Color(red: 0.1, green: 0.1, blue: 0.1) // Don't use pure black for visibility
+    case "northern": return Color(red: 0.1, green: 0.1, blue: 0.1)
     case "overground", "weaver", "mildmay", "windrush", "suffragette", "lioness", "liberty": return Color(red: 238.0/255.0, green: 124.0/255.0, blue: 14.0/255.0)
     case "piccadilly": return Color(red: 0.0/255.0, green: 54.0/255.0, blue: 136.0/255.0)
     case "victoria": return Color(red: 0.0/255.0, green: 152.0/255.0, blue: 212.0/255.0)
@@ -44,7 +46,7 @@ struct CommuteLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
                         Image(systemName: "tram.fill")
-                            .foregroundColor(colorForLine(context.attributes.destinationLine))
+                            .foregroundColor(colorForLine(context.attributes.lineId))
                         Text(context.attributes.destinationStation)
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
@@ -53,25 +55,20 @@ struct CommuteLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing) {
-                        Text(context.state.estimatedArrival, style: .timer)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(colorForLine(context.attributes.destinationLine))
-                            .multilineTextAlignment(.trailing)
+                        Text("\(context.state.nextTrainMinutes) min")
+                            .font(.system(.title, design: .monospaced, weight: .bold))
+                            .foregroundColor(colorForLine(context.attributes.lineId))
                     }
                     .padding(.trailing, 8)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(context.state.currentStatus)
+                            Text(context.state.lineStatus)
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.white.opacity(0.8))
-                            if context.state.nextTrainMinutes > 0 {
-                                Text("Next train in \(context.state.nextTrainMinutes) min")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white.opacity(0.6))
-                            } else {
-                                Text("Train due now")
+                            if context.state.followingTrainMinutes > 0 {
+                                Text("Following: \(context.state.followingTrainMinutes) min")
                                     .font(.system(size: 11))
                                     .foregroundColor(.white.opacity(0.6))
                             }
@@ -84,17 +81,17 @@ struct CommuteLiveActivity: Widget {
             } compactLeading: {
                 HStack(spacing: 4) {
                     Image(systemName: "tram.fill")
-                        .foregroundColor(colorForLine(context.attributes.destinationLine))
+                        .foregroundColor(colorForLine(context.attributes.lineId))
                     Text(context.attributes.destinationStation.prefix(6))
                         .font(.system(size: 12, weight: .semibold))
                 }
             } compactTrailing: {
-                Text(context.state.estimatedArrival, style: .timer)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(colorForLine(context.attributes.destinationLine))
+                Text("\(context.state.nextTrainMinutes)m")
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundColor(colorForLine(context.attributes.lineId))
             } minimal: {
                 Image(systemName: "tram.fill")
-                    .foregroundColor(colorForLine(context.attributes.destinationLine))
+                    .foregroundColor(colorForLine(context.attributes.lineId))
             }
         }
     }
@@ -107,14 +104,14 @@ struct CommuteLiveActivityLockScreenView: View {
         HStack(spacing: 12) {
             // Accent Line indicator
             RoundedRectangle(cornerRadius: 3)
-                .fill(colorForLine(context.attributes.destinationLine))
+                .fill(colorForLine(context.attributes.lineId))
                 .frame(width: 5, height: 48)
                 
             VStack(alignment: .leading, spacing: 4) {
                 Text(context.attributes.destinationStation)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
-                Text(context.state.currentStatus)
+                Text(context.state.lineStatus)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.6))
             }
@@ -122,13 +119,19 @@ struct CommuteLiveActivityLockScreenView: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                Text(context.state.estimatedArrival, style: .timer)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Text("\(context.state.nextTrainMinutes) min")
+                    .font(.system(.title, design: .monospaced, weight: .bold))
                     .foregroundColor(.white)
                 
-                Text(context.state.nextTrainMinutes > 0 ? "\(context.state.nextTrainMinutes)m due" : "due")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.5))
+                if context.state.followingTrainMinutes > 0 {
+                    Text("Then: \(context.state.followingTrainMinutes)m")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.5))
+                } else {
+                    Text(context.attributes.lineName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.5))
+                }
             }
         }
         .padding(.horizontal, 16)

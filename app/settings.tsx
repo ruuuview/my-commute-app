@@ -45,7 +45,7 @@ interface NotificationSettings {
 }
 const TRIAL_DURATION_DAYS = 45;
 export default function SettingsScreen() {
-  const { back } = useRouter();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
     resetOnboarding,
@@ -268,7 +268,7 @@ export default function SettingsScreen() {
         <Animated.View style={backAnim.animatedStyle}>
           <Pressable 
             style={styles.backButton} 
-            onPress={() => back()}
+            onPress={() => router.back()}
             onPressIn={backAnim.onPressIn}
             onPressOut={backAnim.onPressOut}
             accessibilityLabel="Go back"
@@ -572,6 +572,48 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Legal Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Legal</Text>
+
+          <View style={styles.aboutCard}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Animated.View style={resetPressAnim.animatedStyle}>
+              <Pressable
+                style={styles.aboutRow}
+                onPress={() => { (router as any).push('/privacy'); }}
+                onPressIn={resetPressAnim.onPressIn}
+                onPressOut={resetPressAnim.onPressOut}
+              >
+                <Ionicons name="shield-outline" size={24} color="rgba(255,255,255,0.45)" />
+                <View style={styles.aboutInfo}>
+                  <Text style={styles.aboutLabel}>Privacy Policy</Text>
+                  <Text style={styles.settingDescription}>How we handle your data</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+              </Pressable>
+            </Animated.View>
+
+            <View style={styles.divider} />
+
+            <Animated.View style={resetPressAnim.animatedStyle}>
+              <Pressable
+                style={styles.aboutRow}
+                onPress={() => { (router as any).push('/terms'); }}
+                onPressIn={resetPressAnim.onPressIn}
+                onPressOut={resetPressAnim.onPressOut}
+              >
+                <Ionicons name="document-text-outline" size={24} color="rgba(255,255,255,0.45)" />
+                <View style={styles.aboutInfo}>
+                  <Text style={styles.aboutLabel}>Terms of Service</Text>
+                  <Text style={styles.settingDescription}>App usage terms</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+              </Pressable>
+            </Animated.View>
+          </View>
+        </View>
+
         {/* Debug Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Debug Options</Text>
@@ -591,7 +633,7 @@ export default function SettingsScreen() {
                         style: 'destructive',
                         onPress: () => {
                           resetOnboarding();
-                          back();
+                          router.back();
                         }
                       }
                     ]

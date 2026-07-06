@@ -10,16 +10,19 @@
 
 @interface RCT_EXTERN_MODULE(LiveActivityModule, NSObject)
 
-RCT_EXTERN_METHOD(startCommuteActivity:(NSString *)destinationStation
-                  destinationLine:(NSString *)destinationLine
-                  estimatedArrivalSeconds:(double)estimatedArrivalSeconds
+RCT_EXTERN_METHOD(startCommuteActivity:(NSString *)originStation
+                  destinationStation:(NSString *)destinationStation
+                  lineId:(NSString *)lineId
+                  lineName:(NSString *)lineName
                   nextTrainMinutes:(NSInteger)nextTrainMinutes
+                  followingTrainMinutes:(NSInteger)followingTrainMinutes
+                  lineStatus:(NSString *)lineStatus
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(updateCommuteActivity:(NSInteger)nextTrainMinutes
-                  currentStatus:(NSString *)currentStatus
-                  estimatedArrivalSeconds:(double)estimatedArrivalSeconds
+                  followingTrainMinutes:(NSInteger)followingTrainMinutes
+                  lineStatus:(NSString *)lineStatus
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 

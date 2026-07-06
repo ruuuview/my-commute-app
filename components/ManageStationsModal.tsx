@@ -33,7 +33,6 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
-import { playSound } from '../utils/sound';
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
 
@@ -148,6 +147,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
+  const hasTriggeredErrorRef = useRef(false);
 
   const maxPinsShakeX = useSharedValue(0);
   const maxPinsShakeStyle = useAnimatedStyle(() => ({
@@ -199,9 +199,14 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   }, [results, pinnedIds]);
 
   useEffect(() => {
-    if (query.trim().length >= 4 && unpinnedResults.length === 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      playSound('error');
+    const cleanQuery = query.trim();
+    if (cleanQuery.length >= 4 && unpinnedResults.length === 0) {
+      if (!hasTriggeredErrorRef.current) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        hasTriggeredErrorRef.current = true;
+      }
+    } else {
+      hasTriggeredErrorRef.current = false;
     }
   }, [unpinnedResults.length, query]);
 
@@ -217,7 +222,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         return;
       }
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      playSound('select', 0.45);
 
       // Immediate clean dismiss
       Keyboard.dismiss();
@@ -343,7 +347,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                   setQuery(text);
                 }}
                 selectionColor="rgba(255,255,255,0.6)"
-                placeholder="Search 358 stations..."
+                placeholder={`Search ${cleanFullStations.length} stations...`}
                 placeholderTextColor="rgba(255, 255, 255, 0.30)"
                 autoCorrect={false}
                 autoCapitalize="none"

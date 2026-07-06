@@ -1,21 +1,79 @@
 import { NativeModules, Platform } from 'react-native';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
+import { normaliseLineId } from '../utils/normaliseLineId';
+import { APP_CONFIG } from '../config/app.config';
 
 const { LiveActivityModule } = NativeModules;
 
+export interface LiveActivityStartConfig {
+  originStation: string;
+  destinationStation: string;
+  lineId: string;
+  lineName: string;
+  originId: string;
+}
+
+const fetchTflDirect = async (stationId: string, lineId: string) => {
+  try {
+    const resolvedIds = resolveTflStopIds(stationId);
+    const responses = await Promise.all(
+      resolvedIds.map(id =>
+        fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
+          .then(res => (res.ok ? res.json() : null))
+          .catch(() => null)
+      )
+    );
+
+    const allRawDepartures: any[] = [];
+    responses.forEach(sData => {
+      if (sData && Array.isArray(sData.departures)) {
+        allRawDepartures.push(...sData.departures);
+      }
+    });
+
+    const filtered = allRawDepartures.filter(dep => {
+      const { cleanLineId } = normaliseLineId(dep.line);
+      return cleanLineId === lineId;
+    });
+
+    filtered.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+
+    const nextTrainMinutes = filtered[0]?.minutes_away ?? 0;
+    const followingTrainMinutes = filtered[1]?.minutes_away ?? 0;
+
+    let lineStatus = 'Good service';
+    try {
+      const lResp = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`);
+      if (lResp.ok) {
+        const lines = await lResp.json();
+        const lineInfo = lines.find((l: any) => l.id.toLowerCase() === lineId.toLowerCase());
+        if (lineInfo?.status) {
+          lineStatus = lineInfo.status;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch line status for widget poll:', e);
+    }
+
+    return {
+      nextTrainMinutes,
+      followingTrainMinutes,
+      lineStatus,
+    };
+  } catch (error) {
+    console.error('Failed to fetch TfL direct:', error);
+    return {
+      nextTrainMinutes: 0,
+      followingTrainMinutes: 0,
+      lineStatus: 'Offline',
+    };
+  }
+};
+
 export class LiveActivityService {
-  /**
-   * Starts a Live Activity for the commute.
-   * @param destinationStation Name of the destination station (e.g. 'Brixton')
-   * @param destinationLine ID of the line (e.g. 'victoria')
-   * @param estimatedArrival Date object representing when the journey is expected to finish
-   * @param nextTrainMinutes Minutes until the next train (e.g. 2)
-   */
-  static async start(
-    destinationStation: string,
-    destinationLine: string,
-    estimatedArrival: Date,
-    nextTrainMinutes: number
-  ): Promise<string | null> {
+  private static pollIntervalId: any = null;
+
+  static async start(config: LiveActivityStartConfig): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
 
     try {
@@ -24,14 +82,40 @@ export class LiveActivityService {
         return null;
       }
 
-      const estimatedArrivalSeconds = Math.floor(estimatedArrival.getTime() / 1000);
+      // Initial direct fetch
+      const initialData = await fetchTflDirect(config.originId, config.lineId);
+
       const activityId = await LiveActivityModule.startCommuteActivity(
-        destinationStation,
-        destinationLine,
-        estimatedArrivalSeconds,
-        nextTrainMinutes
+        config.originStation,
+        config.destinationStation,
+        config.lineId,
+        config.lineName,
+        initialData.nextTrainMinutes,
+        initialData.followingTrainMinutes,
+        initialData.lineStatus
       );
       console.log(`✅ LiveActivityService: Started activity with ID ${activityId}`);
+
+      // Start 30-second polling loop
+      if (this.pollIntervalId) {
+        clearInterval(this.pollIntervalId);
+      }
+
+      this.pollIntervalId = setInterval(async () => {
+        console.log(`[LiveActivityService] Polling arrivals for ${config.originId} on ${config.lineId}`);
+        const data = await fetchTflDirect(config.originId, config.lineId);
+        try {
+          await LiveActivityModule.updateCommuteActivity(
+            data.nextTrainMinutes,
+            data.followingTrainMinutes,
+            data.lineStatus
+          );
+          console.log(`[LiveActivityService] Updated widget next: ${data.nextTrainMinutes}m, follow: ${data.followingTrainMinutes}m`);
+        } catch (err) {
+          console.error('[LiveActivityService] Update fail inside poll:', err);
+        }
+      }, 30000);
+
       return activityId;
     } catch (error) {
       console.error('❌ LiveActivityService: Failed to start activity:', error);
@@ -39,45 +123,15 @@ export class LiveActivityService {
     }
   }
 
-  /**
-   * Updates the dynamic content of the active Live Activity.
-   * @param nextTrainMinutes Updated minutes until the next train
-   * @param currentStatus Description status string (e.g., 'Minor Delays' or 'Victoria line: Good service')
-   * @param estimatedArrival Optional Date object if the ETA has changed/shifted
-   */
-  static async update(
-    nextTrainMinutes: number,
-    currentStatus: string,
-    estimatedArrival?: Date
-  ): Promise<void> {
-    if (Platform.OS !== 'ios') return;
-
-    try {
-      if (!LiveActivityModule || typeof LiveActivityModule.updateCommuteActivity !== 'function') {
-        console.warn('⚠️ LiveActivityModule.updateCommuteActivity is not available.');
-        return;
-      }
-
-      const estimatedArrivalSeconds = estimatedArrival 
-        ? Math.floor(estimatedArrival.getTime() / 1000) 
-        : 0;
-
-      await LiveActivityModule.updateCommuteActivity(
-        nextTrainMinutes,
-        currentStatus,
-        estimatedArrivalSeconds
-      );
-      console.log('✅ LiveActivityService: Updated activity successfully');
-    } catch (error) {
-      console.error('❌ LiveActivityService: Failed to update activity:', error);
-    }
-  }
-
-  /**
-   * Ends all active commute Live Activities.
-   */
   static async end(): Promise<void> {
     if (Platform.OS !== 'ios') return;
+
+    // Clear polling loop
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
+      console.log('[LiveActivityService] Polling loop cleared');
+    }
 
     try {
       if (!LiveActivityModule || typeof LiveActivityModule.endCommuteActivity !== 'function') {
@@ -92,9 +146,6 @@ export class LiveActivityService {
     }
   }
 
-  /**
-   * Returns whether a Live Activity is currently active.
-   */
   static async isActive(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
 
@@ -109,4 +160,5 @@ export class LiveActivityService {
     }
   }
 }
+
 export default LiveActivityService;

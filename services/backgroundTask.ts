@@ -7,6 +7,7 @@ import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
 import { LiveActivityService } from './LiveActivityService';
+import { SessionManager } from './SessionManager';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
@@ -99,147 +100,9 @@ TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
       const stationRole = targetStation ? targetStation.role : 'other';
 
       if (eventType === Location.GeofencingEventType.Enter) {
-        // ── ENTER GEOFENCE ───────────────────────────────────────
-        const isActivityRunning = await LiveActivityService.isActive();
-
-        if (isActivityRunning) {
-          // If we enter our active destination, end the activity (arrival!)
-          const destId = backgroundStorage.getString('active_commute_destination_id');
-          if (stationId === destId) {
-            await LiveActivityService.end();
-            
-            // Calculate travel duration
-            const startTimeStr = backgroundStorage.getString('active_commute_start_time');
-            let elapsedText = '';
-            if (startTimeStr) {
-              const elapsedMs = Date.now() - parseInt(startTimeStr, 10);
-              const elapsedMin = Math.round(elapsedMs / (60 * 1000));
-              elapsedText = ` in ${elapsedMin} min`;
-            }
-
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `Welcome to ${stationName}`,
-                body: `You made it${elapsedText}! Live tracking stopped.`,
-                sound: true,
-              },
-              trigger: null,
-            });
-
-            backgroundStorage.remove('active_commute_destination_id');
-            backgroundStorage.remove('active_commute_start_time');
-          }
-        } else {
-          // No activity running: start commute Live Activity
-          // Find destination station
-          let destStation = null;
-          if (stationRole === 'home') {
-            destStation = pinnedStations.find(s => s.role === 'work');
-          } else if (stationRole === 'work') {
-            destStation = pinnedStations.find(s => s.role === 'home');
-          } else {
-            // Default fallback
-            destStation = pinnedStations.find(s => s.role === 'work') || pinnedStations.find(s => s.role === 'home');
-          }
-
-          if (destStation && destStation.id !== stationId) {
-            // 1. Fetch transit duration
-            let duration = 30; // default fallback
-            try {
-              const cachedKey = `commute_duration_${stationId}_${destStation.id}`;
-              const durationCache = createMMKV({ id: 'commute-durations' });
-              const cachedData = durationCache.getString(cachedKey);
-              if (cachedData) {
-                const parsed = JSON.parse(cachedData);
-                if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
-                  duration = parsed.duration;
-                }
-              } else {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-                const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/journey-planner`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ from_station: stationId, to_station: destStation.id }),
-                  signal: controller.signal,
-                });
-                clearTimeout(timeoutId);
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data.journeys && data.journeys.length > 0) {
-                    const transitDuration = data.journeys[0].duration;
-                    if (typeof transitDuration === 'number') {
-                      duration = transitDuration;
-                      durationCache.set(cachedKey, JSON.stringify({ duration, timestamp: Date.now() }));
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.log('Failed to fetch duration:', e);
-            }
-
-            // 2. Fetch arrivals for next train minutes
-            let nextTrainMinutes = 2; // default
-            try {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 4000);
-              const res = await fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${stationId}`, {
-                signal: controller.signal,
-              });
-              clearTimeout(timeoutId);
-              if (res.ok) {
-                const data = await res.json();
-                if (data.departures && data.departures.length > 0) {
-                  const firstDep = data.departures[0];
-                  if (typeof firstDep.minutes_away === 'number') {
-                    nextTrainMinutes = firstDep.minutes_away;
-                  }
-                }
-              }
-            } catch (e) {
-              console.log('Failed to fetch departures:', e);
-            }
-
-            // 3. Start Live Activity
-            const lineId = targetStation?.lines?.[0] || 'victoria';
-            const estimatedArrival = new Date(Date.now() + (duration + nextTrainMinutes) * 60 * 1000);
-
-            await LiveActivityService.start(
-              destStation.name,
-              lineId,
-              estimatedArrival,
-              nextTrainMinutes
-            );
-
-            backgroundStorage.set('active_commute_destination_id', destStation.id);
-            backgroundStorage.set('active_commute_start_time', String(Date.now()));
-
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `Approaching ${stationName}`,
-                body: `Starting live tracking towards ${destStation.name}.`,
-                sound: true,
-              },
-              trigger: null,
-            });
-          }
-        }
+        await SessionManager.handleGeofenceEnter(stationId, stationRole, stationName);
       } else if (eventType === Location.GeofencingEventType.Exit) {
-        // ── EXIT GEOFENCE ────────────────────────────────────────
-        const isActive = await LiveActivityService.isActive();
-        if (isActive) {
-          await LiveActivityService.update(0, 'In Transit...');
-        }
-
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `Departed ${stationName}`,
-            body: `Continuing live commute tracking.`,
-            sound: true,
-          },
-          trigger: null,
-        });
+        await SessionManager.handleGeofenceExit(stationId, stationName);
       }
     }
   } catch (err) {
@@ -249,6 +112,7 @@ TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
 
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
+    await SessionManager.checkSessionStatus();
     const state = useUserPreferencesStore.getState();
     const { notificationsGranted, selectedLines } = state;
 
@@ -289,7 +153,9 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     // Convert fetched lines array to a lookup map
     const fetchedLinesMap: Record<string, any> = {};
     lines.forEach((line: any) => {
-      fetchedLinesMap[line.id.toLowerCase()] = line;
+      if (typeof line?.id === 'string') {
+        fetchedLinesMap[line.id.toLowerCase()] = line;
+      }
     });
 
     console.log('🔍 Background Fetch Status Map keys:', Object.keys(fetchedLinesMap));

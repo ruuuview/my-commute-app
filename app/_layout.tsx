@@ -17,6 +17,8 @@ import {
 import { registerBackgroundFetchAsync, syncGeofencesAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
 import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
+import * as Notifications from 'expo-notifications';
+import { SessionManager } from '../services/SessionManager';
 
 SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
@@ -127,6 +129,7 @@ export default function RootLayout() {
       if (nextAppState === 'background') {
         lastBackgroundTime = Date.now();
       } else if (nextAppState === 'active') {
+        void SessionManager.checkSessionStatus();
         // True app open from background (if backgrounded for > 60 seconds to prevent notification check noise)
         if (hasIncrementedSession.current && lastBackgroundTime > 0 && Date.now() - lastBackgroundTime > 60000) {
           const store = useUserPreferencesStore.getState();
@@ -135,6 +138,56 @@ export default function RootLayout() {
           });
         }
         lastBackgroundTime = 0;
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Register notification categories, response listener, and run dwell check on mount
+  useEffect(() => {
+    if (_hasHydrated) {
+      void SessionManager.checkSessionStatus();
+    }
+  }, [_hasHydrated]);
+
+  useEffect(() => {
+    async function setupNotificationCategories() {
+      try {
+        await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', [
+          {
+            identifier: 'done',
+            buttonTitle: "Yeah, I'm done",
+            options: { opensAppToForeground: false },
+          },
+          {
+            identifier: 'keep',
+            buttonTitle: "Keep watching",
+            options: { opensAppToForeground: false },
+          },
+        ]);
+        console.log('[NotificationCategory] Registered ARRIVED_ALERT');
+      } catch (e) {
+        console.warn('Failed to set notification category:', e);
+      }
+    }
+    
+    setupNotificationCategories();
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      const actionId = response.actionIdentifier;
+      const categoryId = response.notification.request.content.categoryIdentifier;
+      
+      console.log(`[NotificationResponse] Received action: ${actionId} for category: ${categoryId}`);
+      
+      if (categoryId === 'ARRIVED_ALERT') {
+        if (actionId === 'done') {
+          await SessionManager.closeSession(true);
+        } else if (actionId === 'keep') {
+          await SessionManager.resumeSession();
+        }
       }
     });
 

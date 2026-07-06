@@ -8,10 +8,13 @@ class LiveActivityModule: NSObject {
   private var currentActivity: Activity<CommuteActivityAttributes>? = nil
   
   @objc
-  func startCommuteActivity(_ destinationStation: String,
-                            destinationLine: String,
-                            estimatedArrivalSeconds: Double,
+  func startCommuteActivity(_ originStation: String,
+                            destinationStation: String,
+                            lineId: String,
+                            lineName: String,
                             nextTrainMinutes: Int,
+                            followingTrainMinutes: Int,
+                            lineStatus: String,
                             resolver resolve: @escaping RCTPromiseResolveBlock,
                             rejecter reject: @escaping RCTPromiseRejectBlock) {
     
@@ -26,40 +29,46 @@ class LiveActivityModule: NSObject {
       return
     }
     
-    // Check if there is already an active activity and end it
-    endExistingActivity()
-    
-    let arrivalDate = Date(timeIntervalSince1970: estimatedArrivalSeconds)
-    
-    let attributes = CommuteActivityAttributes(
-      destinationStation: destinationStation,
-      destinationLine: destinationLine
-    )
-    
-    let state = CommuteActivityAttributes.ContentState(
-      estimatedArrival: arrivalDate,
-      nextTrainMinutes: nextTrainMinutes,
-      currentStatus: "Tracking commute..."
-    )
-    
-    do {
-      let activity = try Activity<CommuteActivityAttributes>.request(
-        attributes: attributes,
-        contentState: state,
-        pushType: nil
+    Task {
+      // Check if there is already an active activity and end it (await termination)
+      let activities = Activity<CommuteActivityAttributes>.activities
+      for activity in activities {
+        await activity.end(dismissPolicy: .immediate)
+      }
+      self.currentActivity = nil
+      
+      let attributes = CommuteActivityAttributes(
+        originStation: originStation,
+        destinationStation: destinationStation,
+        lineId: lineId,
+        lineName: lineName
       )
-      self.currentActivity = activity
-      print("⚡️ Live Activity started successfully: \(activity.id)")
-      resolve(activity.id)
-    } catch {
-      reject("START_ERROR", "Failed to start Live Activity: \(error.localizedDescription)", error)
+      
+      let state = CommuteActivityAttributes.ContentState(
+        nextTrainMinutes: nextTrainMinutes,
+        followingTrainMinutes: followingTrainMinutes,
+        lineStatus: lineStatus
+      )
+      
+      do {
+        let activity = try Activity<CommuteActivityAttributes>.request(
+          attributes: attributes,
+          contentState: state,
+          pushType: nil
+        )
+        self.currentActivity = activity
+        print("⚡️ Live Activity started successfully: \(activity.id)")
+        resolve(activity.id)
+      } catch {
+        reject("START_ERROR", "Failed to start Live Activity: \(error.localizedDescription)", error)
+      }
     }
   }
   
   @objc
   func updateCommuteActivity(_ nextTrainMinutes: Int,
-                             currentStatus: String,
-                             estimatedArrivalSeconds: Double,
+                             followingTrainMinutes: Int,
+                             lineStatus: String,
                              resolver resolve: @escaping RCTPromiseResolveBlock,
                              rejecter reject: @escaping RCTPromiseRejectBlock) {
     guard #available(iOS 16.1, *) else {
@@ -75,14 +84,10 @@ class LiveActivityModule: NSObject {
     }
     
     Task {
-      let arrivalDate = estimatedArrivalSeconds > 0 
-        ? Date(timeIntervalSince1970: estimatedArrivalSeconds) 
-        : activeActivity.contentState.estimatedArrival
-        
       let updatedState = CommuteActivityAttributes.ContentState(
-        estimatedArrival: arrivalDate,
         nextTrainMinutes: nextTrainMinutes,
-        currentStatus: currentStatus
+        followingTrainMinutes: followingTrainMinutes,
+        lineStatus: lineStatus
       )
       
       await activeActivity.update(using: updatedState)
@@ -124,17 +129,6 @@ class LiveActivityModule: NSObject {
     }
     let isActive = !Activity<CommuteActivityAttributes>.activities.isEmpty
     resolve(isActive)
-  }
-  
-  private func endExistingActivity() {
-    guard #available(iOS 16.1, *) else { return }
-    let activities = Activity<CommuteActivityAttributes>.activities
-    for activity in activities {
-      Task {
-        await activity.end(dismissPolicy: .immediate)
-      }
-    }
-    self.currentActivity = nil
   }
   
   @objc

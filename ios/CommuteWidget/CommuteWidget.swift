@@ -715,7 +715,9 @@ struct CommutePremiumWidget: Widget {
 struct CommuteWidgetBundle: WidgetBundle {
     var body: some Widget {
         CommutePremiumWidget()
-        CommuteLiveActivity()
+        if #available(iOS 16.1, *) {
+            CommuteLiveActivity()
+        }
     }
 }
 

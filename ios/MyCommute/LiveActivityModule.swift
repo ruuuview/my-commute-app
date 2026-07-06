@@ -2,6 +2,7 @@ import Foundation
 import ActivityKit
 import React
 
+@available(iOS 16.1, *)
 @objc(LiveActivityModule)
 class LiveActivityModule: NSObject {
   

@@ -2,6 +2,7 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+@available(iOS 16.1, *)
 struct CommuteActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var nextTrainMinutes: Int
@@ -35,6 +36,7 @@ func colorForLine(_ lineId: String) -> Color {
     }
 }
 
+@available(iOS 16.1, *)
 struct CommuteLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: CommuteActivityAttributes.self) { context in
@@ -97,6 +99,7 @@ struct CommuteLiveActivity: Widget {
     }
 }
 
+@available(iOS 16.1, *)
 struct CommuteLiveActivityLockScreenView: View {
     let context: ActivityViewContext<CommuteActivityAttributes>
     

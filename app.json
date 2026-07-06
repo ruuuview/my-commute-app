@@ -20,6 +20,7 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
+          "location",
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false

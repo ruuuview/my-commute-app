@@ -35,7 +35,7 @@ export default function TermsScreen() {
           <Text style={styles.sectionTitle}>Use of Service</Text>
           <Text style={styles.bodyText}>
             My Commute is provided as a convenience tool for viewing London transport
-            information. It relies on Transport for London's open data API and is not
+            information. It relies on Transport for London’s open data API and is not
             affiliated with or endorsed by TfL.
           </Text>
           <Text style={styles.bodyText}>
@@ -46,7 +46,7 @@ export default function TermsScreen() {
 
           <Text style={styles.sectionTitle}>Disclaimer</Text>
           <Text style={styles.bodyText}>
-            Transport information is provided "as is" without any warranty. My Commute
+            Transport information is provided “as is” without any warranty. My Commute
             makes no guarantees about the accuracy, reliability, or availability of
             transport data. Always check official TfL sources for critical travel
             decisions.

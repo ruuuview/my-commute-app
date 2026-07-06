@@ -46,14 +46,14 @@ export default function PrivacyScreen() {
 
           <Text style={styles.sectionTitle}>Data Usage</Text>
           <Text style={styles.bodyText}>
-            Transport data is fetched from Transport for London's public API. We do not
+            Transport data is fetched from Transport for London’s public API. We do not
             log, cache, or store your queries on our servers. Live Activity updates are
             processed locally using ActivityKit.
           </Text>
 
           <Text style={styles.sectionTitle}>Third-Party Services</Text>
           <Text style={styles.bodyText}>
-            My Commute uses Transport for London's open data API. Please refer to TfL's
+            My Commute uses Transport for London’s open data API. Please refer to TfL’s
             privacy policy for information on how they handle data.
           </Text>
 

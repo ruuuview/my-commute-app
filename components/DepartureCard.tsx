@@ -97,7 +97,11 @@ export default function DepartureCard({
   const [loading, setLoading] = useState(true);
 
   const pressAnim = usePressAnimation('departure_card');
-  const jiggleStyle = useJiggle(index, isEditing, isActive, globalJiggle);
+  const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
+    baselineShadowOpacity: GLASS.shadowOpacity,
+    baselineShadowRadius: GLASS.shadowRadius,
+    baselineElevation: 0,
+  });
 
   // ── Fetch live arrivals ───────────────────────────────────────
   const fetchArrivals = useCallback(

@@ -56,6 +56,7 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { LINE_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
 import { useLineDataStore } from '../store/lineDataStore';
+import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -290,11 +291,11 @@ const MyCommuteDashboard: React.FC = () => {
   const globalJiggle = useSharedValue(0);
 
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && !reducedMotion) {
       globalJiggle.value = withRepeat(
         withSequence(
-          withTiming(-1.2, { duration: 100, easing: Easing.inOut(Easing.sin) }),
-          withTiming(1.2, { duration: 100, easing: Easing.inOut(Easing.sin) })
+          withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
+          withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
         ),
         -1,
         false
@@ -303,7 +304,7 @@ const MyCommuteDashboard: React.FC = () => {
       cancelAnimation(globalJiggle);
       globalJiggle.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, globalJiggle]);
+  }, [isEditing, globalJiggle, reducedMotion]);
 
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);

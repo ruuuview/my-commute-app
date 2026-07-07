@@ -10,29 +10,30 @@ import {
   Easing,
   SharedValue
 } from 'react-native-reanimated';
+import { GLASS } from '../theme/colors';
+
+export const JIGGLE_DEG = 1.2;
+export const JIGGLE_MS = 100;
 
 export const useJiggle = (
-  index: number,
   isEditing: boolean,
   isActive: boolean,
-  globalJiggle?: SharedValue<number>
+  globalJiggle?: SharedValue<number>,
+  options?: {
+    baselineShadowOpacity?: number;
+    baselineShadowRadius?: number;
+    baselineElevation?: number;
+  }
 ) => {
   const reducedMotion = useReducedMotion();
-  
   const rotation = useSharedValue(0);
-  const zIndex = useSharedValue(0);
   const isActiveShared = useSharedValue(isActive ? 1 : 0);
 
   useEffect(() => {
     isActiveShared.value = isActive ? 1 : 0;
   }, [isActive, isActiveShared]);
 
-  const JIGGLE_DEG = 1.2;
-  const JIGGLE_MS = 100;
-
   useEffect(() => {
-    zIndex.value = isActive ? 999 : isEditing ? 1 : 1;
-
     if (globalJiggle) return;
 
     if (isActive || reducedMotion) {
@@ -52,12 +53,17 @@ export const useJiggle = (
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, isActive, rotation, zIndex, reducedMotion, globalJiggle]);
+  }, [isEditing, isActive, rotation, reducedMotion, globalJiggle]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
     const rotVal = active ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
     const rotStr = `${rotVal}deg`;
+
+    // Baseline fallbacks matching regular glass theme card values
+    const baseOpacity = options?.baselineShadowOpacity ?? GLASS.shadowOpacity;
+    const baseRadius = options?.baselineShadowRadius ?? GLASS.shadowRadius;
+    const baseElevation = options?.baselineElevation ?? 0;
 
     return {
       transform: [
@@ -65,9 +71,9 @@ export const useJiggle = (
         { scale: active ? 1.04 : 1 },
       ],
       zIndex: active ? 999 : 1,
-      shadowOpacity: active ? 0.5 : 0,
-      shadowRadius: active ? 24 : 0,
-      elevation: active ? 12 : 0,
+      shadowOpacity: active ? 0.5 : baseOpacity,
+      shadowRadius: active ? 24 : baseRadius,
+      elevation: active ? 12 : baseElevation,
     };
   });
 

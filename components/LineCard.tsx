@@ -111,7 +111,22 @@ export function LineCard({
   const cardPaddingLeft = isSlim ? 30 : 34;
 
   const opacityVal = useSharedValue(0);
-  const jiggleStyle = useJiggle(index, isEditing, isActive, globalJiggle);
+
+  const shadowOpacityBase = (mode === 'select' && selected)
+    ? (line.id === 'northern' ? 0.6 : (line.id === 'jubilee' ? 0.65 : 0.5))
+    : GLASS.shadowOpacity;
+
+  const shadowRadiusBase = (mode === 'select' && selected)
+    ? (line.id === 'northern' ? 10 : 8)
+    : GLASS.shadowRadius;
+
+  const elevationBase = (mode === 'select' && selected) ? 5 : 0;
+
+  const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
+    baselineShadowOpacity: shadowOpacityBase,
+    baselineShadowRadius: shadowRadiusBase,
+    baselineElevation: elevationBase,
+  });
   const [touchReady, setTouchReady] = useState(true);
 
   useEffect(() => {
@@ -188,9 +203,6 @@ export function LineCard({
   const selectedShadowStyle = (mode === 'select' && selected) ? {
     shadowColor: line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : line.color,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: line.id === 'northern' ? 0.6 : (line.id === 'jubilee' ? 0.65 : 0.5),
-    shadowRadius: line.id === 'northern' ? 10 : 8,
-    elevation: 5,
   } : null;
 
   return (

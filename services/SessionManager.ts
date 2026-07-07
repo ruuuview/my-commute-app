@@ -116,6 +116,8 @@ export class SessionManager {
         let body = 'Want me to go quiet now?';
 
         try {
+          const copyController = new AbortController();
+          const copyTimeout = setTimeout(() => copyController.abort(), 2000);
           const resp = await fetch(`${APP_CONFIG.BACKEND_URL}/api/notification/copy`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -123,7 +125,9 @@ export class SessionManager {
               type: 'arrival',
               context: { duration_minutes: elapsedMin }
             }),
+            signal: copyController.signal,
           });
+          clearTimeout(copyTimeout);
           if (resp.ok) {
             const data = await resp.json();
             if (data?.title && data?.body) {

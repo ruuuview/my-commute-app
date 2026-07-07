@@ -28,11 +28,13 @@ import Animated, {
   withSpring,
   withTiming,
   useReducedMotion,
+  SharedValue,
 } from 'react-native-reanimated';
 import { LINE_COLORS } from '../constants/lineColors';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { useJiggle } from '../hooks/useJiggle';
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
 
@@ -61,6 +63,9 @@ export interface DepartureCardProps {
   hideCard?: boolean;
   selectedLines?: string[];
   drag?: () => void;
+  index?: number;
+  isActive?: boolean;
+  globalJiggle?: SharedValue<number>;
 }
 
 // ─── Helper: clean platform text ─────────────────────────────────
@@ -83,12 +88,16 @@ export default function DepartureCard({
   hideCard = false,
   selectedLines,
   drag,
+  index = 0,
+  isActive = false,
+  globalJiggle,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
 
   const pressAnim = usePressAnimation('departure_card');
+  const jiggleStyle = useJiggle(index, isEditing, isActive, globalJiggle);
 
   // ── Fetch live arrivals ───────────────────────────────────────
   const fetchArrivals = useCallback(
@@ -208,75 +217,85 @@ export default function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.container, containerAnimStyle, pressAnim.animatedStyle]}
+      style={[styles.container, containerAnimStyle, jiggleStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+      <Animated.View style={[{ flex: 1 }, pressAnim.animatedStyle]}>
+        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-      <Pressable
-        onPress={handlePress}
-        onLongPress={onLongPress}
-        onPressIn={() => {
-          if (isEditing && drag) {
-            drag();
-          } else if (!isEditing) {
-            pressAnim.onPressIn();
-          }
-        }}
-        onPressOut={() => {
-          if (!isEditing) pressAnim.onPressOut();
-        }}
-        style={styles.pressable}
-        testID={`departure-card-pressable-${stationId}`}
-      >
-        {/* Station header */}
-        <View style={styles.headerRow}>
-          <Text style={styles.stationName} numberOfLines={1}>{cleanName}</Text>
+        <Pressable
+          onPress={handlePress}
+          onLongPress={onLongPress}
+          onPressIn={() => {
+            if (isEditing && drag) {
+              drag();
+            } else if (!isEditing) {
+              pressAnim.onPressIn();
+            }
+          }}
+          onPressOut={() => {
+            if (!isEditing) pressAnim.onPressOut();
+          }}
+          style={styles.pressable}
+          testID={`departure-card-pressable-${stationId}`}
+        >
+          {/* Station header */}
+          <View style={styles.headerRow}>
+            <Text style={styles.stationName} numberOfLines={1}>{cleanName}</Text>
 
-          {isEditing && onDelete && (
-            <Pressable
-              style={styles.deleteBadge}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onDelete(stationId);
-              }}
-              testID={`departure-card-delete-${stationId}`}
-            >
-              <Text style={styles.deleteIcon}>−</Text>
-            </Pressable>
-          )}
-        </View>
+            {isEditing && onDelete && (
+              <Pressable
+                style={styles.deleteBadge}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onDelete(stationId);
+                }}
+                testID={`departure-card-delete-${stationId}`}
+              >
+                <Text style={styles.deleteIcon}>−</Text>
+              </Pressable>
+            )}
+          </View>
 
-        {/* Subtle glass divider to give definition to the station name */}
-        <View style={styles.divider} />
+          {/* Subtle glass divider to give definition to the station name */}
+          <View style={styles.divider} />
 
-        {/* Departure rows */}
-        {loading ? (
-          <Text style={styles.loadingText}>...</Text>
-        ) : displayArrivals.length === 0 ? (
-          <Text style={styles.emptyText}>No trains</Text>
-        ) : (
-          displayArrivals.map((arr, idx) => {
-            const isDue = arr.minutesAway <= 0;
-            const timeText = isDue ? 'Due' : `${arr.minutesAway} min`;
-            const platform = cleanPlatform(arr.platform);
+          {/* Departure rows */}
+          {loading ? (
+            <Text style={styles.loadingText}>...</Text>
+          ) : displayArrivals.length === 0 ? (
+            <Text style={styles.emptyText}>No upcoming departures</Text>
+          ) : (
+            displayArrivals.map((arr, idx) => {
+              const isDue = arr.minutesAway <= 0;
+              const timeText = isDue ? 'Due' : `${arr.minutesAway} min`;
+              const platform = cleanPlatform(arr.platform);
 
-            return (
-              <View key={`${arr.lineId}-${idx}`} style={styles.arrivalRow} testID={`departure-row-${idx}`}>
-                <View style={[styles.lineBar, { backgroundColor: arr.lineColor }]} />
-                <Text style={styles.arrLineName} numberOfLines={1}>{arr.lineName}</Text>
-                <View style={styles.destPlatform}>
-                  <Text style={styles.arrDest} numberOfLines={1}>{arr.destination}</Text>
-                  {platform ? <Text style={styles.arrPlatform} numberOfLines={1}>{platform}</Text> : null}
+              return (
+                <View key={`${arr.lineId}-${idx}`} style={styles.arrivalRow} testID={`departure-row-${idx}`}>
+                  <View style={[styles.lineBar, { backgroundColor: arr.lineColor }]} />
+                  <Text style={styles.arrLineName} numberOfLines={1}>
+                    {arr.lineName}
+                  </Text>
+                  <View style={styles.destPlatform}>
+                    <Text style={styles.arrDest} numberOfLines={1}>
+                      {arr.destination}
+                    </Text>
+                    {platform ? (
+                      <Text style={styles.arrPlatform} numberOfLines={1}>
+                        {platform}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.arrTime, isDue && styles.arrTimeDue]} numberOfLines={1}>
+                    {timeText}
+                  </Text>
                 </View>
-                <Text style={[styles.arrTime, isDue && styles.arrTimeDue]} numberOfLines={1}>
-                  {timeText}
-                </Text>
-              </View>
-            );
-          })
-        )}
-      </Pressable>
+              );
+            })
+          )}
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

@@ -7,10 +7,16 @@ import {
   withTiming, 
   cancelAnimation,
   useReducedMotion,
-  Easing
+  Easing,
+  SharedValue
 } from 'react-native-reanimated';
 
-export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) => {
+export const useJiggle = (
+  index: number,
+  isEditing: boolean,
+  isActive: boolean,
+  globalJiggle?: SharedValue<number>
+) => {
   const reducedMotion = useReducedMotion();
   
   const rotation = useSharedValue(0);
@@ -26,6 +32,8 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
 
   useEffect(() => {
     zIndex.value = isActive ? 999 : isEditing ? 1 : 1;
+
+    if (globalJiggle) return;
 
     if (isActive || reducedMotion) {
       cancelAnimation(rotation);
@@ -44,11 +52,12 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, isActive, rotation, zIndex, reducedMotion]);
+  }, [isEditing, isActive, rotation, zIndex, reducedMotion, globalJiggle]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
-    const rotStr = `${rotation.value}deg`;
+    const rotVal = active ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
+    const rotStr = `${rotVal}deg`;
 
     return {
       transform: [

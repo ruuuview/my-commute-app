@@ -11,6 +11,7 @@ import Animated, {
   FadeOut,
   ZoomIn,
   ZoomOut,
+  SharedValue,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
@@ -81,7 +82,7 @@ interface LineCardProps {
   drag?: () => void;
   isActive?: boolean;
   index?: number;
-  globalJiggle?: Animated.SharedValue<number>;
+  globalJiggle?: SharedValue<number>;
 }
 
 export function LineCard({

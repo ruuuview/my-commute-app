@@ -5,36 +5,25 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withRepeat,
-  withSequence,
   withDelay,
-  cancelAnimation,
   useReducedMotion,
   Easing,
+  SharedValue,
 } from 'react-native-reanimated';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
 
-// ─── Per-card wrapper: stagger entrance + jiggle animation ────────
-interface JigglingCardWrapperProps {
+// ─── Per-card wrapper: stagger entrance animation ──────────────────
+interface StaggeredEntranceWrapperProps {
   children: React.ReactNode;
   index: number;
-  isJiggling: boolean;
-  isActive?: boolean;
-  globalJiggle?: Animated.SharedValue<number>;
 }
 
-const JigglingCardWrapper = memo(
-  ({ children, index, isJiggling, isActive = false, globalJiggle }: JigglingCardWrapperProps) => {
-    const rotation = useSharedValue(0);
+const StaggeredEntranceWrapper = memo(
+  ({ children, index }: StaggeredEntranceWrapperProps) => {
     const entranceY = useSharedValue(16);
     const opacity = useSharedValue(0);
     const reducedMotion = useReducedMotion();
-
-    const isActiveShared = useSharedValue(isActive ? 1 : 0);
-    useEffect(() => {
-      isActiveShared.value = isActive ? 1 : 0;
-    }, [isActive, isActiveShared]);
 
     // Entrance animation: runs once on mount
     useEffect(() => {
@@ -55,53 +44,17 @@ const JigglingCardWrapper = memo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [index, reducedMotion]);
 
-    // Jiggle params matching iOS feel
-    const JIGGLE_DEG = 1.2;
-    const JIGGLE_MS = 100;
-
-    // Jiggle loop with support for freezing during drag (isActive)
-    useEffect(() => {
-      if (globalJiggle) return;
-      if (reducedMotion) return;
-
-      if (isActive) {
-        // Freeze animation during drag
-        cancelAnimation(rotation);
-        rotation.value = 0;
-      } else if (isJiggling) {
-        rotation.value = withRepeat(
-          withSequence(
-            withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
-            withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
-          ),
-          -1,
-          false
-        );
-      } else {
-        cancelAnimation(rotation);
-        rotation.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
-      }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isJiggling, isActive, reducedMotion, globalJiggle]);
-
-    const animatedStyle = useAnimatedStyle(() => {
-      const active = isActiveShared.value === 1;
-      const rotVal = active ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
-      return {
-        opacity: opacity.value,
-        transform: [
-          { translateY: entranceY.value },
-          { rotate: `${rotVal}deg` },
-          { scale: active ? 1.04 : 1 }
-        ],
-        zIndex: active ? 999 : 1,
-      };
-    });
+    const animatedStyle = useAnimatedStyle(() => ({
+      opacity: opacity.value,
+      transform: [
+        { translateY: entranceY.value },
+      ],
+    }));
 
     return <Animated.View style={animatedStyle}>{children}</Animated.View>;
   }
 );
-JigglingCardWrapper.displayName = 'JigglingCardWrapper';
+StaggeredEntranceWrapper.displayName = 'StaggeredEntranceWrapper';
 
 // ─── DashboardGrid ────────────────────────────────────────────────
 export interface DashboardGridProps {
@@ -122,7 +75,7 @@ export interface DashboardGridProps {
   /** Triggered when the drag reordering finishes */
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
-  globalJiggle?: Animated.SharedValue<number>;
+  globalJiggle?: SharedValue<number>;
 }
 
 export default function DashboardGrid({
@@ -161,18 +114,21 @@ export default function DashboardGrid({
 
     return (
       <ScaleDecorator>
-        <JigglingCardWrapper index={index} isJiggling={isJiggling && !isDragging} isActive={isActive} globalJiggle={globalJiggle}>
+        <StaggeredEntranceWrapper index={index}>
           <DepartureCard
             stationId={item.id}
             stationName={item.name}
-            isEditing={isJiggling}
+            isEditing={isJiggling && !isDragging}
             onDelete={onDelete}
             onLongPress={handleLongPress}
             onCardTap={handleCardTap}
             selectedLines={selectedLines}
             drag={isJiggling ? drag : undefined}
+            index={index}
+            isActive={isActive}
+            globalJiggle={globalJiggle}
           />
-        </JigglingCardWrapper>
+        </StaggeredEntranceWrapper>
       </ScaleDecorator>
     );
   }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines, globalJiggle]);

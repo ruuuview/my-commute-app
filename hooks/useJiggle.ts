@@ -5,14 +5,12 @@ import {
   withRepeat, 
   withSequence, 
   withTiming, 
-  withDelay, 
   cancelAnimation,
   useReducedMotion,
   Easing
 } from 'react-native-reanimated';
 
 export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) => {
-  const phaseDelay = (index * 37) % 120; // prime offset, smaller range
   const reducedMotion = useReducedMotion();
   
   const rotation = useSharedValue(0);
@@ -34,22 +32,19 @@ export const useJiggle = (index: number, isEditing: boolean, isActive: boolean) 
       rotation.value = 0;
     } else if (isEditing) {
       // ±JIGGLE_DEG rotation jiggle
-      rotation.value = withDelay(
-        phaseDelay,
-        withRepeat(
-          withSequence(
-            withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
-            withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
-          ),
-          -1,
-          false
-        )
+      rotation.value = withRepeat(
+        withSequence(
+          withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
+          withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1,
+        false
       );
     } else {
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 150 });
     }
-  }, [isEditing, isActive, phaseDelay, rotation, zIndex, reducedMotion]);
+  }, [isEditing, isActive, rotation, zIndex, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;

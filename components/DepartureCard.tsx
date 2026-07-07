@@ -60,6 +60,7 @@ export interface DepartureCardProps {
   onCardTap?: (stationId: string, stationName: string) => void;
   hideCard?: boolean;
   selectedLines?: string[];
+  drag?: () => void;
 }
 
 // ─── Helper: clean platform text ─────────────────────────────────
@@ -81,6 +82,7 @@ export default function DepartureCard({
   onCardTap,
   hideCard = false,
   selectedLines,
+  drag,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
@@ -215,7 +217,11 @@ export default function DepartureCard({
         onPress={handlePress}
         onLongPress={onLongPress}
         onPressIn={() => {
-          if (!isEditing) pressAnim.onPressIn();
+          if (isEditing && drag) {
+            drag();
+          } else if (!isEditing) {
+            pressAnim.onPressIn();
+          }
         }}
         onPressOut={() => {
           if (!isEditing) pressAnim.onPressOut();

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -12,7 +12,7 @@ import Animated, {
   useReducedMotion,
   Easing,
 } from 'react-native-reanimated';
-import { NestableDraggableFlatList, RenderItemParams } from 'react-native-draggable-flatlist';
+import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
 
 // ─── Per-card wrapper: stagger entrance + jiggle animation ────────
@@ -67,24 +67,20 @@ const JigglingCardWrapper = memo(
         cancelAnimation(rotation);
         rotation.value = 0;
       } else if (isJiggling) {
-        const phase = (index * 37) % 120; // prime offset, smaller range
-        rotation.value = withDelay(
-          phase,
-          withRepeat(
-            withSequence(
-              withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
-              withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
-            ),
-            -1,
-            false
-          )
+        rotation.value = withRepeat(
+          withSequence(
+            withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
+            withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
         );
       } else {
         cancelAnimation(rotation);
         rotation.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isJiggling, isActive, reducedMotion, index]);
+    }, [isJiggling, isActive, reducedMotion]);
 
     const animatedStyle = useAnimatedStyle(() => ({
       opacity: opacity.value,
@@ -134,6 +130,8 @@ export default function DashboardGrid({
   onReorderStations,
   simultaneousHandlers,
 }: DashboardGridProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
   // ── Card tap handler: navigate to full-screen StationDetailScreen ─
   const handleCardTap = useCallback(
     (stationId: string, stationName: string) => {
@@ -154,19 +152,22 @@ export default function DashboardGrid({
     };
 
     return (
-      <JigglingCardWrapper index={index} isJiggling={isJiggling} isActive={isActive}>
-        <DepartureCard
-          stationId={item.id}
-          stationName={item.name}
-          isEditing={isJiggling}
-          onDelete={onDelete}
-          onLongPress={handleLongPress}
-          onCardTap={handleCardTap}
-          selectedLines={selectedLines}
-        />
-      </JigglingCardWrapper>
+      <ScaleDecorator>
+        <JigglingCardWrapper index={index} isJiggling={isJiggling && !isDragging} isActive={isActive}>
+          <DepartureCard
+            stationId={item.id}
+            stationName={item.name}
+            isEditing={isJiggling}
+            onDelete={onDelete}
+            onLongPress={handleLongPress}
+            onCardTap={handleCardTap}
+            selectedLines={selectedLines}
+            drag={isJiggling ? drag : undefined}
+          />
+        </JigglingCardWrapper>
+      </ScaleDecorator>
     );
-  }, [isJiggling, stations, onDelete, onLongPressCard, handleCardTap, selectedLines]);
+  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines]);
 
   return (
     <View style={styles.container} testID="dashboard-grid">
@@ -183,8 +184,12 @@ export default function DashboardGrid({
         data={stations}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        onDragBegin={() => onScrollEnabledChange(false)}
+        onDragBegin={() => {
+          setIsDragging(true);
+          onScrollEnabledChange(false);
+        }}
         onDragEnd={({ data }) => {
+          setIsDragging(false);
           onScrollEnabledChange(true);
           onReorderStations?.(data);
         }}
@@ -192,6 +197,10 @@ export default function DashboardGrid({
         dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
         simultaneousHandlers={simultaneousHandlers}
         scrollEnabled={false}
+        initialNumToRender={8}
+        windowSize={11}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
       />
     </View>
   );

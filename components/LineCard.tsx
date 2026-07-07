@@ -240,7 +240,11 @@ export function LineCard({
           onPress={handlePress}
           onLongPress={handleLongPress}
           onPressIn={() => {
-            if (!isEditing) pressAnim.onPressIn();
+            if (isEditing && drag) {
+              drag();
+            } else if (!isEditing) {
+              pressAnim.onPressIn();
+            }
           }}
           onPressOut={() => {
             if (!isEditing) pressAnim.onPressOut();

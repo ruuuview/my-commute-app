@@ -45,7 +45,7 @@ import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard';
-import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams } from 'react-native-draggable-flatlist';
+import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -285,6 +285,7 @@ const MyCommuteDashboard: React.FC = () => {
   const [stationModalVisible, setStationModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
   const [isEditing, setIsEditing] = useState(false);
+  const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
@@ -521,28 +522,30 @@ const MyCommuteDashboard: React.FC = () => {
     };
 
     return (
-      <View
-        ref={el => { if (el) itemRefs.current[item.id] = el; }}
-        style={{ height: 46, marginBottom: 12 }}
-      >
-        <LineCard
-          line={item}
-          selected={false}
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          statusType={severity}
-          statusLabel={item.status || 'Good service'}
-          cardHeight={46}
-          mode="display"
-          isEditing={isEditing}
-          onDelete={removeLine}
-          drag={isEditing ? drag : undefined}
-          isActive={isActive}
-          index={idx}
-        />
-      </View>
+      <ScaleDecorator>
+        <View
+          ref={el => { if (el) itemRefs.current[item.id] = el; }}
+          style={{ height: 46, marginBottom: 12 }}
+        >
+          <LineCard
+            line={item}
+            selected={false}
+            onPress={handlePress}
+            onLongPress={handleLongPress}
+            statusType={severity}
+            statusLabel={item.status || 'Good service'}
+            cardHeight={46}
+            mode="display"
+            isEditing={isEditing && !isDraggingLine}
+            onDelete={removeLine}
+            drag={isEditing ? drag : undefined}
+            isActive={isActive}
+            index={idx}
+          />
+        </View>
+      </ScaleDecorator>
     );
-  }, [isEditing, sortedLines, removeLine, handleEdit]);
+  }, [isEditing, isDraggingLine, sortedLines, removeLine, handleEdit]);
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   return (
@@ -606,8 +609,12 @@ const MyCommuteDashboard: React.FC = () => {
                 data={sortedLines}
                 keyExtractor={(item: LineData) => item.id}
                 renderItem={renderLineItem}
-                onDragBegin={() => setScrollEnabled(false)}
+                onDragBegin={() => {
+                  setIsDraggingLine(true);
+                  setScrollEnabled(false);
+                }}
                 onDragEnd={({ data }) => {
+                  setIsDraggingLine(false);
                   setScrollEnabled(true);
                   reorderLines((data as LineData[]).map(l => l.id));
                 }}
@@ -615,6 +622,10 @@ const MyCommuteDashboard: React.FC = () => {
                 dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
                 simultaneousHandlers={scrollRef}
                 scrollEnabled={false}
+                initialNumToRender={10}
+                windowSize={11}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
               />
             </View>
           )}

@@ -4,9 +4,15 @@ import React
 
 @available(iOS 16.1, *)
 @objc(LiveActivityModule)
+@MainActor
 class LiveActivityModule: NSObject {
   
   private var currentActivity: Activity<CommuteActivityAttributes>? = nil
+
+  @objc
+  var methodQueue: DispatchQueue {
+    return DispatchQueue.main
+  }
   
   @objc
   func startCommuteActivity(_ originStation: String,

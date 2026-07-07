@@ -123,13 +123,21 @@ export default function DepartureCard({
           if (sData?.departures) allRaw.push(...sData.departures);
         });
 
+        const processed = allRaw.map((dep: any) => {
+          const mins = dep.minutes_away !== undefined
+            ? dep.minutes_away
+            : dep.expected_arrival
+            ? Math.max(0, Math.round((new Date(dep.expected_arrival).getTime() - Date.now()) / 60000))
+            : null;
+          return { ...dep, calculatedMinutes: mins };
+        }).filter(dep => dep.calculatedMinutes !== null);
+
         const seen = new Set<string>();
-        const deduped = allRaw.filter(dep => {
+        const deduped = processed.filter(dep => {
           const dest = String(dep.destination || '');
           if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
           
-          // Collapse all minutes_away <= 0 (e.g. Due) to the same key to prevent duplicate due trains on the same platform
-          const mins = dep.minutes_away ?? 0;
+          const mins = dep.calculatedMinutes!;
           const dueKey = mins <= 0 ? 'due' : mins;
           const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
           
@@ -138,7 +146,7 @@ export default function DepartureCard({
           return true;
         });
 
-        deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
+        deduped.sort((a, b) => a.calculatedMinutes! - b.calculatedMinutes!);
 
         const mapped = deduped.map((dep: any) => {
           const { lineId, cleanLineId } = normaliseLineId(dep.line);
@@ -146,7 +154,7 @@ export default function DepartureCard({
             lineId,
             lineName: dep.line,
             lineColor: LINE_COLORS[cleanLineId] || '#888',
-            minutesAway: dep.minutes_away,
+            minutesAway: dep.calculatedMinutes!,
             destination: String(dep.destination || '')
               .replace(' Underground Station', '')
               .replace(' DLR Station', '')
@@ -163,9 +171,12 @@ export default function DepartureCard({
 
         if (!active.current) return;
         setArrivals(filtered);
-        setLoading(false);
       } catch (err) {
         console.log('[DepartureCard] fetch error:', err);
+      } finally {
+        if (active.current) {
+          setLoading(false);
+        }
       }
     },
     [stationId, selectedLines]

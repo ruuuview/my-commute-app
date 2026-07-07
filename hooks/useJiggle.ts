@@ -34,7 +34,10 @@ export const useJiggle = (
   }, [isActive, isActiveShared]);
 
   useEffect(() => {
-    if (globalJiggle) return;
+    if (globalJiggle) {
+      cancelAnimation(rotation);
+      return;
+    }
 
     if (isActive || reducedMotion) {
       cancelAnimation(rotation);
@@ -53,6 +56,8 @@ export const useJiggle = (
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 150 });
     }
+
+    return () => cancelAnimation(rotation);
   }, [isEditing, isActive, rotation, reducedMotion, globalJiggle]);
 
   const animatedStyle = useAnimatedStyle(() => {

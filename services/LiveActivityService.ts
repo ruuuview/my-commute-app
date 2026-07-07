@@ -13,12 +13,30 @@ export interface LiveActivityStartConfig {
   originId: string;
 }
 
-const fetchTflDirect = async (stationId: string, lineId: string) => {
+const FETCH_TIMEOUT_MS = 8000;
+
+const fetchWithTimeout = (url: string, signal?: AbortSignal, ms = FETCH_TIMEOUT_MS) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', () => controller.abort());
+    }
+  }
+
+  return fetch(url, { signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+};
+
+const fetchTflDirect = async (stationId: string, lineId: string, signal?: AbortSignal) => {
   try {
     const resolvedIds = resolveTflStopIds(stationId);
     const responses = await Promise.all(
       resolvedIds.map(id =>
-        fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
+        fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, signal)
           .then(res => (res.ok ? res.json() : null))
           .catch(() => null)
       )
@@ -43,7 +61,7 @@ const fetchTflDirect = async (stationId: string, lineId: string) => {
 
     let lineStatus = 'Good service';
     try {
-      const lResp = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`);
+      const lResp = await fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/lines`, signal);
       if (lResp.ok) {
         const lines = await lResp.json();
         const lineInfo = lines.find((l: any) => l.id.toLowerCase() === lineId.toLowerCase());
@@ -72,6 +90,7 @@ const fetchTflDirect = async (stationId: string, lineId: string) => {
 
 export class LiveActivityService {
   private static pollIntervalId: any = null;
+  private static activeAbortController: AbortController | null = null;
 
   static async start(config: LiveActivityStartConfig): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
@@ -82,8 +101,19 @@ export class LiveActivityService {
         return null;
       }
 
+      // Abort any existing in-flight activity requests or loops
+      if (this.activeAbortController) {
+        this.activeAbortController.abort();
+      }
+
+      const controller = new AbortController();
+      this.activeAbortController = controller;
+
       // Initial direct fetch
-      const initialData = await fetchTflDirect(config.originId, config.lineId);
+      const initialData = await fetchTflDirect(config.originId, config.lineId, controller.signal);
+      if (controller.signal.aborted) {
+        return null;
+      }
 
       const activityId = await LiveActivityModule.startCommuteActivity(
         config.originStation,
@@ -94,6 +124,12 @@ export class LiveActivityService {
         initialData.followingTrainMinutes,
         initialData.lineStatus
       );
+
+      if (controller.signal.aborted) {
+        await LiveActivityModule.endCommuteActivity().catch(() => {});
+        return null;
+      }
+
       console.log(`✅ LiveActivityService: Started activity with ID ${activityId}`);
 
       // Start 30-second polling loop
@@ -102,8 +138,12 @@ export class LiveActivityService {
       }
 
       this.pollIntervalId = setInterval(async () => {
+        if (controller.signal.aborted) return;
         console.log(`[LiveActivityService] Polling arrivals for ${config.originId} on ${config.lineId}`);
-        const data = await fetchTflDirect(config.originId, config.lineId);
+        const data = await fetchTflDirect(config.originId, config.lineId, controller.signal);
+        
+        if (controller.signal.aborted) return;
+
         try {
           await LiveActivityModule.updateCommuteActivity(
             data.nextTrainMinutes,
@@ -125,6 +165,11 @@ export class LiveActivityService {
 
   static async end(): Promise<void> {
     if (Platform.OS !== 'ios') return;
+
+    if (this.activeAbortController) {
+      this.activeAbortController.abort();
+      this.activeAbortController = null;
+    }
 
     // Clear polling loop
     if (this.pollIntervalId) {

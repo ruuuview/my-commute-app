@@ -4,20 +4,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import Animated from 'react-native-reanimated';
 import { GLASS } from '../theme/colors';
+import { usePressAnimation } from '../hooks/usePressAnimation';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function PrivacyScreen() {
   const { back } = useRouter();
+  const backPress = usePressAnimation('back_btn');
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={styles.header}>
-        <Pressable onPress={back} style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <AnimatedPressable
+          onPress={back}
+          onPressIn={backPress.onPressIn}
+          onPressOut={backPress.onPressOut}
+          style={[styles.backButton, backPress.animatedStyle]}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.80)" />
-        </Pressable>
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Privacy Policy</Text>
         <View style={styles.backButton} />
       </View>

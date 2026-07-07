@@ -69,6 +69,8 @@ struct CommuteLiveActivity: Widget {
                             Text(context.state.lineStatus)
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.white.opacity(0.8))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                             if context.state.followingTrainMinutes > 0 {
                                 Text("Following: \(context.state.followingTrainMinutes) min")
                                     .font(.system(size: 11))
@@ -117,6 +119,8 @@ struct CommuteLiveActivityLockScreenView: View {
                 Text(context.state.lineStatus)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
             
             Spacer()

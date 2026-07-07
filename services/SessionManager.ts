@@ -6,6 +6,9 @@ import { APP_CONFIG } from '../config/app.config';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { tflCapitalise } from '../utils/tflCapitalise';
 
+export const CONSENT_DWELL_MINUTES = 27;
+export const CONSENT_DWELL_MS = CONSENT_DWELL_MINUTES * 60 * 1000;
+
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
 export type SessionState = 'idle' | 'active' | 'closing';
@@ -42,6 +45,7 @@ export class SessionManager {
     backgroundStorage.set('commute_line_id', lineId);
     backgroundStorage.set('commute_start_time', String(Date.now()));
     backgroundStorage.remove('dwell_timer_expires');
+    backgroundStorage.remove('notified_departed');
 
     // Start Live Activity
     try {
@@ -60,11 +64,13 @@ export class SessionManager {
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: `Approaching ${origin}`,
+          title: `Departing ${origin}`,
           body: `Starting live tracking towards ${dest}.`,
           sound: true,
         },
         trigger: null,
+      }).catch(err => {
+        console.error('[SessionManager] Failed to schedule start notification:', err);
       });
     } catch (e) {
       console.error('[SessionManager] Failed to start Live Activity:', e);
@@ -91,8 +97,18 @@ export class SessionManager {
 
       if (destStation && destStation.id !== stationId) {
         const targetStation = pinnedStations.find(s => s.id === stationId);
-        const lineId = targetStation?.lines?.[0] || 'victoria';
-        const lineName = targetStation?.lines?.[0] ? tflCapitalise(targetStation.lines[0]) : 'Victoria';
+        let lineId = targetStation?.lines?.[0];
+        if (!lineId) {
+          // Recovery 1: Use first subscribed line
+          const prefState = useUserPreferencesStore.getState();
+          lineId = prefState.selectedLines?.[0];
+        }
+        if (!lineId) {
+          // Recovery 2: Fall back to 'victoria' and log warning
+          lineId = 'victoria';
+          console.warn(`[SessionManager] No line data found for station ${stationId} or subscribed lines, falling back to 'victoria'`);
+        }
+        const lineName = tflCapitalise(lineId);
         await this.startSession(stationId, destStation.id, lineId, lineName);
       }
       return;
@@ -101,10 +117,9 @@ export class SessionManager {
     if (currentState === 'active') {
       const destId = this.getCommuteDestinationId();
       if ((role === 'home' || role === 'work') && stationId === destId) {
-        console.log(`[SessionManager] Entering destination geofence. Initiating 25-minute dwell check.`);
+        console.log(`[SessionManager] Entering destination geofence. Initiating ${CONSENT_DWELL_MINUTES}-minute dwell check.`);
         
-        const dwellTime = 25 * 60 * 1000; // 25 minutes
-        const expires = Date.now() + dwellTime;
+        const expires = Date.now() + CONSENT_DWELL_MS;
         backgroundStorage.set('session_state', 'closing');
         backgroundStorage.set('dwell_timer_expires', String(expires));
 
@@ -139,7 +154,7 @@ export class SessionManager {
           console.warn('[SessionManager] Failed to fetch LLM copy, using templates:', e);
         }
 
-        // Schedule notification for 25m dwell + 2m delay = 27m total
+        // Schedule notification for 27m delay
         await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
         await Notifications.scheduleNotificationAsync({
           identifier: 'arrived-consent-prompt',
@@ -151,8 +166,10 @@ export class SessionManager {
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: 27 * 60, // 27 minutes delay
+            seconds: CONSENT_DWELL_MINUTES * 60,
           },
+        }).catch(err => {
+          console.error('[SessionManager] Failed to schedule arrived consent notification:', err);
         });
       }
     }
@@ -180,14 +197,20 @@ export class SessionManager {
           }
         }
 
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `Departed ${stationName}`,
-            body: `Continuing live commute tracking.`,
-            sound: true,
-          },
-          trigger: null,
-        });
+        const alreadyNotified = backgroundStorage.getBoolean('notified_departed') ?? false;
+        if (!alreadyNotified) {
+          backgroundStorage.set('notified_departed', true);
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `Departed ${stationName}`,
+              body: `Continuing live commute tracking.`,
+              sound: true,
+            },
+            trigger: null,
+          }).catch(err => {
+            console.error('[SessionManager] Failed to schedule departed notification:', err);
+          });
+        }
       }
     }
 
@@ -199,10 +222,11 @@ export class SessionManager {
         if (expiresStr) {
           const expires = parseInt(expiresStr, 10);
           if (Date.now() < expires) {
-            console.log('[SessionManager] Exited destination before 25m dwell. Restoring active session.');
+            console.log(`[SessionManager] Exited destination before ${CONSENT_DWELL_MINUTES}m dwell. Restoring active session.`);
             await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
             backgroundStorage.set('session_state', 'active');
             backgroundStorage.remove('dwell_timer_expires');
+            backgroundStorage.set('notified_departed', false); // Allow departed alert to re-fire if origin changes or they exit again
 
             await Notifications.scheduleNotificationAsync({
               content: {
@@ -211,6 +235,8 @@ export class SessionManager {
                 sound: true,
               },
               trigger: null,
+            }).catch(err => {
+              console.error('[SessionManager] Failed to schedule resuming notification:', err);
             });
           }
         }

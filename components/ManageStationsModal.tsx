@@ -33,8 +33,12 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
+import { playSound } from '../utils/sound';
+
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const MAX_PINS = 5;
 const SHEET_HEIGHT_RATIO = 0.78;
@@ -134,6 +138,8 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation = useUserPreferencesStore(s => s.pinStation);
   const { requestLocationPermission } = useDeferredPermissionTriggers();
+  const donePress = usePressAnimation('back_btn');
+  const clearPress = usePressAnimation('skip_btn');
 
   useEffect(() => {
     if (visible) {
@@ -203,6 +209,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     if (cleanQuery.length >= 4 && unpinnedResults.length === 0) {
       if (!hasTriggeredErrorRef.current) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        playSound('error');
         hasTriggeredErrorRef.current = true;
       }
     } else {
@@ -216,12 +223,14 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     async (station: TfLStation) => {
       if (pinnedStations.length >= MAX_PINS) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        playSound('error');
         triggerMaxPinsShake();
         setMaxPinsToast(true);
         setTimeout(() => setMaxPinsToast(false), 1500);
         return;
       }
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playSound('select', 0.45);
 
       // Immediate clean dismiss
       Keyboard.dismiss();
@@ -313,15 +322,17 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                   <Text style={styles.counterInline}> · {pinnedStations.length} of {MAX_PINS}</Text>
                 )}
               </Text>
-              <Pressable
+              <AnimatedPressable
                 onPress={handleClose}
-                style={({ pressed }) => [styles.donePill, pressed && { opacity: 0.65 }]}
+                onPressIn={donePress.onPressIn}
+                onPressOut={donePress.onPressOut}
+                style={[styles.donePill, donePress.animatedStyle]}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 accessibilityRole="button"
                 accessibilityLabel="Done, close manage stations"
               >
                 <Text style={styles.doneText}>Done</Text>
-              </Pressable>
+              </AnimatedPressable>
             </View>
 
             {/* Max pins toast */}
@@ -356,9 +367,15 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 accessibilityLabel="Search stations"
               />
               {query.length > 0 && (
-                <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                <AnimatedPressable
+                  onPress={() => setQuery('')}
+                  onPressIn={clearPress.onPressIn}
+                  onPressOut={clearPress.onPressOut}
+                  style={clearPress.animatedStyle}
+                  hitSlop={8}
+                >
                   <Ionicons name="close-circle" size={16} style={styles.clearIcon} />
-                </Pressable>
+                </AnimatedPressable>
               )}
             </View>
 
@@ -453,11 +470,11 @@ const styles = StyleSheet.create({
   },
   donePill: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.30)',
-    borderRadius: 20,
+    borderRadius: 16,
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
   doneText: {
     fontSize: 14,

@@ -71,6 +71,7 @@ interface LineData {
   color: string;
   status: string;
   reason?: string;
+  status_severity?: number;
 }
 
 interface ArrivalEntry {
@@ -340,6 +341,51 @@ const MyCommuteDashboard: React.FC = () => {
         status_severity: item?.status_severity ?? 10,
         reason: String(item?.reason ?? ''),
       }));
+
+      // Aggregate Overground branches into a single virtual 'overground' line
+      const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
+      let worstBranch: any = null;
+      let worstSeverityRank = -1;
+
+      const getRank = (s: number) => {
+        if (s === 10 || s === 18) return 0;
+        if (s === 9 || s === 14 || s === 19) return 1;
+        if (s === 6 || s === 7 || s === 8 || s === 17) return 2;
+        return 3; // suspended/worst
+      };
+
+      let foundAny = false;
+      OVERGROUND_BRANCH_IDS.forEach(branchId => {
+        const branchData = freshLines.find((l: any) => l.id === branchId);
+        if (branchData) {
+          foundAny = true;
+          const rank = getRank(branchData.status_severity ?? 10);
+          if (rank > worstSeverityRank) {
+            worstSeverityRank = rank;
+            worstBranch = branchData;
+          }
+        }
+      });
+
+      if (foundAny && worstBranch) {
+        freshLines.push({
+          id: 'overground',
+          name: 'London Overground',
+          color: LINE_COLORS.overground || '#EE7C0E',
+          status: worstBranch.status,
+          status_severity: worstBranch.status_severity,
+          reason: worstBranch.reason,
+        });
+      } else {
+        freshLines.push({
+          id: 'overground',
+          name: 'London Overground',
+          color: LINE_COLORS.overground || '#EE7C0E',
+          status: 'Good service',
+          status_severity: 10,
+          reason: '',
+        });
+      }
 
       // Populate global line status store so StationDetailScreen reads live severity
       useLineDataStore.getState().setLines(freshLines);

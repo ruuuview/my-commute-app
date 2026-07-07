@@ -81,6 +81,7 @@ interface LineCardProps {
   drag?: () => void;
   isActive?: boolean;
   index?: number;
+  globalJiggle?: Animated.SharedValue<number>;
 }
 
 export function LineCard({
@@ -98,6 +99,7 @@ export function LineCard({
   drag,
   isActive = false,
   index = 0,
+  globalJiggle,
 }: LineCardProps) {
   const isSlim = cardHeight <= 48;
   const cardRadius = isSlim ? 16 : 18;
@@ -108,7 +110,7 @@ export function LineCard({
   const cardPaddingLeft = isSlim ? 30 : 34;
 
   const opacityVal = useSharedValue(0);
-  const jiggleStyle = useJiggle(index, isEditing, isActive);
+  const jiggleStyle = useJiggle(index, isEditing, isActive, globalJiggle);
   const [touchReady, setTouchReady] = useState(true);
 
   useEffect(() => {

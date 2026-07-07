@@ -287,6 +287,24 @@ const MyCommuteDashboard: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const globalJiggle = useSharedValue(0);
+
+  useEffect(() => {
+    if (isEditing) {
+      globalJiggle.value = withRepeat(
+        withSequence(
+          withTiming(-1.2, { duration: 100, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1.2, { duration: 100, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      cancelAnimation(globalJiggle);
+      globalJiggle.value = withTiming(0, { duration: 150 });
+    }
+  }, [isEditing, globalJiggle]);
+
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
 
@@ -541,11 +559,12 @@ const MyCommuteDashboard: React.FC = () => {
             drag={isEditing ? drag : undefined}
             isActive={isActive}
             index={idx}
+            globalJiggle={globalJiggle}
           />
         </View>
       </ScaleDecorator>
     );
-  }, [isEditing, isDraggingLine, sortedLines, removeLine, handleEdit]);
+  }, [isEditing, isDraggingLine, sortedLines, removeLine, handleEdit, globalJiggle]);
   const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
 
   return (
@@ -667,6 +686,7 @@ const MyCommuteDashboard: React.FC = () => {
                   selectedLines={selectedLines}
                   onReorderStations={reorderStations}
                   simultaneousHandlers={scrollRef}
+                  globalJiggle={globalJiggle}
                   onStationTap={(stationId, stationName) =>
                     router.push(
                       `/station-detail?stationId=${encodeURIComponent(stationId)}&stationName=${encodeURIComponent(stationName)}`

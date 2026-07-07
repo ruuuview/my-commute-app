@@ -21,10 +21,11 @@ interface JigglingCardWrapperProps {
   index: number;
   isJiggling: boolean;
   isActive?: boolean;
+  globalJiggle?: Animated.SharedValue<number>;
 }
 
 const JigglingCardWrapper = memo(
-  ({ children, index, isJiggling, isActive = false }: JigglingCardWrapperProps) => {
+  ({ children, index, isJiggling, isActive = false, globalJiggle }: JigglingCardWrapperProps) => {
     const rotation = useSharedValue(0);
     const entranceY = useSharedValue(16);
     const opacity = useSharedValue(0);
@@ -60,6 +61,7 @@ const JigglingCardWrapper = memo(
 
     // Jiggle loop with support for freezing during drag (isActive)
     useEffect(() => {
+      if (globalJiggle) return;
       if (reducedMotion) return;
 
       if (isActive) {
@@ -80,17 +82,21 @@ const JigglingCardWrapper = memo(
         rotation.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isJiggling, isActive, reducedMotion]);
+    }, [isJiggling, isActive, reducedMotion, globalJiggle]);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-      opacity: opacity.value,
-      transform: [
-        { translateY: entranceY.value },
-        { rotate: `${rotation.value}deg` },
-        { scale: isActiveShared.value === 1 ? 1.04 : 1 }
-      ],
-      zIndex: isActiveShared.value === 1 ? 999 : 1,
-    }));
+    const animatedStyle = useAnimatedStyle(() => {
+      const active = isActiveShared.value === 1;
+      const rotVal = active ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
+      return {
+        opacity: opacity.value,
+        transform: [
+          { translateY: entranceY.value },
+          { rotate: `${rotVal}deg` },
+          { scale: active ? 1.04 : 1 }
+        ],
+        zIndex: active ? 999 : 1,
+      };
+    });
 
     return <Animated.View style={animatedStyle}>{children}</Animated.View>;
   }
@@ -116,6 +122,7 @@ export interface DashboardGridProps {
   /** Triggered when the drag reordering finishes */
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
+  globalJiggle?: Animated.SharedValue<number>;
 }
 
 export default function DashboardGrid({
@@ -129,6 +136,7 @@ export default function DashboardGrid({
   onStationTap,
   onReorderStations,
   simultaneousHandlers,
+  globalJiggle,
 }: DashboardGridProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -153,7 +161,7 @@ export default function DashboardGrid({
 
     return (
       <ScaleDecorator>
-        <JigglingCardWrapper index={index} isJiggling={isJiggling && !isDragging} isActive={isActive}>
+        <JigglingCardWrapper index={index} isJiggling={isJiggling && !isDragging} isActive={isActive} globalJiggle={globalJiggle}>
           <DepartureCard
             stationId={item.id}
             stationName={item.name}
@@ -167,7 +175,7 @@ export default function DashboardGrid({
         </JigglingCardWrapper>
       </ScaleDecorator>
     );
-  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines]);
+  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines, globalJiggle]);
 
   return (
     <View style={styles.container} testID="dashboard-grid">

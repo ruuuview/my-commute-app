@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -85,7 +85,7 @@ interface LineCardProps {
   globalJiggle?: SharedValue<number>;
 }
 
-export function LineCard({
+export const LineCard = memo(function LineCard({
   line,
   selected,
   onPress,
@@ -370,6 +370,8 @@ export function LineCard({
     </Animated.View>
   );
 }
+);
+LineCard.displayName = 'LineCard';
 
 const styles = StyleSheet.create({
   outerCard: {

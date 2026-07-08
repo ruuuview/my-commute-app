@@ -17,17 +17,18 @@ import DepartureCard from './DepartureCard';
 interface StaggeredEntranceWrapperProps {
   children: React.ReactNode;
   index: number;
+  skipEntrance?: boolean;
 }
 
 const StaggeredEntranceWrapper = memo(
-  ({ children, index }: StaggeredEntranceWrapperProps) => {
-    const entranceY = useSharedValue(16);
-    const opacity = useSharedValue(0);
+  ({ children, index, skipEntrance = false }: StaggeredEntranceWrapperProps) => {
+    const entranceY = useSharedValue(skipEntrance ? 0 : 16);
+    const opacity = useSharedValue(skipEntrance ? 1 : 0);
     const reducedMotion = useReducedMotion();
 
     // Entrance animation: runs once on mount
     useEffect(() => {
-      if (reducedMotion) {
+      if (skipEntrance || reducedMotion) {
         entranceY.value = 0;
         opacity.value = 1;
         return;
@@ -42,7 +43,7 @@ const StaggeredEntranceWrapper = memo(
         withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) })
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [index, reducedMotion]);
+    }, [index, reducedMotion, skipEntrance]);
 
     const animatedStyle = useAnimatedStyle(() => ({
       opacity: opacity.value,
@@ -76,6 +77,7 @@ export interface DashboardGridProps {
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
   globalJiggle?: SharedValue<number>;
+  skipEntrance?: boolean;
 }
 
 export default function DashboardGrid({
@@ -90,6 +92,7 @@ export default function DashboardGrid({
   onReorderStations,
   simultaneousHandlers,
   globalJiggle,
+  skipEntrance = false,
 }: DashboardGridProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -114,7 +117,7 @@ export default function DashboardGrid({
 
     return (
       <ScaleDecorator>
-        <StaggeredEntranceWrapper index={index}>
+        <StaggeredEntranceWrapper index={index} skipEntrance={skipEntrance}>
           <DepartureCard
             stationId={item.id}
             stationName={item.name}
@@ -131,7 +134,29 @@ export default function DashboardGrid({
         </StaggeredEntranceWrapper>
       </ScaleDecorator>
     );
-  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines, globalJiggle]);
+  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines, globalJiggle, skipEntrance]);
+
+  if (!isJiggling) {
+    return (
+      <View style={styles.container} testID="dashboard-grid">
+        {stations.map((item, index) => (
+          <StaggeredEntranceWrapper key={item.id} index={index} skipEntrance={skipEntrance}>
+            <DepartureCard
+              stationId={item.id}
+              stationName={item.name}
+              isEditing={false}
+              onDelete={onDelete}
+              onLongPress={onLongPressCard}
+              onCardTap={handleCardTap}
+              selectedLines={selectedLines}
+              index={index}
+              globalJiggle={globalJiggle}
+            />
+          </StaggeredEntranceWrapper>
+        ))}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container} testID="dashboard-grid">

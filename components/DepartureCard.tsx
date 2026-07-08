@@ -12,7 +12,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
   StyleSheet,
   View,
@@ -78,7 +78,7 @@ function cleanPlatform(platform: string): string {
 }
 
 // ─── Main component ──────────────────────────────────────────────
-export default function DepartureCard({
+const DepartureCard = memo(function DepartureCard({
   stationId,
   stationName,
   isEditing = false,
@@ -314,6 +314,9 @@ export default function DepartureCard({
     </Animated.View>
   );
 }
+);
+DepartureCard.displayName = 'DepartureCard';
+export default DepartureCard;
 
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({

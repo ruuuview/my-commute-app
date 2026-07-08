@@ -44,7 +44,7 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { DashboardGradient } from './DashboardGradient';
-import { LineCard } from './LineCard';
+import { LineCard } from './LineCard'; // memoized
 import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
@@ -290,6 +290,25 @@ const MyCommuteDashboard: React.FC = () => {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const globalJiggle = useSharedValue(0);
 
+  const isScrollingRef = useRef(false);
+  const pendingDataRef = useRef<DashboardData | null>(null);
+  const hasCompletedFirstEntrance = useRef(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      hasCompletedFirstEntrance.current = true;
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const applyPendingData = useCallback(() => {
+    if (pendingDataRef.current) {
+      setData(pendingDataRef.current);
+      pendingDataRef.current = null;
+      console.log('[MyCommuteDashboard] Applied deferred scroll data update');
+    }
+  }, []);
+
   useEffect(() => {
     if (isEditing && !reducedMotion) {
       globalJiggle.value = withRepeat(
@@ -482,7 +501,12 @@ const MyCommuteDashboard: React.FC = () => {
         lines: freshLines,
         stations: freshStations,
       };
-      setData(fresh);
+
+      if (isScrollingRef.current) {
+        pendingDataRef.current = fresh;
+      } else {
+        setData(fresh);
+      }
 
       const myFreshLines = freshLines.filter((l: any) => selectedLines.includes(l.id));
       const worst = worstSeverity(myFreshLines);
@@ -578,7 +602,16 @@ const MyCommuteDashboard: React.FC = () => {
           style={[dash.scroll, { zIndex: 1 }]}
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={scrollEnabled && !isEditing}
+          scrollEnabled={scrollEnabled}
+          removeClippedSubviews={true}
+          onScrollBeginDrag={() => {
+            isScrollingRef.current = true;
+          }}
+          onScrollEndDrag={applyPendingData}
+          onMomentumScrollBegin={() => {
+            isScrollingRef.current = true;
+          }}
+          onMomentumScrollEnd={applyPendingData}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
           {/* ── Global header ── */}
@@ -625,28 +658,70 @@ const MyCommuteDashboard: React.FC = () => {
                 onPressAdd={() => setModalVisible(true)}
                 isEditing={isEditing}
               />
-              <NestableDraggableFlatList
-                data={sortedLines}
-                keyExtractor={(item: LineData) => item.id}
-                renderItem={renderLineItem}
-                onDragBegin={() => {
-                  setIsDraggingLine(true);
-                  setScrollEnabled(false);
-                }}
-                onDragEnd={({ data }) => {
-                  setIsDraggingLine(false);
-                  setScrollEnabled(true);
-                  reorderLines((data as LineData[]).map(l => l.id));
-                }}
-                activationDistance={8}
-                dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
-                simultaneousHandlers={scrollRef}
-                scrollEnabled={false}
-                initialNumToRender={10}
-                windowSize={11}
-                maxToRenderPerBatch={10}
-                updateCellsBatchingPeriod={50}
-              />
+              {isEditing ? (
+                <NestableDraggableFlatList
+                  data={sortedLines}
+                  keyExtractor={(item: LineData) => item.id}
+                  renderItem={renderLineItem}
+                  onDragBegin={() => {
+                    setIsDraggingLine(true);
+                    setScrollEnabled(false);
+                  }}
+                  onDragEnd={({ data }) => {
+                    setIsDraggingLine(false);
+                    setScrollEnabled(true);
+                    reorderLines((data as LineData[]).map(l => l.id));
+                  }}
+                  activationDistance={8}
+                  dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                  simultaneousHandlers={scrollRef}
+                  scrollEnabled={false}
+                  initialNumToRender={10}
+                  windowSize={11}
+                  maxToRenderPerBatch={10}
+                  updateCellsBatchingPeriod={50}
+                />
+              ) : (
+                <View>
+                  {sortedLines.map((item: LineData, idx: number) => {
+                    const severity = parseSeverity(item.status);
+                    const handlePress = () => {
+                      if (isEditing) return;
+                      const ref = itemRefs.current[item.id];
+                      if (ref) {
+                        ref.measureInWindow((x, y, width, height) => {
+                          setSelectedLineInfo({ id: item.id, anchorRect: { x, y, width, height } });
+                        });
+                      }
+                    };
+                    const handleLongPress = () => {
+                      if (isEditing) return;
+                      handleEdit();
+                    };
+                    return (
+                      <View
+                        key={item.id}
+                        ref={el => { if (el) itemRefs.current[item.id] = el; }}
+                        style={{ height: 46, marginBottom: 12 }}
+                      >
+                        <LineCard
+                          line={item}
+                          selected={false}
+                          onPress={handlePress}
+                          onLongPress={handleLongPress}
+                          statusType={severity}
+                          statusLabel={item.status || 'Good service'}
+                          cardHeight={46}
+                          mode="display"
+                          isEditing={false}
+                          index={idx}
+                          globalJiggle={globalJiggle}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           )}
 
@@ -688,6 +763,7 @@ const MyCommuteDashboard: React.FC = () => {
                   onReorderStations={reorderStations}
                   simultaneousHandlers={scrollRef}
                   globalJiggle={globalJiggle}
+                  skipEntrance={hasCompletedFirstEntrance.current}
                   onStationTap={(stationId, stationName) =>
                     router.push(
                       `/station-detail?stationId=${encodeURIComponent(stationId)}&stationName=${encodeURIComponent(stationName)}`

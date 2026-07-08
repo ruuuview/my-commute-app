@@ -379,6 +379,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     position: 'relative',
     overflow: 'visible',
+    backgroundColor: 'rgba(0, 0, 0, 0.01)',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,

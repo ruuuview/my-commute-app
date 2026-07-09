@@ -73,10 +73,17 @@ const fetchTflDirect = async (stationId: string, lineId: string, signal?: AbortS
       console.warn('Failed to fetch line status for widget poll:', e);
     }
 
+    const expectedArrivalStr = filtered[0]?.expected_arrival;
+    let nextTrainEpoch: number | null = null;
+    if (expectedArrivalStr) {
+      nextTrainEpoch = Math.floor(new Date(expectedArrivalStr).getTime() / 1000);
+    }
+
     return {
       nextTrainMinutes,
       followingTrainMinutes,
       lineStatus,
+      nextTrainEpoch,
     };
   } catch (error) {
     console.error('Failed to fetch TfL direct:', error);
@@ -84,6 +91,7 @@ const fetchTflDirect = async (stationId: string, lineId: string, signal?: AbortS
       nextTrainMinutes: 0,
       followingTrainMinutes: 0,
       lineStatus: 'Offline',
+      nextTrainEpoch: null,
     };
   }
 };
@@ -122,7 +130,8 @@ export class LiveActivityService {
         config.lineName,
         initialData.nextTrainMinutes,
         initialData.followingTrainMinutes,
-        initialData.lineStatus
+        initialData.lineStatus,
+        initialData.nextTrainEpoch ?? -1
       );
 
       if (controller.signal.aborted) {
@@ -148,7 +157,8 @@ export class LiveActivityService {
           await LiveActivityModule.updateCommuteActivity(
             data.nextTrainMinutes,
             data.followingTrainMinutes,
-            data.lineStatus
+            data.lineStatus,
+            data.nextTrainEpoch ?? -1
           );
           console.log(`[LiveActivityService] Updated widget next: ${data.nextTrainMinutes}m, follow: ${data.followingTrainMinutes}m`);
         } catch (err) {

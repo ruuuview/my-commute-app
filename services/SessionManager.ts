@@ -46,6 +46,7 @@ export class SessionManager {
     backgroundStorage.set('commute_start_time', String(Date.now()));
     backgroundStorage.remove('dwell_timer_expires');
     backgroundStorage.remove('notified_departed');
+    await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
     // Start Live Activity
     try {
@@ -154,6 +155,12 @@ export class SessionManager {
           console.warn('[SessionManager] Failed to fetch LLM copy, using templates:', e);
         }
 
+        // Race check: make sure we are still in 'closing' state (i.e. user hasn't exited the geofence during fetch)
+        if (this.getSessionState() !== 'closing') {
+          console.log('[SessionManager] Race condition detected: session state is no longer closing. Bailing.');
+          return;
+        }
+
         // Schedule notification for 27m delay
         await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
         await Notifications.scheduleNotificationAsync({
@@ -255,6 +262,7 @@ export class SessionManager {
     backgroundStorage.remove('commute_origin_id');
     backgroundStorage.remove('commute_line_id');
     backgroundStorage.remove('commute_start_time');
+    await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
     if (forceQuiet) {
       backgroundStorage.set('alerts_active', false);

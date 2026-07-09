@@ -8,6 +8,7 @@ struct CommuteActivityAttributes: ActivityAttributes {
         var nextTrainMinutes: Int
         var followingTrainMinutes: Int
         var lineStatus: String
+        var nextTrainEpoch: Double?
     }
 
     var originStation: String
@@ -27,12 +28,34 @@ func colorForLine(_ lineId: String) -> Color {
     case "hammersmith-city": return Color(red: 243.0/255.0, green: 169.0/255.0, blue: 187.0/255.0)
     case "jubilee": return Color(red: 134.0/255.0, green: 143.0/255.0, blue: 152.0/255.0)
     case "metropolitan": return Color(red: 155.0/255.0, green: 0.0/255.0, blue: 86.0/255.0)
-    case "northern": return Color(red: 0.1, green: 0.1, blue: 0.1)
+    case "northern": return Color.white
     case "overground", "weaver", "mildmay", "windrush", "suffragette", "lioness", "liberty": return Color(red: 238.0/255.0, green: 124.0/255.0, blue: 14.0/255.0)
     case "piccadilly": return Color(red: 0.0/255.0, green: 54.0/255.0, blue: 136.0/255.0)
     case "victoria": return Color(red: 0.0/255.0, green: 152.0/255.0, blue: 212.0/255.0)
     case "waterloo-city": return Color(red: 149.0/255.0, green: 205.0/255.0, blue: 186.0/255.0)
     default: return Color.gray
+    }
+}
+
+@available(iOS 16.1, *)
+struct CountdownView: View {
+    let nextTrainMinutes: Int
+    let nextTrainEpoch: Double?
+    let font: Font
+    let color: Color
+    let useShortFormat: Bool
+    
+    var body: some View {
+        if let epoch = nextTrainEpoch, epoch > Date().timeIntervalSince1975 {
+            Text(timerInterval: Date()...Date(timeIntervalSince1975: epoch), countsDown: true)
+                .font(font)
+                .foregroundColor(color)
+        } else {
+            let unit = useShortFormat ? "m" : " min"
+            Text(nextTrainMinutes > 0 ? "\(nextTrainMinutes)\(unit)" : "Due")
+                .font(font)
+                .foregroundColor(color)
+        }
     }
 }
 
@@ -57,9 +80,13 @@ struct CommuteLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing) {
-                        Text("\(context.state.nextTrainMinutes) min")
-                            .font(.system(.title, design: .monospaced, weight: .bold))
-                            .foregroundColor(colorForLine(context.attributes.lineId))
+                        CountdownView(
+                            nextTrainMinutes: context.state.nextTrainMinutes,
+                            nextTrainEpoch: context.state.nextTrainEpoch,
+                            font: .system(.title, design: .monospaced, weight: .bold),
+                            color: colorForLine(context.attributes.lineId),
+                            useShortFormat: false
+                        )
                     }
                     .padding(.trailing, 8)
                 }
@@ -90,13 +117,19 @@ struct CommuteLiveActivity: Widget {
                         .font(.system(size: 12, weight: .semibold))
                 }
             } compactTrailing: {
-                Text("\(context.state.nextTrainMinutes)m")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundColor(colorForLine(context.attributes.lineId))
+                CountdownView(
+                    nextTrainMinutes: context.state.nextTrainMinutes,
+                    nextTrainEpoch: context.state.nextTrainEpoch,
+                    font: .system(size: 12, weight: .bold, design: .monospaced),
+                    color: colorForLine(context.attributes.lineId),
+                    useShortFormat: true
+                )
             } minimal: {
                 Image(systemName: "tram.fill")
                     .foregroundColor(colorForLine(context.attributes.lineId))
             }
+            .keylineTint(colorForLine(context.attributes.lineId))
+            .widgetURL(URL(string: "mycommute://commute"))
         }
     }
 }
@@ -126,9 +159,13 @@ struct CommuteLiveActivityLockScreenView: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(context.state.nextTrainMinutes) min")
-                    .font(.system(.title, design: .monospaced, weight: .bold))
-                    .foregroundColor(.white)
+                CountdownView(
+                    nextTrainMinutes: context.state.nextTrainMinutes,
+                    nextTrainEpoch: context.state.nextTrainEpoch,
+                    font: .system(.title, design: .monospaced, weight: .bold),
+                    color: .white,
+                    useShortFormat: false
+                )
                 
                 if context.state.followingTrainMinutes > 0 {
                     Text("Then: \(context.state.followingTrainMinutes)m")
@@ -152,5 +189,6 @@ struct CommuteLiveActivityLockScreenView: View {
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .padding(.horizontal, 8)
+        .widgetURL(URL(string: "mycommute://commute"))
     }
 }

@@ -22,6 +22,7 @@ class LiveActivityModule: NSObject {
                             nextTrainMinutes: Int,
                             followingTrainMinutes: Int,
                             lineStatus: String,
+                            nextTrainEpoch: Double,
                             resolver resolve: @escaping RCTPromiseResolveBlock,
                             rejecter reject: @escaping RCTPromiseRejectBlock) {
     
@@ -54,7 +55,8 @@ class LiveActivityModule: NSObject {
       let state = CommuteActivityAttributes.ContentState(
         nextTrainMinutes: nextTrainMinutes,
         followingTrainMinutes: followingTrainMinutes,
-        lineStatus: lineStatus
+        lineStatus: lineStatus,
+        nextTrainEpoch: nextTrainEpoch > 0 ? nextTrainEpoch : nil
       )
       
       do {
@@ -76,6 +78,7 @@ class LiveActivityModule: NSObject {
   func updateCommuteActivity(_ nextTrainMinutes: Int,
                              followingTrainMinutes: Int,
                              lineStatus: String,
+                             nextTrainEpoch: Double,
                              resolver resolve: @escaping RCTPromiseResolveBlock,
                              rejecter reject: @escaping RCTPromiseRejectBlock) {
     guard #available(iOS 16.1, *) else {
@@ -94,7 +97,8 @@ class LiveActivityModule: NSObject {
       let updatedState = CommuteActivityAttributes.ContentState(
         nextTrainMinutes: nextTrainMinutes,
         followingTrainMinutes: followingTrainMinutes,
-        lineStatus: lineStatus
+        lineStatus: lineStatus,
+        nextTrainEpoch: nextTrainEpoch > 0 ? nextTrainEpoch : nil
       )
       
       await activeActivity.update(using: updatedState)

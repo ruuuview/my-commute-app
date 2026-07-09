@@ -47,8 +47,8 @@ struct CountdownView: View {
     let useShortFormat: Bool
     
     var body: some View {
-        if let epoch = nextTrainEpoch, epoch > Date().timeIntervalSince1975 {
-            Text(timerInterval: Date()...Date(timeIntervalSince1975: epoch), countsDown: true)
+        if let epoch = nextTrainEpoch, epoch > Foundation.Date().timeIntervalSince1975 {
+            Text(timerInterval: Foundation.Date()...Foundation.Date(timeIntervalSince1975: epoch), countsDown: true)
                 .font(font)
                 .foregroundColor(color)
         } else {

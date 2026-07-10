@@ -50,17 +50,27 @@ export async function fetchNormalizedStationArrivals(
   signal?: AbortSignal
 ): Promise<NormalizedStationArrivals> {
   const resolvedIds = resolveTflStopIds(stationId);
+
+  // Internal 10s timeout when no external signal is provided
+  const internalController = signal ? null : new AbortController();
+  const internalTimeout = internalController
+    ? setTimeout(() => internalController.abort(), 10_000)
+    : null;
+  const effectiveSignal = signal ?? (internalController?.signal ?? undefined);
+
   const hasInvalidId = resolvedIds.some(id => !id.startsWith('940GZZ') && !id.startsWith('910G'));
   if (hasInvalidId) {
     console.warn(`[apiService] WARNING: "${stationId}" resolved to non-NaPTAN ID: ${JSON.stringify(resolvedIds)}. Departures may fail to load.`);
   }
   const responses = await Promise.all(
     resolvedIds.map(id =>
-      fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal })
+      fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: effectiveSignal })
         .then(res => (res.ok ? res.json() : null))
         .catch(() => null)
     )
   );
+
+  if (internalTimeout) clearTimeout(internalTimeout);
 
   const allRaw: any[] = [];
   let stationName = stationId;
@@ -103,7 +113,7 @@ export async function fetchNormalizedStationArrivals(
   const departures: NormalizedDeparture[] = deduped.map((dep: any) => {
     const lineIdFromApi = dep.line_id || dep.lineId;
     const { cleanLineId } = normaliseLineId(dep.line);
-    const canonicalLineId = (lineIdFromApi || cleanLineId)
+    const canonicalLineId = (lineIdFromApi || cleanLineId || 'unknown')
       .toLowerCase()
       .replace(/\s*&\s*/g, '-')
       .replace(/\s+/g, '-');

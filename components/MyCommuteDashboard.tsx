@@ -394,10 +394,10 @@ const MyCommuteDashboard: React.FC = () => {
       let worstSeverityRank = -1;
 
       const getRank = (s: number) => {
-        if (s === 10 || s === 18) return 0;
-        if (s === 9 || s === 14 || s === 19) return 1;
-        if (s === 6 || s === 7 || s === 8 || s === 17) return 2;
-        return 3; // suspended/worst
+        if (s === 10) return 0;                       // good
+        if (s === 8 || s === 7 || s === 5) return 1;  // minor
+        if (s === 9 || s === 6) return 2;             // severe
+        return 3;                                     // 4,3,20,0,11 → suspended
       };
 
       let foundAny = false;

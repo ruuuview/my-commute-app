@@ -26,7 +26,7 @@ import * as Haptics from 'expo-haptics';
 import { DashboardGradient } from './DashboardGradient';
 
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { useLineDataStore } from '../store/lineDataStore';
+import { useLineDataStore, LineStatus } from '../store/lineDataStore';
 import { GLASS } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 
@@ -51,18 +51,35 @@ export interface StationDetailScreenProps {
 // ─── Severity (copied from MyCommuteDashboard to avoid circular dep) ─
 type ScreenSeverity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'unknown';
 
+/** Map TfL severity codes: 10=good, 9/6=severe, 8/7/5=minor, 4/3/20/0/11=suspended */
+function severityFromCode(code: number): ScreenSeverity {
+  if (code === 10) return 'good';
+  if (code === 9 || code === 6) return 'severe';
+  if (code === 8 || code === 7 || code === 5) return 'minor';
+  if ([4, 3, 20, 0, 11].includes(code)) return 'suspended';
+  return 'unknown';
+}
+
 function parseSeverity(statusText: string): ScreenSeverity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
   if (text.includes('minor')) return 'minor';
   if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
-  return 'good';
+  return 'unknown';
+}
+
+/** Preferred: use numeric code, fall back to text parsing */
+function lineSeverity(line: LineStatus): ScreenSeverity {
+  if (line.status_severity !== undefined && line.status_severity !== null) {
+    return severityFromCode(line.status_severity);
+  }
+  return parseSeverity(line.status);
 }
 
 function worstSeverity(lines: any[]): ScreenSeverity {
   if (!lines.length) return 'unknown';
-  const severities = lines.map((l: any) => parseSeverity(l.status));
+  const severities = lines.map((l: any) => lineSeverity(l));
   if (severities.includes('suspended')) return 'suspended';
   if (severities.includes('severe')) return 'severe';
   if (severities.includes('minor')) return 'minor';

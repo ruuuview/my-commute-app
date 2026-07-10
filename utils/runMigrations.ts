@@ -7,13 +7,14 @@ export function runMigrations() {
   const onboardingStore = useOnboardingStore.getState();
 
   const currentVersion = prefStore.schemaVersion || 0;
-  if (currentVersion >= 1) {
-    return;
+  let migrationNeeded = false;
+
+  if (currentVersion < 1) {
+    console.log(`[Migration] Running store migration from schema version ${currentVersion} to 1`);
+    migrationNeeded = true;
   }
 
-  console.log(`[Migration] Running store migration from schema version ${currentVersion} to 1`);
-
-  // Migrate user preferences pinned stations
+  // Migrate user preferences pinned stations — always run (idempotent)
   let prefChanged = false;
   const migratedPinned = (prefStore.pinnedStations || []).map(station => {
     if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
@@ -51,7 +52,7 @@ export function runMigrations() {
     });
   }
 
-  // Migrate onboarding store pinned stations
+  // Migrate onboarding store pinned stations — runs independently of pref version (idempotent)
   let onboardingChanged = false;
   const migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
     if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
@@ -73,7 +74,9 @@ export function runMigrations() {
     });
   }
 
-  // Update schemaVersion to 1
-  useUserPreferencesStore.setState({ schemaVersion: 1 });
-  console.log('[Migration] Store migration to version 1 complete.');
+  // Update schemaVersion to 1 only if a migration was needed
+  if (migrationNeeded) {
+    useUserPreferencesStore.setState({ schemaVersion: 1 });
+    console.log('[Migration] Store migration to version 1 complete.');
+  }
 }

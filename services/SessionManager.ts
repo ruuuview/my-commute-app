@@ -106,9 +106,9 @@ export class SessionManager {
           lineId = prefState.selectedLines?.[0];
         }
         if (!lineId) {
-          // Recovery 2: Fall back to 'victoria' and log warning
-          lineId = 'victoria';
-          console.warn(`[SessionManager] No line data found for station ${stationId} or subscribed lines, falling back to 'victoria'`);
+          // Recovery 2: Fall back to 'unknown' and log warning
+          lineId = 'unknown';
+          console.warn(`[SessionManager] No line data found for station ${stationId} or subscribed lines, using 'unknown'`);
         }
         const lineName = tflCapitalise(lineId);
         await this.startSession(stationId, destStation.id, lineId, lineName);
@@ -291,10 +291,16 @@ export class SessionManager {
     if (lineIds.length === 0) return 'Your lines are all clear.';
 
     // Filter disrupted lines the user actually tracks
+    // TfL severity codes: 10=good, 9/6=severe, 8/7/5=minor, 4/3/20/0/11=suspended
+    const SEVERE_CODES = new Set([9, 6]);
+    const MINOR_CODES = new Set([8, 7, 5]);
+    const SUSPENDED_CODES = new Set([4, 3, 20, 0, 11]);
+
     const disrupted = (lastKnownData || []).filter((d: any) => {
       if (!d) return false;
       const did = (d.id || '').toLowerCase();
-      return lineIds.includes(did) && (d.is_disrupted || (d.severity && d.severity > 5));
+      const isBadSeverity = SEVERE_CODES.has(d.severity) || MINOR_CODES.has(d.severity) || SUSPENDED_CODES.has(d.severity);
+      return lineIds.includes(did) && (d.is_disrupted || isBadSeverity);
     });
 
     if (disrupted.length === 0) return 'Your lines are all clear.';

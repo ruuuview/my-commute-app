@@ -3508,5 +3508,90 @@
     "lines": [
       "jubilee"
     ]
+  },
+  {
+    "id": "HUBVXH",
+    "name": "Vauxhall",
+    "lines": ["victoria"]
+  },
+  {
+    "id": "940GZZLUVXL",
+    "name": "Vauxhall",
+    "lines": ["victoria"]
+  },
+  {
+    "id": "HUBQPW",
+    "name": "Queen's Park",
+    "lines": ["bakerloo", "overground"]
+  },
+  {
+    "id": "940GZZLUQRP",
+    "name": "Queen's Park",
+    "lines": ["bakerloo"]
+  },
+  {
+    "id": "910GQUNPARK",
+    "name": "Queen's Park",
+    "lines": ["overground"]
+  },
+  {
+    "id": "HUBWIM",
+    "name": "Wimbledon",
+    "lines": ["district", "overground"]
+  },
+  {
+    "id": "940GZZLUWIM",
+    "name": "Wimbledon",
+    "lines": ["district"]
+  },
+  {
+    "id": "910GWIMBLDN",
+    "name": "Wimbledon",
+    "lines": ["overground"]
+  },
+  {
+    "id": "910GDALS",
+    "name": "Dalston Junction",
+    "lines": ["overground"]
+  },
+  {
+    "id": "910GHOMRTON",
+    "name": "Homerton",
+    "lines": ["overground"]
+  },
+  {
+    "id": "940GZZLUTBC",
+    "name": "Tooting Bec",
+    "lines": ["northern"]
+  },
+  {
+    "id": "940GZZLUTBY",
+    "name": "Tooting Broadway",
+    "lines": ["northern"]
+  },
+  {
+    "id": "910GWAPPING",
+    "name": "Wapping",
+    "lines": ["overground"]
+  },
+  {
+    "id": "910GILFORD",
+    "name": "Ilford",
+    "lines": ["elizabeth"]
+  },
+  {
+    "id": "910GROMFORD",
+    "name": "Romford",
+    "lines": ["elizabeth", "overground"]
+  },
+  {
+    "id": "910GCTMSLNK",
+    "name": "City Thameslink",
+    "lines": ["thameslink"]
+  },
+  {
+    "id": "910GFENCHRS",
+    "name": "Fenchurch Street",
+    "lines": ["c2c"]
   }
 ]

@@ -4,7 +4,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { useOnboardingStore } from './onboardingStore';
-import { resolveTflStopId } from '../utils/resolveTflStopId';
+import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
 
 const storage = createMMKV();
 const backgroundStorage = createMMKV({ id: 'background-storage' });
@@ -100,21 +100,21 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   stationNotificationToggles: {},
 };
 
-const validateStationZoneCache = (state: UserPreferencesState) => {
+const validateStationZoneCache = (state: UserPreferencesState): boolean => {
   const pinnedStations = state.pinnedStations;
   if (!Array.isArray(pinnedStations)) {
     state.pinnedStations = [];
-    return;
+    return false;
   }
 
   // ── Legacy Persisted Data Migration ──
   let migrated = false;
   const migratedStations = pinnedStations.map(station => {
-    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G')) {
-      const resolved = resolveTflStopId(station.id);
+    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
+      const resolved = resolveTflStopIdForStore(station.id);
       if (resolved && resolved !== station.id) {
         migrated = true;
-        console.log(`[Migration] Migrating legacy station ID "${station.id}" to NaPTAN "${resolved}"`);
+        console.log(`[Migration] Migrating legacy station ID "${station.id}" to NaPTAN/Hub "${resolved}"`);
         return { ...station, id: resolved };
       }
     }
@@ -133,7 +133,9 @@ const validateStationZoneCache = (state: UserPreferencesState) => {
     !EXCLUDED_IDS.has(station.id)
   );
 
+  const changed = migrated || (cleanedStations.length !== pinnedStations.length);
   state.pinnedStations = cleanedStations;
+  return changed;
 };
 
 export const useUserPreferencesStore = create<UserPreferencesState>()(
@@ -179,7 +181,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set(state => {
           const stations = [...state.pinnedStations];
           if (stations.length < 5) {
-            const resolvedId = resolveTflStopId(station.id);
+            const resolvedId = resolveTflStopIdForStore(station.id);
             if (stations.find(s => s.id === resolvedId)) return state;
             stations.push({ ...station, id: resolvedId, role });
             return { pinnedStations: stations };
@@ -268,7 +270,12 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       onRehydrateStorage: () => (state) => {
         try {
           if (state) {
-            validateStationZoneCache(state);
+            const hasChanged = validateStationZoneCache(state);
+            if (hasChanged) {
+              setTimeout(() => {
+                useUserPreferencesStore.setState({ pinnedStations: state.pinnedStations });
+              }, 0);
+            }
             
             // Also clean up onboarding store's pinned stations if they contain excluded IDs
             const onboardingPinned = useOnboardingStore.getState().pinnedStations;

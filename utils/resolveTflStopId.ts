@@ -26,13 +26,15 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   HUBHMS: ['940GZZLUHSD', '940GZZLUHSC'],       // Hammersmith (District/Piccadilly + H&C/Circle)
   HUBLBG: ['940GZZLULBG'],                      // London Bridge
   HUBRMD: ['940GZZLURMD', '910GRICHMND'],       // Richmond (District + Overground)
-  HUBWIM: ['940GZZLUWIM'],                      // Wimbledon
   HUBZCW: ['940GZZLUCWR', '910GCNDAW'],         // Canada Water (Jubilee + Overground)
   HUBCAN: ['940GZZLUCGT', '940GZZDLCGT'],       // Canning Town (Jubilee + DLR)
   HUBCUS: ['940GZZDLCUS', '910GCUSTMHS'],       // Custom House (DLR + Elizabeth)
   HUBHHY: ['940GZZLUHAI', '910GHGHI'],          // Highbury & Islington (Victoria + Overground)
   HUBBDS: ['940GZZLUBND', '910GBONDST'],        // Bond Street (Underground + Elizabeth)
   HUBZFD: ['940GZZLUFCN', '910GFRNDXR'],        // Farringdon (Underground + Elizabeth)
+  HUBVXH: ['940GZZLUVXL'],                      // Vauxhall (Victoria)
+  HUBQPW: ['940GZZLUQRP', '910GQUNPARK'],       // Queen's Park (Bakerloo + Overground)
+  HUBWIM: ['940GZZLUWIM', '910GWIMBLDN'],       // Wimbledon (District + Tramlink + National Rail)
   
   // Whitechapel: 940GZZLUWPL serves all lines (District, H&C, Elizabeth, Overground)
   // No split required — single NaPTAN returns complete departures
@@ -73,6 +75,9 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'farringdon':       ['940GZZLUFCN', '910GFRNDXR'],
   'kings-cross':      ['940GZZLUKSX'],
   'kings-cross-st-pancras': ['940GZZLUKSX'],
+  'queens-park':      ['940GZZLUQRP', '910GQUNPARK'],
+  'wimbledon':        ['940GZZLUWIM', '910GWIMBLDN'],
+  'city-of-london':   ['910GCTMSLNK'],
 };
 
 // ── 2. Auto-built slug → NaPTAN map from full dataset ─────────────────────────
@@ -103,28 +108,78 @@ for (const entry of fullStationsData as { id: string; name: string }[]) {
 
 // ── 3. Array-based Resolver ───────────────────────────────────────────────────
 export function resolveTflStopIds(id: string): string[] {
-  // Step 1: Direct explicit lookup (HUBs, manual aliases)
+  // If it's already a Hub or NaPTAN, pass through
+  if (id.startsWith('HUB') || id.startsWith('940GZZ') || id.startsWith('910G')) {
+    return [id];
+  }
+
+  // Normalize lookup key to a slug
+  const slug = toSlug(id);
+
+  // Check explicit map (which is keyed by slugs and Hubs)
+  if (EXPLICIT_MAP[slug]) {
+    return EXPLICIT_MAP[slug];
+  }
   if (EXPLICIT_MAP[id]) {
     return EXPLICIT_MAP[id];
   }
 
-  // Step 2: Already a NaPTAN — pass through
-  if (id.startsWith('940GZZ') || id.startsWith('910G')) {
-    return [id];
-  }
-
-  // Step 3: Try slug-based lookup from full dataset
-  const slug = toSlug(id);
+  // Try slug-based lookup from full dataset
   if (SLUG_TO_NAPTAN[slug]) {
     return [SLUG_TO_NAPTAN[slug]];
   }
 
-  // Step 4: Unmapped — warn and return unchanged in array
-  console.warn(`[resolveTflStopIds] unmapped station id: "${id}"`);
+  // Unmapped — warn and return unchanged in array
+  console.warn(`[resolveTflStopIds] unmapped station id: "${id}" (slug: "${slug}")`);
   return [id];
 }
 
-// ── 4. Singular Backward-Compatible Wrapper ───────────────────────────────────
+// ── 4. Store-time Resolver & Backward-Compatible Wrappers ───────────────────────
+const SLUG_TO_HUB: Record<string, string> = {
+  'bank': 'HUBBAN',
+  'bank-monument': 'HUBBAN',
+  'canary-wharf': 'HUBCAW',
+  'waterloo': 'HUBWAT',
+  'london-waterloo': 'HUBWAT',
+  'paddington': 'HUBPAD',
+  'liverpool-street': 'HUBLST',
+  'victoria': 'HUBVIC',
+  'euston': 'HUBEUS',
+  'stratford': 'HUBSRA',
+  'tottenham-court-road': 'HUBTCR',
+  'barking': 'HUBBKG',
+  'charing-cross': 'HUBCHX',
+  'ealing-broadway': 'HUBEAL',
+  'elephant-castle': 'HUBEPH',
+  'finsbury-park': 'HUBFPK',
+  'hammersmith': 'HUBHMS',
+  'london-bridge': 'HUBLBG',
+  'richmond': 'HUBRMD',
+  'wimbledon': 'HUBWIM',
+  'canada-water': 'HUBZCW',
+  'canning-town': 'HUBCAN',
+  'custom-house': 'HUBCUS',
+  'highbury-islington': 'HUBHHY',
+  'bond-street': 'HUBBDS',
+  'farringdon': 'HUBZFD',
+  'whitechapel': 'HUBZWL',
+  'kings-cross': '940GZZLUKSX',
+  'kings-cross-st-pancras': '940GZZLUKSX',
+  'vauxhall': 'HUBVXH',
+  'queens-park': 'HUBQPW',
+};
+
+export function resolveTflStopIdForStore(id: string): string {
+  if (id.startsWith('HUB') || id.startsWith('940GZZ') || id.startsWith('910G')) {
+    return id;
+  }
+  const slug = toSlug(id);
+  if (SLUG_TO_HUB[slug]) {
+    return SLUG_TO_HUB[slug];
+  }
+  return resolveTflStopId(id);
+}
+
 export function resolveTflStopId(id: string): string {
   return resolveTflStopIds(id)[0];
 }

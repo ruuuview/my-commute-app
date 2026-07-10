@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "lint ": "expo lint",
-    "lint ": "expo lint"
+    "lint ": "expo lint",
+    "test:stations": "node scripts/validate_stations.js"
   },
   "expo": {
     "install": {

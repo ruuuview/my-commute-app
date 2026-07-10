@@ -24,6 +24,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
+import { FixItSheet } from '../components/FixItSheet';
 
 interface UserPreferences {
   saved_lines: string[];
@@ -47,11 +48,15 @@ const TRIAL_DURATION_DAYS = 45;
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [showFixItSheet, setShowFixItSheet] = useState(false);
   const {
     resetOnboarding,
     hapticsEnabled,
     setHapticsEnabled,
     locationGranted,
+    arrivalNotificationsEnabled,
+    setArrivalNotificationsEnabled,
+    labelsConfirmed,
   } = useUserPreferencesStore();
 
   const { requestLocationPermission } = useDeferredPermissionTriggers();
@@ -487,7 +492,51 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          {/* Disruption Alert Filters UI hidden until push notifications are live */}
+          {/* Arrival Notifications */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>ARRIVAL</Text>
+            <View style={styles.sectionContent}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <View style={styles.settingLabelRow}>
+                    <Ionicons name="home" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                    <Text style={styles.settingLabel}>Welcome Home</Text>
+                  </View>
+                  <Text style={styles.settingDescription}>
+                    Get a notification when you arrive home
+                  </Text>
+                </View>
+                <Switch
+                  value={arrivalNotificationsEnabled}
+                  onValueChange={setArrivalNotificationsEnabled}
+                  trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              <Animated.View style={hoursPressAnim.animatedStyle}>
+                <Pressable 
+                  style={styles.settingRow} 
+                  onPress={() => setShowFixItSheet(true)}
+                >
+                  <View style={styles.settingInfo}>
+                    <View style={styles.settingLabelRow}>
+                      <Ionicons name="map" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                      <Text style={styles.settingLabel}>Home & Work</Text>
+                    </View>
+                    <Text style={styles.settingDescription}>
+                      {labelsConfirmed ? 'Angel is home' : 'Set your home and work stations'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+                </Pressable>
+              </Animated.View>
+            </View>
+          </View>
+
+          <FixItSheet visible={showFixItSheet} onClose={() => setShowFixItSheet(false)} />
 
           <View style={styles.infoCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />

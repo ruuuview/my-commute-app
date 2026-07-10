@@ -158,17 +158,22 @@ export default function RootLayout() {
       try {
         await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', [
           {
-            identifier: 'done',
-            buttonTitle: "Yeah, I'm done",
+            identifier: 'snooze4h',
+            buttonTitle: '4 hours',
             options: { opensAppToForeground: false },
           },
           {
-            identifier: 'keep',
-            buttonTitle: "Keep watching",
+            identifier: 'snooze8h',
+            buttonTitle: '8 hours',
+            options: { opensAppToForeground: false },
+          },
+          {
+            identifier: 'snooze12h',
+            buttonTitle: '12 hours',
             options: { opensAppToForeground: false },
           },
         ]);
-        console.log('[NotificationCategory] Registered ARRIVED_ALERT');
+        console.log('[NotificationCategory] Registered ARRIVED_ALERT with 4h/8h/12h snooze');
       } catch (e) {
         console.warn('Failed to set notification category:', e);
       }
@@ -183,10 +188,16 @@ export default function RootLayout() {
       console.log(`[NotificationResponse] Received action: ${actionId} for category: ${categoryId}`);
       
       if (categoryId === 'ARRIVED_ALERT') {
-        if (actionId === 'done') {
+        const prefs = useUserPreferencesStore.getState();
+        if (actionId === 'snooze4h') {
+          prefs.setArrivalSnoozeExpiry(Date.now() + 4 * 60 * 60 * 1000);
           await SessionManager.closeSession(true);
-        } else if (actionId === 'keep') {
-          await SessionManager.resumeSession();
+        } else if (actionId === 'snooze8h') {
+          prefs.setArrivalSnoozeExpiry(Date.now() + 8 * 60 * 60 * 1000);
+          await SessionManager.closeSession(true);
+        } else if (actionId === 'snooze12h') {
+          prefs.setArrivalSnoozeExpiry(Date.now() + 12 * 60 * 60 * 1000);
+          await SessionManager.closeSession(true);
         }
       }
     });

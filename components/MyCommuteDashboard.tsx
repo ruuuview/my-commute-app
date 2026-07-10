@@ -48,6 +48,7 @@ import { LineCard } from './LineCard'; // memoized
 import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
+import { ConfirmationCard } from './ConfirmationCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -269,7 +270,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, sessionCount, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -279,6 +280,13 @@ const MyCommuteDashboard: React.FC = () => {
     reorderLines: s.reorderLines,
     lastKnownData: s.lastKnownData || [],
     setLastKnown: s.setLastKnown,
+    labelsConfirmed: s.labelsConfirmed ?? false,
+    hasSeenConfirmationCard: s.hasSeenConfirmationCard ?? false,
+    sessionCount: s.sessionCount ?? 0,
+    arrivalNotificationsEnabled: s.arrivalNotificationsEnabled ?? true,
+    arrivalSnoozeExpiry: s.arrivalSnoozeExpiry ?? null,
+    setArrivalNotificationsEnabled: s.setArrivalNotificationsEnabled,
+    setArrivalSnoozeExpiry: s.setArrivalSnoozeExpiry,
   })));
 
   const router = useRouter();
@@ -725,6 +733,55 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
           )}
 
+          {sortedLines.length > 0 && selectedStations.length > 0 && (
+            <>
+              {/* Confirmation card — after first tracked commute, before confirmed */}
+              {selectedStations.length > 0 && sessionCount > 0 && !labelsConfirmed && !hasSeenConfirmationCard && (
+                <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
+                  <ConfirmationCard />
+                </View>
+              )}
+
+              {/* Arrival banner — only when confirmation card is NOT showing */}
+              {selectedStations.length > 0 && !(!labelsConfirmed && !hasSeenConfirmationCard && sessionCount > 0) && (() => {
+                const isSnoozed = arrivalSnoozeExpiry && Date.now() < arrivalSnoozeExpiry;
+                if (arrivalNotificationsEnabled === false) {
+                  return (
+                    <Pressable
+                      onPress={() => setArrivalNotificationsEnabled(true)}
+                      style={dash.arrivalBanner}
+                    >
+                      <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
+                      <Text style={dash.arrivalBannerText}>
+                        Arrival notifications are off — <Text style={{ fontWeight: '600' }}>turn back on</Text>
+                      </Text>
+                    </Pressable>
+                  );
+                }
+                if (isSnoozed) {
+                  const d = new Date(arrivalSnoozeExpiry!);
+                  const hours = d.getHours();
+                  const mins = d.getMinutes();
+                  const ampm = hours >= 12 ? 'pm' : 'am';
+                  const h12 = hours % 12 || 12;
+                  const timeStr = `${h12}:${String(mins).padStart(2, '0')}${ampm}`;
+                  return (
+                    <Pressable
+                      onPress={() => setArrivalSnoozeExpiry(null)}
+                      style={dash.arrivalBanner}
+                    >
+                      <Ionicons name="alarm-outline" size={16} color="#007AFF" />
+                      <Text style={dash.arrivalBannerText}>
+                        Arrival notifications snoozed until {timeStr} — <Text style={{ fontWeight: '600' }}>tap to resume</Text>
+                      </Text>
+                    </Pressable>
+                  );
+                }
+                return null;
+              })()}
+            </>
+          )}
+
           {/* Spacer between sections — catches backdrop taps */}
           {isEditing && sortedLines.length > 0 && (
             <Pressable style={{ height: 24 }} onPress={handleBackdropPress} />
@@ -967,6 +1024,27 @@ const dash = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.50)',
     fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
+
+  arrivalBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 8,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  arrivalBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255,255,255,0.65)',
+    lineHeight: 18,
   },
 });
 

@@ -37,6 +37,10 @@ export interface UserPreferencesState {
   _hasHydrated: boolean;
   sessionCount: number;
   firstOpenTimestamp: number | null;
+  labelsConfirmed: boolean;
+  hasSeenConfirmationCard: boolean;
+  arrivalNotificationsEnabled: boolean;
+  arrivalSnoozeExpiry: number | null; // UTC epoch
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
   setNotificationsGranted: (granted: boolean) => void;
@@ -61,9 +65,14 @@ export interface UserPreferencesState {
   setHapticsEnabled: (enabled: boolean) => void;
   toggleLineNotification: (lineId: string) => void;
   toggleStationNotification: (stationId: string) => void;
+  confirmLabels: () => void;
+  dismissConfirmationCard: () => void;
+  setStationRole: (stationId: string, role: 'home' | 'work' | 'other') => void;
+  setArrivalNotificationsEnabled: (enabled: boolean) => void;
+  setArrivalSnoozeExpiry: (expiry: number | null) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry'> = {
   schemaVersion: 1,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -79,6 +88,10 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   _hasHydrated: false,
   sessionCount: 0,
   firstOpenTimestamp: null,
+  labelsConfirmed: false,
+  hasSeenConfirmationCard: false,
+  arrivalNotificationsEnabled: true,
+  arrivalSnoozeExpiry: null,
   recentSearches: [],
   stationFilterToggles: {},
   hapticsEnabled: true,
@@ -207,14 +220,30 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
 
           return { stationNotificationToggles: current };
         });
-      }
+      },
+      confirmLabels: () => set({ labelsConfirmed: true, hasSeenConfirmationCard: true }),
+      dismissConfirmationCard: () => set({ hasSeenConfirmationCard: true }),
+      setStationRole: (stationId, role) => {
+        set(state => {
+          // If setting to 'home' or 'work', clear existing station with that role
+          let updated = [...state.pinnedStations];
+          if (role === 'home' || role === 'work') {
+            updated = updated.map(s => s.id === stationId ? { ...s, role } : { ...s, role: s.role === role ? 'other' as const : s.role });
+          } else {
+            updated = updated.map(s => s.id === stationId ? { ...s, role } : s);
+          }
+          return { pinnedStations: updated };
+        });
+      },
+      setArrivalNotificationsEnabled: (enabled) => set({ arrivalNotificationsEnabled: enabled }),
+      setArrivalSnoozeExpiry: (expiry) => set({ arrivalSnoozeExpiry: expiry }),
     }),
     {
       name: 'user-preferences',
       version: 1,
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

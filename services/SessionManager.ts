@@ -2,12 +2,13 @@ import { NativeModules } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import * as Notifications from 'expo-notifications';
 import { LiveActivityService } from './LiveActivityService';
-import { APP_CONFIG } from '../config/app.config';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { tflCapitalise } from '../utils/tflCapitalise';
 
 export const CONSENT_DWELL_MINUTES = 27;
 export const CONSENT_DWELL_MS = CONSENT_DWELL_MINUTES * 60 * 1000;
+export const ARRIVAL_DWELL_MINUTES = 5;
+export const ARRIVAL_DWELL_MS = ARRIVAL_DWELL_MINUTES * 60 * 1000;
 
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
@@ -118,65 +119,56 @@ export class SessionManager {
     if (currentState === 'active') {
       const destId = this.getCommuteDestinationId();
       if ((role === 'home' || role === 'work') && stationId === destId) {
-        console.log(`[SessionManager] Entering destination geofence. Initiating ${CONSENT_DWELL_MINUTES}-minute dwell check.`);
-        
-        const expires = Date.now() + CONSENT_DWELL_MS;
-        backgroundStorage.set('session_state', 'closing');
-        backgroundStorage.set('dwell_timer_expires', String(expires));
-
-        // Fetch copy and schedule notification
-        const startTime = this.getCommuteStartTime() || Date.now();
-        const elapsedMin = Math.round((Date.now() - startTime) / (60 * 1000));
-        
-        let title = `${stationName}. ${elapsedMin} minutes.`;
-        let body = 'Want me to go quiet now?';
-
-        try {
-          const copyController = new AbortController();
-          const copyTimeout = setTimeout(() => copyController.abort(), 2000);
-          const resp = await fetch(`${APP_CONFIG.BACKEND_URL}/api/notification/copy`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'arrival',
-              context: { duration_minutes: elapsedMin }
-            }),
-            signal: copyController.signal,
-          });
-          clearTimeout(copyTimeout);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data?.title && data?.body) {
-              title = String(data.title).replace(/!/g, ''); // Ensure no exclamation marks
-              body = String(data.body).replace(/!/g, '');
-            }
-          }
-        } catch (e) {
-          console.warn('[SessionManager] Failed to fetch LLM copy, using templates:', e);
+        // Confirmed-home gate: arrival notification only fires if labels are truth
+        const prefs = useUserPreferencesStore.getState();
+        if (!prefs.labelsConfirmed) {
+          console.log(`[SessionManager] Home not confirmed — closing session without arrival notification.`);
+          await this.closeSession(false);
+          return;
         }
-
-        // Race check: make sure we are still in 'closing' state (i.e. user hasn't exited the geofence during fetch)
-        if (this.getSessionState() !== 'closing') {
-          console.log('[SessionManager] Race condition detected: session state is no longer closing. Bailing.');
+        // Arrival-notifications gate: user turned off welcome-home
+        if (!prefs.arrivalNotificationsEnabled) {
+          console.log(`[SessionManager] Arrival notifications disabled — closing session without notification.`);
+          await this.closeSession(false);
           return;
         }
 
-        // Schedule notification for 27m delay
+        console.log(`[SessionManager] Entering destination geofence. Initiating ${ARRIVAL_DWELL_MINUTES}‑minute dwell check.`);
+
+        // Snooze gate: skip if user snoozed
+        const snoozeExpiry = prefs.arrivalSnoozeExpiry;
+        if (snoozeExpiry && Date.now() < snoozeExpiry) {
+          console.log(`[SessionManager] Snoozed until ${new Date(snoozeExpiry).toISOString()} — skipping arrival.`);
+          await this.closeSession(false);
+          return;
+        }
+
+        // Build status-aware body from lastKnownData
+        const body = SessionManager._buildArrivalBody(
+          prefs.selectedLines || [],
+          prefs.lastKnownData || []
+        );
+
+        const expires = Date.now() + ARRIVAL_DWELL_MS;
+        backgroundStorage.set('session_state', 'closing');
+        backgroundStorage.set('dwell_timer_expires', String(expires));
+
+        // Schedule notification after dwell expires
         await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
         await Notifications.scheduleNotificationAsync({
           identifier: 'arrived-consent-prompt',
           content: {
-            title,
-            body,
+            title: `Welcome home.`,
+            body: body,
             categoryIdentifier: 'ARRIVED_ALERT',
             sound: true,
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: CONSENT_DWELL_MINUTES * 60,
+            seconds: ARRIVAL_DWELL_MINUTES * 60,
           },
         }).catch(err => {
-          console.error('[SessionManager] Failed to schedule arrived consent notification:', err);
+          console.error('[SessionManager] Failed to schedule arrival notification:', err);
         });
       }
     }
@@ -258,6 +250,10 @@ export class SessionManager {
 
     backgroundStorage.set('session_state', 'idle');
     backgroundStorage.remove('dwell_timer_expires');
+
+    // Increment tracked commute count for confirmation-card trigger
+    const store = useUserPreferencesStore.getState();
+    useUserPreferencesStore.setState({ sessionCount: (store.sessionCount || 0) + 1 });
     backgroundStorage.remove('commute_destination_id');
     backgroundStorage.remove('commute_origin_id');
     backgroundStorage.remove('commute_line_id');
@@ -277,6 +273,40 @@ export class SessionManager {
     backgroundStorage.set('alerts_active', true);
     backgroundStorage.remove('dwell_timer_expires');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
+  }
+
+  /**
+   * Build status-aware body for welcome-home notification.
+   * Reads the user's tracked lines against cached TfL status data.
+   * Never calls the copy engine — factual only, no LLM.
+   */
+  static _buildArrivalBody(selectedLines: any[], lastKnownData: any[]): string {
+    if (!selectedLines || selectedLines.length === 0) return 'Your lines are all clear.';
+
+    // Normalise tracked line IDs
+    const lineIds = selectedLines.map((l: any) =>
+      typeof l === 'string' ? l.toLowerCase() : (l.id || l.lineId || '').toLowerCase()
+    ).filter(Boolean);
+
+    if (lineIds.length === 0) return 'Your lines are all clear.';
+
+    // Filter disrupted lines the user actually tracks
+    const disrupted = (lastKnownData || []).filter((d: any) => {
+      if (!d) return false;
+      const did = (d.id || '').toLowerCase();
+      return lineIds.includes(did) && (d.is_disrupted || (d.severity && d.severity > 5));
+    });
+
+    if (disrupted.length === 0) return 'Your lines are all clear.';
+
+    const names = disrupted.slice(0, 3).map((d: any) => {
+      const n = d.name || d.id || '';
+      return n.charAt(0).toUpperCase() + n.slice(1);
+    });
+
+    if (disrupted.length === 1) return `The ${names[0]} line is struggling.`;
+    if (disrupted.length === 2) return `${names[0]} and ${names[1]} are struggling.`;
+    return `${names[0]}, ${names[1]} and others are struggling.`;
   }
 
   static async checkSessionStatus() {

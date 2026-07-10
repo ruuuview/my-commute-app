@@ -751,6 +751,7 @@ const MyCommuteDashboard: React.FC = () => {
                       onPress={() => setArrivalNotificationsEnabled(true)}
                       style={dash.arrivalBanner}
                     >
+                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
                       <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
                       <Text style={dash.arrivalBannerText}>
                         Arrival notifications are off — <Text style={{ fontWeight: '600' }}>turn back on</Text>
@@ -770,6 +771,7 @@ const MyCommuteDashboard: React.FC = () => {
                       onPress={() => setArrivalSnoozeExpiry(null)}
                       style={dash.arrivalBanner}
                     >
+                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
                       <Ionicons name="alarm-outline" size={16} color="#007AFF" />
                       <Text style={dash.arrivalBannerText}>
                         Arrival notifications snoozed until {timeStr} — <Text style={{ fontWeight: '600' }}>tap to resume</Text>
@@ -1034,10 +1036,10 @@ const dash = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
   },
   arrivalBannerText: {
     flex: 1,

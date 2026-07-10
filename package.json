@@ -11,7 +11,7 @@
     "lint": "expo lint",
     "lint ": "expo lint",
     "lint ": "expo lint",
-    "test:stations": "node scripts/validate_stations.js"
+    "test:stations": "node scripts/unit_tests.js && node scripts/validate_stations.js"
   },
   "expo": {
     "install": {

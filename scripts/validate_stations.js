@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
+const { promisify } = require('util');
+const execPromise = promisify(exec);
 
 console.log('--- COMMITTED INTEGRATION TEST: STATION RESOLUTION & LIVE API ---');
 
@@ -101,7 +103,7 @@ function resolveTflStopIds(id) {
   return [id];
 }
 
-// 3. Parallel verification using child_process curl
+// 3. Verification using sequential execution
 const backendBase = 'https://my-commute-brain.vercel.app/api/stations';
 const failedResolution = [];
 const failedLive = [];
@@ -121,49 +123,45 @@ for (const station of stations) {
   }
 }
 
-let activeJobs = 0;
-let currentIndex = 0;
-const CONCURRENCY_LIMIT = 15;
+async function runAllTasks() {
+  for (let i = 0; i < tasks.length; i++) {
+    const { station, rid } = tasks[i];
+    const url = `${backendBase}/${rid}`;
 
-function runNextTask(resolve) {
-  if (currentIndex >= tasks.length) {
-    if (activeJobs === 0) {
-      resolve();
-    }
-    return;
-  }
+    const date = new Date();
+    const londonTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      hour: '2-digit',
+      hour12: false
+    }).format(date);
+    const hour = parseInt(londonTime, 10);
+    // Core London operating hours
+    const isOperatingHours = hour >= 6 && hour < 23;
 
-  const { station, rid } = tasks[currentIndex++];
-  activeJobs++;
-
-  const url = `${backendBase}/${rid}`;
-  exec(`curl -s "${url}"`, (error, stdout) => {
-    activeJobs--;
     try {
-      if (error) {
-        throw new Error(error.message);
-      }
+      const { stdout } = await execPromise(`curl -s "${url}"`);
       const data = JSON.parse(stdout);
       if (!data || typeof data !== 'object' || !('departures' in data)) {
         throw new Error("Invalid response format: missing 'departures' property");
       }
       const count = (data.departures || []).length;
+      if (count === 0 && isOperatingHours) {
+        const isPureRail = rid === '910GCTMSLNK' || rid === '910GFENCHRS';
+        if (!isPureRail) {
+          throw new Error(`Empty departures list returned during operating hours (${londonTime}:00 London time)`);
+        }
+      }
       successful.push({ station, rid, count });
-      console.log(`✅ "${station.name}" -> "${rid}" works (${count} live departures)`);
+      console.log(`[${i + 1}/${tasks.length}] ✅ "${station.name}" -> "${rid}" works (${count} live departures)`);
     } catch (err) {
       failedLive.push({ station, rid, url, error: err.message });
-      console.log(`❌ "${station.name}" -> "${rid}" failed: ${err.message}`);
+      console.log(`[${i + 1}/${tasks.length}] ❌ "${station.name}" -> "${rid}" failed: ${err.message}`);
     }
 
-    runNextTask(resolve);
-  });
-}
-
-new Promise((resolve) => {
-  for (let i = 0; i < CONCURRENCY_LIMIT; i++) {
-    runNextTask(resolve);
+    // 250ms sleep to avoid TfL API rate-limiting
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
-}).then(() => {
+
   console.log('\n--- VERIFICATION RESULTS ---');
   console.log(`Total checked combinations: ${tasks.length}`);
   console.log(`Successful: ${successful.length}`);
@@ -177,4 +175,6 @@ new Promise((resolve) => {
     console.log('❌ FAIL: Some stations have configuration or API errors.');
     process.exit(1);
   }
-});
+}
+
+runAllTasks();

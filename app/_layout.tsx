@@ -7,6 +7,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useUserPreferencesStore, UserPreferencesState } from '../store/userPreferencesStore';
+import { useOnboardingStore } from '../store/onboardingStore';
+import { runMigrations } from '../utils/runMigrations';
 import {
   useFonts,
   SpaceGrotesk_400Regular,
@@ -81,6 +83,20 @@ export default function RootLayout() {
         updates.firstOpenTimestamp = Date.now();
       }
       useUserPreferencesStore.setState(updates);
+    }
+  }, [_hasHydrated]);
+
+  // Run database migrations post-hydration
+  useEffect(() => {
+    if (_hasHydrated) {
+      const checkAndMigrate = () => {
+        if (useOnboardingStore.persist.hasHydrated()) {
+          runMigrations();
+        } else {
+          setTimeout(checkAndMigrate, 50);
+        }
+      };
+      checkAndMigrate();
     }
   }, [_hasHydrated]);
 

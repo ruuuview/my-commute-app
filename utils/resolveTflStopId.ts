@@ -11,7 +11,7 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   HUBBAN: ['940GZZLUBNK', '940GZZDLBNK'],       // Bank (Underground + DLR)
   HUBCAW: ['940GZZLUCYF', '940GZZDLCAN', '910GCANWHRF'], // Canary Wharf (Jubilee + DLR + Elizabeth)
   HUBWAT: ['940GZZLUWLO'],                      // Waterloo
-  HUBPAD: ['940GZZLUPAD', '940GZZLUHAC'],       // Paddington (Bakerloo/District/Circle/Elizabeth + H&C/Circle)
+  HUBPAD: ['940GZZLUPAC', '940GZZLUPAH'],       // Paddington (Bakerloo/Circle/District + H&C/Circle)
   HUBLST: ['940GZZLULVT', '910GLIVST'],       // Liverpool Street
   HUBVIC: ['940GZZLUVIC'],                      // Victoria
   HUBEUS: ['940GZZLUEUS', '910GEUSTON'],        // Euston (Underground + Overground)
@@ -24,7 +24,7 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   HUBEPH: ['940GZZLUEPC'],                      // Elephant & Castle
   HUBFPK: ['940GZZLUFPK'],                      // Finsbury Park
   HUBHMS: ['940GZZLUHSD', '940GZZLUHSC'],       // Hammersmith (District/Piccadilly + H&C/Circle)
-  HUBLBG: ['940GZZLULBG'],                      // London Bridge
+  HUBLBG: ['940GZZLULNB'],                      // London Bridge (Victoria/Northern/Jubilee)
   HUBRMD: ['940GZZLURMD', '910GRICHMND'],       // Richmond (District + Overground)
   HUBZCW: ['940GZZLUCWR', '910GCNDAW'],         // Canada Water (Jubilee + Overground)
   HUBCAN: ['940GZZLUCGT', '940GZZDLCGT'],       // Canning Town (Jubilee + DLR)
@@ -39,7 +39,7 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   // Whitechapel: 940GZZLUWPL serves all lines (District, H&C, Elizabeth, Overground)
   // No split required — single NaPTAN returns complete departures
   HUBZWL: ['940GZZLUWPL'],
-
+ 
   // Manual slug aliases for interchanges / common variants
   'bank':            ['940GZZLUBNK', '940GZZDLBNK'],
   'bank-monument':   ['940GZZLUBNK', '940GZZDLBNK'],
@@ -47,9 +47,9 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'canary-wharf':    ['940GZZLUCYF', '940GZZDLCAN', '910GCANWHRF'],
   'london-waterloo': ['940GZZLUWLO'],
   'waterloo':        ['940GZZLUWLO'],
-  'london-bridge':   ['940GZZLULBG'],
+  'london-bridge':   ['940GZZLULNB'],
   'stratford':       ['940GZZLUSTD', '910GSTFD'],
-  'paddington':      ['940GZZLUPAD', '940GZZLUHAC'],
+  'paddington':      ['940GZZLUPAC', '940GZZLUPAH'],
   'hammersmith':     ['940GZZLUHSD', '940GZZLUHSC'],
   'euston':          ['940GZZLUEUS', '910GEUSTON'],
   'ealing-broadway': ['940GZZLUEBY', '910GEALINGB'],
@@ -75,9 +75,16 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'farringdon':       ['940GZZLUFCN', '910GFRNDXR'],
   'kings-cross':      ['940GZZLUKSX'],
   'kings-cross-st-pancras': ['940GZZLUKSX'],
+  'king-s-cross':      ['940GZZLUKSX'],
+  'king-s-cross-st-pancras': ['940GZZLUKSX'],
   'queens-park':      ['940GZZLUQRP', '910GQUNPARK'],
+  'queen-s-park':      ['940GZZLUQRP', '910GQUNPARK'],
   'wimbledon':        ['940GZZLUWIM', '910GWIMBLDN'],
   'city-of-london':   ['910GCTMSLNK'],
+  'st-james-s-park':  ['940GZZLUSJP'],
+  'st-paul-s':        ['940GZZLUSPU'],
+  'st-paul':          ['940GZZLUSPU'],
+  'shepherd-s-bush':  ['940GZZLUSBC', '910GSHPDSB'],
 };
 
 // ── 2. Auto-built slug → NaPTAN map from full dataset ─────────────────────────
@@ -165,8 +172,13 @@ const SLUG_TO_HUB: Record<string, string> = {
   'whitechapel': 'HUBZWL',
   'kings-cross': '940GZZLUKSX',
   'kings-cross-st-pancras': '940GZZLUKSX',
+  'king-s-cross': '940GZZLUKSX',
+  'king-s-cross-st-pancras': '940GZZLUKSX',
   'vauxhall': 'HUBVXH',
   'queens-park': 'HUBQPW',
+  'queen-s-park': 'HUBQPW',
+  'st-paul-s': '940GZZLUSPU',
+  'st-paul': '940GZZLUSPU',
 };
 
 export function resolveTflStopIdForStore(id: string): string {

@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
-import { useOnboardingStore } from './onboardingStore';
 import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
 
 const storage = createMMKV();
@@ -107,24 +106,8 @@ const validateStationZoneCache = (state: UserPreferencesState): boolean => {
     return false;
   }
 
-  // ── Legacy Persisted Data Migration ──
-  let migrated = false;
-  const migratedStations = pinnedStations.map(station => {
-    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(station.id);
-      if (resolved && resolved !== station.id) {
-        migrated = true;
-        console.log(`[Migration] Migrating legacy station ID "${station.id}" to NaPTAN/Hub "${resolved}"`);
-        return { ...station, id: resolved };
-      }
-    }
-    return station;
-  });
-
-  const targetStations = migrated ? migratedStations : pinnedStations;
-
   const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
-  const cleanedStations = targetStations.filter((station): station is UserPreferencesState['pinnedStations'][number] =>
+  const cleanedStations = pinnedStations.filter((station): station is UserPreferencesState['pinnedStations'][number] =>
     !!station &&
     typeof station.id === 'string' &&
     typeof station.name === 'string' &&
@@ -133,7 +116,7 @@ const validateStationZoneCache = (state: UserPreferencesState): boolean => {
     !EXCLUDED_IDS.has(station.id)
   );
 
-  const changed = migrated || (cleanedStations.length !== pinnedStations.length);
+  const changed = cleanedStations.length !== pinnedStations.length;
   state.pinnedStations = cleanedStations;
   return changed;
 };
@@ -145,9 +128,9 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       addRecentSearch: (stationId: string) => {
         set(state => {
           const list = state.recentSearches || [];
-          const filtered = list.filter(id => id !== stationId);
-          const updated = [stationId, ...filtered].slice(0, 8);
-          return { recentSearches: updated };
+          if (list.includes(stationId)) return state;
+          const current = [stationId, ...list].slice(0, 10);
+          return { recentSearches: current };
         });
       },
       clearRecentSearches: () => {
@@ -275,14 +258,6 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
               setTimeout(() => {
                 useUserPreferencesStore.setState({ pinnedStations: state.pinnedStations });
               }, 0);
-            }
-            
-            // Also clean up onboarding store's pinned stations if they contain excluded IDs
-            const onboardingPinned = useOnboardingStore.getState().pinnedStations;
-            const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
-            const cleanedOnboarding = onboardingPinned ? onboardingPinned.filter(s => s && s.id && !EXCLUDED_IDS.has(s.id)) : [];
-            if (onboardingPinned && cleanedOnboarding.length !== onboardingPinned.length) {
-              useOnboardingStore.setState({ pinnedStations: cleanedOnboarding });
             }
           }
         } catch (e) {

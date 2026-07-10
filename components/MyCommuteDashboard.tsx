@@ -43,6 +43,7 @@ import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTri
 // ✅ Modal now managed HERE, not upstream
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
+import { usePressAnimation } from '../hooks/usePressAnimation';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard'; // memoized
 import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -62,6 +63,8 @@ import { APP_CONFIG } from '../config/app.config';
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // ─── Types ────────────────────────────────────────────────────────
 export type Severity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'unknown';
@@ -288,6 +291,9 @@ const MyCommuteDashboard: React.FC = () => {
     setArrivalSnoozeExpiry: s.setArrivalSnoozeExpiry,
   })));
 
+  const notificationsOffPress = usePressAnimation('departure_card');
+  const snoozedPress = usePressAnimation('departure_card');
+
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [stationModalVisible, setStationModalVisible] = useState(false);
@@ -309,6 +315,7 @@ const MyCommuteDashboard: React.FC = () => {
   }, []);
 
   const applyPendingData = useCallback(() => {
+    isScrollingRef.current = false;
     if (pendingDataRef.current) {
       setData(pendingDataRef.current);
       pendingDataRef.current = null;
@@ -705,16 +712,18 @@ const MyCommuteDashboard: React.FC = () => {
                 const isSnoozed = arrivalSnoozeExpiry && Date.now() < arrivalSnoozeExpiry;
                 if (arrivalNotificationsEnabled === false) {
                   return (
-                    <Pressable
+                    <AnimatedPressable
                       onPress={() => setArrivalNotificationsEnabled(true)}
-                      style={dash.arrivalBanner}
+                      onPressIn={notificationsOffPress.onPressIn}
+                      onPressOut={notificationsOffPress.onPressOut}
+                      style={[dash.arrivalBanner, notificationsOffPress.animatedStyle]}
                     >
                       <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
                       <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
                       <Text style={dash.arrivalBannerText}>
                         Arrival notifications are off — <Text style={{ fontWeight: '600' }}>turn back on</Text>
                       </Text>
-                    </Pressable>
+                    </AnimatedPressable>
                   );
                 }
                 if (isSnoozed) {
@@ -725,16 +734,18 @@ const MyCommuteDashboard: React.FC = () => {
                   const h12 = hours % 12 || 12;
                   const timeStr = `${h12}:${String(mins).padStart(2, '0')}${ampm}`;
                   return (
-                    <Pressable
+                    <AnimatedPressable
                       onPress={() => setArrivalSnoozeExpiry(null)}
-                      style={dash.arrivalBanner}
+                      onPressIn={snoozedPress.onPressIn}
+                      onPressOut={snoozedPress.onPressOut}
+                      style={[dash.arrivalBanner, snoozedPress.animatedStyle]}
                     >
                       <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
                       <Ionicons name="alarm-outline" size={16} color="#007AFF" />
                       <Text style={dash.arrivalBannerText}>
                         Arrival notifications snoozed until {timeStr} — <Text style={{ fontWeight: '600' }}>tap to resume</Text>
                       </Text>
-                    </Pressable>
+                    </AnimatedPressable>
                   );
                 }
                 return null;

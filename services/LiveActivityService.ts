@@ -19,16 +19,22 @@ const fetchWithTimeout = (url: string, signal?: AbortSignal, ms = FETCH_TIMEOUT_
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ms);
   
+  const onParentAbort = () => controller.abort();
   if (signal) {
     if (signal.aborted) {
       controller.abort();
     } else {
-      signal.addEventListener('abort', () => controller.abort());
+      signal.addEventListener('abort', onParentAbort, { once: true });
     }
   }
 
   return fetch(url, { signal: controller.signal })
-    .finally(() => clearTimeout(timeoutId));
+    .finally(() => {
+      clearTimeout(timeoutId);
+      if (signal) {
+        signal.removeEventListener('abort', onParentAbort);
+      }
+    });
 };
 
 const fetchTflDirect = async (stationId: string, lineId: string, signal?: AbortSignal) => {

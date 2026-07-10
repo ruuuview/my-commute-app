@@ -115,28 +115,36 @@ for (const entry of fullStationsData as { id: string; name: string }[]) {
 
 // ── 3. Array-based Resolver ───────────────────────────────────────────────────
 export function resolveTflStopIds(id: string): string[] {
-  // If it's already a Hub or NaPTAN, pass through
-  if (id.startsWith('HUB') || id.startsWith('940GZZ') || id.startsWith('910G')) {
-    return [id];
-  }
-
-  // Normalize lookup key to a slug
-  const slug = toSlug(id);
-
-  // Check explicit map (which is keyed by slugs and Hubs)
-  if (EXPLICIT_MAP[slug]) {
-    return EXPLICIT_MAP[slug];
-  }
+  // 1. Known HUBs and slugs in EXPLICIT_MAP get expanded into NaPTAN arrays
   if (EXPLICIT_MAP[id]) {
     return EXPLICIT_MAP[id];
   }
 
-  // Try slug-based lookup from full dataset
+  // 2. Raw NaPTAN pass-through (fast path — no expansion needed)
+  if (id.startsWith('940GZZ') || id.startsWith('910G')) {
+    return [id];
+  }
+
+  // 3. Unknown HUB code — can't expand, warn and let backend try
+  if (id.startsWith('HUB')) {
+    console.warn(`[resolveTflStopIds] unexpanded HUB id: "${id}" — missing from EXPLICIT_MAP`);
+    return [id];
+  }
+
+  // 4. Normalize lookup key to a slug
+  const slug = toSlug(id);
+
+  // 5. Check explicit map by slug
+  if (EXPLICIT_MAP[slug]) {
+    return EXPLICIT_MAP[slug];
+  }
+
+  // 6. Try slug-based lookup from full dataset
   if (SLUG_TO_NAPTAN[slug]) {
     return [SLUG_TO_NAPTAN[slug]];
   }
 
-  // Unmapped — warn and return unchanged in array
+  // 7. Unmapped — warn and return unchanged in array
   console.warn(`[resolveTflStopIds] unmapped station id: "${id}" (slug: "${slug}")`);
   return [id];
 }

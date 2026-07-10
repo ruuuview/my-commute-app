@@ -106,7 +106,11 @@ const validateStationZoneCache = (state: UserPreferencesState): boolean => {
     return false;
   }
 
-  const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
+  // IDs that should never appear in pinned stations.
+  // HUBKGX was removed because the correct King's Cross Hub ID path goes through
+  // SLUG_TO_HUB → 940GZZLUKSX (the station's NaPTAN stop point), not via HUBKGX.
+  // Keeping HUBKGX here would silently unpin any station that somehow has that ID.
+  const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international']);
   const cleanedStations = pinnedStations.filter((station): station is UserPreferencesState['pinnedStations'][number] =>
     !!station &&
     typeof station.id === 'string' &&
@@ -245,6 +249,13 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     {
       name: 'user-preferences',
       version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        // Version 0 → 1: passthrough — data format didn't change,
+        // the version pin just prevents zustand from silently dropping
+        // persisted state on future incompatible migrations.
+        // schemaVersion field inside the data is managed by runMigrations.ts.
+        return persisted as UserPreferencesState;
+      },
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
         const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, ...persisted } = state;

@@ -7,22 +7,11 @@ import Animated, {
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { cleanDisplayStationName } from '../data/tflStations';
-import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
-import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { getPillColors } from '../utils/pillColors';
-import { normaliseLineId } from '../utils/normaliseLineId';
-import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
-
-const cleanPlatformName = (platform: string): string => {
-  if (!platform) return '';
-  const match = platform.match(/Platform\s+[A-Za-z0-9]+/i);
-  if (match) {
-    return match[0].charAt(0).toUpperCase() + match[0].slice(1);
-  }
-  return platform;
-};
+import { fetchNormalizedStationArrivals } from '../services/apiService';
+import { LINE_COLORS } from '../constants/lineColors';
 
 export interface Departure {
   lineId: string;
@@ -169,54 +158,18 @@ export function StationCard({
     let active = true;
     const fetchLive = async () => {
       try {
-        const resolvedIds = resolveTflStopIds(station.id);
-        const responses = await Promise.all(
-          resolvedIds.map(id =>
-            fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
-              .then(res => (res.ok ? res.json() : null))
-              .catch(() => null)
-          )
-        );
-
+        const data = await fetchNormalizedStationArrivals(station.id);
         if (!active) return;
 
-        const allRawDepartures: any[] = [];
-        responses.forEach(sData => {
-          if (sData && Array.isArray(sData.departures)) {
-            allRawDepartures.push(...sData.departures);
-          }
-        });
-
-        const dedupedRaw: any[] = [];
-        const seenKeys = new Set<string>();
-
-        allRawDepartures.forEach(dep => {
-          const dest = String(dep.destination || '');
-          if (dest.includes('DELETE') || dest.includes('⚠️')) return;
-          // Deduplicate by line, destination, and minutes_away to prevent duplicate-looking rows
-          const key = `${dep.line}-${dep.destination}-${dep.minutes_away ?? dep.expected_arrival}`;
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            dedupedRaw.push(dep);
-          }
-        });
-
-        dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
-
-        const mapped: Departure[] = dedupedRaw.map((dep: any) => {
-          const { lineId, cleanLineId } = normaliseLineId(dep.line);
-          return {
-            lineId,
-            lineColor: LINE_COLORS[cleanLineId] || '#888',
-            lineName: LINE_SHORT_NAMES[cleanLineId] || dep.line,
-            destination: String(dep.destination || '')
-              .replace(' Underground Station', '')
-              .replace(' DLR Station', ''),
-            timeText: `${dep.minutes_away} min`,
-            isImminent: dep.minutes_away <= 2,
-            platform: dep.platform ? cleanPlatformName(dep.platform) : '',
-          };
-        });
+        const mapped: Departure[] = data.departures.map(d => ({
+          lineId: d.lineId,
+          lineColor: d.lineColor,
+          lineName: LINE_SHORT_NAMES[d.lineId] || d.lineName,
+          destination: d.destination,
+          timeText: d.minutesAway <= 0 ? 'Due' : `${d.minutesAway} min`,
+          isImminent: d.minutesAway <= 2,
+          platform: d.platform,
+        }));
 
         setLiveDepartures(mapped);
       } catch (e) {

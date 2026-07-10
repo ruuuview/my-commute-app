@@ -71,6 +71,8 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'liverpool-street': ['940GZZLULVT', '910GLIVST'],
   'bond-street':      ['940GZZLUBND', '910GBONDST'],
   'farringdon':       ['940GZZLUFCN', '910GFRNDXR'],
+  'kings-cross':      ['940GZZLUKSX'],
+  'kings-cross-st-pancras': ['940GZZLUKSX'],
 };
 
 // ── 2. Auto-built slug → NaPTAN map from full dataset ─────────────────────────
@@ -84,12 +86,17 @@ function toSlug(name: string): string {
 const SLUG_TO_NAPTAN: Record<string, string> = {};
 
 for (const entry of fullStationsData as { id: string; name: string }[]) {
-  // Only index entries that have a 940GZZ NaPTAN id (tube/DLR stop points)
-  if (entry.id.startsWith('940GZZ')) {
+  // Index entries that have a 940GZZ or 910G NaPTAN id (tube/DLR/Overground/Elizabeth Line/Rail stop points)
+  if (entry.id.startsWith('940GZZ') || entry.id.startsWith('910G')) {
     const slug = toSlug(entry.name);
-    // First match wins — keeps the primary stop-point per name
-    if (!SLUG_TO_NAPTAN[slug]) {
+    const existing = SLUG_TO_NAPTAN[slug];
+    if (!existing) {
       SLUG_TO_NAPTAN[slug] = entry.id;
+    } else {
+      // Collision rule: prefer tube (940GZZ) over rail/Overground (910G)
+      if (existing.startsWith('910G') && entry.id.startsWith('940GZZ')) {
+        SLUG_TO_NAPTAN[slug] = entry.id;
+      }
     }
   }
 }

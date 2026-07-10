@@ -51,13 +51,12 @@ import { LineDetailModal } from './LineDetailModal';
 import { ConfirmationCard } from './ConfirmationCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
-import { normaliseLineId } from '../utils/normaliseLineId';
 import BouncyPressable from './BouncyPressable';
-import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { LINE_COLORS } from '../constants/lineColors';
-import { APP_CONFIG } from '../config/app.config';
+import { fetchNormalizedStationArrivals } from '../services/apiService';
 import { useLineDataStore } from '../store/lineDataStore';
 import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
+import { LINE_COLORS } from '../constants/lineColors';
+import { APP_CONFIG } from '../config/app.config';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -442,59 +441,18 @@ const MyCommuteDashboard: React.FC = () => {
       if (Array.isArray(selectedStations) && selectedStations.length > 0) {
         const stationPromises = selectedStations.map(async (st: any) => {
           try {
-            const resolvedIds = resolveTflStopIds(st.id);
-            const responses = await Promise.all(
-              resolvedIds.map(id =>
-                fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal })
-                  .then(res => (res.ok ? res.json() : null))
-                  .catch(() => null)
-              )
-            );
-
-            const allRawDepartures: any[] = [];
-            responses.forEach(sData => {
-              if (sData && Array.isArray(sData.departures)) {
-                allRawDepartures.push(...sData.departures);
-              }
-            });
-
-            const dedupedRaw: any[] = [];
-            const seenKeys = new Set<string>();
-
-            allRawDepartures.forEach(dep => {
-              const dest = String(dep.destination || '');
-              if (dest.includes('DELETE') || dest.includes('⚠️')) {
-                return;
-              }
-              // Deduplicate by line, destination, and minutes_away to prevent duplicate-looking rows
-              const mins = dep.minutes_away ?? 0;
-              const dueKey = mins <= 0 ? 'due' : mins;
-              const key = `${dep.line}-${dep.destination}-${dueKey}`;
-              if (!seenKeys.has(key)) {
-                seenKeys.add(key);
-                dedupedRaw.push(dep);
-              }
-            });
-
-            dedupedRaw.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
-
-            // Map arrivals
-            const arrivals = dedupedRaw.map((dep: any) => {
-              const { lineId, cleanLineId } = normaliseLineId(dep.line);
-              return {
-                lineId,
-                lineName: dep.line,
-                lineColor: LINE_COLORS[cleanLineId] || '#888',
-                minutesAway: dep.minutes_away,
-                destination: String(dep.destination || '').replace(' Underground Station', '').replace(' DLR Station', ''),
-                expectedArrival: dep.expected_arrival
-              };
-            });
-
+            const data = await fetchNormalizedStationArrivals(st.id, signal);
             return {
               id: st.id,
               name: st.name,
-              arrivals: arrivals
+              arrivals: data.departures.map(d => ({
+                lineId: d.lineId,
+                lineName: d.lineName,
+                lineColor: d.lineColor,
+                minutesAway: d.minutesAway,
+                destination: d.destination,
+                expectedArrival: d.expectedArrival,
+              })),
             };
           } catch (e) {
             console.log('Error fetching station arrivals for', st.id, e);

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 
+import { resolveTflStopId } from '../utils/resolveTflStopId';
+
 const storage = createMMKV({ id: 'onboarding' });
 
 const mmkvStorage = {
@@ -50,16 +52,17 @@ export const useOnboardingStore = create<OnboardingStore>()(
           }
           return {
             selectedLines: includes
-              ? s.selectedLines.filter((id) => id !== lineId)
-              : [...s.selectedLines, lineId],
+               ? s.selectedLines.filter((id) => id !== lineId)
+               : [...s.selectedLines, lineId],
           };
         }),
 
       addStation: (station) =>
         set((s) => {
-          if (s.pinnedStations.find((p) => p.id === station.id)) return s;
+          const resolvedId = resolveTflStopId(station.id);
+          if (s.pinnedStations.find((p) => p.id === resolvedId)) return s;
           if (s.pinnedStations.length >= 5) return s;
-          return { pinnedStations: [...s.pinnedStations, station] };
+          return { pinnedStations: [...s.pinnedStations, { ...station, id: resolvedId }] };
         }),
 
       removeStation: (stationId) =>

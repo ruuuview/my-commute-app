@@ -150,9 +150,27 @@ export default function StationsScreen() {
   );
 
   const results = useMemo<TfLStation[]>(() => {
-    if (!query.trim()) return [];
-    return fuse.search(query.toLowerCase().trim()).map(r => r.item);
-  }, [query, fuse]);
+    const trimmed = query.toLowerCase().trim();
+    if (!trimmed) return [];
+
+    // Substring match for responsiveness and exact substring queries
+    const substringMatches = cleanFullStations.filter(s =>
+      s.name.toLowerCase().includes(trimmed)
+    );
+
+    // Fuzzy matching for spelling tolerance
+    const fuzzyMatches = fuse.search(trimmed).map(r => r.item);
+
+    const combined = [...substringMatches];
+    const seenIds = new Set(combined.map(s => s.id));
+    for (const match of fuzzyMatches) {
+      if (!seenIds.has(match.id)) {
+        combined.push(match);
+        seenIds.add(match.id);
+      }
+    }
+    return combined;
+  }, [query, fuse, cleanFullStations]);
 
   useEffect(() => {
     if (query.trim() && results.length === 0) {

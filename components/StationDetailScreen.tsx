@@ -25,28 +25,14 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { DashboardGradient } from './DashboardGradient';
 
-import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { normaliseLineId } from '../utils/normaliseLineId';
-import { LINE_COLORS } from '../constants/lineColors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore } from '../store/lineDataStore';
-import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
+import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 
 const DUE_GREEN = '#30D158';
 
-interface Departure {
-  destination: string;
-  line: string;
-  platform: string;
-  minutes_away: number;
-  expected_arrival: string;
-  firstTrain?: string;
-  lastTrain?: string;
-  firstTrainDestination?: string;
-  lastTrainDestination?: string;
-  isNightTube?: boolean;
-}
+type Departure = NormalizedDeparture;
 
 interface LineGroup {
   lineId: string;
@@ -142,12 +128,12 @@ export default function StationDetailScreen({
   const lineGroups: LineGroup[] = useMemo(() => {
     const map = new Map<string, LineGroup>();
     departures.forEach(dep => {
-      const { lineId, cleanLineId } = normaliseLineId(dep.line);
+      const lineId = dep.lineId;
       if (!map.has(lineId)) {
         map.set(lineId, {
           lineId,
-          lineName: dep.line,
-          lineColor: LINE_COLORS[cleanLineId] || '#888',
+          lineName: dep.lineName,
+          lineColor: dep.lineColor,
           departures: [],
         });
       }
@@ -183,39 +169,15 @@ export default function StationDetailScreen({
     const requestId = ++requestIdRef.current;
     try {
       if (showLoader) setLoading(true);
-      const resolvedIds = resolveTflStopIds(stationId);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
-      const responses = await Promise.all(
-        resolvedIds.map(id =>
-          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: controller.signal })
-            .then(res => (res.ok ? res.json() : null))
-            .catch(() => null)
-        )
-      );
+
+      const data = await fetchNormalizedStationArrivals(stationId, controller.signal);
       clearTimeout(timeoutId);
+
       if (requestId !== requestIdRef.current) return;
 
-      const allRaw: any[] = [];
-      responses.forEach(data => {
-        if (data?.departures) allRaw.push(...data.departures);
-      });
-
-      const seen = new Set<string>();
-      const deduped = allRaw.filter(dep => {
-        const dest = String(dep.destination || '');
-        if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
-        const mins = dep.minutes_away ?? 0;
-        const dueKey = mins <= 0 ? 'due' : mins;
-        const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
-
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      deduped.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));
-      setDepartures(deduped);
+      setDepartures(data.departures);
       setFetchedAt(new Date());
     } catch (e) {
       console.log('[StationDetailScreen] departures error:', e);

@@ -30,28 +30,14 @@ import Animated, {
   useReducedMotion,
   SharedValue,
 } from 'react-native-reanimated';
-import { LINE_COLORS } from '../constants/lineColors';
-import { resolveTflStopIds } from '../utils/resolveTflStopId';
-import { normaliseLineId } from '../utils/normaliseLineId';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
-import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
+import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 
 // ─── Constants ────────────────────────────────────────────────────
 const DUE_GREEN = '#30D158';
 const MAX_ROWS = 3;
-
-// ─── Interfaces ──────────────────────────────────────────────────
-interface Arrival {
-  lineId: string;
-  lineName: string;
-  lineColor: string;
-  minutesAway: number;
-  destination: string;
-  platform: string;
-  expectedArrival: string;
-}
 
 export interface DepartureCardProps {
   stationId: string;
@@ -93,7 +79,7 @@ const DepartureCard = memo(function DepartureCard({
   globalJiggle,
 }: DepartureCardProps) {
   const reducedMotion = useReducedMotion();
-  const [arrivals, setArrivals] = useState<Arrival[]>([]);
+  const [arrivals, setArrivals] = useState<NormalizedDeparture[]>([]);
   const [loading, setLoading] = useState(true);
 
   const pressAnim = usePressAnimation('departure_card');
@@ -107,69 +93,13 @@ const DepartureCard = memo(function DepartureCard({
   const fetchArrivals = useCallback(
     async (active: { current: boolean }) => {
       try {
-        const resolvedIds = resolveTflStopIds(stationId);
-        const responses = await Promise.all(
-          resolvedIds.map(id =>
-            fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`)
-              .then(res => (res.ok ? res.json() : null))
-              .catch(() => null)
-          )
-        );
-
+        const data = await fetchNormalizedStationArrivals(stationId);
         if (!active.current) return;
-
-        const allRaw: any[] = [];
-        responses.forEach(sData => {
-          if (sData?.departures) allRaw.push(...sData.departures);
-        });
-
-        const processed = allRaw.map((dep: any) => {
-          const mins = dep.minutes_away !== undefined
-            ? dep.minutes_away
-            : dep.expected_arrival
-            ? Math.max(0, Math.round((new Date(dep.expected_arrival).getTime() - Date.now()) / 60000))
-            : null;
-          return { ...dep, calculatedMinutes: mins };
-        }).filter(dep => dep.calculatedMinutes !== null);
-
-        const seen = new Set<string>();
-        const deduped = processed.filter(dep => {
-          const dest = String(dep.destination || '');
-          if (dest.includes('DELETE') || dest.includes('⚠️')) return false;
-          
-          const mins = dep.calculatedMinutes!;
-          const dueKey = mins <= 0 ? 'due' : mins;
-          const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
-          
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-
-        deduped.sort((a, b) => a.calculatedMinutes! - b.calculatedMinutes!);
-
-        const mapped = deduped.map((dep: any) => {
-          const { lineId, cleanLineId } = normaliseLineId(dep.line);
-          return {
-            lineId,
-            lineName: dep.line,
-            lineColor: LINE_COLORS[cleanLineId] || '#888',
-            minutesAway: dep.calculatedMinutes!,
-            destination: String(dep.destination || '')
-              .replace(' Underground Station', '')
-              .replace(' DLR Station', '')
-              .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
-              .trim(),
-            platform: String(dep.platform || ''),
-            expectedArrival: dep.expected_arrival,
-          };
-        });
 
         const filtered = selectedLines?.length
-          ? mapped.filter(a => selectedLines.includes(a.lineId))
-          : mapped;
+          ? data.departures.filter(a => selectedLines.includes(a.lineId))
+          : data.departures;
 
-        if (!active.current) return;
         setArrivals(filtered);
       } catch (err) {
         console.log('[DepartureCard] fetch error:', err);

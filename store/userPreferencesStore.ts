@@ -4,6 +4,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { useOnboardingStore } from './onboardingStore';
+import { resolveTflStopId } from '../utils/resolveTflStopId';
 
 const storage = createMMKV();
 const backgroundStorage = createMMKV({ id: 'background-storage' });
@@ -105,8 +106,25 @@ const validateStationZoneCache = (state: UserPreferencesState) => {
     state.pinnedStations = [];
     return;
   }
+
+  // ── Legacy Persisted Data Migration ──
+  let migrated = false;
+  const migratedStations = pinnedStations.map(station => {
+    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G')) {
+      const resolved = resolveTflStopId(station.id);
+      if (resolved && resolved !== station.id) {
+        migrated = true;
+        console.log(`[Migration] Migrating legacy station ID "${station.id}" to NaPTAN "${resolved}"`);
+        return { ...station, id: resolved };
+      }
+    }
+    return station;
+  });
+
+  const targetStations = migrated ? migratedStations : pinnedStations;
+
   const EXCLUDED_IDS = new Set(['kings-cross-intl', 'st-pancras-international', 'HUBKGX']);
-  const cleanedStations = pinnedStations.filter((station): station is UserPreferencesState['pinnedStations'][number] =>
+  const cleanedStations = targetStations.filter((station): station is UserPreferencesState['pinnedStations'][number] =>
     !!station &&
     typeof station.id === 'string' &&
     typeof station.name === 'string' &&
@@ -114,9 +132,8 @@ const validateStationZoneCache = (state: UserPreferencesState) => {
     typeof station.zone === 'number' &&
     !EXCLUDED_IDS.has(station.id)
   );
-  if (cleanedStations.length !== pinnedStations.length) {
-    state.pinnedStations = cleanedStations;
-  }
+
+  state.pinnedStations = cleanedStations;
 };
 
 export const useUserPreferencesStore = create<UserPreferencesState>()(
@@ -162,7 +179,9 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set(state => {
           const stations = [...state.pinnedStations];
           if (stations.length < 5) {
-            stations.push({ ...station, role });
+            const resolvedId = resolveTflStopId(station.id);
+            if (stations.find(s => s.id === resolvedId)) return state;
+            stations.push({ ...station, id: resolvedId, role });
             return { pinnedStations: stations };
           }
           return state;

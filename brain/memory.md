@@ -102,6 +102,10 @@ This document tracks execution state, updates, and current tasks.
   * Wired `useWorstStatus` and `computeWorstStatus` hooks to `MyCommuteDashboard.tsx` to drive heartbeat dots, backgrounds, and offline caches.
   * Added Waterloo & City line alias mapping in `apiService.ts`.
   * Verified 100% of store migration unit tests and live station validations pass successfully.
+  * Corrected TfL API severity code `9` mapping to `.minor` in `AGENTS.md` and `useWorstStatus.ts`, and aggregated Overground sub-branches to resolve worst-case severity.
+  * Hardened `runMigrations.ts` using `Set<string>` to deduplicate canonical IDs, preventing array inflation from duplicate legacy slugs.
+  * Rewired `FixItSheet.tsx` static chips to use `AnimatedPressable` and `usePressAnimation('chip')` for unified timing aesthetics, and merged `useAnimatedStyle` objects correctly.
+  * Hardened bash pipeline scripts: migrated `generate_hub_map.js` to `execFileSync`, fixed `failedLines` tracking logic in `validate_stations.js`, and upgraded `unit_tests.js` to use isolated sandbox evaluation for dynamic resolution tests.
 
 ---
 

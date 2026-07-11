@@ -131,9 +131,10 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       ...initialState,
       addRecentSearch: (stationId: string) => {
         set(state => {
+          const resolvedId = resolveTflStopIdForStore(stationId);
           const list = state.recentSearches || [];
-          if (list.includes(stationId)) return state;
-          const current = [stationId, ...list].slice(0, 10);
+          if (list.includes(resolvedId)) return state;
+          const current = [resolvedId, ...list].slice(0, 10);
           return { recentSearches: current };
         });
       },
@@ -169,6 +170,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           const stations = [...state.pinnedStations];
           if (stations.length < 5) {
             const resolvedId = resolveTflStopIdForStore(station.id);
+            console.log('[pinStore] id:', station.id, '→ resolved:', resolvedId, '| name:', station.name);
             if (stations.find(s => s.id === resolvedId)) return state;
             stations.push({ ...station, id: resolvedId, role });
             return { pinnedStations: stations };
@@ -248,13 +250,20 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }),
     {
       name: 'user-preferences',
-      version: 1,
+      version: 2,
       migrate: (persisted: unknown, version: number) => {
-        // Version 0 → 1: passthrough — data format didn't change,
-        // the version pin just prevents zustand from silently dropping
-        // persisted state on future incompatible migrations.
-        // schemaVersion field inside the data is managed by runMigrations.ts.
-        return persisted as UserPreferencesState;
+        const state = persisted as any;
+        if (version < 2 && state?.pinnedStations?.length) {
+          // Version 1 → 2: Re-resolve pinned station IDs to NaPTANs.
+          // Before v2, resolveTflStopIdForStore passed HUB codes through.
+          // Now it expands them to NaPTANs. Existing users with stored
+          // HUB codes need their IDs re-resolved so the backend can query them.
+          state.pinnedStations = state.pinnedStations.map((s: any) => ({
+            ...s,
+            id: resolveTflStopIdForStore(s.id),
+          }));
+        }
+        return state;
       },
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {

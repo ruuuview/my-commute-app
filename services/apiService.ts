@@ -113,10 +113,24 @@ export async function fetchNormalizedStationArrivals(
   const departures: NormalizedDeparture[] = deduped.map((dep: any) => {
     const lineIdFromApi = dep.line_id || dep.lineId;
     const { cleanLineId } = normaliseLineId(dep.line);
-    const canonicalLineId = (lineIdFromApi || cleanLineId || 'unknown')
+    let canonicalLineId = (lineIdFromApi || cleanLineId || 'unknown')
       .toLowerCase()
       .replace(/\s*&\s*/g, '-')
       .replace(/\s+/g, '-');
+
+    if (['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'].includes(canonicalLineId)) {
+      canonicalLineId = 'overground';
+    }
+
+    // LINE_ID_ALIASES — Normalize TfL API lineId values (e.g. "elizabeth-line") to
+    // the canonical short IDs the frontend uses everywhere (e.g. "elizabeth").
+    // This prevents DepartureCard's line filter from silently killing departures
+    // when the user's selectedLines store doesn't match the raw API response.
+    const LINE_ID_ALIASES: Record<string, string> = {
+      'elizabeth-line':      'elizabeth',
+      'london-overground':   'overground',
+    };
+    canonicalLineId = LINE_ID_ALIASES[canonicalLineId] ?? canonicalLineId;
 
     return {
       lineId: canonicalLineId,

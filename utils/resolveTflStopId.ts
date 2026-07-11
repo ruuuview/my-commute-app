@@ -194,12 +194,23 @@ export function resolveTflStopIds(id: string): string[] {
 // ── 4. Store-time Resolver & Backward-Compatible Wrappers ───────────────────────
 
 export function resolveTflStopIdForStore(id: string): string {
-  if (id.startsWith('HUB') || id.startsWith('940GZZ') || id.startsWith('910G')) {
+  // Expand HUB codes to their first valid NaPTAN ID so the stored
+  // ID is always a backend-queryable stop point, not a hub code
+  // that needs re-expansion at every fetch.
+  if (id.startsWith('HUB')) {
+    const resolved = resolveTflStopIds(id);
+    const naptan = resolved.find(r => r.startsWith('940GZZ') || r.startsWith('910G'));
+    return naptan || id;
+  }
+  if (id.startsWith('940GZZ') || id.startsWith('910G')) {
     return id;
   }
   const slug = toSlug(id);
   if (SLUG_TO_HUB[slug]) {
-    return SLUG_TO_HUB[slug];
+    const hubId = SLUG_TO_HUB[slug];
+    const resolved = resolveTflStopIds(hubId);
+    const naptan = resolved.find(r => r.startsWith('940GZZ') || r.startsWith('910G'));
+    return naptan || hubId;
   }
   return resolveTflStopId(id);
 }

@@ -96,8 +96,9 @@ const DepartureCard = memo(function DepartureCard({
         const data = await fetchNormalizedStationArrivals(stationId);
         if (!active.current) return;
 
-        const filtered = selectedLines?.length
-          ? data.departures.filter(a => selectedLines.includes(a.lineId))
+        const normalisedSelected = (selectedLines ?? []).map(id => id.toLowerCase().trim());
+        const filtered = normalisedSelected.length
+          ? data.departures.filter(a => normalisedSelected.includes(a.lineId?.toLowerCase().trim()))
           : data.departures;
 
         setArrivals(filtered);

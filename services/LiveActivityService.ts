@@ -57,7 +57,9 @@ const fetchTflDirect = async (stationId: string, lineId: string, signal?: AbortS
 
     const filtered = allRawDepartures.filter(dep => {
       const { cleanLineId } = normaliseLineId(dep.line);
-      return cleanLineId === lineId;
+      const isOvergroundBranch = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'].includes(cleanLineId);
+      const canonicalLineId = isOvergroundBranch ? 'overground' : cleanLineId;
+      return canonicalLineId === lineId;
     });
 
     filtered.sort((a, b) => (a.minutes_away || 0) - (b.minutes_away || 0));

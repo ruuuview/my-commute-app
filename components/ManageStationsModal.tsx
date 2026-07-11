@@ -34,6 +34,7 @@ import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
 import { playSound } from '../utils/sound';
+import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
 
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
@@ -219,7 +220,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
   const unpinnedResults = useMemo(() => {
-    return results.filter(s => !pinnedIds.has(s.id));
+    return results.filter(s => !pinnedIds.has(resolveTflStopIdForStore(s.id)));
   }, [results, pinnedIds]);
 
   useEffect(() => {
@@ -260,6 +261,8 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         ? 'work'
         : 'other';
 
+      console.log('[ManageStations] pinning:', station.id, station.name, '→ role:', role);
+
       pinStation({
         id: station.id,
         name: station.name,
@@ -283,7 +286,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     return (
       <CompactStationCard
         station={item}
-        selected={pinnedIds.has(item.id)}
+        selected={pinnedIds.has(resolveTflStopIdForStore(item.id))}
         onPress={() => handleToggleStation(item)}
       />
     );

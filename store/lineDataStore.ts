@@ -69,7 +69,9 @@ export const useLineDataStore = create<LineDataState>((set, get) => ({
       isLoading: false,
     });
     
-    console.log('🏪 STORE: Updated with', lines.length, 'lines');
+    if (__DEV__) {
+      console.log('🏪 STORE: Updated with', lines.length, 'lines');
+    }
   },
   
   /**
@@ -94,7 +96,9 @@ export const useLineDataStore = create<LineDataState>((set, get) => ({
    */
   clearStore: () => {
     set(initialState);
-    console.log('🧹 STORE: Cleared');
+    if (__DEV__) {
+      console.log('🧹 STORE: Cleared');
+    }
   },
 
   /**

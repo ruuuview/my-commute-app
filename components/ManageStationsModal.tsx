@@ -33,8 +33,6 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { LINE_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
-import { playSound } from '../utils/sound';
-import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
 
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
@@ -220,7 +218,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
   const unpinnedResults = useMemo(() => {
-    return results.filter(s => !pinnedIds.has(resolveTflStopIdForStore(s.id)));
+    return results.filter(s => !pinnedIds.has(s.id));
   }, [results, pinnedIds]);
 
   useEffect(() => {
@@ -228,7 +226,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     if (cleanQuery.length >= 4 && unpinnedResults.length === 0) {
       if (!hasTriggeredErrorRef.current) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        playSound('error');
         hasTriggeredErrorRef.current = true;
       }
     } else {
@@ -242,14 +239,12 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     async (station: TfLStation) => {
       if (pinnedStations.length >= MAX_PINS) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        playSound('error');
         triggerMaxPinsShake();
         setMaxPinsToast(true);
         setTimeout(() => setMaxPinsToast(false), 1500);
         return;
       }
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      playSound('select', 0.45);
 
       // Immediate clean dismiss
       Keyboard.dismiss();
@@ -286,7 +281,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     return (
       <CompactStationCard
         station={item}
-        selected={pinnedIds.has(resolveTflStopIdForStore(item.id))}
+        selected={pinnedIds.has(item.id)}
         onPress={() => handleToggleStation(item)}
       />
     );

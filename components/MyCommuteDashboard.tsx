@@ -37,7 +37,7 @@ import { PREMIUM_BUTTON } from '../theme/colors';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
-import type { StatusLevel } from '../hooks/useWorstStatus';
+import { useWorstStatus, computeWorstStatus } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
@@ -97,23 +97,21 @@ interface DashboardData {
   stations: StationData[];
 }
 
+
+
 // ─── Severity mapping ─────────────────────────────────────────────
-function parseSeverity(statusText: string): Severity {
+function getSeverityFromStatus(statusText: string, statusSeverity?: number): Severity {
+  if (statusSeverity !== undefined) {
+    if (statusSeverity === 20) return 'suspended';
+    if (statusSeverity === 9) return 'severe';
+    if (statusSeverity === 5) return 'minor';
+    if (statusSeverity === 1) return 'good';
+  }
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
   if (text.includes('minor')) return 'minor';
   if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
-  return 'good';
-}
-
-function worstSeverity(lines: LineData[]): Severity {
-  if (!lines.length) return 'unknown';
-  const severities = lines.map((l) => parseSeverity(l.status));
-  if (severities.includes('suspended')) return 'suspended';
-  if (severities.includes('severe')) return 'severe';
-  if (severities.includes('minor')) return 'minor';
-  if (severities.includes('offline')) return 'offline';
   return 'good';
 }
 
@@ -481,9 +479,10 @@ const MyCommuteDashboard: React.FC = () => {
         setData(fresh);
       }
 
-      const myFreshLines = freshLines.filter((l: any) => selectedLines.includes(l.id));
-      const worst = worstSeverity(myFreshLines);
-      setLastKnown(worst as StatusLevel, freshLines);
+      const linesMap = useLineDataStore.getState().lines;
+      const communityReports = useLineDataStore.getState().communityReports;
+      const worst = computeWorstStatus(selectedLines, linesMap, communityReports);
+      setLastKnown(worst, freshLines);
 
       return { status: response.status, lastUpdated: raw[0]?.updated_at };
     } catch (err: any) {
@@ -518,7 +517,7 @@ const MyCommuteDashboard: React.FC = () => {
 
   const renderLineItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<LineData>) => {
     const idx = getIndex() ?? sortedLines.findIndex((l: LineData) => l.id === item.id);
-    const severity = parseSeverity(item.status);
+    const severity = getSeverityFromStatus(item.status, item.status_severity);
 
     const handlePress = () => {
       const ref = itemRefs.current[item.id];
@@ -563,7 +562,11 @@ const MyCommuteDashboard: React.FC = () => {
       </ScaleDecorator>
     );
   }, [isEditing, isDraggingLine, sortedLines, removeLine, handleEdit, globalJiggle]);
-  const networkSeverity = useMemo(() => worstSeverity(myLines), [myLines]);
+  const worstStatus = useWorstStatus(selectedLines);
+  const networkSeverity = useMemo(() => {
+    if (staleState === 'offline') return 'offline';
+    return worstStatus as Severity;
+  }, [staleState, worstStatus]);
 
   return (
     <View style={dash.root}>
@@ -657,7 +660,7 @@ const MyCommuteDashboard: React.FC = () => {
               ) : (
                 <View>
                   {sortedLines.map((item: LineData, idx: number) => {
-                    const severity = parseSeverity(item.status);
+                    const severity = getSeverityFromStatus(item.status, item.status_severity);
                     const handlePress = () => {
                       if (isEditing) return;
                       const ref = itemRefs.current[item.id];
@@ -913,7 +916,7 @@ const MyCommuteDashboard: React.FC = () => {
               status: selectedLineForModal.status,
               reason: selectedLineForModal.reason,
             }}
-            statusType={parseSeverity(selectedLineForModal.status)}
+            statusType={getSeverityFromStatus(selectedLineForModal.status, selectedLineForModal.status_severity)}
             statusLabel={selectedLineForModal.status}
             anchorRect={selectedLineInfo.anchorRect}
           />

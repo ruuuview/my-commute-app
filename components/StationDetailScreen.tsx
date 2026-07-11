@@ -27,10 +27,8 @@ import { DashboardGradient } from './DashboardGradient';
 
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore, LineStatus } from '../store/lineDataStore';
-import { GLASS } from '../theme/colors';
+import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
-
-const DUE_GREEN = '#30D158';
 
 type Departure = NormalizedDeparture;
 
@@ -224,7 +222,7 @@ export default function StationDetailScreen({
 
     if (isDue) {
       timeText = 'Due';
-      timeStyle = [s.depTime, { color: DUE_GREEN, fontWeight: '700' as const }];
+      timeStyle = [s.depTime, DUE_TIME_STYLE];
     } else {
       timeText = `${dep.minutes_away} min`;
       timeStyle = [s.depTime];
@@ -319,7 +317,7 @@ export default function StationDetailScreen({
       <DashboardGradient severity={networkSeverity} />
 
       {/* Header bar */}
-      <View style={[s.headerBlur, { paddingTop: safeAreaTop }]}>
+      <View style={[s.headerContainer, { paddingTop: safeAreaTop }]}>
         <View style={s.header}>
           {/* Left: back button */}
           <Pressable
@@ -424,7 +422,7 @@ const s = StyleSheet.create({
     flex: 1,
     // No backgroundColor — DashboardGradient provides the full background.
   },
-  headerBlur: {
+  headerContainer: {
     paddingHorizontal: 16,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,

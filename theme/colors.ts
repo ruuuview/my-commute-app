@@ -60,3 +60,8 @@ export const PREMIUM_BUTTON = {
 
 /** The interactive accent colour used across the app (not iOS blue) */
 export const ACCENT_INTERACTIVE = '#0098D4';
+
+export const DUE_TIME_STYLE = {
+  color: '#FFFFFF',
+  fontWeight: '700' as const,
+};

@@ -80,35 +80,46 @@ function resolveTflStopIdForStore(id) {
 }
 
 // Replicated runMigrations using the mocks
+// Replicated runMigrations using the mocks
 function runMigrationsTest() {
   const prefStore = mockUserPreferencesStore.getState();
   const onboardingStore = mockOnboardingStore.getState();
 
   const currentVersion = prefStore.schemaVersion || 0;
-  if (currentVersion >= 1) return;
+  let migrationNeeded = false;
 
+  if (currentVersion < 2) {
+    migrationNeeded = true;
+  }
+
+  // Migrate user preferences pinned stations
   let prefChanged = false;
-  const migratedPinned = (prefStore.pinnedStations || []).map(station => {
-    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(station.id);
-      if (resolved && resolved !== station.id) {
-        prefChanged = true;
-        return { ...station, id: resolved };
-      }
-    }
-    return station;
-  });
+  let migratedPinned = prefStore.pinnedStations || [];
+  let migratedRecent = prefStore.recentSearches || [];
 
-  const migratedRecent = (prefStore.recentSearches || []).map(id => {
-    if (id && typeof id === 'string' && !id.startsWith('940GZZ') && !id.startsWith('910G') && !id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(id);
-      if (resolved && resolved !== id) {
-        prefChanged = true;
-        return resolved;
+  if (migrationNeeded) {
+    migratedPinned = (prefStore.pinnedStations || []).map(station => {
+      if (station && typeof station.id === 'string') {
+        const resolved = resolveTflStopIdForStore(station.id);
+        if (resolved && resolved !== station.id) {
+          prefChanged = true;
+          return { ...station, id: resolved };
+        }
       }
-    }
-    return id;
-  });
+      return station;
+    });
+
+    migratedRecent = (prefStore.recentSearches || []).map(id => {
+      if (id && typeof id === 'string') {
+        const resolved = resolveTflStopIdForStore(id);
+        if (resolved && resolved !== id) {
+          prefChanged = true;
+          return resolved;
+        }
+      }
+      return id;
+    });
+  }
 
   if (prefChanged) {
     mockUserPreferencesStore.setState({
@@ -117,17 +128,22 @@ function runMigrationsTest() {
     });
   }
 
+  // Migrate onboarding store pinned stations
   let onboardingChanged = false;
-  const migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
-    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(station.id);
-      if (resolved && resolved !== station.id) {
-        onboardingChanged = true;
-        return { ...station, id: resolved };
+  let migratedOnboarding = onboardingStore.pinnedStations || [];
+
+  if (migrationNeeded) {
+    migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
+      if (station && typeof station.id === 'string') {
+        const resolved = resolveTflStopIdForStore(station.id);
+        if (resolved && resolved !== station.id) {
+          onboardingChanged = true;
+          return { ...station, id: resolved };
+        }
       }
-    }
-    return station;
-  });
+      return station;
+    });
+  }
 
   if (onboardingChanged) {
     mockOnboardingStore.setState({
@@ -135,7 +151,10 @@ function runMigrationsTest() {
     });
   }
 
-  mockUserPreferencesStore.setState({ schemaVersion: 1 });
+  // Update schemaVersion to 2 only if a migration was needed
+  if (migrationNeeded) {
+    mockUserPreferencesStore.setState({ schemaVersion: 2 });
+  }
 }
 
 // Run the migration test
@@ -191,11 +210,11 @@ if (obKC && obKC.id === '940GZZLUKSX' && obCW && obCW.id === 'HUBCAW') {
   failed = true;
 }
 
-// Assertion 6: Idempotency is preserved (schemaVersion is 1)
-if (finalPrefs.schemaVersion === 1) {
-  console.log("✅ PASS: Migration schemaVersion updated to 1");
+// Assertion 6: Idempotency is preserved (schemaVersion is 2)
+if (finalPrefs.schemaVersion === 2) {
+  console.log("✅ PASS: Migration schemaVersion updated to 2");
 } else {
-  console.log("❌ FAIL: schemaVersion was not updated");
+  console.log("❌ FAIL: schemaVersion was not updated to 2, it is: " + finalPrefs.schemaVersion);
   failed = true;
 }
 

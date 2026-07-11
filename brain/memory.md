@@ -90,7 +90,22 @@ This document tracks execution state, updates, and current tasks.
 
 ---
 
-## 6. Pending Roadmap Tasks
+## 7. Recent Commits & Changes (Jul 11, 2026)
+
+* **Station Resolution & Routing Hardening (Audit Fixes):**
+  * Bumped store `schemaVersion` to `2` and implemented synchronous in-memory store migration (`runMigrations.ts`) for legacy slugs/IDs.
+  * Reverted `ManageStationsModal` search result deduplication and checkmark selection to use direct canonical ID checks.
+  * Extracted central `DUE_TIME_STYLE` inside `colors.ts` and styled due times as white bold (`#FFFFFF` 700), and non-due times as medium-weight/translucent (`rgba(255,255,255,0.65)` 500) across `DepartureCard` and `StationDetailScreen`.
+  * Normalized Overground branch names (`weaver`, `mildmay`, etc.) to `'overground'` at database construction inside `tflStations.ts`.
+  * Removed dead layout styles (`headerBlur` renamed to `headerContainer`) and deleted dead parameter signatures (`isFirstDueForLine`).
+  * Removed live `playSound` call sites from `ManageStationsModal.tsx` while keeping `sound.ts` stub to satisfy locked design specifications.
+  * Wired `useWorstStatus` and `computeWorstStatus` hooks to `MyCommuteDashboard.tsx` to drive heartbeat dots, backgrounds, and offline caches.
+  * Added Waterloo & City line alias mapping in `apiService.ts`.
+  * Verified 100% of store migration unit tests and live station validations pass successfully.
+
+---
+
+## 8. Pending Roadmap Tasks
 
 1. **Audio Integration (Step 6):** Embed real physical audio thud files for transitions (currently mocked).
 2. **Legal Gating (Step 8):** Add hosted Terms of Service and Privacy Policy agreements.

@@ -32,11 +32,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
-import { GLASS } from '../theme/colors';
+import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 
 // ─── Constants ────────────────────────────────────────────────────
-const DUE_GREEN = '#30D158';
 const MAX_ROWS = 3;
 
 export interface DepartureCardProps {
@@ -322,14 +321,14 @@ const styles = StyleSheet.create({
   arrTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontWeight: '500',
     fontVariant: ['tabular-nums'],
     textAlign: 'right',
     minWidth: 48,
   },
   arrTimeDue: {
-    color: DUE_GREEN,
+    ...DUE_TIME_STYLE,
   },
   loadingText: {
     fontFamily: 'SpaceGrotesk_400Regular',

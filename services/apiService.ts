@@ -129,6 +129,7 @@ export async function fetchNormalizedStationArrivals(
     const LINE_ID_ALIASES: Record<string, string> = {
       'elizabeth-line':      'elizabeth',
       'london-overground':   'overground',
+      'waterloo-&-city':     'waterloo-city',
     };
     canonicalLineId = LINE_ID_ALIASES[canonicalLineId] ?? canonicalLineId;
 

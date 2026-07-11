@@ -46,24 +46,20 @@ function severityToLevel(patchedSeverity: number | undefined): StatusLevel {
 }
 
 /**
- * Returns the worst StatusLevel across the given line IDs,
- * incorporating community report signal upgrades.
- *
- * @param lines - Array of TfL line IDs (e.g. ['jubilee', 'central'])
- * @returns The worst StatusLevel across all provided lines
+ * Pure helper function to compute the worst status level synchronously.
  */
-export function useWorstStatus(lines: string[]): StatusLevel {
-  const lineStatuses      = useLineDataStore(s => s.lines);
-  const communityReports  = useLineDataStore(s => s.communityReports);
-
-  // No lines selected, or store hasn't received API data yet
+export function computeWorstStatus(
+  lines: string[],
+  lineStatuses: Record<string, import('../store/lineDataStore').LineStatus>,
+  communityReports: Record<string, number>
+): StatusLevel {
   if (!lines.length || !Object.keys(lineStatuses).length) return 'unknown';
 
   let worst: StatusLevel = 'good';
 
   for (const lineId of lines) {
     const lineData = lineStatuses[lineId];
-    if (!lineData) continue; // line not in store — skip, don't default to 'unknown'
+    if (!lineData) continue; // line not in store — skip
 
     let level = severityToLevel(lineData.status_severity);
     const reports = communityReports[lineId] ?? 0;
@@ -76,4 +72,18 @@ export function useWorstStatus(lines: string[]): StatusLevel {
   }
 
   return worst;
+}
+
+/**
+ * Returns the worst StatusLevel across the given line IDs,
+ * incorporating community report signal upgrades.
+ *
+ * @param lines - Array of TfL line IDs (e.g. ['jubilee', 'central'])
+ * @returns The worst StatusLevel across all provided lines
+ */
+export function useWorstStatus(lines: string[]): StatusLevel {
+  const lineStatuses      = useLineDataStore(s => s.lines);
+  const communityReports  = useLineDataStore(s => s.communityReports);
+
+  return computeWorstStatus(lines, lineStatuses, communityReports);
 }

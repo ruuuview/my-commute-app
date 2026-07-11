@@ -9,41 +9,41 @@ export function runMigrations() {
   const currentVersion = prefStore.schemaVersion || 0;
   let migrationNeeded = false;
 
-  if (currentVersion < 1) {
-    console.log(`[Migration] Running store migration from schema version ${currentVersion} to 1`);
+  if (currentVersion < 2) {
+    console.log(`[Migration] Running store migration from schema version ${currentVersion} to 2`);
     migrationNeeded = true;
   }
 
-  // Migrate user preferences pinned stations — always run (idempotent)
+  // Migrate user preferences pinned stations
   let prefChanged = false;
-  const migratedPinned = (prefStore.pinnedStations || []).map(station => {
-    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(station.id);
-      if (resolved && resolved !== station.id) {
-        prefChanged = true;
-        console.log(`[Migration] Pinned station ID "${station.id}" migrated to "${resolved}"`);
-        return { ...station, id: resolved };
-      } else {
-        console.warn(`[Migration] WARNING: Legacy pinned station ID "${station.id}" could not be resolved. Keeping raw ID.`);
-      }
-    }
-    return station;
-  });
+  let migratedPinned = prefStore.pinnedStations || [];
+  let migratedRecent = prefStore.recentSearches || [];
 
-  // Migrate recent searches
-  const migratedRecent = (prefStore.recentSearches || []).map(id => {
-    if (id && typeof id === 'string' && !id.startsWith('940GZZ') && !id.startsWith('910G') && !id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(id);
-      if (resolved && resolved !== id) {
-        prefChanged = true;
-        console.log(`[Migration] Recent search ID "${id}" migrated to "${resolved}"`);
-        return resolved;
-      } else {
-        console.warn(`[Migration] WARNING: Legacy recent search ID "${id}" could not be resolved. Keeping raw ID.`);
+  if (migrationNeeded) {
+    migratedPinned = (prefStore.pinnedStations || []).map(station => {
+      if (station && typeof station.id === 'string') {
+        const resolved = resolveTflStopIdForStore(station.id);
+        if (resolved && resolved !== station.id) {
+          prefChanged = true;
+          console.log(`[Migration] Pinned station ID "${station.id}" migrated to "${resolved}"`);
+          return { ...station, id: resolved };
+        }
       }
-    }
-    return id;
-  });
+      return station;
+    });
+
+    migratedRecent = (prefStore.recentSearches || []).map(id => {
+      if (id && typeof id === 'string') {
+        const resolved = resolveTflStopIdForStore(id);
+        if (resolved && resolved !== id) {
+          prefChanged = true;
+          console.log(`[Migration] Recent search ID "${id}" migrated to "${resolved}"`);
+          return resolved;
+        }
+      }
+      return id;
+    });
+  }
 
   if (prefChanged) {
     useUserPreferencesStore.setState({
@@ -52,21 +52,23 @@ export function runMigrations() {
     });
   }
 
-  // Migrate onboarding store pinned stations — runs independently of pref version (idempotent)
+  // Migrate onboarding store pinned stations
   let onboardingChanged = false;
-  const migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
-    if (station && typeof station.id === 'string' && !station.id.startsWith('940GZZ') && !station.id.startsWith('910G') && !station.id.startsWith('HUB')) {
-      const resolved = resolveTflStopIdForStore(station.id);
-      if (resolved && resolved !== station.id) {
-        onboardingChanged = true;
-        console.log(`[Migration] Onboarding pinned station ID "${station.id}" migrated to "${resolved}"`);
-        return { ...station, id: resolved };
-      } else {
-        console.warn(`[Migration] WARNING: Legacy onboarding station ID "${station.id}" could not be resolved. Keeping raw ID.`);
+  let migratedOnboarding = onboardingStore.pinnedStations || [];
+
+  if (migrationNeeded) {
+    migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
+      if (station && typeof station.id === 'string') {
+        const resolved = resolveTflStopIdForStore(station.id);
+        if (resolved && resolved !== station.id) {
+          onboardingChanged = true;
+          console.log(`[Migration] Onboarding pinned station ID "${station.id}" migrated to "${resolved}"`);
+          return { ...station, id: resolved };
+        }
       }
-    }
-    return station;
-  });
+      return station;
+    });
+  }
 
   if (onboardingChanged) {
     useOnboardingStore.setState({
@@ -74,9 +76,9 @@ export function runMigrations() {
     });
   }
 
-  // Update schemaVersion to 1 only if a migration was needed
+  // Update schemaVersion to 2 only if a migration was needed
   if (migrationNeeded) {
-    useUserPreferencesStore.setState({ schemaVersion: 1 });
-    console.log('[Migration] Store migration to version 1 complete.');
+    useUserPreferencesStore.setState({ schemaVersion: 2 });
+    console.log('[Migration] Store migration to version 2 complete.');
   }
 }

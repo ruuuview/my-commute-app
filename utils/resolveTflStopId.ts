@@ -13,15 +13,16 @@ const MANUAL_HUBS: Record<string, string[]> = {
   HUBSRA: ['940GZZLUSTD', '940GZZDLSTD', '910GSTFD'],
   HUBTCR: ['940GZZLUTCR', '910GTOTCTRD'],
   HUBVXH: ['940GZZLUVXL', '910GVAUXHLM'],
-  HUBQPW: ['940GZZLUQRP', '910GQUNPARK'],
   HUBZFD: ['940GZZLUFCN', '910GFRNDXR'],
   HUBKGX: ['940GZZLUKSX'],
+  HUBSDE: ['940GZZDLSHA', '910GSHADWEL'],
 };
 
 const SLUG_TO_HUB: Record<string, string> = {
   'bank': 'HUBBAN',
   'bank-monument': 'HUBBAN',
   'canary-wharf': 'HUBCAW',
+  'shadwell': 'HUBSDE',
   'waterloo': 'HUBWAT',
   'london-waterloo': 'HUBWAT',
   'paddington': 'HUBPAD',

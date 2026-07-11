@@ -170,6 +170,8 @@ export const TFL_STATIONS: TfLStation[] = [
   };
 });
 
+// HUBKGX (King's Cross) is excluded because we resolve it via the hardcoded 'kings-cross' slug override
+// which maps to the Tube stop 940GZZLUKSX directly, bypassing the broken HUB code.
 const EXCLUDE_IDS = new Set([
   'HUBKGX',
 ]);
@@ -186,9 +188,21 @@ export const FULL_STATIONS: TfLStation[] = (fullStationsData as any[])
       t.id === s.id
     );
 
+    // Map Overground branch names to 'overground' at database level
+    const OVERGROUND_BRANCHES = new Set(['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush']);
+    const normalizedLines = Array.from(
+      new Set(
+        (s.lines || []).map((lineId: string) => {
+          const canonical = lineId.toLowerCase().trim();
+          return OVERGROUND_BRANCHES.has(canonical) ? 'overground' : canonical;
+        })
+      )
+    );
+
     return {
       ...s,
       name: display,
+      lines: normalizedLines,
       zone: matchingHardcoded?.zone ?? s.zone ?? 1,
       searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
     };

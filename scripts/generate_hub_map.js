@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+// Removed unused execSync
 
 console.log('--- STARTING HUB EXPANSION GENERATOR (RECURSIVE MODE) ---');
 
@@ -43,7 +43,7 @@ function fetchHubChildren(hubId) {
   return new Promise((resolve) => {
     try {
       const url = `https://api.tfl.gov.uk/StopPoint/${hubId}`;
-      const stdout = execSync(`curl -s "${url}"`, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+      const stdout = require('child_process').execFileSync('/usr/bin/curl', ['-s', '--max-time', '15', url], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
       const json = JSON.parse(stdout);
       
       const ids = extractIdsRecursively(json);

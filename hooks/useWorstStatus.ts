@@ -24,25 +24,30 @@ export type StatusLevel = 'good' | 'minor' | 'severe' | 'suspended' | 'unknown';
 
 // Severity ranking — higher number = worse status
 const SEVERITY: Record<StatusLevel, number> = {
-  unknown:   0,
-  good:      1,
-  minor:     2,
-  severe:    3,
+  unknown: 0,
+  good: 1,
+  minor: 2,
+  severe: 3,
   suspended: 4,
 };
 
 /**
- * Maps the patched status_severity number from lineDataStore
+ * Maps the raw TfL status_severity number from lineDataStore
  * to the canonical StatusLevel enum.
+ * 
+ * TfL codes:
+ * 10 -> good
+ * 6 -> severe
+ * 9, 8, 7, 5 -> minor
+ * 4, 3, 20, 0, 11 -> suspended
  */
 function severityToLevel(patchedSeverity: number | undefined): StatusLevel {
-  switch (patchedSeverity) {
-    case 20: return 'suspended';
-    case 9:  return 'severe';
-    case 5:  return 'minor';
-    case 1:  return 'good';
-    default: return 'unknown';
-  }
+  const code = patchedSeverity ?? 10;
+  if (code === 10) return 'good';
+  if (code === 6) return 'severe';
+  if (code === 9 || code === 8 || code === 7 || code === 5) return 'minor';
+  if ([4, 3, 20, 0, 11].includes(code)) return 'suspended';
+  return 'unknown';
 }
 
 /**
@@ -57,18 +62,44 @@ export function computeWorstStatus(
 
   let worst: StatusLevel = 'good';
 
+  const checkLevelAndReports = (level: StatusLevel, reports: number) => {
+    let upgradedLevel = level;
+    if (reports >= 3 && upgradedLevel === 'good')  upgradedLevel = 'minor';
+    if (reports >= 5 && upgradedLevel === 'minor') upgradedLevel = 'severe';
+    return upgradedLevel;
+  };
+
+  const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush', 'overground'];
+
   for (const lineId of lines) {
+    // Handle Overground aggregation
+    if (lineId === 'overground') {
+      let worstBranchLevel: StatusLevel = 'good';
+      for (const branchId of OVERGROUND_BRANCH_IDS) {
+        const branchData = lineStatuses[branchId];
+        if (!branchData) continue;
+        const level = severityToLevel(branchData.status_severity);
+        const reports = communityReports[branchId] ?? 0;
+        const upgradedLevel = checkLevelAndReports(level, reports);
+        
+        if (SEVERITY[upgradedLevel] > SEVERITY[worstBranchLevel]) {
+          worstBranchLevel = upgradedLevel;
+        }
+      }
+      if (SEVERITY[worstBranchLevel] > SEVERITY[worst]) {
+        worst = worstBranchLevel;
+      }
+      continue;
+    }
+
     const lineData = lineStatuses[lineId];
     if (!lineData) continue; // line not in store — skip
 
-    let level = severityToLevel(lineData.status_severity);
+    const level = severityToLevel(lineData.status_severity);
     const reports = communityReports[lineId] ?? 0;
+    const upgradedLevel = checkLevelAndReports(level, reports);
 
-    // Community signal upgrades — overrides TfL optimism
-    if (reports >= 3 && level === 'good')  level = 'minor';
-    if (reports >= 5 && level === 'minor') level = 'severe';
-
-    if (SEVERITY[level] > SEVERITY[worst]) worst = level;
+    if (SEVERITY[upgradedLevel] > SEVERITY[worst]) worst = upgradedLevel;
   }
 
   return worst;
@@ -82,8 +113,8 @@ export function computeWorstStatus(
  * @returns The worst StatusLevel across all provided lines
  */
 export function useWorstStatus(lines: string[]): StatusLevel {
-  const lineStatuses      = useLineDataStore(s => s.lines);
-  const communityReports  = useLineDataStore(s => s.communityReports);
+  const lineStatuses = useLineDataStore(s => s.lines);
+  const communityReports = useLineDataStore(s => s.communityReports);
 
   return computeWorstStatus(lines, lineStatuses, communityReports);
 }

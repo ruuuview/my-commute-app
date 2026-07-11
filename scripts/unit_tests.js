@@ -10,12 +10,15 @@ const mockUserPreferencesStore = {
     pinnedStations: [
       { id: "King's Cross St. Pancras", name: "King's Cross St. Pancras", lines: [], zone: 1, role: 'home' },
       { id: 'canary-wharf', name: 'Canary Wharf', lines: [], zone: 2, role: 'work' },
-      { id: 'invalid-station-id', name: 'Unresolved Station', lines: [], zone: 3, role: 'other' }
+      { id: 'invalid-station-id', name: 'Unresolved Station', lines: [], zone: 3, role: 'other' },
+      { id: 'canary-wharf', name: 'Duplicate CW', lines: [], zone: 2, role: 'other' } // duplicate
     ],
     recentSearches: [
       'kings-cross',
       'canary-wharf',
-      'invalid-search'
+      'invalid-search',
+      'canary-wharf', // duplicate to test Set
+      'kings-cross' // duplicate to test Set
     ]
   },
   setState(updates) {
@@ -41,43 +44,21 @@ const mockOnboardingStore = {
   }
 };
 
-// Mock resolveTflStopIdForStore using resolveTflStopId.ts mappings
+// Evaluate resolveTflStopId.ts dynamically
 const resolverContent = fs.readFileSync(path.join(__dirname, '../utils/resolveTflStopId.ts'), 'utf8');
 
-function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$',/g, '') // match regex logic
-    .replace(/^-+|-+$/g, '');
-}
+const cleanResolverJs = resolverContent
+  .replace(/import\s+[^;]+;/g, '') // Strip imports
+  .replace(/export\s+/g, '') // Strip exports
+  .replace(/:\s*Record<[^>]+>/g, '') // Strip Record definitions
+  .replace(/:\s*string(\[\])?/g, '') // Strip string parameters/returns
+  .replace(/:\s*number/g, '') // Strip number parameters/returns
+  .replace(/as\s+[^)]+/g, ''); // Strip type assertions inside parentheses
 
-// Replicate SLUG_TO_HUB and resolveTflStopIdForStore logic
-const slugToHubMatch = resolverContent.match(/const SLUG_TO_HUB: Record<string, string> = \{([\s\S]*?)\};/);
-const SLUG_TO_HUB = {};
-if (slugToHubMatch) {
-  const lines = slugToHubMatch[1].split('\n');
-  for (let line of lines) {
-    line = line.trim();
-    if (line && line.includes(':')) {
-      const parts = line.split(':');
-      const k = parts[0].trim().replace(/['"]/g, '');
-      const v = parts[1].trim().replace(/['",]/g, '');
-      SLUG_TO_HUB[k] = v;
-    }
-  }
-}
-
-function resolveTflStopIdForStore(id) {
-  if (id.startsWith('HUB') || id.startsWith('940GZZ') || id.startsWith('910G')) {
-    return id;
-  }
-  const slug = toSlug(id);
-  if (SLUG_TO_HUB[slug]) {
-    return SLUG_TO_HUB[slug];
-  }
-  return id; // fallback keeping raw ID
-}
+const hubExpansions = {}; // mock empty for runMigrations scope
+const fullStationsData = []; // mock empty for runMigrations scope
+const resolverContext = new Function('hubExpansions', 'fullStationsData', cleanResolverJs + '; return { resolveTflStopIdForStore };');
+const { resolveTflStopIdForStore } = resolverContext(hubExpansions, fullStationsData);
 
 // Replicated runMigrations using the mocks
 // Replicated runMigrations using the mocks
@@ -98,6 +79,7 @@ function runMigrationsTest() {
   let migratedRecent = prefStore.recentSearches || [];
 
   if (migrationNeeded) {
+    const seenPrefPinned = new Set();
     migratedPinned = (prefStore.pinnedStations || []).map(station => {
       if (station && typeof station.id === 'string') {
         const resolved = resolveTflStopIdForStore(station.id);
@@ -107,8 +89,17 @@ function runMigrationsTest() {
         }
       }
       return station;
+    }).filter(station => {
+      if (!station || !station.id) return true;
+      if (seenPrefPinned.has(station.id)) {
+        prefChanged = true;
+        return false;
+      }
+      seenPrefPinned.add(station.id);
+      return true;
     });
 
+    const seenRecent = new Set();
     migratedRecent = (prefStore.recentSearches || []).map(id => {
       if (id && typeof id === 'string') {
         const resolved = resolveTflStopIdForStore(id);
@@ -118,6 +109,14 @@ function runMigrationsTest() {
         }
       }
       return id;
+    }).filter(id => {
+      if (!id) return true;
+      if (seenRecent.has(id)) {
+        prefChanged = true;
+        return false;
+      }
+      seenRecent.add(id);
+      return true;
     });
   }
 
@@ -133,6 +132,7 @@ function runMigrationsTest() {
   let migratedOnboarding = onboardingStore.pinnedStations || [];
 
   if (migrationNeeded) {
+    const seenOnboardingPinned = new Set();
     migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
       if (station && typeof station.id === 'string') {
         const resolved = resolveTflStopIdForStore(station.id);
@@ -142,6 +142,14 @@ function runMigrationsTest() {
         }
       }
       return station;
+    }).filter(station => {
+      if (!station || !station.id) return true;
+      if (seenOnboardingPinned.has(station.id)) {
+        onboardingChanged = true;
+        return false;
+      }
+      seenOnboardingPinned.add(station.id);
+      return true;
     });
   }
 

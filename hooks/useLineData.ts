@@ -24,20 +24,9 @@ export const useLineData = () => {
 
       const lines = await response.json();
 
-      // 🚨 PATCH: Fix Sorting Logic (Safe Numbers)
-      lines.forEach((line: any) => {
-        const s = String(line?.status ?? '').toLowerCase();
-        
-        if (s.includes('part closure') || s.includes('suspended') || s.includes('closure') || s.includes('closed')) {
-           line.status_severity = 20; // RED (Highest Priority)
-        } else if (s.includes('severe')) {
-           line.status_severity = 9;  // RED (High Priority)
-        } else if (s.includes('minor') || s.includes('part') || s.includes('reduced')) {
-           line.status_severity = 5;  // AMBER (Medium Priority)
-        } else {
-           line.status_severity = 1;  // GREEN (Low Priority)
-        }
-      });
+      // 🚨 PATCH: Removed string-based status_severity override
+      // We now pass through the original numeric TfL status_severity code
+      // directly to the useWorstStatus hook which handles mapping.
 
       setLines(lines);
     } catch (error: any) {

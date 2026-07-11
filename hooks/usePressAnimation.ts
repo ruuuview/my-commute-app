@@ -13,7 +13,8 @@ export const PRESS_PRESETS = {
   BACK_BTN:           { scaleDown: 0.94, damping: 8, stiffness: 200 },
   SKIP_BTN:           { scaleDown: 0.95, damping: 10, stiffness: 220 },
   NAV_BAR_ITEM:       { scaleDown: 0.88, scaleUp: 1.04, damping: 8, stiffness: 200 },
-  DEPARTURE_CARD:     { scaleDown: 0.94, damping: 8, stiffness: 200 }
+  DEPARTURE_CARD:     { scaleDown: 0.94, damping: 8, stiffness: 200 },
+  CHIP:               { scaleDown: 0.94, damping: 8, stiffness: 200 }
 } as const;
 
 export type PressType =
@@ -25,7 +26,8 @@ export type PressType =
   | 'back_btn'
   | 'skip_btn'
   | 'nav_item'
-  | 'departure_card';
+  | 'departure_card'
+  | 'chip';
 
 const KEY_MAP: Record<string, keyof typeof PRESS_PRESETS> = {
   line_select: 'LINE_PILL_SELECT',
@@ -36,6 +38,7 @@ const KEY_MAP: Record<string, keyof typeof PRESS_PRESETS> = {
   skip_btn: 'SKIP_BTN',
   nav_item: 'NAV_BAR_ITEM',
   departure_card: 'DEPARTURE_CARD',
+  chip: 'CHIP',
 };
 
 export function usePressAnimation(configKey: PressType, disabled = false) {

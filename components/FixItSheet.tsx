@@ -23,6 +23,9 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { usePressAnimation } from '../hooks/usePressAnimation';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface StationItem {
   id: string;
@@ -144,29 +147,32 @@ const StationRow: React.FC<{
     workOpacity.value = withSpring(isWork ? 1 : 0.5);
   }, [isWork, workOpacity]);
 
-  const homeStyle = useAnimatedStyle(() => ({ opacity: homeOpacity.value }));
-  const workStyle = useAnimatedStyle(() => ({ opacity: workOpacity.value }));
+  const homeOpacityStyle = useAnimatedStyle(() => ({ opacity: homeOpacity.value }));
+  const workOpacityStyle = useAnimatedStyle(() => ({ opacity: workOpacity.value }));
+
+  const homePress = usePressAnimation('chip');
+  const workPress = usePressAnimation('chip');
 
   return (
     <View style={ss.row}>
       <Text style={ss.name}>{station.name}</Text>
       <View style={ss.chipRow}>
-        <Animated.View style={homeStyle}>
-          <Pressable
-            onPress={() => onChipPress(station.id, 'home')}
-            style={[ss.chip, isHome && ss.chipActive]}
-          >
-            <Text style={[ss.chipText, isHome && ss.chipTextActive]}>Home</Text>
-          </Pressable>
-        </Animated.View>
-        <Animated.View style={workStyle}>
-          <Pressable
-            onPress={() => onChipPress(station.id, 'work')}
-            style={[ss.chip, isWork && ss.chipActive]}
-          >
-            <Text style={[ss.chipText, isWork && ss.chipTextActive]}>Work</Text>
-          </Pressable>
-        </Animated.View>
+        <AnimatedPressable
+          onPress={() => onChipPress(station.id, 'home')}
+          onPressIn={homePress.onPressIn}
+          onPressOut={homePress.onPressOut}
+          style={[ss.chip, isHome && ss.chipActive, homeOpacityStyle, homePress.animatedStyle]}
+        >
+          <Text style={[ss.chipText, isHome && ss.chipTextActive]}>Home</Text>
+        </AnimatedPressable>
+        <AnimatedPressable
+          onPress={() => onChipPress(station.id, 'work')}
+          onPressIn={workPress.onPressIn}
+          onPressOut={workPress.onPressOut}
+          style={[ss.chip, isWork && ss.chipActive, workOpacityStyle, workPress.animatedStyle]}
+        >
+          <Text style={[ss.chipText, isWork && ss.chipTextActive]}>Work</Text>
+        </AnimatedPressable>
       </View>
     </View>
   );

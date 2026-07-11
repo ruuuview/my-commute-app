@@ -20,6 +20,7 @@ export function runMigrations() {
   let migratedRecent = prefStore.recentSearches || [];
 
   if (migrationNeeded) {
+    const seenPrefPinned = new Set<string>();
     migratedPinned = (prefStore.pinnedStations || []).map(station => {
       if (station && typeof station.id === 'string') {
         const resolved = resolveTflStopIdForStore(station.id);
@@ -30,8 +31,18 @@ export function runMigrations() {
         }
       }
       return station;
+    }).filter(station => {
+      if (!station || !station.id) return true;
+      if (seenPrefPinned.has(station.id)) {
+        prefChanged = true;
+        console.log(`[Migration] Deduplicated pinned station "${station.id}"`);
+        return false;
+      }
+      seenPrefPinned.add(station.id);
+      return true;
     });
 
+    const seenRecent = new Set<string>();
     migratedRecent = (prefStore.recentSearches || []).map(id => {
       if (id && typeof id === 'string') {
         const resolved = resolveTflStopIdForStore(id);
@@ -42,6 +53,15 @@ export function runMigrations() {
         }
       }
       return id;
+    }).filter(id => {
+      if (!id) return true;
+      if (seenRecent.has(id)) {
+        prefChanged = true;
+        console.log(`[Migration] Deduplicated recent search "${id}"`);
+        return false;
+      }
+      seenRecent.add(id);
+      return true;
     });
   }
 
@@ -57,6 +77,7 @@ export function runMigrations() {
   let migratedOnboarding = onboardingStore.pinnedStations || [];
 
   if (migrationNeeded) {
+    const seenOnboardingPinned = new Set<string>();
     migratedOnboarding = (onboardingStore.pinnedStations || []).map(station => {
       if (station && typeof station.id === 'string') {
         const resolved = resolveTflStopIdForStore(station.id);
@@ -67,6 +88,15 @@ export function runMigrations() {
         }
       }
       return station;
+    }).filter(station => {
+      if (!station || !station.id) return true;
+      if (seenOnboardingPinned.has(station.id)) {
+        onboardingChanged = true;
+        console.log(`[Migration] Deduplicated onboarding pinned station "${station.id}"`);
+        return false;
+      }
+      seenOnboardingPinned.add(station.id);
+      return true;
     });
   }
 

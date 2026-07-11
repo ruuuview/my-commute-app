@@ -150,7 +150,7 @@ async function runAll() {
 
     if (missingLines.length > 0) {
       console.log(`   ⚠️ Warning: Expected-lines check failed. Missing: ${JSON.stringify(missingLines)} (could be a planned closure/disruption)`);
-      successful.push(station);
+      failedLines.push({ station, missingLines });
     } else {
       successful.push(station);
       console.log(`   ✅ Pass! (${mergedDepartures.length} live departures verified)`);

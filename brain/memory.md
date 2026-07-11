@@ -106,6 +106,7 @@ This document tracks execution state, updates, and current tasks.
   * Hardened `runMigrations.ts` using `Set<string>` to deduplicate canonical IDs, preventing array inflation from duplicate legacy slugs.
   * Rewired `FixItSheet.tsx` static chips to use `AnimatedPressable` and `usePressAnimation('chip')` for unified timing aesthetics, and merged `useAnimatedStyle` objects correctly.
   * Hardened bash pipeline scripts: migrated `generate_hub_map.js` to `execFileSync`, fixed `failedLines` tracking logic in `validate_stations.js`, and upgraded `unit_tests.js` to use isolated sandbox evaluation for dynamic resolution tests.
+  * Fixed EAS iOS build failure by updating `eas.json` to specify `"image": "latest"` for `development` and `preview` profiles. This forces modern macOS/Xcode Sonoma images on EAS, ensuring updated root CA certificates for downloading Maven Central Hermes binaries and providing `cmake` on path if compilation from source is triggered.
 
 ---
 

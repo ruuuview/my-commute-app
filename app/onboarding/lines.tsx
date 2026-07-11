@@ -252,15 +252,17 @@ export default function LinesScreen() {
   const ctaLabel = getCtaLabel(selectedLines.length);
 
   const getLineStatus = (severity: number, desc: string) => {
-    const d = desc.toLowerCase();
+    // Aligned with AGENTS.md TfL Severity Mapping
     if (severity === 10 || severity === 18) return { statusType: 'good' as const, label: desc || 'Good service' };
-    if (severity === 9 || severity === 14 || severity === 19) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-    if (severity === 6 || severity === 7 || severity === 8 || severity === 17) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-    if (severity === 0 || severity === 1 || severity === 2 || severity === 3 || severity === 4 || severity === 5 || severity === 11 || severity === 16 || severity === 20) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
+    if (severity === 9 || severity === 8 || severity === 7) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+    if (severity === 6) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+    if (severity === 5 || severity === 4 || severity === 3 || severity === 20 || severity === 0 || severity === 11) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
 
+    // Text fallback when severity code is unrecognized
+    const d = desc.toLowerCase();
     if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };
     if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
-    if (d.includes('delay')) return { statusType: 'minor' as const, label: desc };
+    if (d.includes('delay') || d.includes('reduced')) return { statusType: 'minor' as const, label: desc };
     return { statusType: 'minor' as const, label: desc || 'Minor delays' };
   };
 
@@ -279,10 +281,10 @@ export default function LinesScreen() {
             foundAny = true;
             const statusData = apiStatuses[branchId];
             const getRank = (s: number) => {
-              if (s === 10 || s === 18) return 0;
-              if (s === 9 || s === 14 || s === 19) return 1;
-              if (s === 6 || s === 7 || s === 8 || s === 17) return 2;
-              return 3;
+              if (s === 10 || s === 18) return 0;                       // good
+              if (s === 9 || s === 8 || s === 7) return 1;              // minor
+              if (s === 6) return 2;                                    // severe
+              return 3;                                                 // 5,4,3,20,0,11 → suspended
             };
             if (getRank(statusData.severity) > getRank(worstSeverity)) {
               worstSeverity = statusData.severity;

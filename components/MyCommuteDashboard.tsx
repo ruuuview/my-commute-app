@@ -100,17 +100,26 @@ interface DashboardData {
 
 
 // ─── Severity mapping ─────────────────────────────────────────────
+// Maps RAW TfL status_severity codes to our Severity enum.
+// Must stay aligned with useWorstStatus.ts severityToLevel() and AGENTS.md §1.
+//
+// TfL codes (raw):
+//   10       → good     (Good Service)
+//   6        → severe   (Severe Delays)
+//   9,8,7,5  → minor    (Minor Delays / Reduced Service / Part Closure)
+//   4,3,20,0,11 → suspended (Planned Closure / Suspended / Service Closed)
 function getSeverityFromStatus(statusText: string, statusSeverity?: number): Severity {
   if (statusSeverity !== undefined) {
-    if (statusSeverity === 20) return 'suspended';
-    if (statusSeverity === 9) return 'severe';
-    if (statusSeverity === 5) return 'minor';
-    if (statusSeverity === 1) return 'good';
+    if (statusSeverity === 10) return 'good';
+    if (statusSeverity === 6) return 'severe';
+    if (statusSeverity === 9 || statusSeverity === 8 || statusSeverity === 7) return 'minor';
+    if (statusSeverity === 5 || statusSeverity === 4 || statusSeverity === 3 || statusSeverity === 20 || statusSeverity === 0 || statusSeverity === 11) return 'suspended';
   }
+  // Fallback: parse status text when severity code is missing or unrecognized
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('good')) return 'good';
-  if (text.includes('minor')) return 'minor';
-  if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
+  if (text.includes('minor') || text.includes('reduced') || text.includes('part closure')) return 'minor';
+  if (text.includes('suspended') || text.includes('closed') || text.includes('planned closure') || text.includes('not running')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
   if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) return 'offline';
   return 'good';
@@ -173,9 +182,18 @@ const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd
       <Text style={section.title}>{title}</Text>
     </View>
     {onPressAdd && !isEditing && (
-      <Pressable onPress={onPressAdd} style={section.addBtn} hitSlop={8}>
+      <BouncyPressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+          onPressAdd();
+        }}
+        style={section.addBtn}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityLabel={`Add ${title}`}
+        accessibilityRole="button"
+      >
         <Text style={section.addBtnText}>+</Text>
-      </Pressable>
+      </BouncyPressable>
     )}
   </View>
 );
@@ -352,40 +370,6 @@ const MyCommuteDashboard: React.FC = () => {
     requestNotificationPermission,
   } = useDeferredPermissionTriggers();
 
-  const myLines = useMemo(() => {
-    return selectedLines
-      .map((id: string) => {
-        const found = data.lines.find((l: LineData) => l.id === id);
-        if (found) return found;
-        return {
-          id,
-          name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
-          color: LINE_COLORS[id] || '#888',
-          status: staleState === 'offline' 
-            ? 'Offline' 
-            : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
-          status_severity: staleState ? 0 : 10,
-        };
-      });
-  }, [data.lines, selectedLines, staleState]);
-  const hasContent = myLines.length > 0 || selectedStations.length > 0;
-
-  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
-  const [showCalPrompt, setShowCalPrompt] = useState(false);
-
-  useEffect(() => {
-    if (hasContent) {
-      const t = setTimeout(() => {
-        if (shouldShowNotificationPrompt()) {
-          setShowNotifPrompt(true);
-        } else if (shouldShowCalendarPrompt()) {
-          setShowCalPrompt(true);
-        }
-      }, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [hasContent, shouldShowNotificationPrompt, shouldShowCalendarPrompt]);
-
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       // 1. Fetch lines
@@ -412,9 +396,9 @@ const MyCommuteDashboard: React.FC = () => {
 
       const getRank = (s: number) => {
         if (s === 10) return 0;                       // good
-        if (s === 8 || s === 7 || s === 5) return 1;  // minor
-        if (s === 9 || s === 6) return 2;             // severe
-        return 3;                                     // 4,3,20,0,11 → suspended
+        if (s === 9 || s === 8 || s === 7) return 1;  // minor
+        if (s === 6) return 2;                        // severe
+        return 3;                                     // 5,4,3,20,0,11 → suspended
       };
 
       let foundAny = false;
@@ -503,7 +487,42 @@ const MyCommuteDashboard: React.FC = () => {
     }
   }, [selectedStations, selectedLines, setLastKnown]);
 
-  const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData);
+  const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData, lastKnownData && lastKnownData.length > 0);
+
+  const myLines = useMemo(() => {
+    return selectedLines
+      .map((id: string) => {
+        const found = data.lines.find((l: LineData) => l.id === id);
+        if (found) return found;
+        return {
+          id,
+          name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
+          color: LINE_COLORS[id] || '#888',
+          status: staleState === 'offline' 
+            ? 'Offline' 
+            : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
+          status_severity: staleState ? 0 : 10,
+        };
+      });
+  }, [data.lines, selectedLines, staleState]);
+
+  const hasContent = myLines.length > 0 || selectedStations.length > 0;
+
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+  const [showCalPrompt, setShowCalPrompt] = useState(false);
+
+  useEffect(() => {
+    if (hasContent) {
+      const t = setTimeout(() => {
+        if (shouldShowNotificationPrompt()) {
+          setShowNotifPrompt(true);
+        } else if (shouldShowCalendarPrompt()) {
+          setShowCalPrompt(true);
+        }
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [hasContent, shouldShowNotificationPrompt, shouldShowCalendarPrompt]);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -608,9 +627,15 @@ const MyCommuteDashboard: React.FC = () => {
               <Text style={dash.titleMain}>My Commute</Text>
               <View style={dash.headerActions}>
                 {hasContent && (
-                  <Pressable onPress={handleEdit} style={dash.headerBtn} hitSlop={8}>
+                  <BouncyPressable
+                    onPress={handleEdit}
+                    style={dash.headerBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={isEditing ? 'Finish editing layout' : 'Edit layout'}
+                    accessibilityRole="button"
+                  >
                     <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
-                  </Pressable>
+                  </BouncyPressable>
                 )}
               </View>
             </View>
@@ -786,9 +811,14 @@ const MyCommuteDashboard: React.FC = () => {
                     isEditing={isEditing}
                   />
                   {selectedStations.length === 0 ? (
-                    <Pressable
-                      onPress={() => setStationModalVisible(true)}
+                    <BouncyPressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                        setStationModalVisible(true);
+                      }}
                       style={dash.addStationCard}
+                      accessibilityLabel="Add your first station"
+                      accessibilityRole="button"
                     >
                       <BlurView
                         intensity={20}
@@ -797,7 +827,7 @@ const MyCommuteDashboard: React.FC = () => {
                       />
                       <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
                       <Text style={dash.addCardText}>Add your first station</Text>
-                    </Pressable>
+                    </BouncyPressable>
                   ) : (
                     <DashboardGrid
                       stations={selectedStations}
@@ -867,21 +897,29 @@ const MyCommuteDashboard: React.FC = () => {
                 TfL lines have delays right now. Want an alert next time?
               </Text>
               <View style={dash.promptActions}>
-                <Pressable
+                <BouncyPressable
                   style={[dash.promptBtn, dash.promptBtnPrimary]}
                   onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                     await requestNotificationPermission();
                     setShowNotifPrompt(false);
                   }}
+                  accessibilityLabel="Notify me of line delays"
+                  accessibilityRole="button"
                 >
                   <Text style={dash.promptBtnTextPrimary}>Notify me</Text>
-                </Pressable>
-                <Pressable
+                </BouncyPressable>
+                <BouncyPressable
                   style={dash.promptBtn}
-                  onPress={() => setShowNotifPrompt(false)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    setShowNotifPrompt(false);
+                  }}
+                  accessibilityLabel="Maybe later"
+                  accessibilityRole="button"
                 >
                   <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
-                </Pressable>
+                </BouncyPressable>
               </View>
             </View>
           </View>
@@ -902,21 +940,29 @@ const MyCommuteDashboard: React.FC = () => {
                 Your calendar stays on your device. We match your schedule to live departures.
               </Text>
               <View style={dash.promptActions}>
-                <Pressable
+                <BouncyPressable
                   style={[dash.promptBtn, dash.promptBtnPrimary]}
                   onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                     await requestCalendarPermission();
                     setShowCalPrompt(false);
                   }}
+                  accessibilityLabel="Allow Calendar Access"
+                  accessibilityRole="button"
                 >
                   <Text style={dash.promptBtnTextPrimary}>Allow Calendar Access</Text>
-                </Pressable>
-                <Pressable
+                </BouncyPressable>
+                <BouncyPressable
                   style={dash.promptBtn}
-                  onPress={() => setShowCalPrompt(false)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    setShowCalPrompt(false);
+                  }}
+                  accessibilityLabel="Maybe later"
+                  accessibilityRole="button"
                 >
                   <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
-                </Pressable>
+                </BouncyPressable>
               </View>
             </View>
           </View>

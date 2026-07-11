@@ -108,6 +108,7 @@ This document tracks execution state, updates, and current tasks.
   * Hardened bash pipeline scripts: migrated `generate_hub_map.js` to `execFileSync`, fixed `failedLines` tracking logic in `validate_stations.js`, and upgraded `unit_tests.js` to use isolated sandbox evaluation for dynamic resolution tests.
   * Fixed EAS iOS build failure: Added a post-install hook in `ios/Podfile` to compile `fmt` and `RCT-Folly` targets with `CLANG_CXX_LANGUAGE_STANDARD = 'c++17'` and preprocessor flag `FMT_USE_CONSTEVAL=0`. This fixes C++20 compilation errors on Xcode 16 (on Sonoma/Sequoia build images) caused by strict `consteval` validation in `{fmt}` basic_format_string.
   * Refined `MyCommuteDashboard.tsx` fallback line creation to use explicit offline/error labels (`Offline` or `Connection error`) mapping to the `offline` severity, ensuring `LineCard` has a fully populated prop shape (`id`, `name`, `color`, `status`, `status_severity`) that prevents crashes during API failures.
+  * Fixed Paddington empty departures bug by adding sibling NaPTAN expansion in `utils/resolveTflStopId.ts`. When a single sub-platform NaPTAN (e.g., `940GZZLUPAC` Bakerloo/District/Circle) is queried, the resolver expands it back to the full set of sibling NaPTANs in the parent hub (e.g., `HUBPAD` which includes `940GZZLUPAH` H&C/Circle and `910GPADTON`/`910GPADTLL` Elizabeth line). This ensures departures for all lines are fetched correctly.
 
 ---
 

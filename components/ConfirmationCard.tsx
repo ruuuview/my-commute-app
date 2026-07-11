@@ -50,12 +50,6 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
     onDismiss?.();
   }, [confirmLabels, onDismiss]);
 
-  const handleFixItCancel = useCallback(() => {
-    setShowFixIt(false);
-    dismissConfirmationCard();
-    onDismiss?.();
-  }, [dismissConfirmationCard, onDismiss]);
-
   const handleInlineDone = useCallback(() => {
     confirmLabels();
     onDismiss?.();
@@ -101,9 +95,7 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
 
       <FixItSheet
         visible={showFixIt}
-        stations={pinnedStations}
-        onDone={handleFixItDone}
-        onCancel={handleFixItCancel}
+        onClose={handleFixItDone}
       />
     </Animated.View>
   );

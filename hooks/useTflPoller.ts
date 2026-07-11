@@ -4,7 +4,10 @@ import NetInfo from '@react-native-community/netinfo';
 
 export type StaleState = null | 'offline' | 'tfl-error' | 'tfl-delayed';
 
-export function useTflPoller(fetchData: (signal: AbortSignal) => Promise<{ status: number; lastUpdated?: string }>) {
+export function useTflPoller(
+  fetchData: (signal: AbortSignal) => Promise<{ status: number; lastUpdated?: string }>,
+  hasCache: boolean = true
+) {
   const [isLoading, setIsLoading] = useState(false);
   const [staleState, setStaleState] = useState<StaleState>(null);
   const [staleMinutes, setStaleMinutes] = useState(0);
@@ -57,7 +60,7 @@ export function useTflPoller(fetchData: (signal: AbortSignal) => Promise<{ statu
       setStaleMinutes(Math.floor(dataAgeMs / 60000));
     } else if (errorType) {
       const timeSinceSuccess = Date.now() - lastSuccessfulFetch.current;
-      if (timeSinceSuccess > 180000) { // > 3 minutes
+      if (!hasCache || timeSinceSuccess > 180000) { // > 3 minutes or no cache
         setStaleState(errorType);
         setStaleMinutes(Math.floor(timeSinceSuccess / 60000));
       } else if (staleState !== null) {
@@ -68,7 +71,7 @@ export function useTflPoller(fetchData: (signal: AbortSignal) => Promise<{ statu
       setStaleState(null);
       setStaleMinutes(0);
     }
-  }, [fetchData, staleState]);
+  }, [fetchData, staleState, hasCache]);
 
   useEffect(() => {
     forceRefresh();

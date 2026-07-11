@@ -166,6 +166,22 @@ export function resolveTflStopIds(id: string): string[] {
     return EXPLICIT_MAP[id];
   }
 
+  // 2b. Sibling NaPTAN expansion for sub-platforms of hubs
+  // If the ID is a NaPTAN that is part of a hub in EXPLICIT_MAP, expand it to the full hub
+  if (id.startsWith('940GZZ') || id.startsWith('910G')) {
+    let bestExpansion = [id];
+    for (const [key, naptans] of Object.entries(EXPLICIT_MAP)) {
+      if (naptans.includes(id)) {
+        if (naptans.length > bestExpansion.length || (key.startsWith('HUB') && naptans.length === bestExpansion.length)) {
+          bestExpansion = naptans;
+        }
+      }
+    }
+    if (bestExpansion.length > 1) {
+      return bestExpansion;
+    }
+  }
+
   // 3. Raw NaPTAN pass-through (fast path — no expansion needed)
   if (id.startsWith('940GZZ') || id.startsWith('910G')) {
     return [id];

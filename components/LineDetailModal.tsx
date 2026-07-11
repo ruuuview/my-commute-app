@@ -19,10 +19,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
+import { StatusBezel } from './StatusBezel';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
-const ESTIMATED_POPUP_HEIGHT = 260;
+const MAX_POPUP_HEIGHT = SCREEN_HEIGHT * 0.55;
 
 const PERSONALITY_POOL = [
   "Don't jinx it.",
@@ -129,10 +130,10 @@ export function LineDetailModal({
   const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
 
   const popupTop = useMemo(() => {
-    if (!anchorRect) return Math.max(SCREEN_HEIGHT / 2 - ESTIMATED_POPUP_HEIGHT / 2, MIN_ALLOWED_TOP);
+    if (!anchorRect) return Math.max(SCREEN_HEIGHT / 2 - MAX_POPUP_HEIGHT / 2, MIN_ALLOWED_TOP);
     const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
     if (spaceBelow < 300) {
-      return Math.max(60, anchorRect.y - ESTIMATED_POPUP_HEIGHT - 8);
+      return Math.max(60, anchorRect.y - MAX_POPUP_HEIGHT - 8);
     }
     return anchorRect.y + anchorRect.height + 8;
   }, [anchorRect, MIN_ALLOWED_TOP]);
@@ -243,51 +244,53 @@ export function LineDetailModal({
             {/* Outer glass tint */}
             <View style={styles.glassTint} pointerEvents="none" />
 
-            {/* ── Content: Line title header ── */}
-            <View style={styles.heroHeader}>
-              <View style={[styles.colorBar, { backgroundColor: line.color }]} />
-              <Text style={styles.lineName} numberOfLines={1}>
-                {displayLineName}
-              </Text>
-            </View>
-
-            {/* ── Inner tinted status pill ── */}
-            <View style={styles.statusRow}>
-              <View
-                style={[
-                  styles.statusPill,
-                  {
-                    backgroundColor: token.pillBg,
-                    borderColor: token.pillBorder,
-                  },
-                ]}
-              >
-                <View style={[styles.statusDot, { backgroundColor: token.dotColor }]} />
-                <Text style={[styles.statusText, { color: token.text }]}>
-                  {statusLabel || 'Good Service'}
-                </Text>
+            {/* ── Content wrapper: scrollable when content is long ── */}
+            <ScrollView
+              style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
+              contentContainerStyle={{ paddingBottom: 4 }}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {/* ── Header: line name left, status pill right ── */}
+              <View style={styles.heroHeader}>
+                <View style={styles.heroLeft}>
+                  <View style={[styles.colorBar, { backgroundColor: line.color }]} />
+                  <Text style={styles.lineName} numberOfLines={1}>
+                    {displayLineName}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    {
+                      backgroundColor: token.pillBg,
+                      borderColor: token.pillBorder,
+                    },
+                  ]}
+                >
+                  <StatusBezel statusType={statusType} style={styles.bezelSmall} />
+                  <Text style={[styles.statusText, { color: token.text }]}>
+                    {statusLabel || 'Good Service'}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            {/* ── Full text description reason string ── */}
-            {(() => {
-              if (statusType === 'good') return false;
-              const descTrimmed = reasonText.trim();
-              const descLower = descTrimmed.toLowerCase();
-              const titleLower = (statusLabel || '').trim().toLowerCase();
-              const isDuplicate = descLower === titleLower;
-              const isTooShort = descTrimmed.length < 20;
-              const shouldHide = isDuplicate || isTooShort;
-              return !shouldHide;
-            })() ? (
-              <ScrollView
-                style={styles.bodyScroll}
-                contentContainerStyle={styles.bodyScrollContent}
-                showsVerticalScrollIndicator={false}
-              >
-                <Text style={styles.bodyText}>{reasonText}</Text>
-              </ScrollView>
-            ) : null}
+              {/* ── Full text description reason string ── */}
+              {(() => {
+                if (statusType === 'good') return false;
+                const descTrimmed = reasonText.trim();
+                const descLower = descTrimmed.toLowerCase();
+                const titleLower = (statusLabel || '').trim().toLowerCase();
+                const isDuplicate = descLower === titleLower;
+                const isTooShort = descTrimmed.length < 20;
+                const shouldHide = isDuplicate || isTooShort;
+                return !shouldHide;
+              })() ? (
+                <View style={styles.bodySection}>
+                  <Text style={styles.bodyText}>{reasonText}</Text>
+                </View>
+              ) : null}
+            </ScrollView>
           </Pressable>
         </Animated.View>
       </View>
@@ -332,65 +335,56 @@ const styles = StyleSheet.create({
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 18,
+    justifyContent: 'space-between',
+    paddingTop: 16,
     paddingHorizontal: 20,
-    paddingBottom: 0,
+    paddingBottom: 14,
+  },
+
+  heroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
   },
 
   colorBar: {
     width: 3,
-    height: 20,
+    height: 18,
     borderRadius: 2,
-    marginRight: 12,
+    marginRight: 10,
   },
 
   lineName: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
-    letterSpacing: 1.2,
-    flex: 1,
-  },
-
-  statusRow: {
-    alignItems: 'flex-start',
-    paddingTop: 14,
-    paddingBottom: 4,
-    paddingHorizontal: 20,
+    letterSpacing: 1.0,
+    flexShrink: 1,
   },
 
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 6,
     borderWidth: 1,
     borderRadius: 9999,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-  },
-
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    flexShrink: 0,
   },
 
   statusText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 12,
-    letterSpacing: 0.8,
+    fontSize: 10,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
 
-  bodyScroll: {
-    maxHeight: 140,
+  bodySection: {
     marginTop: 14,
     marginHorizontal: 20,
     marginBottom: 16,
-  },
-
-  bodyScrollContent: {
-    paddingBottom: 4,
   },
 
   bodyText: {

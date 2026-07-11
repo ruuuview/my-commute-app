@@ -140,11 +140,11 @@ export default function StationsScreen() {
 
 
   const fuse = useMemo(
-    () => new Fuse(cleanFullStations, { 
-      keys: ['name'], 
-      threshold: 0.2, 
-      minMatchCharLength: 4, 
-      distance: 60 
+    () => new Fuse(cleanFullStations, {
+      keys: ['name'],
+      threshold: 0.2,
+      minMatchCharLength: 4,
+      distance: 60
     }),
     [cleanFullStations]
   );
@@ -212,18 +212,18 @@ export default function StationsScreen() {
 
         // Deduplicate and reinsert recent search at index 0 first
         useUserPreferencesStore.getState().addRecentSearch(station.id);
-        
+
         // Immediate clean dismiss
         Keyboard.dismiss();
         setQuery('');
         setIsSearching(false);
 
         if (hasCompletedOnboarding) {
-          const role = useUserPreferencesStore.getState().pinnedStations.length === 0 
-            ? 'home' 
-            : useUserPreferencesStore.getState().pinnedStations.length === 1 
-            ? 'work' 
-            : 'other';
+          const role = useUserPreferencesStore.getState().pinnedStations.length === 0
+            ? 'home'
+            : useUserPreferencesStore.getState().pinnedStations.length === 1
+              ? 'work'
+              : 'other';
           useUserPreferencesStore.getState().pinStation({
             id: station.id,
             name: station.name,
@@ -275,7 +275,7 @@ export default function StationsScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
-    
+
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playSound('confirm');
 
@@ -344,8 +344,8 @@ export default function StationsScreen() {
   const ctaLabel = pinnedStations.length === 0
     ? 'Add at least one station'
     : pinnedStations.length === 1
-    ? 'Continue with 1 station'
-    : `Continue with ${pinnedStations.length} stations`;
+      ? 'Continue with 1 station'
+      : `Continue with ${pinnedStations.length} stations`;
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = pinnedIds.has(item.id);
@@ -380,8 +380,8 @@ export default function StationsScreen() {
     );
   }, [pinnedIds, handleToggleStation]);
 
-  const searchFocusedStyle = isFocused 
-    ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: GLASS.background } 
+  const searchFocusedStyle = isFocused
+    ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: GLASS.background }
     : { borderWidth: 1, borderColor: GLASS.borderSide, backgroundColor: GLASS.background };
 
   const isShowRecents = query === '' && isFocused && recentStations.length > 0;
@@ -495,8 +495,8 @@ export default function StationsScreen() {
                   keyExtractor={(item) => `recent-${item.id}`}
                   renderItem={({ item }) => (
                     <Pressable
-                       onPress={() => handleRecentPress(item)}
-                       style={styles.recentSearchCard}
+                      onPress={() => handleRecentPress(item)}
+                      style={styles.recentSearchCard}
                     >
                       <BlurView
                         intensity={45}
@@ -578,7 +578,7 @@ export default function StationsScreen() {
                 </Text>
               </Animated.View>
             </Pressable>
-            
+
             {!hasCompletedOnboarding && (
               <Pressable onPress={handleSkip} style={styles.skipPressable}>
                 <Text style={styles.skipText}>Skip for now</Text>

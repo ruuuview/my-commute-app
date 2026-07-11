@@ -101,8 +101,11 @@ async function runAll() {
     await Promise.all(resolved.map(async (rid) => {
       const url = `${backendBase}/${rid}`;
       try {
-        const { stdout } = await execFilePromise('/usr/bin/curl', ['-s', url]);
-        const data = JSON.parse(stdout);
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
         if (data && Array.isArray(data.departures)) {
           mergedDepartures = mergedDepartures.concat(data.departures);
         }

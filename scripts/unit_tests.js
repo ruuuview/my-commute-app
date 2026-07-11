@@ -231,5 +231,53 @@ if (failed) {
   process.exit(1);
 } else {
   console.log("\n✅ SUCCESS: ALL FRONTEND UNIT TESTS PASSED!");
-  process.exit(0);
+  
+  console.log('\n--- LOCAL RESOLUTION SANITY TEST ---');
+  // Load data files from relative paths
+  const tflStationsContent = fs.readFileSync(path.join(__dirname, '../data/tflStations.ts'), 'utf8');
+  const cleanTflStationsJs = tflStationsContent
+    .replace(/import\s+[^;]+;/g, '')
+    .replace(/export\s+interface\s+\w+\s*\{[^}]*\}/g, '')
+    .replace(/:\s*TfLStation(\[\])?/g, '')
+    .replace(/:\s*string(\[\])?/g, '')
+    .replace(/as\s+[^)]+/g, '')
+    .replace(/export\s+/g, '');
+
+  const fullStationsData2 = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/tflStationsFull.json'), 'utf8'));
+
+  const tflContext = new Function('fullStationsData', cleanTflStationsJs + '; return { TFL_STATIONS };');
+  const { TFL_STATIONS } = tflContext(fullStationsData2);
+
+  console.log(`Loaded ${TFL_STATIONS.length} stations from tflStations.ts`);
+
+  const hubExpansions2 = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/hubExpansions.json'), 'utf8'));
+
+  const resolverContext = new Function('hubExpansions', 'fullStationsData', cleanResolverJs + '; return { resolveTflStopIds };');
+  const { resolveTflStopIds } = resolverContext(hubExpansions2, fullStationsData2);
+
+  let passed = 0;
+  let testFailed = 0;
+
+  for (let i = 0; i < TFL_STATIONS.length; i++) {
+    const station = TFL_STATIONS[i];
+    let resolved;
+    try {
+      resolved = resolveTflStopIds(station.id);
+    } catch (e) {
+      console.log(`❌ "${station.name}" (${station.id}) -> Resolution crashed: ${e.message}`);
+      testFailed++;
+      continue;
+    }
+
+    const allValid = resolved.every(r => r.startsWith('940GZZ') || r.startsWith('910G'));
+    if (allValid && resolved.length > 0) {
+      passed++;
+    } else {
+      console.log(`❌ "${station.name}" (${station.id}) -> Resolved to invalid NaPTANs: ${JSON.stringify(resolved)}`);
+      testFailed++;
+    }
+  }
+
+  console.log(`\nResults: ${passed} passed, ${testFailed} failed`);
+  process.exit(testFailed > 0 ? 1 : 0);
 }

@@ -63,8 +63,8 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 * **TfL Severity Mapping**:
   * Map severity code `10` → `good` (Good service).
   * Map severity code `6` → `severe` (Severe delays).
-  * Map severity code `9`, `8`, `7`, `5` → `minor` (Minor delays / Reduced service).
-  * Map severity codes `4`, `3`, `20`, `0`, `11` → `suspended` (Planned closure / Suspended).
+  * Map severity code `9`, `8`, `7` → `minor` (Minor delays / Reduced service).
+  * Map severity codes `5`, `4`, `3`, `20`, `0`, `11` → `suspended` (Part closure / Planned closure / Suspended).
 * **Overground Branch Aggregation**:
   * London Overground operates on multiple sub-branches: `liberty`, `lioness`, `mildmay`, `suffragette`, `weaver`, and `windrush`.
   * The status for `'overground'` must be aggregated across all active branches, resolving to the **worst status severity** (lowest severity number) among them.

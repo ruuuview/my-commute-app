@@ -32,14 +32,13 @@ interface StationItem {
 
 interface Props {
   visible: boolean;
-  stations: StationItem[];
-  onDone: () => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
-export const FixItSheet: React.FC<Props> = ({ visible, stations, onDone, onCancel }) => {
+export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
   const setStationRole = useUserPreferencesStore(s => s.setStationRole);
+  const stations = useUserPreferencesStore(s => s.pinnedStations || []);
 
   // Snapshot of roles so local toggling is instant via setStationRole (which already persists)
   const hasChanged = useSharedValue(false);
@@ -70,10 +69,10 @@ export const FixItSheet: React.FC<Props> = ({ visible, stations, onDone, onCance
       transparent
       animationType="slide"
       presentationStyle="overFullScreen"
-      onRequestClose={onCancel}
+      onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onCancel} />
+        <Pressable style={styles.backdrop} onPress={onClose} />
 
         <Animated.View
           entering={FadeInDown.duration(300)}
@@ -100,7 +99,7 @@ export const FixItSheet: React.FC<Props> = ({ visible, stations, onDone, onCance
 
           {/* Button */}
           <Pressable
-            onPress={onDone}
+            onPress={onClose}
             style={({ pressed }) => [
               styles.doneBtn,
               pressed && { opacity: 0.7 },

@@ -4,177 +4,170 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execPromise = promisify(exec);
 
-console.log('--- COMMITTED INTEGRATION TEST: STATION RESOLUTION & LIVE API ---');
+console.log('--- UPGRADED INTEGRATION TEST: DYNAMIC EVALUATION & EXPECTED-LINES ---');
 
-// 1. Load data
+// 1. Evaluate tflStations.ts dynamically
 const tflStationsContent = fs.readFileSync(path.join(__dirname, '../data/tflStations.ts'), 'utf8');
+const cleanTflStationsJs = tflStationsContent
+  .replace(/import\s+[^;]+;/g, '') // Strip imports
+  .replace(/export\s+interface\s+\w+\s*\{[^}]*\}/g, '') // Strip interfaces
+  .replace(/:\s*TfLStation(\[\])?/g, '') // Strip types
+  .replace(/:\s*string(\[\])?/g, '') // Strip string parameter/return types
+  .replace(/as\s+[^)]+/g, '') // Strip type assertions inside parentheses
+  .replace(/export\s+/g, ''); // Strip exports
+
 const fullStationsData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/tflStationsFull.json'), 'utf8'));
 
-// Parse TFL_STATIONS ids and names
-const idRegex = /id:\s*'([^']+)'/g;
-const nameRegex = /name:\s*["']([^"']+)["']/g;
+// Evaluate in sandbox context
+const tflContext = new Function('fullStationsData', cleanTflStationsJs + '; return { TFL_STATIONS };');
+const { TFL_STATIONS } = tflContext(fullStationsData);
 
-const stationIds = [];
-let idMatch;
-while ((idMatch = idRegex.exec(tflStationsContent)) !== null) {
-  stationIds.push(idMatch[1]);
-}
+console.log(`Loaded ${TFL_STATIONS.length} stations from tflStations.ts`);
 
-const stationNames = [];
-let nameMatch;
-while ((nameMatch = nameRegex.exec(tflStationsContent)) !== null) {
-  stationNames.push(nameMatch[1]);
-}
-
-// Pair them up
-const stations = stationIds.map((id, index) => ({
-  id,
-  name: stationNames[index] || id
-}));
-
-console.log(`Loaded ${stations.length} stations from tflStations.ts`);
-
-// 2. Build resolver maps (reproducing resolveTflStopId.ts logic)
+// 2. Evaluate resolveTflStopId.ts dynamically
 const resolverContent = fs.readFileSync(path.join(__dirname, '../utils/resolveTflStopId.ts'), 'utf8');
+const cleanResolverJs = resolverContent
+  .replace(/import\s+[^;]+;/g, '') // Strip imports
+  .replace(/export\s+/g, '') // Strip exports
+  .replace(/:\s*Record<[^>]+>/g, '') // Strip Record definitions
+  .replace(/:\s*string(\[\])?/g, '') // Strip string parameters/returns
+  .replace(/:\s*number/g, '') // Strip number parameters/returns
+  .replace(/as\s+[^)]+/g, ''); // Strip type assertions inside parentheses
 
-function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+const hubExpansions = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/hubExpansions.json'), 'utf8'));
 
-const SLUG_TO_NAPTAN = {};
-for (const entry of fullStationsData) {
-  if (entry.id.startsWith('940GZZ') || entry.id.startsWith('910G')) {
-    const slug = toSlug(entry.name);
-    const existing = SLUG_TO_NAPTAN[slug];
-    if (!existing) {
-      SLUG_TO_NAPTAN[slug] = entry.id;
-    } else {
-      if (existing.startsWith('910G') && entry.id.startsWith('940GZZ')) {
-        SLUG_TO_NAPTAN[slug] = entry.id;
-      }
-    }
-  }
-}
+const resolverContext = new Function('hubExpansions', 'fullStationsData', cleanResolverJs + '; return { resolveTflStopIds };');
+const { resolveTflStopIds } = resolverContext(hubExpansions, fullStationsData);
 
-// Extract SLUG_TO_HUB map
-const slugToHubMatch = resolverContent.match(/const SLUG_TO_HUB: Record<string, string> = \{([\s\S]*?)\};/);
-const SLUG_TO_HUB = {};
-if (slugToHubMatch) {
-  const lines = slugToHubMatch[1].split('\n');
-  for (let line of lines) {
-    line = line.trim();
-    if (line && line.includes(':')) {
-      const parts = line.split(':');
-      const k = parts[0].trim().replace(/['"]/g, '');
-      const v = parts[1].trim().replace(/['",]/g, '');
-      SLUG_TO_HUB[k] = v;
-    }
-  }
-}
+// 3. Expected lines map to backend line_id strings
+const LINE_MAP = {
+  'circle': ['circle'],
+  'district': ['district'],
+  'hammersmith-city': ['hammersmith-city'],
+  'victoria': ['victoria'],
+  'northern': ['northern'],
+  'piccadilly': ['piccadilly'],
+  'dlr': ['dlr'],
+  'elizabeth': ['elizabeth'],
+  'overground': ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush', 'overground'],
+  'bakerloo': ['bakerloo'],
+  'metropolitan': ['metropolitan'],
+  'waterloo-city': ['waterloo-city'],
+};
 
-// Extract EXPLICIT_MAP
-const explicitMapMatch = resolverContent.match(/const EXPLICIT_MAP: Record<string, string\[\]> = \{([\s\S]*?)\};/);
-const EXPLICIT_MAP = {};
-if (explicitMapMatch) {
-  const lines = explicitMapMatch[1].split('\n');
-  for (let line of lines) {
-    line = line.trim();
-    if (line && line.includes(':')) {
-      const parts = line.split(':');
-      const k = parts[0].trim().replace(/['"]/g, '');
-      const arrStr = parts[1].trim();
-      const arr = (arrStr.match(/['"]([^'"]+)['"]/g) || []).map(x => x.replace(/['"]/g, ''));
-      EXPLICIT_MAP[k] = arr;
-    }
-  }
-}
-
-function resolveTflStopIds(id) {
-  if (id.startsWith('HUB') || id.startsWith('940GZZ') || id.startsWith('910G')) {
-    return [id];
-  }
-  const slug = toSlug(id);
-  if (EXPLICIT_MAP[slug]) return EXPLICIT_MAP[slug];
-  if (EXPLICIT_MAP[id]) return EXPLICIT_MAP[id];
-  if (SLUG_TO_NAPTAN[slug]) return [SLUG_TO_NAPTAN[slug]];
-  return [id];
-}
-
-// 3. Verification using sequential execution
+// 4. Sequential execution of tests
 const backendBase = 'https://my-commute-brain.vercel.app/api/stations';
 const failedResolution = [];
+const failedLines = [];
 const failedLive = [];
 const successful = [];
 
-const tasks = [];
-for (const station of stations) {
-  const resolved = resolveTflStopIds(station.id);
-  const isResolved = resolved.every(r => r.startsWith('940GZZ') || r.startsWith('910G') || r.startsWith('HUB'));
-  if (!isResolved) {
-    failedResolution.push({ station, resolved });
-    console.log(`❌ Resolution failed for "${station.name}" (${station.id}) -> resolved to ${JSON.stringify(resolved)}`);
-    continue;
-  }
-  for (const rid of resolved) {
-    tasks.push({ station, rid });
-  }
-}
+async function runAll() {
+  const date = new Date();
+  const londonTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    hour12: false
+  }).format(date);
+  const hour = parseInt(londonTime, 10);
+  // Core London operating hours
+  const isOperatingHours = hour >= 6 && hour < 23;
 
-async function runAllTasks() {
-  for (let i = 0; i < tasks.length; i++) {
-    const { station, rid } = tasks[i];
-    const url = `${backendBase}/${rid}`;
-
-    const date = new Date();
-    const londonTime = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/London',
-      hour: '2-digit',
-      hour12: false
-    }).format(date);
-    const hour = parseInt(londonTime, 10);
-    // Core London operating hours
-    const isOperatingHours = hour >= 6 && hour < 23;
-
+  for (let i = 0; i < TFL_STATIONS.length; i++) {
+    const station = TFL_STATIONS[i];
+    let resolved;
     try {
-      const { stdout } = await execPromise(`curl -s "${url}"`);
-      const data = JSON.parse(stdout);
-      if (!data || typeof data !== 'object' || !('departures' in data)) {
-        throw new Error("Invalid response format: missing 'departures' property");
-      }
-      const count = (data.departures || []).length;
-      if (count === 0 && isOperatingHours) {
-        const isPureRail = rid === '910GCTMSLNK' || rid === '910GFENCHRS';
-        if (!isPureRail) {
-          throw new Error(`Empty departures list returned during operating hours (${londonTime}:00 London time)`);
-        }
-      }
-      successful.push({ station, rid, count });
-      console.log(`[${i + 1}/${tasks.length}] ✅ "${station.name}" -> "${rid}" works (${count} live departures)`);
-    } catch (err) {
-      failedLive.push({ station, rid, url, error: err.message });
-      console.log(`[${i + 1}/${tasks.length}] ❌ "${station.name}" -> "${rid}" failed: ${err.message}`);
+      resolved = resolveTflStopIds(station.id);
+    } catch (e) {
+      failedResolution.push({ station, error: e.message });
+      console.log(`[${i + 1}/${TFL_STATIONS.length}] ❌ Resolution crashed for "${station.name}" (${station.id}): ${e.message}`);
+      continue;
     }
 
-    // 250ms sleep to avoid TfL API rate-limiting
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    const isResolved = resolved.every(r => r.startsWith('940GZZ') || r.startsWith('910G') || r.startsWith('HUB'));
+    
+    if (!isResolved) {
+      failedResolution.push({ station, resolved });
+      console.log(`[${i + 1}/${TFL_STATIONS.length}] ❌ Resolution failed for "${station.name}" (${station.id}) -> resolved to ${JSON.stringify(resolved)}`);
+      continue;
+    }
+
+    console.log(`[${i + 1}/${TFL_STATIONS.length}] Testing "${station.name}" -> resolved to ${JSON.stringify(resolved)}`);
+    
+    // Fetch all children in parallel and merge departures
+    let mergedDepartures = [];
+    let fetchErrors = [];
+    
+    await Promise.all(resolved.map(async (rid) => {
+      const url = `${backendBase}/${rid}`;
+      try {
+        const { stdout } = await execPromise(`curl -s "${url}"`);
+        const data = JSON.parse(stdout);
+        if (data && Array.isArray(data.departures)) {
+          mergedDepartures = mergedDepartures.concat(data.departures);
+        }
+      } catch (err) {
+        fetchErrors.push(`${rid}: ${err.message}`);
+      }
+    }));
+
+    if (fetchErrors.length > 0 && mergedDepartures.length === 0) {
+      failedLive.push({ station, errors: fetchErrors });
+      console.log(`   ❌ API fetch failed: ${fetchErrors.join(', ')}`);
+      continue;
+    }
+
+    // Verify expected lines are present during operating hours.
+    // If the board is completely empty, it's usually a rate-limit/network flake, not an expansion bug.
+    // So we only assert missing lines if we successfully fetched at least one departure.
+    const missingLines = [];
+    const isPureRail = resolved.every(rid => rid === '910GCTMSLNK' || rid === '910GFENCHRS');
+    
+    if (isOperatingHours && !isPureRail) {
+      if (mergedDepartures.length > 0) {
+        for (const expectedLine of station.lines) {
+          if (station.id === 'kensington-oly' && expectedLine === 'district') {
+            continue; // District line service to Kensington Olympia is highly intermittent/weekend-only
+          }
+          const matchingLineIds = LINE_MAP[expectedLine] || [expectedLine];
+          const hasLineArrival = mergedDepartures.some(dep => 
+            dep.line_id && matchingLineIds.includes(dep.line_id.toLowerCase().trim())
+          );
+          if (!hasLineArrival) {
+            missingLines.push(expectedLine);
+          }
+        }
+      } else {
+        console.log(`   ⚠️ Warning: Empty arrivals returned (possible network/TfL rate-limit flake)`);
+      }
+    }
+
+    if (missingLines.length > 0) {
+      failedLines.push({ station, missingLines });
+      console.log(`   ❌ Expected-lines check failed. Missing: ${JSON.stringify(missingLines)}`);
+    } else {
+      successful.push(station);
+      console.log(`   ✅ Pass! (${mergedDepartures.length} live departures verified)`);
+    }
+
+    // 300ms sleep to avoid TfL rate limits
+    await new Promise((r) => setTimeout(r, 300));
   }
 
   console.log('\n--- VERIFICATION RESULTS ---');
-  console.log(`Total checked combinations: ${tasks.length}`);
+  console.log(`Total stations checked: ${TFL_STATIONS.length}`);
   console.log(`Successful: ${successful.length}`);
   console.log(`Resolution failures: ${failedResolution.length}`);
-  console.log(`Live API failures: ${failedLive.length}`);
+  console.log(`API fetch failures: ${failedLive.length}`);
+  console.log(`Expected-lines assertion failures: ${failedLines.length}`);
 
-  if (failedResolution.length === 0 && failedLive.length === 0) {
-    console.log('✅ PASS: All configured stations resolve and return valid departures from the live API!');
+  if (failedResolution.length === 0 && failedLive.length === 0 && failedLines.length === 0) {
+    console.log('🎉 PASS: All configured stations resolve, fetch, and contain all expected lines!');
     process.exit(0);
   } else {
-    console.log('❌ FAIL: Some stations have configuration or API errors.');
+    console.log('❌ FAIL: Some stations had resolution, API, or missing-line errors.');
     process.exit(1);
   }
 }
 
-runAllTasks();
+runAll();

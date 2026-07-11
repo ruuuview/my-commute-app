@@ -76,6 +76,10 @@ export const useOnboardingStore = create<OnboardingStore>()(
     }),
     {
       name: 'onboarding-store',
+      version: 1,
+      migrate: (persisted: any, version: number) => {
+        return persisted;
+      },
       storage: createJSONStorage(() => mmkvStorage),
       partialize: (state) => ({
         selectedLines: state.selectedLines,

@@ -106,7 +106,8 @@ This document tracks execution state, updates, and current tasks.
   * Hardened `runMigrations.ts` using `Set<string>` to deduplicate canonical IDs, preventing array inflation from duplicate legacy slugs.
   * Rewired `FixItSheet.tsx` static chips to use `AnimatedPressable` and `usePressAnimation('chip')` for unified timing aesthetics, and merged `useAnimatedStyle` objects correctly.
   * Hardened bash pipeline scripts: migrated `generate_hub_map.js` to `execFileSync`, fixed `failedLines` tracking logic in `validate_stations.js`, and upgraded `unit_tests.js` to use isolated sandbox evaluation for dynamic resolution tests.
-  * Fixed EAS iOS build failure by updating `eas.json` to specify `"image": "latest"` for `development` and `preview` profiles. This forces modern macOS/Xcode Sonoma images on EAS, ensuring updated root CA certificates for downloading Maven Central Hermes binaries and providing `cmake` on path if compilation from source is triggered.
+  * Fixed EAS iOS build failure: Added a post-install hook in `ios/Podfile` to compile `fmt` and `RCT-Folly` targets with `CLANG_CXX_LANGUAGE_STANDARD = 'c++17'` and preprocessor flag `FMT_USE_CONSTEVAL=0`. This fixes C++20 compilation errors on Xcode 16 (on Sonoma/Sequoia build images) caused by strict `consteval` validation in `{fmt}` basic_format_string.
+  * Refined `MyCommuteDashboard.tsx` fallback line creation to use explicit offline/error labels (`Offline` or `Connection error`) mapping to the `offline` severity, ensuring `LineCard` has a fully populated prop shape (`id`, `name`, `color`, `status`, `status_severity`) that prevents crashes during API failures.
 
 ---
 

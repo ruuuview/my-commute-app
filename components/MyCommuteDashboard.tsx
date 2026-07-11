@@ -112,6 +112,7 @@ function getSeverityFromStatus(statusText: string, statusSeverity?: number): Sev
   if (text.includes('minor')) return 'minor';
   if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
   if (text.includes('severe') || text.includes('delay')) return 'severe';
+  if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) return 'offline';
   return 'good';
 }
 
@@ -353,9 +354,20 @@ const MyCommuteDashboard: React.FC = () => {
 
   const myLines = useMemo(() => {
     return selectedLines
-      .map((id: string) => data.lines.find((l: LineData) => l.id === id))
-      .filter((l: LineData | undefined): l is LineData => !!l);
-  }, [data.lines, selectedLines]);
+      .map((id: string) => {
+        const found = data.lines.find((l: LineData) => l.id === id);
+        if (found) return found;
+        return {
+          id,
+          name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
+          color: LINE_COLORS[id] || '#888',
+          status: staleState === 'offline' 
+            ? 'Offline' 
+            : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
+          status_severity: staleState ? 0 : 10,
+        };
+      });
+  }, [data.lines, selectedLines, staleState]);
   const hasContent = myLines.length > 0 || selectedStations.length > 0;
 
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
@@ -626,183 +638,189 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
           )}
 
-          {sortedLines.length > 0 && (
-            <View style={dash.section}>
-              <SectionHeader 
-                title="My lines" 
-                icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => setModalVisible(true)}
-                isEditing={isEditing}
-              />
-              {isEditing ? (
-                <NestableDraggableFlatList
-                  data={sortedLines}
-                  keyExtractor={(item: LineData) => item.id}
-                  renderItem={renderLineItem}
-                  onDragBegin={() => {
-                    setIsDraggingLine(true);
-                    setScrollEnabled(false);
-                  }}
-                  onDragEnd={({ data }) => {
-                    setIsDraggingLine(false);
-                    setScrollEnabled(true);
-                    reorderLines((data as LineData[]).map(l => l.id));
-                  }}
-                  activationDistance={8}
-                  dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
-                  simultaneousHandlers={scrollRef}
-                  scrollEnabled={false}
-                  initialNumToRender={10}
-                  windowSize={11}
-                  maxToRenderPerBatch={10}
-                  updateCellsBatchingPeriod={50}
-                />
-              ) : (
-                <View>
-                  {sortedLines.map((item: LineData, idx: number) => {
-                    const severity = getSeverityFromStatus(item.status, item.status_severity);
-                    const handlePress = () => {
-                      if (isEditing) return;
-                      const ref = itemRefs.current[item.id];
-                      if (ref) {
-                        ref.measureInWindow((x, y, width, height) => {
-                          setSelectedLineInfo({ id: item.id, anchorRect: { x, y, width, height } });
-                        });
-                      }
-                    };
-                    const handleLongPress = () => {
-                      if (isEditing) return;
-                      handleEdit();
-                    };
-                    return (
-                      <View
-                        key={item.id}
-                        ref={el => { if (el) itemRefs.current[item.id] = el; }}
-                        style={{ height: 46, marginBottom: 12 }}
-                      >
-                        <LineCard
-                          line={item}
-                          selected={false}
-                          onPress={handlePress}
-                          onLongPress={handleLongPress}
-                          statusType={severity}
-                          statusLabel={item.status || 'Good service'}
-                          cardHeight={46}
-                          mode="display"
-                          isEditing={false}
-                          index={idx}
-                          globalJiggle={globalJiggle}
-                        />
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          )}
-
-          {sortedLines.length > 0 && selectedStations.length > 0 && (
+          {hasContent && isLoading && data.lines.length === 0 ? (
+            <DashboardSkeleton />
+          ) : (
             <>
-              {/* Confirmation card — after first tracked commute, before confirmed */}
-              {selectedStations.length > 0 && sessionCount > 0 && !labelsConfirmed && !hasSeenConfirmationCard && (
-                <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
-                  <ConfirmationCard />
+              {sortedLines.length > 0 && (
+                <View style={dash.section}>
+                  <SectionHeader 
+                    title="My lines" 
+                    icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                    onPressAdd={() => setModalVisible(true)}
+                    isEditing={isEditing}
+                  />
+                  {isEditing ? (
+                    <NestableDraggableFlatList
+                      data={sortedLines}
+                      keyExtractor={(item: LineData) => item.id}
+                      renderItem={renderLineItem}
+                      onDragBegin={() => {
+                        setIsDraggingLine(true);
+                        setScrollEnabled(false);
+                      }}
+                      onDragEnd={({ data }) => {
+                        setIsDraggingLine(false);
+                        setScrollEnabled(true);
+                        reorderLines((data as LineData[]).map(l => l.id));
+                      }}
+                      activationDistance={8}
+                      dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                      simultaneousHandlers={scrollRef}
+                      scrollEnabled={false}
+                      initialNumToRender={10}
+                      windowSize={11}
+                      maxToRenderPerBatch={10}
+                      updateCellsBatchingPeriod={50}
+                    />
+                  ) : (
+                    <View>
+                      {sortedLines.map((item: LineData, idx: number) => {
+                        const severity = getSeverityFromStatus(item.status, item.status_severity);
+                        const handlePress = () => {
+                          if (isEditing) return;
+                          const ref = itemRefs.current[item.id];
+                          if (ref) {
+                            ref.measureInWindow((x, y, width, height) => {
+                              setSelectedLineInfo({ id: item.id, anchorRect: { x, y, width, height } });
+                            });
+                          }
+                        };
+                        const handleLongPress = () => {
+                          if (isEditing) return;
+                          handleEdit();
+                        };
+                        return (
+                          <View
+                            key={item.id}
+                            ref={el => { if (el) itemRefs.current[item.id] = el; }}
+                            style={{ height: 46, marginBottom: 12 }}
+                          >
+                            <LineCard
+                              line={item}
+                              selected={false}
+                              onPress={handlePress}
+                              onLongPress={handleLongPress}
+                              statusType={severity}
+                              statusLabel={item.status || 'Good service'}
+                              cardHeight={46}
+                              mode="display"
+                              isEditing={false}
+                              index={idx}
+                              globalJiggle={globalJiggle}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               )}
 
-              {/* Arrival banner — only when confirmation card is NOT showing */}
-              {selectedStations.length > 0 && !(!labelsConfirmed && !hasSeenConfirmationCard && sessionCount > 0) && (() => {
-                const isSnoozed = arrivalSnoozeExpiry && Date.now() < arrivalSnoozeExpiry;
-                if (arrivalNotificationsEnabled === false) {
-                  return (
-                    <AnimatedPressable
-                      onPress={() => setArrivalNotificationsEnabled(true)}
-                      onPressIn={notificationsOffPress.onPressIn}
-                      onPressOut={notificationsOffPress.onPressOut}
-                      style={[dash.arrivalBanner, notificationsOffPress.animatedStyle]}
-                    >
-                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-                      <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
-                      <Text style={dash.arrivalBannerText}>
-                        Arrival notifications are off — <Text style={{ fontWeight: '600' }}>turn back on</Text>
-                      </Text>
-                    </AnimatedPressable>
-                  );
-                }
-                if (isSnoozed) {
-                  const d = new Date(arrivalSnoozeExpiry!);
-                  const hours = d.getHours();
-                  const mins = d.getMinutes();
-                  const ampm = hours >= 12 ? 'pm' : 'am';
-                  const h12 = hours % 12 || 12;
-                  const timeStr = `${h12}:${String(mins).padStart(2, '0')}${ampm}`;
-                  return (
-                    <AnimatedPressable
-                      onPress={() => setArrivalSnoozeExpiry(null)}
-                      onPressIn={snoozedPress.onPressIn}
-                      onPressOut={snoozedPress.onPressOut}
-                      style={[dash.arrivalBanner, snoozedPress.animatedStyle]}
-                    >
-                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-                      <Ionicons name="alarm-outline" size={16} color="#007AFF" />
-                      <Text style={dash.arrivalBannerText}>
-                        Arrival notifications snoozed until {timeStr} — <Text style={{ fontWeight: '600' }}>tap to resume</Text>
-                      </Text>
-                    </AnimatedPressable>
-                  );
-                }
-                return null;
-              })()}
-            </>
-          )}
+              {sortedLines.length > 0 && selectedStations.length > 0 && (
+                <>
+                  {/* Confirmation card — after first tracked commute, before confirmed */}
+                  {selectedStations.length > 0 && sessionCount > 0 && !labelsConfirmed && !hasSeenConfirmationCard && (
+                    <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
+                      <ConfirmationCard />
+                    </View>
+                  )}
 
-          {/* Spacer between sections — catches backdrop taps */}
-          {isEditing && sortedLines.length > 0 && (
-            <Pressable style={{ height: 24 }} onPress={handleBackdropPress} />
-          )}
-
-          {sortedLines.length > 0 && (
-            <View style={dash.section}>
-              <SectionHeader 
-                title="My stations" 
-                icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
-                onPressAdd={() => setStationModalVisible(true)}
-                isEditing={isEditing}
-              />
-              {selectedStations.length === 0 ? (
-                <Pressable
-                  onPress={() => setStationModalVisible(true)}
-                  style={dash.addStationCard}
-                >
-                  <BlurView
-                    intensity={20}
-                    tint="dark"
-                    style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                  />
-                  <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
-                  <Text style={dash.addCardText}>Add your first station</Text>
-                </Pressable>
-              ) : (
-                <DashboardGrid
-                  stations={selectedStations}
-                  isJiggling={isEditing}
-                  onExitJiggle={() => setIsEditing(false)}
-                  onDelete={removeStation}
-                  onLongPressCard={() => setIsEditing(true)}
-                  onScrollEnabledChange={setScrollEnabled}
-                  selectedLines={selectedLines}
-                  onReorderStations={reorderStations}
-                  simultaneousHandlers={scrollRef}
-                  globalJiggle={globalJiggle}
-                  skipEntrance={hasCompletedFirstEntrance.current}
-                  onStationTap={(stationId, stationName) =>
-                    router.push(
-                      `/station-detail?stationId=${encodeURIComponent(stationId)}&stationName=${encodeURIComponent(stationName)}`
-                    )
-                  }
-                />
+                  {/* Arrival banner — only when confirmation card is NOT showing */}
+                  {selectedStations.length > 0 && !(!labelsConfirmed && !hasSeenConfirmationCard && sessionCount > 0) && (() => {
+                    const isSnoozed = arrivalSnoozeExpiry && Date.now() < arrivalSnoozeExpiry;
+                    if (arrivalNotificationsEnabled === false) {
+                      return (
+                        <AnimatedPressable
+                          onPress={() => setArrivalNotificationsEnabled(true)}
+                          onPressIn={notificationsOffPress.onPressIn}
+                          onPressOut={notificationsOffPress.onPressOut}
+                          style={[dash.arrivalBanner, notificationsOffPress.animatedStyle]}
+                        >
+                          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                          <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
+                          <Text style={dash.arrivalBannerText}>
+                            Arrival notifications are off — <Text style={{ fontWeight: '600' }}>turn back on</Text>
+                          </Text>
+                        </AnimatedPressable>
+                      );
+                    }
+                    if (isSnoozed) {
+                      const d = new Date(arrivalSnoozeExpiry!);
+                      const hours = d.getHours();
+                      const mins = d.getMinutes();
+                      const ampm = hours >= 12 ? 'pm' : 'am';
+                      const h12 = hours % 12 || 12;
+                      const timeStr = `${h12}:${String(mins).padStart(2, '0')}${ampm}`;
+                      return (
+                        <AnimatedPressable
+                          onPress={() => setArrivalSnoozeExpiry(null)}
+                          onPressIn={snoozedPress.onPressIn}
+                          onPressOut={snoozedPress.onPressOut}
+                          style={[dash.arrivalBanner, snoozedPress.animatedStyle]}
+                        >
+                          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                          <Ionicons name="alarm-outline" size={16} color="#007AFF" />
+                          <Text style={dash.arrivalBannerText}>
+                            Arrival notifications snoozed until {timeStr} — <Text style={{ fontWeight: '600' }}>tap to resume</Text>
+                          </Text>
+                        </AnimatedPressable>
+                      );
+                    }
+                    return null;
+                  })()}
+                </>
               )}
-            </View>
+
+              {/* Spacer between sections — catches backdrop taps */}
+              {isEditing && sortedLines.length > 0 && (
+                <Pressable style={{ height: 24 }} onPress={handleBackdropPress} />
+              )}
+
+              {(selectedStations.length > 0 || isEditing) && (
+                <View style={dash.section}>
+                  <SectionHeader 
+                    title="My stations" 
+                    icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                    onPressAdd={() => setStationModalVisible(true)}
+                    isEditing={isEditing}
+                  />
+                  {selectedStations.length === 0 ? (
+                    <Pressable
+                      onPress={() => setStationModalVisible(true)}
+                      style={dash.addStationCard}
+                    >
+                      <BlurView
+                        intensity={20}
+                        tint="dark"
+                        style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                      />
+                      <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
+                      <Text style={dash.addCardText}>Add your first station</Text>
+                    </Pressable>
+                  ) : (
+                    <DashboardGrid
+                      stations={selectedStations}
+                      isJiggling={isEditing}
+                      onExitJiggle={() => setIsEditing(false)}
+                      onDelete={removeStation}
+                      onLongPressCard={() => setIsEditing(true)}
+                      onScrollEnabledChange={setScrollEnabled}
+                      selectedLines={selectedLines}
+                      onReorderStations={reorderStations}
+                      simultaneousHandlers={scrollRef}
+                      globalJiggle={globalJiggle}
+                      skipEntrance={hasCompletedFirstEntrance.current}
+                      onStationTap={(stationId, stationName) =>
+                        router.push(
+                          `/station-detail?stationId=${encodeURIComponent(stationId)}&stationName=${encodeURIComponent(stationName)}`
+                        )
+                      }
+                    />
+                  )}
+                </View>
+              )}
+            </>
           )}
 
           {/* Bottom spacer — catches backdrop taps below all cards */}

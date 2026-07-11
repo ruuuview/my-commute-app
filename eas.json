@@ -7,7 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "image": "latest"
+        "image": "macos-sequoia-15.6-xcode-16.4"
       }
     },
     "preview": {
@@ -15,12 +15,12 @@
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",
-        "image": "latest"
+        "image": "macos-sequoia-15.6-xcode-16.4"
       }
     },
     "production": {
       "ios": {
-        "image": "latest"
+        "image": "macos-sequoia-15.6-xcode-16.4"
       }
     }
   },

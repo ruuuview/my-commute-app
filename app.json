@@ -68,7 +68,8 @@
       ],
       "expo-font",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withFmtCpp17"
     ],
     "experiments": {
       "typedRoutes": true

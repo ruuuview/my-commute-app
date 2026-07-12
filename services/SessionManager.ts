@@ -253,7 +253,7 @@ export class SessionManager {
 
     // Increment tracked commute count for confirmation-card trigger
     const store = useUserPreferencesStore.getState();
-    useUserPreferencesStore.setState({ sessionCount: (store.sessionCount || 0) + 1 });
+    useUserPreferencesStore.setState({ completedJourneys: (store.completedJourneys || 0) + 1 });
     backgroundStorage.remove('commute_destination_id');
     backgroundStorage.remove('commute_origin_id');
     backgroundStorage.remove('commute_line_id');

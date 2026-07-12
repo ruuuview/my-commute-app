@@ -36,6 +36,7 @@ export interface UserPreferencesState {
   lastKnownData: any[];
   _hasHydrated: boolean;
   sessionCount: number;
+  completedJourneys: number;
   firstOpenTimestamp: number | null;
   labelsConfirmed: boolean;
   hasSeenConfirmationCard: boolean;
@@ -87,6 +88,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   lastKnownData: [],
   _hasHydrated: false,
   sessionCount: 0,
+  completedJourneys: 0,
   firstOpenTimestamp: null,
   labelsConfirmed: false,
   hasSeenConfirmationCard: false,

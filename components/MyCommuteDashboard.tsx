@@ -53,7 +53,6 @@ import { ConfirmationCard } from './ConfirmationCard';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyPressable from './BouncyPressable';
-import { fetchNormalizedStationArrivals } from '../services/apiService';
 import { useLineDataStore } from '../store/lineDataStore';
 import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
 import { LINE_COLORS } from '../constants/lineColors';
@@ -78,23 +77,8 @@ interface LineData {
   status_severity?: number;
 }
 
-interface ArrivalEntry {
-  lineId: string;
-  lineName: string;
-  lineColor: string;
-  minutesAway: number;
-  destination: string;
-}
-
-interface StationData {
-  id: string;
-  name: string;
-  arrivals: ArrivalEntry[];
-}
-
 interface DashboardData {
   lines: LineData[];
-  stations: StationData[];
 }
 
 
@@ -289,7 +273,7 @@ const MyCommuteDashboard: React.FC = () => {
     opacity: revealOpacity.value,
   }));
 
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, sessionCount, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
+  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, completedJourneys, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
     selectedLines: s.selectedLines || [],
     selectedStations: s.pinnedStations || [],
@@ -301,7 +285,7 @@ const MyCommuteDashboard: React.FC = () => {
     setLastKnown: s.setLastKnown,
     labelsConfirmed: s.labelsConfirmed ?? false,
     hasSeenConfirmationCard: s.hasSeenConfirmationCard ?? false,
-    sessionCount: s.sessionCount ?? 0,
+    completedJourneys: s.completedJourneys ?? 0,
     arrivalNotificationsEnabled: s.arrivalNotificationsEnabled ?? true,
     arrivalSnoozeExpiry: s.arrivalSnoozeExpiry ?? null,
     setArrivalNotificationsEnabled: s.setArrivalNotificationsEnabled,
@@ -314,7 +298,7 @@ const MyCommuteDashboard: React.FC = () => {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [stationModalVisible, setStationModalVisible] = useState(false);
-  const [data, setData] = useState<DashboardData>({ lines: lastKnownData, stations: [] });
+  const [data, setData] = useState<DashboardData>({ lines: lastKnownData });
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
@@ -437,36 +421,8 @@ const MyCommuteDashboard: React.FC = () => {
       // Populate global line status store so StationDetailScreen reads live severity
       useLineDataStore.getState().setLines(freshLines);
 
-      // 2. Fetch live arrivals for each pinned station in parallel
-      let freshStations: StationData[] = [];
-      if (Array.isArray(selectedStations) && selectedStations.length > 0) {
-        const stationPromises = selectedStations.map(async (st: any) => {
-          try {
-            const data = await fetchNormalizedStationArrivals(st.id, signal);
-            return {
-              id: st.id,
-              name: st.name,
-              arrivals: data.departures.map(d => ({
-                lineId: d.lineId,
-                lineName: d.lineName,
-                lineColor: d.lineColor,
-                minutesAway: d.minutesAway,
-                destination: d.destination,
-                expectedArrival: d.expectedArrival,
-              })),
-            };
-          } catch (e) {
-            console.log('Error fetching station arrivals for', st.id, e);
-            return null;
-          }
-        });
-        const resolved = await Promise.all(stationPromises);
-        freshStations = resolved.filter(Boolean) as StationData[];
-      }
-
       const fresh: DashboardData = {
         lines: freshLines,
-        stations: freshStations,
       };
 
       if (isScrollingRef.current) {
@@ -485,7 +441,7 @@ const MyCommuteDashboard: React.FC = () => {
       console.log('Fetch error');
       throw err;
     }
-  }, [selectedStations, selectedLines, setLastKnown]);
+  }, [selectedLines, setLastKnown]);
 
   const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData, lastKnownData && lastKnownData.length > 0);
 
@@ -745,14 +701,14 @@ const MyCommuteDashboard: React.FC = () => {
               {sortedLines.length > 0 && selectedStations.length > 0 && (
                 <>
                   {/* Confirmation card — after first tracked commute, before confirmed */}
-                  {selectedStations.length > 0 && sessionCount > 0 && !labelsConfirmed && !hasSeenConfirmationCard && (
+                  {selectedStations.length > 0 && completedJourneys > 0 && !labelsConfirmed && !hasSeenConfirmationCard && (
                     <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
                       <ConfirmationCard />
                     </View>
                   )}
 
                   {/* Arrival banner — only when confirmation card is NOT showing */}
-                  {selectedStations.length > 0 && !(!labelsConfirmed && !hasSeenConfirmationCard && sessionCount > 0) && (() => {
+                  {selectedStations.length > 0 && !(!labelsConfirmed && !hasSeenConfirmationCard && completedJourneys > 0) && (() => {
                     const isSnoozed = arrivalSnoozeExpiry && Date.now() < arrivalSnoozeExpiry;
                     if (arrivalNotificationsEnabled === false) {
                       return (
@@ -836,7 +792,6 @@ const MyCommuteDashboard: React.FC = () => {
                       onDelete={removeStation}
                       onLongPressCard={() => setIsEditing(true)}
                       onScrollEnabledChange={setScrollEnabled}
-                      selectedLines={selectedLines}
                       onReorderStations={reorderStations}
                       simultaneousHandlers={scrollRef}
                       globalJiggle={globalJiggle}

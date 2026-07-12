@@ -69,8 +69,6 @@ export interface DashboardGridProps {
   onLongPressCard: () => void;
   /** Called whenever scroll should be enabled/disabled in the parent ScrollView */
   onScrollEnabledChange: (enabled: boolean) => void;
-  /** User's pinned line IDs for modal filtering */
-  selectedLines?: string[];
   /** Called when a station card is tapped — navigates to full-screen StationDetailScreen */
   onStationTap?: (stationId: string, stationName: string) => void;
   /** Triggered when the drag reordering finishes */
@@ -87,7 +85,6 @@ export default function DashboardGrid({
   onDelete,
   onLongPressCard,
   onScrollEnabledChange,
-  selectedLines,
   onStationTap,
   onReorderStations,
   simultaneousHandlers,
@@ -125,7 +122,6 @@ export default function DashboardGrid({
             onDelete={onDelete}
             onLongPress={handleLongPress}
             onCardTap={handleCardTap}
-            selectedLines={selectedLines}
             drag={isJiggling ? drag : undefined}
             index={index}
             isActive={isActive}
@@ -134,7 +130,7 @@ export default function DashboardGrid({
         </StaggeredEntranceWrapper>
       </ScaleDecorator>
     );
-  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, selectedLines, globalJiggle, skipEntrance]);
+  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, globalJiggle, skipEntrance]);
 
   if (!isJiggling) {
     return (
@@ -148,7 +144,6 @@ export default function DashboardGrid({
               onDelete={onDelete}
               onLongPress={onLongPressCard}
               onCardTap={handleCardTap}
-              selectedLines={selectedLines}
               index={index}
               globalJiggle={globalJiggle}
             />

@@ -268,7 +268,7 @@ export function LineDetailModal({
                     },
                   ]}
                 >
-                  <StatusBezel statusType={statusType} style={styles.bezelSmall} />
+                  <StatusBezel statusType={statusType} />
                   <Text style={[styles.statusText, { color: token.text }]}>
                     {statusLabel || 'Good Service'}
                   </Text>

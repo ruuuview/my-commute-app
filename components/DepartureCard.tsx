@@ -46,7 +46,6 @@ export interface DepartureCardProps {
   onLongPress?: () => void;
   onCardTap?: (stationId: string, stationName: string) => void;
   hideCard?: boolean;
-  selectedLines?: string[];
   drag?: () => void;
   index?: number;
   isActive?: boolean;
@@ -71,7 +70,6 @@ const DepartureCard = memo(function DepartureCard({
   onLongPress,
   onCardTap,
   hideCard = false,
-  selectedLines,
   drag,
   index = 0,
   isActive = false,
@@ -95,12 +93,7 @@ const DepartureCard = memo(function DepartureCard({
         const data = await fetchNormalizedStationArrivals(stationId);
         if (!active.current) return;
 
-        const normalisedSelected = (selectedLines ?? []).map(id => id.toLowerCase().trim());
-        const filtered = normalisedSelected.length
-          ? data.departures.filter(a => normalisedSelected.includes(a.lineId?.toLowerCase().trim()))
-          : data.departures;
-
-        setArrivals(filtered);
+        setArrivals(data.departures);
       } catch (err) {
         console.log('[DepartureCard] fetch error:', err);
       } finally {
@@ -109,7 +102,7 @@ const DepartureCard = memo(function DepartureCard({
         }
       }
     },
-    [stationId, selectedLines]
+    [stationId]
   );
 
   useEffect(() => {

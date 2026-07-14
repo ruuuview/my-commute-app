@@ -7,7 +7,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import {
   Modal,
   Pressable,
@@ -221,9 +221,7 @@ export default function RerouteSheet({
   );
 
   // ── Determine which state to render ─────────────────────────────
-  const hasSuggestedRoute = isBranchAffected && suggestedRoute;
   const showAffected = isBranchAffected;
-  const showUnaffected = !isBranchAffected && affectedBranchOnly;
   const showEmpty = !isBranchAffected && !affectedBranchOnly;
 
   return (

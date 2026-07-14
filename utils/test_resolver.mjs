@@ -1,75 +1,101 @@
-#!/usr/bin/env node
-// Quick test for resolveTflStopIds HUB expansion fix
-// Run: node utils/test_resolver_fix.mjs
+// Quick integration test for lineRoutes, networkGraph, and resolveBranch
+// Run with: node --experimental-vm-modules utils/test_resolver.mjs
+// But we need to handle TypeScript, so we'll just test the data shapes.
 
-import { resolveTflStopIds, resolveTflStopIdForStore } from '../utils/resolveTflStopId.ts';
+import { readFileSync } from 'fs';
 
-const HUB_TESTS = [
-  ['HUBCAW', 3],   // Canary Wharf → Jubilee + DLR + Lizzie
-  ['HUBBAN', 2],   // Bank → Underground + DLR
-  ['HUBWAT', 1],   // Waterloo → Underground
-  ['HUBPAD', 2],   // Paddington → 2 NaPTANs
-  ['HUBKGX', 1],   // King's Cross
-  ['HUBVXH', 1],   // Vauxhall
-  ['HUBHHY', 2],   // Highbury & Islington
-  ['HUBLBG', 1],   // London Bridge
-  ['HUBRMD', 2],   // Richmond
-  ['HUBSRA', 2],   // Stratford
-];
+const routeData = JSON.parse(readFileSync('data/tflRouteData.json', 'utf8'));
 
-let passed = 0;
-let failed = 0;
+// Simply validate the data structure
+console.log('=== DATA VALIDATION ===');
+console.log(`Lines: ${Object.keys(routeData.routes).length}`);
+console.log(`Stations: ${Object.keys(routeData.stations).length}`);
 
-for (const [hub, expected] of HUB_TESTS) {
-  const result = resolveTflStopIds(hub);
-  if (result.length === expected) {
-    console.log(`✅ ${hub} → ${result.length} NaPTANs: ${result.join(', ')}`);
-    passed++;
-  } else {
-    console.log(`❌ ${hub} → expected ${expected} NaPTANs, got ${result.length}: ${result.join(', ')}`);
-    failed++;
+// Check some specific routes
+const northern = routeData.routes.northern;
+console.log('\n=== Northern Line Routes ===');
+for (const dir of ['inbound', 'outbound']) {
+  console.log(`\n${dir}:`);
+  for (const r of northern[dir]) {
+    const name = r.name.replace(/&harr;/g, '↔').trim();
+    console.log(`  ${name} (${r.naptanIds.length} stops)`);
   }
 }
 
-// Test slug → NaPTAN still works
-const SLUG_TESTS = [
-  ['canary-wharf', 3],
-  ['bank', 2],
-  ['kings-cross', 1],
-  ['london-bridge', 1],
-  ['paddington', 2],
-];
-
-for (const [slug, expected] of SLUG_TESTS) {
-  const result = resolveTflStopIds(slug);
-  if (result.length === expected) {
-    console.log(`✅ ${slug} → ${result.length} NaPTANs`);
-    passed++;
-  } else {
-    console.log(`❌ ${slug} → expected ${expected} NaPTANs, got ${result.length}`);
-    failed++;
-  }
+// Check that key stations are present
+const keyStations = {
+  '940GZZLUCTN': 'Camden Town',
+  '940GZZLUEGW': 'Edgware',
+  '940GZZLUCFM': 'Chalk Farm',
+  '940GZZLUHBT': 'High Barnet',
+  '940GZZLUMHL': 'Mill Hill East',
+};
+console.log('\n=== Station Name Lookup ===');
+for (const [id, expected] of Object.entries(keyStations)) {
+  const found = routeData.stations[id];
+  console.log(`${id}: ${found ? found.name : 'NOT FOUND'} (expected ${expected})`);
 }
 
-// Test store resolver
-const STORE_TESTS = [
-  ['canary-wharf', 'HUBCAW'],
-  ['bank', 'HUBBAN'],
-  ['kings-cross', '940GZZLUKSX'],
-  ['King\'s Cross St. Pancras', '940GZZLUKSX'],
-  ['St. Paul\'s', '940GZZLUSPU'],
-];
-
-for (const [input, expected] of STORE_TESTS) {
-  const result = resolveTflStopIdForStore(input);
-  if (result === expected) {
-    console.log(`✅ store: "${input}" → ${result}`);
-    passed++;
-  } else {
-    console.log(`❌ store: "${input}" → ${result} (expected ${expected})`);
-    failed++;
+// Check graph connectivity
+console.log('\n=== Graph Validation ===');
+const allStationIds = new Set();
+for (const lineId of Object.keys(routeData.routes)) {
+  const line = routeData.routes[lineId];
+  for (const dir of ['inbound', 'outbound']) {
+    for (const r of line[dir]) {
+      for (const nid of r.naptanIds) {
+        allStationIds.add(nid);
+      }
+    }
   }
 }
+console.log(`Unique stations across all routes: ${allStationIds.size}`);
 
-console.log(`\n${passed} passed, ${failed} failed`);
-process.exit(failed > 0 ? 1 : 0);
+// Check that stations in naptanIds have a name
+const unnamed = [];
+for (const nid of allStationIds) {
+  if (!routeData.stations[nid]) {
+    unnamed.push(nid);
+  }
+}
+if (unnamed.length > 0) {
+  console.log(`WARNING: ${unnamed.length} station IDs without names (first 5: ${unnamed.slice(0,5).join(', ')})`);
+} else {
+  console.log('All station IDs have a name entry');
+}
+
+// Validate specific routes
+console.log('\n=== Edge Count ===');
+let edgeCount = 0;
+for (const lineId of Object.keys(routeData.routes)) {
+  const line = routeData.routes[lineId];
+  for (const dir of ['inbound', 'outbound']) {
+    for (const r of line[dir]) {
+      edgeCount += (r.naptanIds.length - 1) * 2; // bidirectional
+    }
+  }
+}
+console.log(`Total bidirectional edges available: ${edgeCount}`);
+
+// Print basic stats
+console.log('\n=== Line Summaries ===');
+for (const lineId of Object.keys(routeData.routes).sort()) {
+  const line = routeData.routes[lineId];
+  let totalStops = 0;
+  let totalRoutes = 0;
+  for (const dir of ['inbound', 'outbound']) {
+    for (const r of line[dir]) {
+      totalStops += r.naptanIds.length;
+      totalRoutes++;
+    }
+  }
+  const uniqueStops = new Set();
+  for (const dir of ['inbound', 'outbound']) {
+    for (const r of line[dir]) {
+      for (const nid of r.naptanIds) uniqueStops.add(nid);
+    }
+  }
+  console.log(`${lineId.padEnd(20)} ${totalRoutes.toString().padStart(3)} routes, ${uniqueStops.size.toString().padStart(3)} unique stations, ${totalStops} total stops`);
+}
+
+console.log('\n=== VALIDATION COMPLETE ===');

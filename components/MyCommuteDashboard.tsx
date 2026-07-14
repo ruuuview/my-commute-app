@@ -57,6 +57,8 @@ import { useLineDataStore } from '../store/lineDataStore';
 import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
 import { LINE_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
+import RerouteSheet from './RerouteSheet';
+import * as Linking from 'expo-linking';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -96,8 +98,8 @@ function getSeverityFromStatus(statusText: string, statusSeverity?: number): Sev
   if (statusSeverity !== undefined) {
     if (statusSeverity === 10) return 'good';
     if (statusSeverity === 6) return 'severe';
-    if (statusSeverity === 9 || statusSeverity === 8 || statusSeverity === 7) return 'minor';
-    if (statusSeverity === 5 || statusSeverity === 4 || statusSeverity === 3 || statusSeverity === 20 || statusSeverity === 0 || statusSeverity === 11) return 'suspended';
+    if (statusSeverity === 9 || statusSeverity === 8 || statusSeverity === 7 || statusSeverity === 5) return 'minor';
+    if (statusSeverity === 4 || statusSeverity === 3 || statusSeverity === 20 || statusSeverity === 0 || statusSeverity === 11) return 'suspended';
   }
   // Fallback: parse status text when severity code is missing or unrecognized
   const text = String(statusText ?? '').toLowerCase();
@@ -342,6 +344,10 @@ const MyCommuteDashboard: React.FC = () => {
 
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
+
+  // ── Reroute state ──
+  const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
+  const rerouteLineForSheet = useMemo(() => rerouteLine, [rerouteLine]);
 
 
 
@@ -938,8 +944,31 @@ const MyCommuteDashboard: React.FC = () => {
             statusType={getSeverityFromStatus(selectedLineForModal.status, selectedLineForModal.status_severity)}
             statusLabel={selectedLineForModal.status}
             anchorRect={selectedLineInfo.anchorRect}
+            onOpenReroute={() => setRerouteLine(selectedLineForModal)}
           />
         )}
+
+        {/* Reroute Sheet — full-screen slide-up for disruption alternatives */}
+        <RerouteSheet
+          visible={!!rerouteLine}
+          onClose={() => setRerouteLine(null)}
+          lineId={rerouteLine?.id ?? ''}
+          lineName={rerouteLine?.name ?? ''}
+          lineColor={rerouteLine?.color ?? '#666666'}
+          branchName=""
+          terminus=""
+          disruptionReason={rerouteLine?.reason || rerouteLine?.status || 'Disruption reported'}
+          isBranchAffected={true}
+          affectedBranchOnly={false}
+          onOpenGoogleMaps={() => {
+            Linking.openURL('https://maps.google.com').catch(() => {});
+            setRerouteLine(null);
+          }}
+          onOpenCitymapper={Linking.canOpenURL('citymapper://').then(() => () => {
+            Linking.openURL('citymapper://').catch(() => {});
+            setRerouteLine(null);
+          }).catch(() => undefined) as any}
+        />
       </Animated.View>
     </View>
   );

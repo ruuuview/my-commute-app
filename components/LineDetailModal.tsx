@@ -20,6 +20,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { StatusBezel } from './StatusBezel';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -64,6 +65,7 @@ interface LineDetailModalProps {
     | string;
   statusLabel: string;
   anchorRect: AnchorRect | null;
+  onOpenReroute?: () => void;
 }
 
 const STATUS_TOKENS: Record<
@@ -122,6 +124,7 @@ export function LineDetailModal({
   statusType,
   statusLabel,
   anchorRect,
+  onOpenReroute,
 }: LineDetailModalProps) {
   const insets = useSafeAreaInsets();
   const MIN_ALLOWED_TOP = insets.top + 12;
@@ -290,6 +293,24 @@ export function LineDetailModal({
                   <Text style={styles.bodyText}>{reasonText}</Text>
                 </View>
               ) : null}
+
+              {/* ── See alternative routes CTA — only when disrupted ── */}
+              {statusType !== 'good' && statusType !== 'loading' && statusType !== 'error' && statusType !== 'unknown' && statusType !== 'offline' && onOpenReroute ? (
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    onClose();
+                    setTimeout(() => onOpenReroute(), 300);
+                  }}
+                  style={({ pressed }) => [
+                    styles.rerouteButton,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={styles.rerouteButtonText}>See alternative routes</Text>
+                  <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.55)" />
+                </Pressable>
+              ) : null}
             </ScrollView>
           </Pressable>
         </Animated.View>
@@ -392,5 +413,27 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.78)',
     lineHeight: 22,
+  },
+
+  // ── Reroute CTA ──────────────────────────────────────────────
+  rerouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  rerouteButtonText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.80)',
+    letterSpacing: 0.3,
   },
 });

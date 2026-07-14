@@ -76,7 +76,7 @@ const TabsLayout = () => {
             if (key === 'settings') {
               router.push('/settings');
             } else if (key === 'status') {
-              router.push('/journeyPlanner');
+              router.push('/(tabs)');
             } else if (key === 'dashboard') {
               router.push('/(tabs)');
             }

@@ -45,8 +45,8 @@ function severityToLevel(patchedSeverity: number | undefined): StatusLevel {
   const code = patchedSeverity ?? 10;
   if (code === 10) return 'good';
   if (code === 6) return 'severe';
-  if (code === 9 || code === 8 || code === 7) return 'minor';
-  if ([5, 4, 3, 20, 0, 11].includes(code)) return 'suspended';
+  if (code === 9 || code === 8 || code === 7 || code === 5) return 'minor';
+  if ([4, 3, 20, 0, 11].includes(code)) return 'suspended';
   return 'unknown';
 }
 

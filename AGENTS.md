@@ -60,11 +60,12 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 ### Line Subscription & TfL Status Mapping
 
 * **Locked reference file**: [components/ManageLinesModal.tsx](file:///Users/ruuuview/Desktop/my%20commute%20project%20folder/frontend/components/ManageLinesModal.tsx).
-* **TfL Severity Mapping**:
-  * Map severity code `10` → `good` (Good service).
-  * Map severity code `6` → `severe` (Severe delays).
-  * Map severity code `9`, `8`, `7` → `minor` (Minor delays / Reduced service).
-  * Map severity codes `5`, `4`, `3`, `20`, `0`, `11` → `suspended` (Part closure / Planned closure / Suspended).
+* **TfL Severity Mapping** — canonical table used by ALL files:
+  * `10`, `18`, `14` → `good` (Good Service / Special Service / Information).
+  * `5` → `minor` (Minor Delays).
+  * `9`, `6`, `7`, `4`, `3` → `severe` (Severe Delays / Part Suspended / Planned Closure).
+  * `0`, `11`, `8`, `16`, `17`, `19`, `1`, `2` → `suspended` (Suspended / Not Running / Bus Service / Service Closed).
+  * `20` → `unknown` (Unknown).
 * **Overground Branch Aggregation**:
   * London Overground operates on multiple sub-branches: `liberty`, `lioness`, `mildmay`, `suffragette`, `weaver`, and `windrush`.
   * The status for `'overground'` must be aggregated across all active branches, resolving to the **worst status severity** (lowest severity number) among them.

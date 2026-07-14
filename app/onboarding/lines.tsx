@@ -252,22 +252,31 @@ export default function LinesScreen() {
   const ctaLabel = getCtaLabel(selectedLines.length);
 
   const getLineStatus = (severity: number, desc: string) => {
-    // Aligned with AGENTS.md TfL Severity Mapping
-    if (severity === 10 || severity === 18) return { statusType: 'good' as const, label: desc || 'Good service' };
-    if (severity === 9 || severity === 8 || severity === 7) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-    if (severity === 6) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-    if (severity === 5 || severity === 4 || severity === 3 || severity === 20 || severity === 0 || severity === 11) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
+    // Canonical mapping — same as MyCommuteDashboard / useWorstStatus / tfl_shared.py
+    if (severity === 10 || severity === 18 || severity === 14) return { statusType: 'good' as const, label: desc || 'Good service' };
+    if (severity === 5) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+    if (severity === 9 || severity === 6 || severity === 7 || severity === 4 || severity === 3) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+    if (severity === 0 || severity === 11 || severity === 8 || severity === 16 || severity === 17 || severity === 19 || severity === 1 || severity === 2) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
+    if (severity === 20) return { statusType: 'unknown' as const, label: desc || 'Unknown' };
 
     // Text fallback when severity code is unrecognized
     const d = desc.toLowerCase();
-    if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };
+    if (d.includes('good') && !d.includes('delay')) return { statusType: 'good' as const, label: desc };
+    if (d.includes('closure')) return { statusType: 'suspended' as const, label: desc };
+    if (d.includes('suspended')) return { statusType: 'suspended' as const, label: desc };
+    if (d.includes('bus')) return { statusType: 'suspended' as const, label: desc };
+    if (d.includes('not running')) return { statusType: 'suspended' as const, label: desc };
+    if (d.includes('closed')) return { statusType: 'suspended' as const, label: desc };
     if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
-    if (d.includes('delay') || d.includes('reduced')) return { statusType: 'minor' as const, label: desc };
-    return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+    if (d.includes('minor')) return { statusType: 'minor' as const, label: desc };
+    if (d.includes('delay')) return { statusType: 'severe' as const, label: desc };
+    if (d.includes('information')) return { statusType: 'good' as const, label: desc };
+    if (d.includes('reduced')) return { statusType: 'minor' as const, label: desc };
+    return { statusType: 'good' as const, label: desc || 'Good service' };
   };
 
   const resolveLineStatus = (lineId: string) => {
-    let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' = 'loading';
+    let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown' = 'loading';
     let statusLabel = 'Loading status...';
 
     if (!loadingStatuses) {
@@ -281,10 +290,11 @@ export default function LinesScreen() {
             foundAny = true;
             const statusData = apiStatuses[branchId];
             const getRank = (s: number) => {
-              if (s === 10 || s === 18) return 0;                       // good
-              if (s === 9 || s === 8 || s === 7) return 1;              // minor
-              if (s === 6) return 2;                                    // severe
-              return 3;                                                 // 5,4,3,20,0,11 → suspended
+              if (s === 10 || s === 18 || s === 14) return 0;              // good
+              if (s === 5) return 1;                                       // minor
+              if (s === 9 || s === 6 || s === 7 || s === 4 || s === 3) return 2; // severe
+              if (s === 0 || s === 11 || s === 8 || s === 16 || s === 17 || s === 19 || s === 1 || s === 2) return 3; // suspended
+              return 4;                                                    // 20 → unknown
             };
             if (getRank(statusData.severity) > getRank(worstSeverity)) {
               worstSeverity = statusData.severity;

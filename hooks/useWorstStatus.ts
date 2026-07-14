@@ -12,11 +12,12 @@
 //    9  → severe     (severe delays)
 //    5  → minor      (minor / part / reduced)
 //    1  → good       (good service / catch-all)
-//  missing/other → unknown
 //
 // Community report upgrade rules (v4.1 §2.4):
 //   reports ≥ 3  AND TfL shows 'good'  → upgrade to 'minor'
 //   reports ≥ 5  AND TfL shows 'minor' → upgrade to 'severe'
+//
+// NOTE: useLineData.ts currently passes through RAW TfL codes (not patched).
 
 import { useLineDataStore } from '../store/lineDataStore';
 
@@ -35,18 +36,20 @@ const SEVERITY: Record<StatusLevel, number> = {
  * Maps the raw TfL status_severity number from lineDataStore
  * to the canonical StatusLevel enum.
  * 
- * TfL codes:
- * 10 -> good
- * 6 -> severe
- * 9, 8, 7, 5 -> minor
- * 4, 3, 20, 0, 11 -> suspended
+ * Canonical mapping (all files use this table):
+ *   10,18,14 → good     (Good Service / Special Service / Information)
+ *   5        → minor    (Minor Delays)
+ *   9,6,7,4,3 → severe  (Severe Delays / Part Suspended / Planned Closure)
+ *   0,11,8,16,17,19,1,2 → suspended (Suspended / Not Running / Bus Service / Service Closed)
+ *   20       → unknown  (Unknown)
  */
 function severityToLevel(patchedSeverity: number | undefined): StatusLevel {
   const code = patchedSeverity ?? 10;
-  if (code === 10) return 'good';
-  if (code === 6) return 'severe';
-  if (code === 9 || code === 8 || code === 7 || code === 5) return 'minor';
-  if ([4, 3, 20, 0, 11].includes(code)) return 'suspended';
+  if (code === 10 || code === 18 || code === 14) return 'good';
+  if (code === 5) return 'minor';
+  if (code === 9 || code === 6 || code === 7 || code === 4 || code === 3) return 'severe';
+  if ([0, 11, 8, 16, 17, 19, 1, 2].includes(code)) return 'suspended';
+  if (code === 20) return 'unknown';
   return 'unknown';
 }
 

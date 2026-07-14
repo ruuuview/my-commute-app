@@ -49,21 +49,29 @@ export interface StationDetailScreenProps {
 // ─── Severity (copied from MyCommuteDashboard to avoid circular dep) ─
 type ScreenSeverity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'unknown';
 
-/** Map TfL severity codes: 10=good, 9/6=severe, 8/7/5=minor, 4/3/20/0/11=suspended */
+/** Map TfL severity codes: 10/18/14=good, 5=minor, 9/6/7/4/3=severe, 0/11/8/16/17/19/1/2=suspended, 20=unknown */
 function severityFromCode(code: number): ScreenSeverity {
-  if (code === 10) return 'good';
-  if (code === 9 || code === 6) return 'severe';
-  if (code === 8 || code === 7 || code === 5) return 'minor';
-  if ([4, 3, 20, 0, 11].includes(code)) return 'suspended';
+  if (code === 10 || code === 18 || code === 14) return 'good';
+  if (code === 5) return 'minor';
+  if (code === 9 || code === 6 || code === 7 || code === 4 || code === 3) return 'severe';
+  if ([0, 11, 8, 16, 17, 19, 1, 2].includes(code)) return 'suspended';
+  if (code === 20) return 'unknown';
   return 'unknown';
 }
 
 function parseSeverity(statusText: string): ScreenSeverity {
   const text = String(statusText ?? '').toLowerCase();
-  if (text.includes('good')) return 'good';
+  if (text.includes('good') && !text.includes('delay')) return 'good';
+  if (text.includes('closure')) return 'suspended';
+  if (text.includes('suspended')) return 'suspended';
+  if (text.includes('bus')) return 'suspended';
+  if (text.includes('not running')) return 'suspended';
+  if (text.includes('closed')) return 'suspended';
+  if (text.includes('severe')) return 'severe';
   if (text.includes('minor')) return 'minor';
-  if (text.includes('suspended') || text.includes('closure') || text.includes('closed')) return 'suspended';
-  if (text.includes('severe') || text.includes('delay')) return 'severe';
+  if (text.includes('delay')) return 'severe';
+  if (text.includes('information')) return 'good';
+  if (text.includes('reduced')) return 'minor';
   return 'unknown';
 }
 

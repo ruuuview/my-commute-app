@@ -50,20 +50,29 @@ const TFL_LINES = [
   { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'] },
 ];
 
-type StatusType = 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error';
+type StatusType = 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown';
 
 // Aligned with TfL Unified API Severity Specifications
 const getLineStatus = (severity: number, desc: string) => {
   const d = desc.toLowerCase();
-  if (severity === 10 || severity === 18)       return { statusType: 'good' as const,      label: desc || 'Good service' };
-  if (severity === 9 || severity === 14 || severity === 19) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-  if (severity === 6 || severity === 7 || severity === 8 || severity === 17) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-  if (severity === 0 || severity === 1 || severity === 2 || severity === 3 || severity === 4 || severity === 5 || severity === 11 || severity === 16 || severity === 20) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
+  if (severity === 10 || severity === 18 || severity === 14) return { statusType: 'good' as const, label: desc || 'Good service' };
+  if (severity === 5) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+  if (severity === 9 || severity === 6 || severity === 7 || severity === 4 || severity === 3) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+  if (severity === 0 || severity === 11 || severity === 8 || severity === 16 || severity === 17 || severity === 19 || severity === 1 || severity === 2) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
+  if (severity === 20) return { statusType: 'unknown' as const, label: desc || 'Unknown' };
   
-  if (d.includes('closure') || d.includes('closed') || d.includes('suspend')) return { statusType: 'suspended' as const, label: desc };
+  if (d.includes('good') && !d.includes('delay')) return { statusType: 'good' as const, label: desc };
+  if (d.includes('closure')) return { statusType: 'suspended' as const, label: desc };
+  if (d.includes('suspended')) return { statusType: 'suspended' as const, label: desc };
+  if (d.includes('bus')) return { statusType: 'suspended' as const, label: desc };
+  if (d.includes('not running')) return { statusType: 'suspended' as const, label: desc };
+  if (d.includes('closed')) return { statusType: 'suspended' as const, label: desc };
   if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
-  if (d.includes('delay')) return { statusType: 'minor' as const, label: desc };
-  return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+  if (d.includes('minor')) return { statusType: 'minor' as const, label: desc };
+  if (d.includes('delay')) return { statusType: 'severe' as const, label: desc };
+  if (d.includes('information')) return { statusType: 'good' as const, label: desc };
+  if (d.includes('reduced')) return { statusType: 'minor' as const, label: desc };
+  return { statusType: 'good' as const, label: desc || 'Good service' };
 };
 
 interface ManageLinesModalProps {
@@ -149,10 +158,11 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             foundAny = true;
             const statusData = apiStatuses[branchId];
             const getRank = (s: number) => {
-              if (s === 10 || s === 18) return 0;
-              if (s === 9 || s === 14 || s === 19) return 1;
-              if (s === 6 || s === 7 || s === 8 || s === 17) return 2;
-              return 3;
+              if (s === 10 || s === 18 || s === 14) return 0;
+              if (s === 5) return 1;
+              if (s === 9 || s === 6 || s === 7 || s === 4 || s === 3) return 2;
+              if (s === 0 || s === 11 || s === 8 || s === 16 || s === 17 || s === 19 || s === 1 || s === 2) return 3;
+              return 4;
             };
             if (getRank(statusData.severity) > getRank(worstSeverity)) {
               worstSeverity = statusData.severity;

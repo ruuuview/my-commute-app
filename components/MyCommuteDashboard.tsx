@@ -90,24 +90,33 @@ interface DashboardData {
 // Must stay aligned with useWorstStatus.ts severityToLevel() and AGENTS.md §1.
 //
 // TfL codes (raw):
-//   10       → good     (Good Service)
-//   6        → severe   (Severe Delays)
-//   9,8,7,5  → minor    (Minor Delays / Reduced Service / Part Closure)
-//   4,3,20,0,11 → suspended (Planned Closure / Suspended / Service Closed)
+//   10,18,14 → good     (Good Service / Special Service / Information)
+//   5         → minor    (Minor Delays)
+//   9,6,7,4,3 → severe  (Severe Delays / Part Suspended / Planned Closure)
+//   0,11,8,16,17,19,1,2 → suspended (Suspended / Not Running / Bus Service / Service Closed)
+//   20        → unknown  (Unknown)
 function getSeverityFromStatus(statusText: string, statusSeverity?: number): Severity {
   if (statusSeverity !== undefined) {
-    if (statusSeverity === 10) return 'good';
-    if (statusSeverity === 6) return 'severe';
-    if (statusSeverity === 9 || statusSeverity === 8 || statusSeverity === 7 || statusSeverity === 5) return 'minor';
-    if (statusSeverity === 4 || statusSeverity === 3 || statusSeverity === 20 || statusSeverity === 0 || statusSeverity === 11) return 'suspended';
+    if (statusSeverity === 10 || statusSeverity === 18 || statusSeverity === 14) return 'good';
+    if (statusSeverity === 5) return 'minor';
+    if (statusSeverity === 9 || statusSeverity === 6 || statusSeverity === 7 || statusSeverity === 4 || statusSeverity === 3) return 'severe';
+    if (statusSeverity === 0 || statusSeverity === 11 || statusSeverity === 8 || statusSeverity === 16 || statusSeverity === 17 || statusSeverity === 19 || statusSeverity === 1 || statusSeverity === 2) return 'suspended';
+    if (statusSeverity === 20) return 'unknown';
   }
   // Fallback: parse status text when severity code is missing or unrecognized
   const text = String(statusText ?? '').toLowerCase();
-  if (text.includes('good')) return 'good';
-  if (text.includes('minor') || text.includes('reduced') || text.includes('part closure')) return 'minor';
-  if (text.includes('suspended') || text.includes('closed') || text.includes('planned closure') || text.includes('not running')) return 'suspended';
-  if (text.includes('severe') || text.includes('delay')) return 'severe';
-  if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) return 'offline';
+  if (text.includes('good') && !text.includes('delay')) return 'good';
+  if (text.includes('closure')) return 'suspended';
+  if (text.includes('suspended')) return 'suspended';
+  if (text.includes('bus')) return 'suspended';
+  if (text.includes('not running')) return 'suspended';
+  if (text.includes('closed')) return 'suspended';
+  if (text.includes('severe')) return 'severe';
+  if (text.includes('minor')) return 'minor';
+  if (text.includes('delay')) return 'severe';
+  if (text.includes('information')) return 'good';
+  if (text.includes('reduced')) return 'minor';
+  if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) return 'unknown';
   return 'good';
 }
 
@@ -347,8 +356,6 @@ const MyCommuteDashboard: React.FC = () => {
 
   // ── Reroute state ──
   const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
-  const rerouteLineForSheet = useMemo(() => rerouteLine, [rerouteLine]);
-
 
 
 
@@ -385,10 +392,11 @@ const MyCommuteDashboard: React.FC = () => {
       let worstSeverityRank = -1;
 
       const getRank = (s: number) => {
-        if (s === 10) return 0;                       // good
-        if (s === 9 || s === 8 || s === 7) return 1;  // minor
-        if (s === 6) return 2;                        // severe
-        return 3;                                     // 5,4,3,20,0,11 → suspended
+        if (s === 10 || s === 18 || s === 14) return 0;                    // good
+        if (s === 5) return 1;                                             // minor
+        if (s === 9 || s === 6 || s === 7 || s === 4 || s === 3) return 2; // severe
+        if (s === 0 || s === 11 || s === 8 || s === 16 || s === 17 || s === 19 || s === 1 || s === 2) return 3; // suspended
+        return 4;                                                          // 20 → unknown
       };
 
       let foundAny = false;

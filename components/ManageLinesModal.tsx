@@ -56,10 +56,9 @@ type StatusType = 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loadi
 const getLineStatus = (severity: number, desc: string) => {
   const d = desc.toLowerCase();
   if (severity === 10 || severity === 18 || severity === 14) return { statusType: 'good' as const, label: desc || 'Good service' };
-  if (severity === 5) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-  if (severity === 9 || severity === 6 || severity === 7 || severity === 4 || severity === 3) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-  if (severity === 0 || severity === 11 || severity === 8 || severity === 16 || severity === 17 || severity === 19 || severity === 1 || severity === 2) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
-  if (severity === 20) return { statusType: 'unknown' as const, label: desc || 'Unknown' };
+  if (severity === 9 || severity === 7) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
+  if (severity === 6) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
+  if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(severity)) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
   
   if (d.includes('good') && !d.includes('delay')) return { statusType: 'good' as const, label: desc };
   if (d.includes('closure')) return { statusType: 'suspended' as const, label: desc };
@@ -158,10 +157,10 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             foundAny = true;
             const statusData = apiStatuses[branchId];
             const getRank = (s: number) => {
-              if (s === 10 || s === 18 || s === 14) return 0;
-              if (s === 5) return 1;
-              if (s === 9 || s === 6 || s === 7 || s === 4 || s === 3) return 2;
-              if (s === 0 || s === 11 || s === 8 || s === 16 || s === 17 || s === 19 || s === 1 || s === 2) return 3;
+              if (s === 10 || s === 18 || s === 14) return 0;                    // good
+              if (s === 9 || s === 7) return 1;                                  // minor
+              if (s === 6) return 2;                                             // severe
+              if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(s)) return 3; // suspended
               return 4;
             };
             if (getRank(statusData.severity) > getRank(worstSeverity)) {

@@ -98,10 +98,9 @@ interface DashboardData {
 function getSeverityFromStatus(statusText: string, statusSeverity?: number): Severity {
   if (statusSeverity !== undefined) {
     if (statusSeverity === 10 || statusSeverity === 18 || statusSeverity === 14) return 'good';
-    if (statusSeverity === 5) return 'minor';
-    if (statusSeverity === 9 || statusSeverity === 6 || statusSeverity === 7 || statusSeverity === 4 || statusSeverity === 3) return 'severe';
-    if (statusSeverity === 0 || statusSeverity === 11 || statusSeverity === 8 || statusSeverity === 16 || statusSeverity === 17 || statusSeverity === 19 || statusSeverity === 1 || statusSeverity === 2) return 'suspended';
-    if (statusSeverity === 20) return 'unknown';
+    if (statusSeverity === 9 || statusSeverity === 7) return 'minor';
+    if (statusSeverity === 6) return 'severe';
+    if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(statusSeverity)) return 'suspended';
   }
   // Fallback: parse status text when severity code is missing or unrecognized
   const text = String(statusText ?? '').toLowerCase();
@@ -393,10 +392,10 @@ const MyCommuteDashboard: React.FC = () => {
 
       const getRank = (s: number) => {
         if (s === 10 || s === 18 || s === 14) return 0;                    // good
-        if (s === 5) return 1;                                             // minor
-        if (s === 9 || s === 6 || s === 7 || s === 4 || s === 3) return 2; // severe
-        if (s === 0 || s === 11 || s === 8 || s === 16 || s === 17 || s === 19 || s === 1 || s === 2) return 3; // suspended
-        return 4;                                                          // 20 → unknown
+        if (s === 9 || s === 7) return 1;                                  // minor
+        if (s === 6) return 2;                                             // severe
+        if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(s)) return 3; // suspended
+        return 4;                                                          // unknown / error
       };
 
       let foundAny = false;

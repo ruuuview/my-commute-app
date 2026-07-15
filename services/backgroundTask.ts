@@ -169,21 +169,29 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       if (lineId === 'overground') {
         const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
         let worstBranchData: any = null;
-        let worstBranchSeverity = -1;
+        let worstBranchSeverity = 10;
+
+        const getRank = (s: number) => {
+          if (s === 10 || s === 18 || s === 14) return 0;                    // good
+          if (s === 9 || s === 7) return 1;                                  // minor
+          if (s === 6) return 2;                                             // severe
+          if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(s)) return 3; // suspended
+          return 4;
+        };
 
         OVERGROUND_BRANCH_IDS.forEach(branchId => {
           const branchData = fetchedLinesMap[branchId];
           if (branchData) {
             const statusText = String(branchData.status ?? '').toLowerCase();
-            let branchSeverity = 1;
+            let branchSeverity = 10;
             if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure') || statusText.includes('closed')) {
-              branchSeverity = 20;
+              branchSeverity = 5; // suspended
             } else if (statusText.includes('severe')) {
-              branchSeverity = 9;
-            } else if (statusText.includes('minor') || statusText.includes('part') || statusText.includes('reduced')) {
-              branchSeverity = 5;
+              branchSeverity = 6; // severe
+            } else if (statusText.includes('minor') || statusText.includes('reduced')) {
+              branchSeverity = 9; // minor
             }
-            if (branchSeverity > worstBranchSeverity) {
+            if (getRank(branchSeverity) > getRank(worstBranchSeverity)) {
               worstBranchSeverity = branchSeverity;
               worstBranchData = branchData;
             }
@@ -207,11 +215,11 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       const statusText = String(lineData.status ?? '').toLowerCase();
       let currentSeverity = 1; // Green (Good Service)
       if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure') || statusText.includes('closed')) {
-        currentSeverity = 20; // Red (Highest)
+        currentSeverity = 5; // suspended
       } else if (statusText.includes('severe')) {
-        currentSeverity = 9;  // Red (High)
-      } else if (statusText.includes('minor') || statusText.includes('part') || statusText.includes('reduced')) {
-        currentSeverity = 5;  // Amber (Medium)
+        currentSeverity = 6;  // severe
+      } else if (statusText.includes('minor') || statusText.includes('reduced')) {
+        currentSeverity = 9;  // minor
       }
 
       const statusDescription = lineData.status ?? 'Good Service';
@@ -227,7 +235,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         id: lineId,
         name: lineData.name,
         status: lineData.status ?? 'Good Service',
-        severity: currentSeverity === 1 ? 10 : (currentSeverity === 5 ? 9 : (currentSeverity === 9 ? 6 : 20)),
+        severity: currentSeverity === 1 ? 10 : currentSeverity,
       });
 
       if (currentSeverity !== lastSeverity) {

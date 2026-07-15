@@ -37,19 +37,17 @@ const SEVERITY: Record<StatusLevel, number> = {
  * to the canonical StatusLevel enum.
  * 
  * Canonical mapping (all files use this table):
- *   10,18,14 → good     (Good Service / Special Service / Information)
- *   5        → minor    (Minor Delays)
- *   9,6,7,4,3 → severe  (Severe Delays / Part Suspended / Planned Closure)
- *   0,11,8,16,17,19,1,2 → suspended (Suspended / Not Running / Bus Service / Service Closed)
- *   20       → unknown  (Unknown)
+ *   10,18,14 → good      (Good Service / Special Service / Information)
+ *   9,7      → minor     (Minor Delays / Reduced Service)
+ *   6        → severe    (Severe Delays)
+ *   5,4,3,0,11,8,16,17,19,1,2,20 → suspended (Part/Planned/Whole Closure, Suspended, Bus Service, Not Running)
  */
 function severityToLevel(patchedSeverity: number | undefined): StatusLevel {
   const code = patchedSeverity ?? 10;
   if (code === 10 || code === 18 || code === 14) return 'good';
-  if (code === 5) return 'minor';
-  if (code === 9 || code === 6 || code === 7 || code === 4 || code === 3) return 'severe';
-  if ([0, 11, 8, 16, 17, 19, 1, 2].includes(code)) return 'suspended';
-  if (code === 20) return 'unknown';
+  if (code === 9 || code === 7) return 'minor';
+  if (code === 6) return 'severe';
+  if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(code)) return 'suspended';
   return 'unknown';
 }
 

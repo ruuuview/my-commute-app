@@ -291,10 +291,10 @@ export class SessionManager {
     if (lineIds.length === 0) return 'Your lines are all clear.';
 
     // Filter disrupted lines the user actually tracks
-    // TfL severity codes: 10=good, 9/6=severe, 8/7/5=minor, 4/3/20/0/11=suspended
-    const SEVERE_CODES = new Set([9, 6]);
-    const MINOR_CODES = new Set([8, 7, 5]);
-    const SUSPENDED_CODES = new Set([4, 3, 20, 0, 11]);
+    // TfL severity codes: 10=good, 9/7=minor, 6=severe, 5/4/3/20/0/11/etc=suspended
+    const SEVERE_CODES = new Set([6]);
+    const MINOR_CODES = new Set([9, 7]);
+    const SUSPENDED_CODES = new Set([5, 4, 3, 0, 11, 8, 16, 17, 19, 1, 2, 20]);
 
     const disrupted = (lastKnownData || []).filter((d: any) => {
       if (!d) return false;

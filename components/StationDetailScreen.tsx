@@ -52,10 +52,9 @@ type ScreenSeverity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'u
 /** Map TfL severity codes: 10/18/14=good, 5=minor, 9/6/7/4/3=severe, 0/11/8/16/17/19/1/2=suspended, 20=unknown */
 function severityFromCode(code: number): ScreenSeverity {
   if (code === 10 || code === 18 || code === 14) return 'good';
-  if (code === 5) return 'minor';
-  if (code === 9 || code === 6 || code === 7 || code === 4 || code === 3) return 'severe';
-  if ([0, 11, 8, 16, 17, 19, 1, 2].includes(code)) return 'suspended';
-  if (code === 20) return 'unknown';
+  if (code === 9 || code === 7) return 'minor';
+  if (code === 6) return 'severe';
+  if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(code)) return 'suspended';
   return 'unknown';
 }
 

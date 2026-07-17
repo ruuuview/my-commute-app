@@ -1,4 +1,3 @@
-import { NativeModules } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import * as Notifications from 'expo-notifications';
 import { LiveActivityService } from './LiveActivityService';
@@ -311,7 +310,7 @@ export class SessionManager {
 
     // Detach the Tier 2 cache listener + clear the no-signal timer.
     const unsub = (LiveActivityService as any).__unsub;
-    if (typeof unsub === 'function') { try { unsub(); } catch (_) {} }
+    if (typeof unsub === 'function') { try { unsub(); } catch {} }
     const timer = (LiveActivityService as any).__noSignalTimer;
     if (typeof timer === 'number') { clearTimeout(timer); }
     backgroundStorage.remove('__no_signal_timer');

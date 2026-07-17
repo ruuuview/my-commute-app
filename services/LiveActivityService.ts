@@ -24,7 +24,7 @@
 
 import { NativeModules, Platform } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
-import { getTier2Cache, type Tier2Cache } from '../services/tier2Cache';
+import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { tflCapitalise } from '../utils/tflCapitalise';
 
@@ -41,13 +41,12 @@ export interface LiveActivityBridgePayload {
   lineId: string;
   lineName: string;
   branchKnown: boolean;
-  arrivals: Array<{ destinationName: string; timeToStationSeconds: number }>;
+  arrivals: { destinationName: string; timeToStationSeconds: number }[];
   statusText: string;
   isDisrupted: boolean;
   signalState: LiveActivitySignalState;
 }
 
-const SOFTEN_THRESHOLD_SECONDS = 5 * 60; // under ~5 min = full confidence
 
 export class LiveActivityService {
   private static activeAbortController: AbortController | null = null;

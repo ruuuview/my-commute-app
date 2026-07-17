@@ -60,10 +60,8 @@ import { APP_CONFIG } from '../config/app.config';
 import RerouteScreen from './RerouteScreen';
 import {
   resolveRerouteMode,
-  shouldShowRerouteCTA,
   buildRerouteLinks,
 } from './rerouteHelpers';
-import * as Linking from 'expo-linking';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

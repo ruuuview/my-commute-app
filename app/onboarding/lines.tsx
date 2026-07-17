@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter, useNavigation } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
@@ -64,7 +64,6 @@ function getCtaLabel(selectedCount: number): string {
 export default function LinesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const reducedMotion = useReducedMotion();
   const { width, height: screenHeight } = useWindowDimensions();
 

@@ -233,20 +233,13 @@ export default function LinesScreen() {
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    useUserPreferencesStore.setState({
-      hasCompletedOnboarding: true,
-      onboardingStep: 2,
-    });
+    // Skip line selection → still surface the TfL registration step (hard
+    // prerequisite, Day 1). Do NOT jump straight to the dashboard.
+    useUserPreferencesStore.setState({ onboardingStep: 2 });
 
-    const parentNav = navigation.getParent();
-    if (parentNav) {
-      (parentNav as any).reset({
-        index: 0,
-        routes: [{ name: '(tabs)' }],
-      });
-    } else {
-      router.replace('/(tabs)');
-    }
+    requestAnimationFrame(() => {
+      router.push('/onboarding/tfl-registration' as any);
+    });
   };
 
   const ctaLabel = getCtaLabel(selectedLines.length);

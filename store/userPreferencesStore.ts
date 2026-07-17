@@ -24,12 +24,13 @@ const mmkvStorageAdapter: StateStorage = {
 export interface UserPreferencesState {
   schemaVersion: number;
   hasCompletedOnboarding: boolean;
-  onboardingStep: 0 | 1 | 2 | 3;
+  onboardingStep: 0 | 1 | 2 | 3; // 0=lines, 1=stations, 2=tfl-registration, 3=done
   selectedLines: string[];
   pinnedStations: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[];
   notificationsGranted: boolean;
   calendarGranted: boolean;
   locationGranted: boolean;
+  tflRegistered: boolean; // TfL account registered (12mo history) vs unregistered (7-day only)
   entitlementActive: boolean;
   trialStartDate: string | null;
   lastKnownStatus: StatusLevel;
@@ -42,11 +43,13 @@ export interface UserPreferencesState {
   hasSeenConfirmationCard: boolean;
   arrivalNotificationsEnabled: boolean;
   arrivalSnoozeExpiry: number | null; // UTC epoch
+  lastPreboardedDirection: string | null; // Priority 1 pre-board (NOT confirmed) — set by directionNotification
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
   setNotificationsGranted: (granted: boolean) => void;
   setLocationGranted: (granted: boolean) => void;
   setEntitlementActive: (active: boolean) => void;
+  setTflRegistered: (registered: boolean) => void;
   completeOnboarding: () => void;
   toggleLine: (id: string) => void;
   pinStation: (station: { id: string; name: string; lines: string[]; zone: number }, role: 'home' | 'work' | 'other') => void;
@@ -73,7 +76,7 @@ export interface UserPreferencesState {
   setArrivalSnoozeExpiry: (expiry: number | null) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -82,6 +85,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   notificationsGranted: false,
   calendarGranted: false,
   locationGranted: false,
+  tflRegistered: false,
   entitlementActive: false,
   trialStartDate: null,
   lastKnownStatus: 'unknown',
@@ -94,6 +98,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   hasSeenConfirmationCard: false,
   arrivalNotificationsEnabled: true,
   arrivalSnoozeExpiry: null,
+  lastPreboardedDirection: null,
   recentSearches: [],
   stationFilterToggles: {},
   hapticsEnabled: true,
@@ -149,7 +154,20 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setNotificationsGranted: (granted) => set({ notificationsGranted: granted }),
       setLocationGranted: (granted) => set({ locationGranted: granted }),
       setEntitlementActive: (active) => set({ entitlementActive: active }),
-      completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 2 }),
+      setTflRegistered: (registered) => {
+        // NOTE — Day 23 copy branching (see master plan REFUND RADAR section):
+        // This flag is the branch key for the Day 23 notification copy bank.
+        // Registered users (tflRegistered === true) must receive the DEADLINE-URGENCY
+        // variant ("your £X turns into £0.00 this week...") because they have up to
+        // 12 months of claimable history and the deadline is real for them.
+        // Unregistered users (tflRegistered === false) must NEVER receive deadline urgency
+        // for a journey they cannot access — they get the "register now so the next one
+        // doesn't vanish too" variant instead. The notification copy logic (not built here)
+        // reads this flag from the store before selecting the template. Do not show urgency
+        // to unregistered users.
+        set({ tflRegistered: registered });
+      },
+      completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 3 }),
       resetOnboarding: () => set({ hasCompletedOnboarding: false, onboardingStep: 0, selectedLines: [], pinnedStations: [] }),
       toggleLine: (id: string) => {
         set(state => {

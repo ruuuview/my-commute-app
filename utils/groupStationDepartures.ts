@@ -119,15 +119,24 @@ function normaliseDestination(raw: string): string {
     .trim();
 }
 
+// Abbreviations TfL uses that aren't self-explanatory
+const VIA_EXPANSIONS: Record<string, string> = {
+  'CX': 'Charing Cross',
+  'Charing X': 'Charing Cross',
+  'T4 Loop': 'Terminal 4 Loop',
+};
+
 function inferBranchName(dep: any): string | undefined {
   if (dep.branchName) return dep.branchName;
-  if (dep.platform) {
-    const p = dep.platform.toLowerCase();
-    if (p.includes('via bank')) return 'via Bank';
-    if (p.includes('via charing cross')) return 'via Charing Cross';
-    if (p.includes('via city branch')) return 'via City';
+  // Extract raw "via X" from towards (TfL's canonical source), then platform as fallback
+  const source = dep.towards || dep.platform || '';
+  const match = String(source).match(/\b(via\s+.+)/i);
+  if (!match) return undefined;
+  let via = match[1].trim();
+  for (const [abbr, full] of Object.entries(VIA_EXPANSIONS)) {
+    via = via.replace(new RegExp(`\\b${abbr}\\b`, 'gi'), full);
   }
-  return undefined;
+  return via;
 }
 
 /**

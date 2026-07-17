@@ -2,6 +2,8 @@ import { NativeModules } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import * as Notifications from 'expo-notifications';
 import { LiveActivityService } from './LiveActivityService';
+import { triggerTier2Grab, onTier2CachePopulated, getTier2Cache } from './tier2Cache';
+import { maybeFireDirectionNotification } from './directionNotification';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { tflCapitalise } from '../utils/tflCapitalise';
 
@@ -31,6 +33,10 @@ export class SessionManager {
     return backgroundStorage.getString('commute_origin_id') ?? null;
   }
 
+  static getCommuteLineId(): string {
+    return backgroundStorage.getString('commute_line_id') ?? 'unknown';
+  }
+
   static getCommuteStartTime(): number | null {
     const val = backgroundStorage.getString('commute_start_time');
     return val ? parseInt(val, 10) : null;
@@ -56,13 +62,7 @@ export class SessionManager {
       const origin = pinned.find(s => s.id === originId)?.name || 'Origin';
       const dest = pinned.find(s => s.id === destinationId)?.name || 'Destination';
 
-      await LiveActivityService.start({
-        originStation: origin,
-        destinationStation: dest,
-        lineId: lineId,
-        lineName: lineName,
-        originId: originId
-      });
+      await LiveActivityService.start(originId, lineId);
 
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -82,6 +82,70 @@ export class SessionManager {
   static async handleGeofenceEnter(stationId: string, role: 'home' | 'work' | 'other', stationName: string) {
     const currentState = this.getSessionState();
     console.log(`[SessionManager] Entered geofence: ${stationId} (${role}), state: ${currentState}`);
+
+    // P0: Fire the Tier 2 cache grab immediately + silently on geofence entry.
+    // The Tier2CacheManager WRITES the cache; the Swift Live Activity READS it.
+    // Single write, single source — never duplicate this cache elsewhere.
+    const prefState = useUserPreferencesStore.getState();
+    const targetStation = (prefState.pinnedStations || []).find((s) => s.id === stationId);
+    const lineId = targetStation?.lines?.[0] || prefState.selectedLines?.[0] || 'unknown';
+    triggerTier2Grab(stationId, lineId);
+
+    // Fire the Type B direction notification once the Tier 2 cache populates.
+    // Single-shot subscription: fires for THIS station, then cleans itself up.
+    // Falls through to Priority 2 (no notification) if no endpoints derivable.
+    const unsub = onTier2CachePopulated((cache) => {
+      if (cache.stationId !== stationId) return; // not our station yet
+      unsub();
+      maybeFireDirectionNotification(stationId, lineId, cache).catch((e) =>
+        console.error('[SessionManager] Direction notification failed:', e)
+      );
+    });
+
+    // Live Activity reads the Tier 2 cache. Subscribe so every cache refresh
+    // (re-)renders the Island / Lock Screen. Single source of truth, no dup.
+    let wasNoSignal = !getTier2Cache(stationId);
+    const unsubscribe = onTier2CachePopulated((cache) => {
+      if (cache.stationId !== stationId) return;
+      LiveActivityService.update(stationId, lineId).catch((e) =>
+        console.error('[SessionManager] Live Activity update from cache failed:', e)
+      );
+      // Signal returned after a gap: recovery flash + one-time local push.
+      if (wasNoSignal) {
+        wasNoSignal = false;
+        const hero = (cache.platforms || [])[0];
+        const dest = hero?.destinationName || tflCapitalise(lineId);
+        const mins = Math.max(0, Math.round((hero?.timeToStation || 0) / 60));
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Got it',
+            body: `${dest}, ${mins} min`,
+            sound: false,
+          },
+          trigger: null,
+        }).catch(() => {});
+      }
+    });
+    (LiveActivityService as any).__unsub = unsubscribe;
+
+    // No-signal handling: if the cache never populates within a short window,
+    // fire the one-time Type B local push (zero network). Honest void, not a
+    // false card — the Live Activity is simply not started until data exists.
+    const noSignalTimer = setTimeout(() => {
+      if (!getTier2Cache(stationId)) {
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: "Signal's patchy here — still trying.",
+            body: 'Check the platform board for now.',
+            sound: false,
+          },
+          trigger: null,
+        }).catch(() => {});
+      }
+    }, 6000);
+    backgroundStorage.set('__no_signal_timer', '1');
+    // Store timer handle for cleanup on session end.
+    (LiveActivityService as any).__noSignalTimer = noSignalTimer;
 
     const state = useUserPreferencesStore.getState();
     const pinnedStations = state.pinnedStations || [];
@@ -180,19 +244,16 @@ export class SessionManager {
 
     if (currentState === 'active') {
       const originId = this.getCommuteOriginId();
+      const exitLineId = this.getCommuteLineId();
       if (stationId === originId) {
         // Exited origin station -> set Live Activity status to In Transit
         const isRunning = await LiveActivityService.isActive();
         if (isRunning) {
           try {
-            const lastNext = parseInt(backgroundStorage.getString('last_known_next') || '0', 10);
-            const lastFollow = parseInt(backgroundStorage.getString('last_known_follow') || '0', 10);
-            const { LiveActivityModule } = NativeModules;
-            if (LiveActivityModule && typeof LiveActivityModule.updateCommuteActivity === 'function') {
-              await LiveActivityModule.updateCommuteActivity(lastNext, lastFollow, 'In Transit...');
-            }
+            // Refresh the Live Activity from the (now mid-journey) Tier 2 cache.
+            await LiveActivityService.update(originId, exitLineId);
           } catch (e) {
-            console.error('[SessionManager] Exit update status failed:', e);
+            console.error('[SessionManager] Exit update failed:', e);
           }
         }
 
@@ -248,6 +309,13 @@ export class SessionManager {
 
     await LiveActivityService.end().catch(e => console.error('[SessionManager] End Live Activity failed:', e));
 
+    // Detach the Tier 2 cache listener + clear the no-signal timer.
+    const unsub = (LiveActivityService as any).__unsub;
+    if (typeof unsub === 'function') { try { unsub(); } catch (_) {} }
+    const timer = (LiveActivityService as any).__noSignalTimer;
+    if (typeof timer === 'number') { clearTimeout(timer); }
+    backgroundStorage.remove('__no_signal_timer');
+    backgroundStorage.remove('tfl_global_outage');
     backgroundStorage.set('session_state', 'idle');
     backgroundStorage.remove('dwell_timer_expires');
 

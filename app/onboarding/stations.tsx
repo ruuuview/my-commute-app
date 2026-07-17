@@ -304,35 +304,26 @@ export default function StationsScreen() {
         pinnedStations: mappedStations,
       });
 
-      // Complete onboarding state directly
-      useUserPreferencesStore.getState().completeOnboarding();
+      // First-time onboarding: advance to the TfL registration step (step 2),
+      // NOT straight to the dashboard. TfL registration is a hard prerequisite
+      // surfaced on Day 1 — the user must see it before the Grand Reveal.
+      useUserPreferencesStore.setState({ onboardingStep: 2 });
 
-      // Reset parent navigation stack to main dashboard tabs (triggering Grand Reveal)
-      const parentNav = navigation.getParent();
-      if (parentNav) {
-        (parentNav as any).reset({
-          index: 0,
-          routes: [{ name: '(tabs)' }],
-        });
-      } else {
-        router.replace('/(tabs)');
-      }
+      requestAnimationFrame(() => {
+        router.push('/onboarding/tfl-registration' as any);
+      });
     }
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    useUserPreferencesStore.getState().completeOnboarding();
+    // Skip station selection → still surface the TfL registration step
+    // (hard prerequisite, Day 1). Do NOT jump straight to the dashboard.
+    useUserPreferencesStore.setState({ onboardingStep: 2 });
 
-    const parentNav = navigation.getParent();
-    if (parentNav) {
-      (parentNav as any).reset({
-        index: 0,
-        routes: [{ name: '(tabs)' }],
-      });
-    } else {
-      router.replace('/(tabs)');
-    }
+    requestAnimationFrame(() => {
+      router.push('/onboarding/tfl-registration' as any);
+    });
   };
 
   const handleRecentPress = (station: TfLStation) => {

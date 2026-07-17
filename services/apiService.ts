@@ -11,6 +11,8 @@ export interface NormalizedDeparture {
   destination: string;
   platform: string;
   expectedArrival: string;
+  towards?: string;
+  via?: string;
   firstTrain?: string;
   lastTrain?: string;
   firstTrainDestination?: string;
@@ -28,11 +30,33 @@ export interface NormalizedStationArrivals {
   departures: NormalizedDeparture[];
 }
 
+// Abbreviations TfL uses that aren't self-explanatory
+const VIA_EXPANSIONS: Record<string, string> = {
+  'CX': 'Charing Cross',
+  'Charing X': 'Charing Cross',
+  'T4 Loop': 'Terminal 4 Loop',
+};
+
+export function extractViaText(towards?: string, platform?: string): string | undefined {
+  // Check towards first (TfL's canonical source), then platform as fallback
+  const source = towards || platform || '';
+  const match = source.match(/\b(via\s+.+)/i);
+  if (!match) return undefined;
+  let via = match[1].trim();
+  // Expand only non-obvious abbreviations
+  for (const [abbr, full] of Object.entries(VIA_EXPANSIONS)) {
+    via = via.replace(new RegExp(`\\b${abbr}\\b`, 'gi'), full);
+  }
+  return via;
+}
+
 export function cleanPlatformName(platform: string): string {
   if (!platform) return '';
   return String(platform)
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
     .replace(/Platform\s*/i, 'P')
+    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
+    .replace(/\s*-\s*$/g, '')
     .trim();
 }
 
@@ -42,6 +66,7 @@ export function cleanDestinationName(dest: string): string {
     .replace(' Underground Station', '')
     .replace(' DLR Station', '')
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
     .trim();
 }
 
@@ -133,6 +158,10 @@ export async function fetchNormalizedStationArrivals(
     };
     canonicalLineId = LINE_ID_ALIASES[canonicalLineId] ?? canonicalLineId;
 
+    const rawTowards = dep.towards || undefined;
+    const rawPlatform = dep.platform || undefined;
+    const via = extractViaText(rawTowards, rawPlatform);
+
     return {
       lineId: canonicalLineId,
       lineName: dep.line,
@@ -141,6 +170,8 @@ export async function fetchNormalizedStationArrivals(
       destination: cleanDestinationName(dep.destination),
       platform: cleanPlatformName(dep.platform),
       expectedArrival: dep.expected_arrival || '',
+      towards: rawTowards,
+      via,
       firstTrain: dep.firstTrain || undefined,
       lastTrain: dep.lastTrain || undefined,
       firstTrainDestination: dep.firstTrainDestination || undefined,

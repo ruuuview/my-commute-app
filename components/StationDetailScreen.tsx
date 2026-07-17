@@ -100,6 +100,7 @@ function cleanDestination(dest: string): string {
     .replace(' DLR Station', '')
     .replace(' Rail Station', '')
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
     .trim();
 }
 
@@ -108,6 +109,9 @@ function cleanPlatform(platform: string): string {
   if (!platform) return '';
   const stripped = String(platform)
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+    .replace(/Platform\s*/i, 'P')
+    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
+    .replace(/\s*-\s*$/g, '')
     .trim();
   return stripped;
 }
@@ -237,7 +241,10 @@ export default function StationDetailScreen({
 
     return (
       <View key={`arr-${idx}`} style={s.arrivalRow} testID={`screen-arrival-${idx}`}>
-        <Text style={s.arrivalDest} numberOfLines={1}>{dest}</Text>
+        <Text style={s.arrivalDest} numberOfLines={1}>
+          {dest}
+          {dep.via ? <Text style={s.arrivalVia}> {dep.via}</Text> : null}
+        </Text>
         {platform ? <Text style={s.arrivalPlatform} numberOfLines={1}>{platform}</Text> : null}
         <Text style={timeStyle} numberOfLines={1}>{timeText}</Text>
       </View>
@@ -587,6 +594,11 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.45)',
     marginRight: 4,
+  },
+  arrivalVia: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.45)',
   },
   depTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

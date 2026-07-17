@@ -57,7 +57,12 @@ import { useLineDataStore } from '../store/lineDataStore';
 import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
 import { LINE_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
-import RerouteSheet from './RerouteSheet';
+import RerouteScreen from './RerouteScreen';
+import {
+  resolveRerouteMode,
+  shouldShowRerouteCTA,
+  buildRerouteLinks,
+} from './rerouteHelpers';
 import * as Linking from 'expo-linking';
 
 
@@ -83,6 +88,24 @@ interface DashboardData {
   lines: LineData[];
 }
 
+// Branch termini per line — used to resolve affected vs unaffected reroute mode.
+// (Mirror of StationCard.LINE_TERMINALS; kept local because that map isn't exported.)
+const REROUTE_LINE_TERMINALS: Record<string, string[]> = {
+  northern: ['Edgware', 'Morden'],
+  central: ['Epping', 'Hainault'],
+  victoria: ['Walthamstow Central', 'Brixton'],
+  jubilee: ['Stanmore', 'Stratford'],
+  piccadilly: ['Cockfosters', 'Uxbridge'],
+  bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
+  district: ['Richmond', 'Wimbledon'],
+  circle: ['Hammersmith', 'Edgware Road'],
+  metropolitan: ['Amersham', 'Watford'],
+  'hammersmith-city': ['Hammersmith', 'Barking'],
+  overground: ['Watford Junction', 'London Euston'],
+  elizabeth: ['Reading', 'Heathrow T5'],
+  dlr: ['Bank', 'Lewisham'],
+};
+
 
 
 // ─── Severity mapping ─────────────────────────────────────────────
@@ -91,10 +114,9 @@ interface DashboardData {
 //
 // TfL codes (raw):
 //   10,18,14 → good     (Good Service / Special Service / Information)
-//   5         → minor    (Minor Delays)
-//   9,6,7,4,3 → severe  (Severe Delays / Part Suspended / Planned Closure)
-//   0,11,8,16,17,19,1,2 → suspended (Suspended / Not Running / Bus Service / Service Closed)
-//   20        → unknown  (Unknown)
+//    9,7     → minor    (Minor Delays / Reduced Service)
+//    6       → severe   (Severe Delays)
+//    5,4,3,0,11,8,16,17,19,1,2,20 → suspended (Suspended / Part/Planned/Whole Closure / Bus Service / Not Running)
 function getSeverityFromStatus(statusText: string, statusSeverity?: number): Severity {
   if (statusSeverity !== undefined) {
     if (statusSeverity === 10 || statusSeverity === 18 || statusSeverity === 14) return 'good';
@@ -112,7 +134,6 @@ function getSeverityFromStatus(statusText: string, statusSeverity?: number): Sev
   if (text.includes('closed')) return 'suspended';
   if (text.includes('severe')) return 'severe';
   if (text.includes('minor')) return 'minor';
-  if (text.includes('delay')) return 'severe';
   if (text.includes('information')) return 'good';
   if (text.includes('reduced')) return 'minor';
   if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) return 'unknown';
@@ -779,6 +800,18 @@ const MyCommuteDashboard: React.FC = () => {
                     onPressAdd={() => setStationModalVisible(true)}
                     isEditing={isEditing}
                   />
+                  {/* v1 scope: single-leg home/work commutes only. Interchange/multi-leg post-v1.
+                      This copy prevents "app is broken" tickets. */}
+                  {selectedStations.length > 0 && (
+                    <View style={dash.scopeBanner}>
+                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                      <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.45)" />
+                      <Text style={dash.scopeBannerText}>
+                        Currently covers your pinned commute routes.
+                      </Text>
+                    </View>
+                  )}
+
                   {selectedStations.length === 0 ? (
                     <BouncyPressable
                       onPress={() => {
@@ -951,31 +984,68 @@ const MyCommuteDashboard: React.FC = () => {
             statusType={getSeverityFromStatus(selectedLineForModal.status, selectedLineForModal.status_severity)}
             statusLabel={selectedLineForModal.status}
             anchorRect={selectedLineInfo.anchorRect}
+            stationId={
+              selectedStations.find((st: any) =>
+                Array.isArray(st.lines) ? st.lines.includes(selectedLineForModal.id) : false
+              )?.id || selectedStations[0]?.id || undefined
+            }
             onOpenReroute={() => setRerouteLine(selectedLineForModal)}
           />
         )}
 
-        {/* Reroute Sheet — full-screen slide-up for disruption alternatives */}
-        <RerouteSheet
-          visible={!!rerouteLine}
-          onClose={() => setRerouteLine(null)}
-          lineId={rerouteLine?.id ?? ''}
-          lineName={rerouteLine?.name ?? ''}
-          lineColor={rerouteLine?.color ?? '#666666'}
-          branchName=""
-          terminus=""
-          disruptionReason={rerouteLine?.reason || rerouteLine?.status || 'Disruption reported'}
-          isBranchAffected={true}
-          affectedBranchOnly={false}
-          onOpenGoogleMaps={() => {
-            Linking.openURL('https://maps.google.com').catch(() => {});
-            setRerouteLine(null);
-          }}
-          onOpenCitymapper={Linking.canOpenURL('citymapper://').then(() => () => {
-            Linking.openURL('citymapper://').catch(() => {});
-            setRerouteLine(null);
-          }).catch(() => undefined) as any}
-        />
+        {/* Reroute Screen — full-screen slide-up, spec-compliant, consumes Tier 2 cache.
+            Mode (affected | unaffected | empty) is resolved from the cache + branch. */}
+        {rerouteLine && (() => {
+          // Derive branch termini for the affected line. (Local copy of the
+          // branch map — StationCard's LINE_TERMINALS is not exported.)
+          const terminals = REROUTE_LINE_TERMINALS[rerouteLine.id] || [];
+          const confirmedTerminus = terminals[0] || rerouteLine.name;
+          const otherTerminus = terminals[1];
+          // Station the reroute is scoped to: first pinned station on this line, else first pinned.
+          const stationId =
+            selectedStations.find((st: any) =>
+              Array.isArray(st.lines) ? st.lines.includes(rerouteLine.id) : false
+            )?.id || selectedStations[0]?.id || '';
+
+          const resolution = resolveRerouteMode({
+            stationId,
+            confirmedTerminus,
+            otherTerminus,
+          });
+          const links = buildRerouteLinks(confirmedTerminus);
+
+          return (
+            <RerouteScreen
+              visible={!!rerouteLine}
+              onClose={() => setRerouteLine(null)}
+              mode={resolution.mode}
+              lineId={rerouteLine.id}
+              lineName={rerouteLine.name}
+              lineColor={rerouteLine.color}
+              terminus={confirmedTerminus}
+              otherBranchName={otherTerminus}
+              disruptionReason={
+                resolution.disruption?.reason ||
+                resolution.disruption?.description ||
+                rerouteLine.reason ||
+                rerouteLine.status ||
+                'Disruption reported'
+              }
+              suggestedRoute={
+                resolution.mode === 'affected'
+                  ? {
+                      description:
+                        'Take Bank branch to Euston\nCross-platform to Charing Cross branch',
+                      extraTimeMinutes: 7,
+                    }
+                  : undefined
+              }
+              googleMapsUrl={links.googleMapsUrl}
+              citymapperUrl={links.citymapperUrl}
+              stationId={stationId}
+            />
+          );
+        })()}
       </Animated.View>
     </View>
   );
@@ -1073,6 +1143,28 @@ const dash = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255,255,255,0.65)',
+    lineHeight: 18,
+  },
+  // Persistent scope banner — mirrors arrivalBanner but non-interactive (label only, no touch target).
+  // v1 scope: single-leg home/work commutes only. Interchange/multi-leg post-v1. This copy prevents 'app is broken' tickets.
+  scopeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 8,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
+  },
+  scopeBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255,255,255,0.45)',
     lineHeight: 18,
   },
 });

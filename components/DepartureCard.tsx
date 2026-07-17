@@ -58,6 +58,8 @@ function cleanPlatform(platform: string): string {
   return String(platform)
     .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
     .replace(/Platform\s*/i, 'P')
+    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
+    .replace(/\s*-\s*$/g, '')
     .trim();
 }
 
@@ -218,6 +220,9 @@ const DepartureCard = memo(function DepartureCard({
                   <View style={styles.destPlatform}>
                     <Text style={styles.arrDest} numberOfLines={1}>
                       {arr.destination}
+                      {arr.via ? (
+                        <Text style={styles.arrVia}> {arr.via}</Text>
+                      ) : null}
                     </Text>
                     {platform ? (
                       <Text style={styles.arrPlatform} numberOfLines={1}>
@@ -310,6 +315,11 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.35)',
+  },
+  arrVia: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.45)',
   },
   arrTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

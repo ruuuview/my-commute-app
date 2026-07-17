@@ -1,0 +1,32 @@
+{
+  "name": "my-commute-live-activity",
+  "version": "1.0.0",
+  "description": "Expo Modules bridge exposing ActivityKit Live Activity control to React Native. Reads the Tier 2 cache (never writes it).",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "build": "expo-module build"
+  },
+  "dependencies": {
+    "expo-modules-core": "~14.0.0"
+  },
+  "devDependencies": {
+    "expo-module-scripts": "~4.0.0"
+  },
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "platforms": {
+    "ios": {
+      "podspecPath": "my-commute-live-activity.podspec",
+      "modules": [
+        "MyCommuteLiveActivityModule"
+      ]
+    },
+    "android": "unsupported"
+  },
+  "expo": {
+    "assets": []
+  },
+  "private": true
+}

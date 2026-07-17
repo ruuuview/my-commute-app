@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { StatusBezel } from './StatusBezel';
 import { Ionicons } from '@expo/vector-icons';
+import { shouldShowRerouteCTA } from './rerouteHelpers';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -66,6 +67,9 @@ interface LineDetailModalProps {
   statusLabel: string;
   anchorRect: AnchorRect | null;
   onOpenReroute?: () => void;
+  /** Optional station id — when provided, the CTA is gated on the Tier 2 cache
+   *  (shown only when cache.disruption.isDisrupted is true; absent otherwise). */
+  stationId?: string;
 }
 
 const STATUS_TOKENS: Record<
@@ -125,6 +129,7 @@ export function LineDetailModal({
   statusLabel,
   anchorRect,
   onOpenReroute,
+  stationId,
 }: LineDetailModalProps) {
   const insets = useSafeAreaInsets();
   const MIN_ALLOWED_TOP = insets.top + 12;
@@ -294,13 +299,23 @@ export function LineDetailModal({
                 </View>
               ) : null}
 
-              {/* ── See alternative routes CTA — only when disrupted ── */}
-              {statusType !== 'good' && statusType !== 'loading' && statusType !== 'error' && statusType !== 'unknown' && statusType !== 'offline' && onOpenReroute ? (
+              {/* ── See alternative routes CTA — only when disrupted ──
+                  Rule 11: absent (never greyed) when not disrupted. When a
+                  stationId is available we gate on the Tier 2 cache
+                  (shouldShowRerouteCTA); otherwise fall back to status type. */}
+              {(stationId
+                ? shouldShowRerouteCTA(stationId)
+                : (statusType !== 'good' &&
+                  statusType !== 'loading' &&
+                  statusType !== 'error' &&
+                  statusType !== 'unknown' &&
+                  statusType !== 'offline')) &&
+              onOpenReroute ? (
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    onOpenReroute();
                     onClose();
-                    setTimeout(() => onOpenReroute(), 300);
                   }}
                   style={({ pressed }) => [
                     styles.rerouteButton,

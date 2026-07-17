@@ -69,7 +69,9 @@
       "expo-font",
       "expo-asset",
       "expo-web-browser",
-      "./plugins/withFmtCpp17"
+      "./plugins/withFmtCpp17",
+      "@bacons/apple-targets",
+      "./modules/my-commute-live-activity"
     ],
     "experiments": {
       "typedRoutes": true

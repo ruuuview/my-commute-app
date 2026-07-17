@@ -21,6 +21,7 @@ import { syncToWidget } from '../utils/widgetSync';
 import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
 import * as Notifications from 'expo-notifications';
 import { SessionManager } from '../services/SessionManager';
+import { installDirectionNotification } from '../services/directionNotification';
 
 SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
@@ -172,6 +173,13 @@ export default function RootLayout() {
   useEffect(() => {
     async function setupNotificationCategories() {
       try {
+        // Install the Type B direction-notification (Priority 1) category +
+        // response listener. Binary chips, on-device, zero network.
+        installDirectionNotification();
+      } catch (e) {
+        console.warn('[NotificationCategory] direction install failed:', e);
+      }
+      try {
         await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', [
           {
             identifier: 'snooze4h',
@@ -271,7 +279,9 @@ export default function RootLayout() {
       const onRootIndex = pathSegments.length === 0 || pathSegments[0] === 'index';
       const targetPath = onboardingStep === 1
         ? '/onboarding/stations'
-        : '/onboarding/lines';
+        : onboardingStep === 2
+          ? '/onboarding/tfl-registration'
+          : '/onboarding/lines';
       const currentPath = `/${pathSegments.join('/')}`;
       
       if (!onRootIndex && currentPath !== targetPath) {

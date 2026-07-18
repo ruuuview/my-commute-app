@@ -27,9 +27,9 @@ import {
   StyleSheet,
   Text,
   View,
-  Platform,
   Linking,
 } from 'react-native';
+import { getTier2Cache, Tier2Cache, Tier2Disruption } from '../services/tier2Cache';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -63,10 +63,8 @@ const ICON = {
   fine: 'checkmark-circle-outline' as const,
 };
 
-// ─── Tier 2 cache (B1) ────────────────────────────────────────────
 // We read disruption from the P0 cache, never re-fetch TfL. The cache is the
 // single source of truth for Reroute (see tier2Cache.ts SINGLE-WRITE DISCIPLINE).
-import { getTier2Cache, Tier2Cache, Tier2Disruption } from '../services/tier2Cache';
 
 // ─── Glass tokens ─────────────────────────────────────────────────
 // CEO decision: the SHIPPED app is the source of truth. The shared GLASS token

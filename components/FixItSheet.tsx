@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { playSound } from '../utils/sound';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -42,6 +43,7 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
   const setStationRole = useUserPreferencesStore(s => s.setStationRole);
   const stations = useUserPreferencesStore(s => s.pinnedStations || []);
+  const donePress = usePressAnimation('continue_btn');
 
   // Snapshot of roles so local toggling is instant via setStationRole (which already persists)
   const hasChanged = useSharedValue(false);
@@ -50,6 +52,7 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
   // Track if user actually changed anything vs just "looks right"
   const handleChipPress = useCallback((stationId: string, role: 'home' | 'work') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    playSound('select', 0.45).catch(() => {});
     setStationRole(stationId, role);
     hasChanged.value = true;
     // Use a micro-task to let the store update before reading
@@ -101,17 +104,19 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
           </ScrollView>
 
           {/* Button */}
-          <Pressable
+          <AnimatedPressable
             onPress={onClose}
-            style={({ pressed }) => [
+            onPressIn={donePress.onPressIn}
+            onPressOut={donePress.onPressOut}
+            style={[
               styles.doneBtn,
-              pressed && { opacity: 0.7 },
+              donePress.animatedStyle,
             ]}
           >
             <Text style={styles.doneBtnText}>
               {changed ? 'Done' : 'Looks right'}
             </Text>
-          </Pressable>
+          </AnimatedPressable>
         </Animated.View>
       </View>
     </Modal>

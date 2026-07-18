@@ -46,6 +46,10 @@ export interface Tier2Disruption {
   severity: number; // TfL severity code
   description: string;
   reason: string | null;
+  /** The line this disruption belongs to. Set explicitly on write so the
+   *  resolveRerouteMode lineId guard cannot be silently broken by a
+   *  refactor that stops passing lineId into the cache. */
+  lineId: string;
 }
 
 export interface Tier2PlatformArrival {
@@ -318,7 +322,7 @@ function mapLineToDisruption(lines: any[], lineId: string): Tier2Disruption | nu
   const isDisrupted = severity < 10 || /(delay|closure|suspend|reduced|part closure|severe)/.test(statusText);
   // Good-service codes explicitly mean not disrupted.
   if ([10, 18, 14].includes(severity)) {
-    return { isDisrupted: false, severity, description: lineData.status || 'Good Service', reason: lineData.reason || null };
+    return { isDisrupted: false, severity, description: lineData.status || 'Good Service', reason: lineData.reason || null, lineId };
   }
 
   return {
@@ -326,6 +330,7 @@ function mapLineToDisruption(lines: any[], lineId: string): Tier2Disruption | nu
     severity,
     description: lineData.status || 'Unknown',
     reason: lineData.reason || null,
+    lineId,
   };
 }
 

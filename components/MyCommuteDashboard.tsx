@@ -1009,6 +1009,7 @@ const MyCommuteDashboard: React.FC = () => {
             stationId,
             confirmedTerminus,
             otherTerminus,
+            expectedLineId: rerouteLine.id,
           });
           const links = buildRerouteLinks(confirmedTerminus);
 

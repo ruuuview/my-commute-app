@@ -30,6 +30,10 @@ export interface RerouteResolutionInput {
   confirmedTerminus: string;
   /** The other branch's terminus on the same line, e.g. 'Morden'. */
   otherTerminus?: string;
+  /** The line the reroute is being resolved for. Guards against a
+   *  false-positive: a disruption on a DIFFERENT line (cached at the
+   *  same station) must not trigger an 'affected' reroute. */
+  expectedLineId: string;
 }
 
 export interface RerouteResolution {
@@ -75,8 +79,19 @@ export function shouldShowRerouteCTA(stationId: string): boolean {
  *   // False alarm costs less than false calm.
  */
 export function resolveRerouteMode(input: RerouteResolutionInput): RerouteResolution {
-  const { stationId, confirmedTerminus, otherTerminus } = input;
+  const { stationId, confirmedTerminus, otherTerminus, expectedLineId } = input;
   const disruption = readCachedDisruption(stationId);
+
+  // LINE GUARD (fix #1): the cached disruption must belong to the line the
+  // user is resolving a reroute for. The Tier2Cache is keyed by stationId
+  // only, so a disruption grabbed for line A at a multi-line station must
+  // NOT trigger an 'affected' reroute when the user is on line B. Without
+  // this, a DLR-only incident would falsely reroute a Victoria user.
+  // The disruption carries lineId explicitly on write (see tier2Cache.ts)
+  // so this guard survives any refactor of the grab pipeline.
+  if (disruption && disruption.lineId && expectedLineId && disruption.lineId !== expectedLineId) {
+    return { mode: 'empty', disruption, isBranchAffected: false };
+  }
 
   if (!disruption || !disruption.isDisrupted) {
     // No active disruption on the cache.

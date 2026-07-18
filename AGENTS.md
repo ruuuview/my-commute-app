@@ -92,6 +92,17 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 * **TfL Stop IDs**: Elizabeth Line arrivals route differently because NaPTAN IDs starting with `910G` represent National Rail interchange points. Use the backend fallback endpoint `/api/stations/...` rather than querying National Rail endpoints directly.
 * **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (74px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.
 
+### Known Issue: Tier2Cache multi-line station collision
+```
+KNOWN ISSUE: Tier2Cache is keyed by stationId only (last write wins).
+Stations served by multiple lines (Victoria + DLR at Stratford, etc.)
+will have cache collisions — whichever line's grab ran last overwrites
+the previous. The lineId guard in resolveRerouteMode prevents false-
+positive reroutes from this collision, but the underlying cache shape
+needs a per-line key (stationId:lineId) before multi-line stations
+get full reroute coverage. Not a demo-blocker. Fix before public launch.
+```
+
 ---
 
 ## 5. Session Memory & Brain Documentation

@@ -70,8 +70,7 @@
       "expo-asset",
       "expo-web-browser",
       "./plugins/withFmtCpp17",
-      "@bacons/apple-targets",
-      "./modules/my-commute-live-activity"
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true

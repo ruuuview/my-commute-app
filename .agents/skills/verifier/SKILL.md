@@ -275,7 +275,7 @@ Some things can't be verified programmatically:
 - All automated checks pass
 - BUT items flagged for human verification
 
-#### Calculate score:
+#### Calculate score
 
 ```math
 score = verified_truths / total_truths

@@ -93,7 +93,8 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 * **Layout Shifts**: Ensure lists rendering high numbers of `StationCard` items (74px minHeight) use `FlatList` with `initialNumToRender` and `windowSize` optimization to prevent performance lag on older devices.
 
 ### Known Issue: Tier2Cache multi-line station collision
-```
+
+```text
 KNOWN ISSUE: Tier2Cache is keyed by stationId only (last write wins).
 Stations served by multiple lines (Victoria + DLR at Stratford, etc.)
 will have cache collisions — whichever line's grab ran last overwrites

@@ -80,7 +80,33 @@
         "origin": false
       },
       "eas": {
-        "projectId": "1efee0b5-6e68-4c91-830a-fde4f951c1f0"
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.mycommute.app.MyCommuteWidget",
+                  "targetName": "MyCommuteWidget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.mycommute.app"
+                    ]
+                  }
+                },
+                {
+                  "bundleIdentifier": "com.mycommute.app.MyCommuteWidget",
+                  "targetName": "MyCommuteWidget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.mycommute.app"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "7c3dff01-759d-48db-b1ec-50df46a7f614"
       }
     },
     "owner": "rudra1998"

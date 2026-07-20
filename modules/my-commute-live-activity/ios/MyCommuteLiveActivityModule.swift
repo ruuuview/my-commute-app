@@ -91,13 +91,13 @@ public class MyCommuteLiveActivityModule: Module {
     let statusText = payload["statusText"] as? String ?? "On time"
     let isDisrupted = payload["isDisrupted"] as? Bool ?? false
 
-    var arrivals: [MyCommuteLiveActivityAttributes.Arrival] = []
+    var arrivals: [Arrival] = []
     if let raw = payload["arrivals"] as? [[String: Any]] {
       for (idx, item) in raw.prefix(3).enumerated() {
         let dest = item["destinationName"] as? String ?? ""
         let tts = item["timeToStationSeconds"] as? Int ?? 0
         arrivals.append(
-          MyCommuteLiveActivityAttributes.Arrival(
+          Arrival(
             destinationName: dest,
             timeToStationSeconds: tts,
             isHero: idx == 0

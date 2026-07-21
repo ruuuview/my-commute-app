@@ -34,24 +34,6 @@ function getNotificationToggles() {
   };
 }
 
-function isWithinCommuteWindow(): boolean {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sunday, 6 = Saturday
-  const hour = now.getHours();
-
-  // Weekdays only: Monday (1) to Friday (5)
-  if (day === 0 || day === 6) {
-    return false;
-  }
-
-  // Commute hours: 7 AM to 8 PM (7:00 to 19:59)
-  if (hour < 7 || hour >= 20) {
-    return false;
-  }
-
-  return true;
-}
-
 TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
   if (error) {
     console.error(`❌ Background Geofencing Error: ${error.message}`);
@@ -70,13 +52,7 @@ TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }: any) => {
 
     console.log(`📍 Geofencing Event: type ${eventType} for station ${stationName} (${stationId})`);
 
-    // Gating check: Weekday and Commute Hours (bypass in development)
-    const isDebug = __DEV__;
-    if (!isWithinCommuteWindow() && !isDebug) {
-      console.log(`🔇 Geofencing Event ignored: outside commute hours/weekdays for ${stationName}.`);
-      return;
-    }
-
+    // Gating check: per-station toggle only (time gates removed — London runs 24/7)
     const { stationNotificationToggles } = getNotificationToggles();
     const isStationEnabled = stationNotificationToggles[stationId] !== false;
 

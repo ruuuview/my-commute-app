@@ -44,7 +44,6 @@ interface NotificationSettings {
   time_window_start: string; // HH:MM format
   time_window_end: string;   // HH:MM format
 }
-const TRIAL_DURATION_DAYS = 45;
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -57,6 +56,7 @@ export default function SettingsScreen() {
     arrivalNotificationsEnabled,
     setArrivalNotificationsEnabled,
     labelsConfirmed,
+    completedJourneys,
   } = useUserPreferencesStore();
 
   const { requestLocationPermission } = useDeferredPermissionTriggers();
@@ -70,6 +70,9 @@ export default function SettingsScreen() {
   const backAnim = usePressAnimation('back_btn', false);
   const resetPressAnim = usePressAnimation('station_row', false);
   const hoursPressAnim = usePressAnimation('station_row', false);
+
+  const MAX_TRIAL_COMMUTES = 10;
+  const trialCommutesRemaining = Math.max(0, MAX_TRIAL_COMMUTES - (completedJourneys || 0));
 
   useEffect(() => {
     checkPermissionsStatus();
@@ -255,18 +258,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const getTrialDaysRemaining = (startDate: string): number => {
-    const start = new Date(startDate);
-    const now = new Date();
-    const diffTime = now.getTime() - start.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, TRIAL_DURATION_DAYS - diffDays);
-  };
-
-  const trialDaysRemaining = userPrefs.trial_start_date 
-    ? getTrialDaysRemaining(userPrefs.trial_start_date)
-    : 0;
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -351,7 +342,7 @@ export default function SettingsScreen() {
         {/* Smart Pro Status Card */}
         <ProStatusCard 
           isPro={userPrefs.is_pro}
-          trialDaysRemaining={trialDaysRemaining}
+          trialCommutesRemaining={trialCommutesRemaining}
           onUpgrade={() => Alert.alert('Coming Soon', 'Pro features and upgrades will be available in a future update.')}
         />
 
@@ -861,15 +852,6 @@ const styles = StyleSheet.create({
   },
   basicText: {
     color: '#666',
-  },
-  trialLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  trialDays: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#28a745',
   },
   divider: {
     height: 1,

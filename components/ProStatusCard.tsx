@@ -6,13 +6,13 @@ import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 
 interface ProStatusCardProps {
   isPro: boolean;
-  trialDaysRemaining: number;
+  trialCommutesRemaining: number;
   onUpgrade: () => void;
 }
 
 export const ProStatusCard: React.FC<ProStatusCardProps> = ({
   isPro,
-  trialDaysRemaining,
+  trialCommutesRemaining,
   onUpgrade,
 }) => {
 
@@ -32,7 +32,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
     );
   }
 
-  if (trialDaysRemaining > 0) {
+  if (trialCommutesRemaining > 0) {
     return (
       <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
         <View style={styles.card}>
@@ -41,7 +41,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
             <View style={styles.textContainer}>
               <Text style={styles.title}>Pro Trial Active</Text>
               <Text style={styles.subtitle}>
-                You have {trialDaysRemaining} days of all-access features remaining.
+                You have {trialCommutesRemaining} of 10 trial commutes remaining.
               </Text>
             </View>
           </View>

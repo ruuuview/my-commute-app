@@ -87,8 +87,8 @@
             "ios": {
               "appExtensions": [
                 {
-                  "bundleIdentifier": "com.mycommute.app.MyCommuteWidget",
-                  "targetName": "MyCommuteWidget",
+                  "bundleIdentifier": "com.mycommute.app.CommuteWidget",
+                  "targetName": "CommuteWidgetExtension",
                   "entitlements": {
                     "com.apple.security.application-groups": [
                       "group.com.mycommute.app"

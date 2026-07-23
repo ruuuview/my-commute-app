@@ -344,6 +344,8 @@ export class SessionManager {
         entryTime: new Date(startTime).toISOString(),
         exitTime: new Date(Date.now()).toISOString(),
       }).catch(err => console.error('[SessionManager] Backend session POST failed:', err));
+    } else {
+      console.warn('[SessionManager] Cannot POST session — missing data:', { originId, lineId, startTime });
     }
 
     if (forceQuiet) {

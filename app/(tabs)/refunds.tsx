@@ -13,8 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur'
 import { Ionicons } from '@expo/vector-icons'
-import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { APP_CONFIG } from '../../config/app.config'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -124,16 +124,17 @@ export default function RefundsScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const userId = useUserPreferencesStore(s => s.userId)
-  const apiKey = useUserPreferencesStore(s => s.apiKey)
-
   const fetchClaims = useCallback(async (isRefresh = false) => {
-    if (!userId || !apiKey) {
-      setLoading(false)
-      return
-    }
-    if (!isRefresh) setLoading(true)
     try {
+      const [userId, apiKey] = await Promise.all([
+        AsyncStorage.getItem('userId'),
+        AsyncStorage.getItem('apiKey'),
+      ])
+      if (!userId || !apiKey) {
+        if (!isRefresh) setLoading(false)
+        return
+      }
+      if (!isRefresh) setLoading(true)
       const res = await fetch(`${APP_CONFIG.BACKEND_URL}/api/claims`, {
         headers: { 'x-user-id': userId, 'x-api-key': apiKey },
       })
@@ -146,7 +147,7 @@ export default function RefundsScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [userId, apiKey])
+  }, [])
 
   useEffect(() => { fetchClaims() }, [fetchClaims])
 
@@ -159,13 +160,12 @@ export default function RefundsScreen() {
   if (!loading && (!data || data.claims.length === 0)) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <GradientBackground />
         <View style={styles.header}>
           <Text style={styles.title}>Refund Radar</Text>
         </View>
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="radar-outline" size={64} color="rgba(255,255,255,0.1)" />
+            <Ionicons name="cash-outline" size={64} color="rgba(255,255,255,0.1)" />
           </View>
           <Text style={styles.emptyTitle}>No Claims Yet</Text>
           <Text style={styles.emptySubtitle}>
@@ -180,7 +180,6 @@ export default function RefundsScreen() {
   if (loading && !data) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <GradientBackground />
         <View style={styles.header}>
           <Text style={styles.title}>Refund Radar</Text>
         </View>
@@ -202,7 +201,6 @@ export default function RefundsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <GradientBackground />
       <View style={styles.header}>
         <Text style={styles.title}>Refund Radar</Text>
         <Text style={styles.subtitle}>Auto-detected delay claims</Text>

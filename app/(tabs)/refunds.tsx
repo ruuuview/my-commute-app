@@ -67,7 +67,7 @@ const ClaimCard = React.memo(({ claim }: { claim: Claim }) => {
 
   return (
     <View style={styles.cardOuter}>
-      <BlurView intensity={40} tint="dark" style={styles.cardBlur}>
+      <BlurView intensity={45} tint="dark" style={styles.cardBlur}>
         {/* Top row: status badge + amount */}
         <View style={styles.cardHeader}>
           <View style={[styles.statusBadge, { borderColor: cfg.color }]}>
@@ -123,14 +123,17 @@ export default function RefundsScreen() {
   const [data, setData] = useState<ClaimsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchClaims = useCallback(async (isRefresh = false) => {
     try {
+      setError(null)
       const [userId, apiKey] = await Promise.all([
         AsyncStorage.getItem('userId'),
         AsyncStorage.getItem('apiKey'),
       ])
       if (!userId || !apiKey) {
+        setError('Sign in or complete onboarding to view your claims.')
         if (!isRefresh) setLoading(false)
         return
       }
@@ -143,6 +146,7 @@ export default function RefundsScreen() {
       setData(json)
     } catch (e) {
       console.warn('[Refunds] fetch error:', e)
+      setError('Could not load claims. Pull down to retry.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -155,6 +159,24 @@ export default function RefundsScreen() {
     setRefreshing(true)
     fetchClaims(true)
   }, [fetchClaims])
+
+  // ── Error state ────────────────────────────────────────────────────
+  if (!loading && error && !data) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Refund Radar</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="alert-circle-outline" size={64} color="rgba(255,184,0,0.4)" />
+          </View>
+          <Text style={styles.emptyTitle}>Unable to Load Claims</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+        </View>
+      </View>
+    )
+  }
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!loading && (!data || data.claims.length === 0)) {

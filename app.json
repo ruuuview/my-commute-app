@@ -94,15 +94,6 @@
                       "group.com.mycommute.app"
                     ]
                   }
-                },
-                {
-                  "bundleIdentifier": "com.mycommute.app.MyCommuteWidget",
-                  "targetName": "MyCommuteWidget",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.mycommute.app"
-                    ]
-                  }
                 }
               ]
             }

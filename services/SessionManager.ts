@@ -1,10 +1,12 @@
 import { createMMKV } from 'react-native-mmkv';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LiveActivityService } from './LiveActivityService';
 import { triggerTier2Grab, onTier2CachePopulated, getTier2Cache } from './tier2Cache';
 import { maybeFireDirectionNotification } from './directionNotification';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { tflCapitalise } from '../utils/tflCapitalise';
+import { APP_CONFIG } from '../config/app.config';
 
 export const CONSENT_DWELL_MINUTES = 27;
 export const CONSENT_DWELL_MS = CONSENT_DWELL_MINUTES * 60 * 1000;
@@ -306,6 +308,12 @@ export class SessionManager {
   static async closeSession(forceQuiet: boolean) {
     console.log(`[SessionManager] Closing session. ForceQuiet: ${forceQuiet}`);
 
+    // Capture session data before clearing MMKV keys
+    const originId = this.getCommuteOriginId()
+    const destId = this.getCommuteDestinationId()
+    const lineId = this.getCommuteLineId()
+    const startTime = this.getCommuteStartTime()
+
     await LiveActivityService.end().catch(e => console.error('[SessionManager] End Live Activity failed:', e));
 
     // Detach the Tier 2 cache listener + clear the no-signal timer.
@@ -326,6 +334,17 @@ export class SessionManager {
     backgroundStorage.remove('commute_line_id');
     backgroundStorage.remove('commute_start_time');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
+
+    // Fire-and-forget POST to backend with completed journey data
+    if (originId && lineId && startTime) {
+      this.postSessionToBackend({
+        lineId,
+        entryStation: originId,
+        exitStation: destId || undefined,
+        entryTime: new Date(startTime).toISOString(),
+        exitTime: new Date(Date.now()).toISOString(),
+      }).catch(err => console.error('[SessionManager] Backend session POST failed:', err));
+    }
 
     if (forceQuiet) {
       backgroundStorage.set('alerts_active', false);
@@ -393,6 +412,61 @@ export class SessionManager {
           await this.closeSession(false);
         }
       }
+    }
+  }
+
+  /**
+   * POST a completed journey to the backend /api/sessions endpoint.
+   * Reads auth from AsyncStorage (same pattern as notificationRegistrationService).
+   * Fire-and-forget — failures are logged, never thrown.
+   */
+  private static async postSessionToBackend(payload: {
+    lineId: string;
+    entryStation: string;
+    exitStation?: string;
+    entryTime: string;
+    exitTime: string;
+  }) {
+    try {
+      const [userId, apiKey] = await Promise.all([
+        AsyncStorage.getItem('userId'),
+        AsyncStorage.getItem('apiKey'),
+      ]);
+      if (!userId || !apiKey) {
+        console.warn('[SessionManager] No auth in AsyncStorage — skipping backend POST');
+        return;
+      }
+
+      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          lineId: payload.lineId,
+          entryStation: payload.entryStation,
+          exitStation: payload.exitStation || null,
+          entryTime: payload.entryTime,
+          exitTime: payload.exitTime,
+          motionConfirmed: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => 'no body');
+        console.error(`[SessionManager] Backend POST /api/sessions returned ${response.status}: ${text}`);
+        return;
+      }
+
+      const result = await response.json();
+      console.log(
+        `[SessionManager] Session ${result.sessionId} created — ` +
+        `${result.claimsCreated ?? 0} claims, ${result.notificationsSent ?? 0} notifications`
+      );
+    } catch (err) {
+      console.error('[SessionManager] Failed to POST session to backend:', err);
     }
   }
 }

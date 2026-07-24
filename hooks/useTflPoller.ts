@@ -22,7 +22,7 @@ export function useTflPoller(
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const meta = await fetchData(controller.signal);
       clearTimeout(timeoutId);

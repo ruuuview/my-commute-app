@@ -21,7 +21,7 @@ import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { StatusBezel } from './StatusBezel';
 import { Ionicons } from '@expo/vector-icons';
-import { shouldShowRerouteCTA } from './rerouteHelpers';
+import { readCachedDisruption } from './rerouteHelpers';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -299,12 +299,24 @@ export function LineDetailModal({
                 </View>
               ) : null}
 
-              {/* ── See alternative routes CTA — only when disrupted ──
+              {/* ── See alternative routes CTA — only when disrupted ──\
                   Rule 11: absent (never greyed) when not disrupted. When a
                   stationId is available we gate on the Tier 2 cache
-                  (shouldShowRerouteCTA); otherwise fall back to status type. */}
+                  (reads from cache) and fall back to line status when the
+                  cache hasn't been populated yet (user not at station). */}
               {(stationId
-                ? shouldShowRerouteCTA(stationId)
+                ? (() => {
+                    const cached = readCachedDisruption(stationId);
+                    // Cache populated → use its disruption signal.
+                    // Cache empty (no geofence hit) → fall back to line status.
+                    return cached !== null
+                      ? !!cached.isDisrupted
+                      : (statusType !== 'good' &&
+                          statusType !== 'loading' &&
+                          statusType !== 'error' &&
+                          statusType !== 'unknown' &&
+                          statusType !== 'offline');
+                  })()
                 : (statusType !== 'good' &&
                   statusType !== 'loading' &&
                   statusType !== 'error' &&

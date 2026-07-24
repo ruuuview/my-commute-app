@@ -11,7 +11,6 @@ import { Ionicons } from '@expo/vector-icons';
 const tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { key: 'dashboard', icon: 'home', label: 'Dashboard' },
   { key: 'refunds', icon: 'analytics', label: 'Radar' },
-  { key: 'status', icon: 'notifications-outline', label: 'Alerts' },
   { key: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
@@ -24,9 +23,7 @@ const TabsLayout = () => {
     ? 'refunds'
     : pathname.startsWith('/settings')
       ? 'settings'
-      : pathname.startsWith('/journeyPlanner')
-        ? 'status'
-        : 'dashboard';
+      : 'dashboard';
 
   // Dismiss native splash now that the dashboard has fully painted
   useEffect(() => {
@@ -80,8 +77,6 @@ const TabsLayout = () => {
               router.push('/(tabs)/refunds');
             } else if (key === 'settings') {
               router.push('/settings');
-            } else if (key === 'status') {
-              router.push('/(tabs)');
             } else if (key === 'dashboard') {
               router.push('/(tabs)');
             }

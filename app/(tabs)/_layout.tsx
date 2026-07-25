@@ -27,7 +27,7 @@ const TabsLayout = () => {
 
   // Dismiss native splash now that the dashboard has fully painted
   useEffect(() => {
-    SplashScreen.hideAsync();
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   const tabBarTranslateY = useSharedValue(40);

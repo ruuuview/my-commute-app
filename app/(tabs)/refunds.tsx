@@ -7,6 +7,8 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
+  Pressable,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native'
@@ -167,13 +169,33 @@ export default function RefundsScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Refund Radar</Text>
         </View>
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="alert-circle-outline" size={64} color="rgba(255,184,0,0.4)" />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="rgba(255,255,255,0.4)"
+            />
+          }
+        >
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="alert-circle-outline" size={64} color="rgba(255,184,0,0.4)" />
+            </View>
+            <Text style={styles.emptyTitle}>Unable to Load Claims</Text>
+            <Text style={styles.emptySubtitle}>{error}</Text>
+            <Pressable
+              style={styles.retryButton}
+              onPress={() => fetchClaims(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+            >
+              <Ionicons name="refresh-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </Pressable>
           </View>
-          <Text style={styles.emptyTitle}>Unable to Load Claims</Text>
-          <Text style={styles.emptySubtitle}>{error}</Text>
-        </View>
+        </ScrollView>
       </View>
     )
   }
@@ -427,7 +449,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255,255,255,0.3)',
     textAlign: 'center',
-    lineHeight: 22,
+    paddingHorizontal: 32,
+    marginBottom: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  retryButtonText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 
   // Loading

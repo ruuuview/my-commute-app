@@ -95,13 +95,9 @@ export function resolveRerouteMode(input: RerouteResolutionInput): RerouteResolu
   const { stationId, confirmedTerminus, otherTerminus, expectedLineId, fallbackStatusType, fallbackReason } = input;
   const disruption = readCachedDisruption(stationId);
 
-  // LINE GUARD: the cached disruption must belong to the line the
-  // user is resolving a reroute for. If the cached disruption belongs to a
-  // different line, ignore it for this resolution and check live fallback status.
+  // LINE GUARD: require exact line match for cached disruption.
   const effectiveDisruption =
-    disruption && disruption.lineId && expectedLineId && disruption.lineId !== expectedLineId
-      ? null
-      : disruption;
+    disruption?.lineId === expectedLineId ? disruption : null;
 
   if (!effectiveDisruption || !effectiveDisruption.isDisrupted) {
     // No active disruption in the Tier2 cache for THIS line.

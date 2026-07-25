@@ -194,18 +194,22 @@ export default function RerouteScreen({
     }
   }, [visible, stationId]);
 
+  const effectiveMode = internalBranch && branchStatuses
+    ? (branchStatuses[internalBranch] === 'affected' ? 'affected' : 'unaffected')
+    : mode;
+
   // ── Citymapper availability (canOpenURL gate) ─────────────────
   // Rule 11: the Citymapper button is ABSENT (not greyed) when not installed.
   const [citymapperAvailable, setCitymapperAvailable] = useState(false);
   useEffect(() => {
-    if (visible && mode === 'affected') {
+    if (visible && effectiveMode === 'affected') {
       Linking.canOpenURL(citymapperUrl)
         .then(setCitymapperAvailable)
         .catch(() => setCitymapperAvailable(false));
     } else {
       setCitymapperAvailable(false);
     }
-  }, [visible, mode, citymapperUrl]);
+  }, [visible, effectiveMode, citymapperUrl]);
 
   // ── Open handlers ─────────────────────────────────────────────
   const handleOpenGoogleMaps = () => {

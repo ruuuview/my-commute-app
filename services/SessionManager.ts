@@ -336,7 +336,7 @@ export class SessionManager {
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
     // Fire-and-forget POST to backend with completed journey data
-    if (originId && lineId && startTime) {
+    if (originId && lineId && lineId !== 'unknown' && startTime) {
       this.postSessionToBackend({
         lineId,
         entryStation: originId,

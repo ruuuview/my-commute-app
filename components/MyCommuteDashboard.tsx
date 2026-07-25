@@ -103,8 +103,6 @@ const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
   'hammersmith-city': ['Hammersmith', 'Barking'],
   overground: ['Watford Junction', 'London Euston'],
 };
-// Backward compat alias for any remaining references.
-const REROUTE_LINE_TERMINALS = REROUTE_LINE_BRANCHES;
 
 const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinutes: number }> = {
   central: {
@@ -1051,11 +1049,19 @@ const MyCommuteDashboard: React.FC = () => {
 
           // Per-branch status: parse disruption reason to mark which branches are affected.
           const reasonLower = (rerouteLine.reason || '').toLowerCase();
+          const hasMentionedBranch = branches.some(branch =>
+            branch.toLowerCase().split(' ').some(word =>
+              word.length > 3 && reasonLower.includes(word)
+            )
+          );
           const branchStatuses = branches.reduce((acc, branch) => {
             const isMentioned = branch.toLowerCase().split(' ').some(word =>
               word.length > 3 && reasonLower.includes(word)
             );
-            acc[branch] = isMentioned ? 'affected' : 'unaffected';
+            acc[branch] =
+              isMentioned || (!hasMentionedBranch && branch === defaultTerminus)
+                ? 'affected'
+                : 'unaffected';
             return acc;
           }, {} as Record<string, 'affected' | 'unaffected'>);
 

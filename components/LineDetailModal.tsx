@@ -306,15 +306,17 @@ export function LineDetailModal({
               {(stationId
                 ? (() => {
                     const cached = readCachedDisruption(stationId);
-                    // Cache populated → use its disruption signal.
-                    // Cache empty (no geofence hit) → fall back to line status.
-                    return cached !== null
+                    const isLiveDisruption =
+                      statusType !== 'good' &&
+                      statusType !== 'loading' &&
+                      statusType !== 'error' &&
+                      statusType !== 'unknown' &&
+                      statusType !== 'offline';
+                    // Cache populated & matches this line → use its disruption signal.
+                    // Cache empty or line mismatch → fall back to live line status.
+                    return cached?.lineId === line.id
                       ? !!cached.isDisrupted
-                      : (statusType !== 'good' &&
-                          statusType !== 'loading' &&
-                          statusType !== 'error' &&
-                          statusType !== 'unknown' &&
-                          statusType !== 'offline');
+                      : isLiveDisruption;
                   })()
                 : (statusType !== 'good' &&
                   statusType !== 'loading' &&

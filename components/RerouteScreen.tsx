@@ -84,7 +84,19 @@ export interface RerouteScreenProps {
   visible: boolean;
   /** Close handler. */
   onClose: () => void;
-  /** Which of the two states to render. */
+  /**
+   * Branch grid — 2+ destinations for this line.
+   * When provided with 4 entries, the component shows a 2x2 branch picker
+   * before routing to the affected/unaffected/empty content for that branch.
+   */
+  branches?: string[];
+  /**
+   * Per-branch disruption status, computed from the TfL disruption reason.
+   * 'affected' = branch is mentioned in the disruption text.
+   * 'unaffected' = branch is not mentioned (likely running fine).
+   */
+  branchStatuses?: Record<string, 'affected' | 'unaffected'>;
+  /** Which of the three states to render. */
   mode: RerouteMode;
   /** Line identity — drives the accent bar + header. */
   lineId: string;
@@ -121,6 +133,8 @@ export interface RerouteScreenProps {
 export default function RerouteScreen({
   visible,
   onClose,
+  branches,
+  branchStatuses,
   mode,
   lineId,
   lineName,
@@ -135,6 +149,14 @@ export default function RerouteScreen({
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
+
+  // ── Branch selection (2x2 grid) ────────────────────────────────
+  // When branches has 4 entries the component shows a grid first.
+  // internalBranch = null means "show grid"; set = "show detail for this branch."
+  const [internalBranch, setInternalBranch] = useState<string | null>(null);
+  useEffect(() => {
+    if (visible) setInternalBranch(null);
+  }, [visible]);
 
   // ── Slide-up animation ─────────────────────────────────────────
   const translateY = useSharedValue(visible ? 0 : 900);
@@ -205,7 +227,14 @@ export default function RerouteScreen({
     return disruptionReason;
   }, [disruption, disruptionReason]);
 
-  // ── Render helpers ────────────────────────────────────────────
+  // ── Back handler: grid → close, detail → back to grid ─────────
+  const handleBack = () => {
+    if (internalBranch && branches && branches.length > 2) {
+      setInternalBranch(null); // return to branch grid
+    } else {
+      onClose(); // close the drawer
+    }
+  };
 
   const renderHeader = () => (
     <>
@@ -214,7 +243,7 @@ export default function RerouteScreen({
 
       {/* Back — ‹ Back, 44x44pt touch target */}
       <Pressable
-        onPress={onClose}
+        onPress={handleBack}
         hitSlop={12}
         style={s.backButton}
         accessibilityLabel="Back"
@@ -237,7 +266,7 @@ export default function RerouteScreen({
   const renderAffectedState = () => (
     <View style={s.body}>
       {/* Your <terminus> trains */}
-      <Text style={s.branchLabel}>Your {terminus} trains</Text>
+      <Text style={s.branchLabel}>Your {resolvedTerminus} trains</Text>
 
       {/* Disrupted badge + reason */}
       <View style={s.disruptionRow}>
@@ -301,7 +330,7 @@ export default function RerouteScreen({
     // EQUAL WEIGHT: same glass card, same accent bar, same typography as affected.
     // No CTA. No lesser build. This is half the product, not an afterthought.
     <View style={s.body}>
-      <Text style={s.branchLabel}>Your {terminus} trains</Text>
+      <Text style={s.branchLabel}>Your {resolvedTerminus} trains</Text>
 
       <View style={s.runningFineRow}>
         <View style={s.runningFineDot} />
@@ -325,6 +354,62 @@ export default function RerouteScreen({
       </View>
     </View>
   );
+
+  // ── Branch selection grid (2x2 for 4-branch lines) ──────────
+  const renderBranchGrid = () => {
+    if (!branches || branches.length <= 2) return null;
+    // Split branches into pairs for rows
+    const rows: string[][] = [];
+    for (let i = 0; i < branches.length; i += 2) {
+      rows.push(branches.slice(i, i + 2));
+    }
+
+    return (
+      <View style={s.branchGridBody}>
+        <Text style={s.branchGridTitle}>Where are you headed?</Text>
+        {rows.map((row, ri) => (
+          <View key={ri} style={s.branchGridRow}>
+            {row.map(branch => {
+              const status = branchStatuses?.[branch];
+              const isAffected = status === 'affected';
+              return (
+                <Pressable
+                  key={branch}
+                  style={s.branchGridCard}
+                  onPress={() => setInternalBranch(branch)}
+                >
+                  <View style={s.branchCardContent}>
+                    <View
+                      style={[
+                        s.branchStatusDot,
+                        { backgroundColor: isAffected ? '#FF9F43' : '#34D399' },
+                      ]}
+                    />
+                    <Text style={s.branchCardName}>{branch}</Text>
+                    <Text style={s.branchCardStatus}>
+                      {isAffected ? 'Affected' : 'Running fine'}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+        <BouncyPressable onPress={onClose} style={s.branchGridDismiss}>
+          <Text style={s.branchGridDismissText}>Dismiss</Text>
+        </BouncyPressable>
+      </View>
+    );
+  };
+
+  // ── Show branch grid or mode-specific detail ────────────────
+  const showGrid = branches && branches.length > 2 && !internalBranch;
+  const detailMode = internalBranch && branchStatuses
+    ? branchStatuses[internalBranch] === 'affected'
+      ? 'affected'
+      : 'unaffected'
+    : mode;
+  const resolvedTerminus = internalBranch || terminus;
 
   return (
     <Modal
@@ -356,11 +441,13 @@ export default function RerouteScreen({
 
           {renderHeader()}
 
-          {mode === 'affected'
-            ? renderAffectedState()
-            : mode === 'unaffected'
-              ? renderUnaffectedState()
-              : renderEmptyState()}
+          {showGrid
+            ? renderBranchGrid()
+            : detailMode === 'affected'
+              ? renderAffectedState()
+              : detailMode === 'unaffected'
+                ? renderUnaffectedState()
+                : renderEmptyState()}
         </Animated.View>
       </View>
     </Modal>
@@ -566,5 +653,64 @@ const s = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 16,
     color: 'rgba(255,255,255,0.80)',
+  },
+
+  // ── Branch Grid ──────────────────────────────────────────────
+  branchGridBody: {
+    paddingVertical: 8,
+  },
+  branchGridTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginBottom: 14,
+  },
+  branchGridRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  branchGridCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
+    padding: 14,
+    minHeight: 80,
+  },
+  branchCardContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  branchStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  branchCardName: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  branchCardStatus: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.50)',
+    letterSpacing: 0.3,
+  },
+  branchGridDismiss: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    marginTop: 6,
+  },
+  branchGridDismissText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.50)',
   },
 });

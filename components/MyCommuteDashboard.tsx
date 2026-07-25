@@ -86,22 +86,25 @@ interface DashboardData {
   lines: LineData[];
 }
 
-// Branch termini per line — used to resolve affected vs unaffected reroute mode.
+// Branch destinations per line — expanded to support 2x2 grid for 4-branch lines.
 // (Mirror of StationCard.LINE_TERMINALS; kept local because that map isn't exported.)
-const REROUTE_LINE_TERMINALS: Record<string, string[]> = {
-  northern: ['Edgware', 'Morden'],
-  central: ['Epping', 'Hainault'],
+// Lines with 4 branches get a 2x2 grid in RerouteScreen; 2-branch lines keep the old flow.
+const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
+  central: ['Epping', 'Hainault via Newbury Park', 'Ealing Broadway', 'West Ruislip'],
+  northern: ['Edgware', 'High Barnet', 'Morden', 'Battersea'],
+  piccadilly: ['Cockfosters', 'Arnos Grove', 'Uxbridge', 'Heathrow T5'],
+  district: ['Richmond', 'Wimbledon', 'Ealing Broadway', 'Upminster'],
+  metropolitan: ['Amersham', 'Watford', 'Uxbridge', 'Aldgate'],
+  elizabeth: ['Reading', 'Heathrow T5', 'Shenfield', 'Abbey Wood'],
   victoria: ['Walthamstow Central', 'Brixton'],
   jubilee: ['Stanmore', 'Stratford'],
-  piccadilly: ['Cockfosters', 'Uxbridge'],
   bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
-  district: ['Richmond', 'Wimbledon'],
   circle: ['Hammersmith', 'Edgware Road'],
-  metropolitan: ['Amersham', 'Watford'],
   'hammersmith-city': ['Hammersmith', 'Barking'],
   overground: ['Watford Junction', 'London Euston'],
-  elizabeth: ['Reading', 'Heathrow T5'],
 };
+// Backward compat alias for any remaining references.
+const REROUTE_LINE_TERMINALS = REROUTE_LINE_BRANCHES;
 
 const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinutes: number }> = {
   central: {
@@ -1033,39 +1036,50 @@ const MyCommuteDashboard: React.FC = () => {
           />
         )}
 
-        {/* Reroute Screen — full-screen slide-up, spec-compliant, consumes Tier 2 cache.
-            Mode (affected | unaffected | empty) is resolved from the cache + branch. */}
+        {/* Reroute Screen — full-screen slide-up with 2x2 branch grid for 4-branch lines.
+            Mode resolved from cache + branch. Branches from REROUTE_LINE_BRANCHES. */}
         {rerouteLine && (() => {
-          // Derive branch termini for the affected line. (Local copy of the
-          // branch map — StationCard's LINE_TERMINALS is not exported.)
-          const terminals = REROUTE_LINE_TERMINALS[rerouteLine.id] || [];
-          const confirmedTerminus = terminals[0] || rerouteLine.name;
-          const otherTerminus = terminals[1];
+          // Expanded branch data supporting up to 4 destinations per line (2x2 grid).
+          const branches = REROUTE_LINE_BRANCHES[rerouteLine.id] || [];
+          const defaultTerminus = branches[0] || rerouteLine.name;
+          const otherTerminus = branches[1] || '';
           // Station the reroute is scoped to: first pinned station on this line, else first pinned.
           const stationId =
             selectedStations.find((st: any) =>
               Array.isArray(st.lines) ? st.lines.includes(rerouteLine.id) : false
             )?.id || selectedStations[0]?.id || '';
 
+          // Per-branch status: parse disruption reason to mark which branches are affected.
+          const reasonLower = (rerouteLine.reason || '').toLowerCase();
+          const branchStatuses = branches.reduce((acc, branch) => {
+            const isMentioned = branch.toLowerCase().split(' ').some(word =>
+              word.length > 3 && reasonLower.includes(word)
+            );
+            acc[branch] = isMentioned ? 'affected' : 'unaffected';
+            return acc;
+          }, {} as Record<string, 'affected' | 'unaffected'>);
+
           const resolution = resolveRerouteMode({
             stationId,
-            confirmedTerminus,
+            confirmedTerminus: defaultTerminus,
             otherTerminus,
             expectedLineId: rerouteLine.id,
             fallbackStatusType: getSeverityFromStatus(rerouteLine.status, rerouteLine.status_severity),
             fallbackReason: rerouteLine.reason || rerouteLine.status,
           });
-          const links = buildRerouteLinks(confirmedTerminus);
+          const links = buildRerouteLinks(defaultTerminus);
 
           return (
             <RerouteScreen
               visible={!!rerouteLine}
               onClose={() => setRerouteLine(null)}
+              branches={branches}
+              branchStatuses={branchStatuses}
               mode={resolution.mode}
               lineId={rerouteLine.id}
               lineName={rerouteLine.name}
               lineColor={rerouteLine.color}
-              terminus={confirmedTerminus}
+              terminus={defaultTerminus}
               otherBranchName={otherTerminus}
               disruptionReason={
                 resolution.disruption?.reason ||

@@ -32,7 +32,7 @@ export function initSentry() {
     enableInExpoDevelopment: false,
     debug: __DEV__,
     tracesSampleRate: 0.2,        // 20% of transactions (generous for free tier)
-    beforeSend(event: { message?: string; exception?: { values?: Array<{ value: string }> } }) {
+    beforeSend(event: any) {
       // Ignore known non-actionable errors
       const ignored = [
         'Network request failed',

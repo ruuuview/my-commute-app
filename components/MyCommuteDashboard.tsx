@@ -101,7 +101,49 @@ const REROUTE_LINE_TERMINALS: Record<string, string[]> = {
   'hammersmith-city': ['Hammersmith', 'Barking'],
   overground: ['Watford Junction', 'London Euston'],
   elizabeth: ['Reading', 'Heathrow T5'],
-  dlr: ['Bank', 'Lewisham'],
+};
+
+const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinutes: number }> = {
+  central: {
+    description: 'Use Elizabeth line or London Overground for parallel east-west connections.',
+    extraTimeMinutes: 8,
+  },
+  metropolitan: {
+    description: 'Use Jubilee line or Chiltern Railways from Finchley Road / Baker Street.',
+    extraTimeMinutes: 10,
+  },
+  piccadilly: {
+    description: 'Use District line via Hammersmith or Elizabeth line to Heathrow terminals.',
+    extraTimeMinutes: 6,
+  },
+  district: {
+    description: 'Use Piccadilly or Circle line via South Kensington / Victoria.',
+    extraTimeMinutes: 5,
+  },
+  bakerloo: {
+    description: 'Use Jubilee or Lioness lines via Willesden Junction / Baker Street.',
+    extraTimeMinutes: 7,
+  },
+  northern: {
+    description: 'Take Bank branch to Euston\nCross-platform to Charing Cross branch.',
+    extraTimeMinutes: 7,
+  },
+  victoria: {
+    description: 'Use Northern or Jubilee lines via Warren Street / Green Park.',
+    extraTimeMinutes: 6,
+  },
+  jubilee: {
+    description: 'Use Metropolitan or Central line via Finchley Road / Stratford.',
+    extraTimeMinutes: 8,
+  },
+  elizabeth: {
+    description: 'Use Central line or National Rail services for parallel travel.',
+    extraTimeMinutes: 9,
+  },
+  dlr: {
+    description: 'Use Jubilee line or Thames Clippers / London Buses across East London.',
+    extraTimeMinutes: 7,
+  },
 };
 
 
@@ -1010,6 +1052,8 @@ const MyCommuteDashboard: React.FC = () => {
             confirmedTerminus,
             otherTerminus,
             expectedLineId: rerouteLine.id,
+            fallbackStatusType: getSeverityFromStatus(rerouteLine.status, rerouteLine.status_severity),
+            fallbackReason: rerouteLine.reason || rerouteLine.status,
           });
           const links = buildRerouteLinks(confirmedTerminus);
 
@@ -1032,11 +1076,10 @@ const MyCommuteDashboard: React.FC = () => {
               }
               suggestedRoute={
                 resolution.mode === 'affected'
-                  ? {
-                      description:
-                        'Take Bank branch to Euston\nCross-platform to Charing Cross branch',
-                      extraTimeMinutes: 7,
-                    }
+                  ? (REROUTE_SUGGESTIONS[rerouteLine.id] || {
+                      description: 'Use parallel London Bus routes or interchange via nearest operating line.',
+                      extraTimeMinutes: 8,
+                    })
                   : undefined
               }
               googleMapsUrl={links.googleMapsUrl}

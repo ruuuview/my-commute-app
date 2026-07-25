@@ -34,6 +34,19 @@ export interface RerouteResolutionInput {
    *  false-positive: a disruption on a DIFFERENT line (cached at the
    *  same station) must not trigger an 'affected' reroute. */
   expectedLineId: string;
+  /**
+   * Fallback severity from the live TfL poll when Tier2 cache is empty
+   * (user is remote from station). Lowercase string matching the app's
+   * Severity type: 'good' | 'minor' | 'severe' | 'suspended' | 'unknown' | 'offline'.
+   * When cache has no disruption but the live status shows one, we surface
+   * the reroute (default toward showing, never false calm).
+   */
+  fallbackStatusType?: string;
+  /**
+   * Fallback disruption reason from the live TfL poll, used when the
+   * Tier2 cache is empty but fallbackStatusType indicates disruption.
+   */
+  fallbackReason?: string;
 }
 
 export interface RerouteResolution {
@@ -79,27 +92,44 @@ export function shouldShowRerouteCTA(stationId: string): boolean {
  *   // False alarm costs less than false calm.
  */
 export function resolveRerouteMode(input: RerouteResolutionInput): RerouteResolution {
-  const { stationId, confirmedTerminus, otherTerminus, expectedLineId } = input;
+  const { stationId, confirmedTerminus, otherTerminus, expectedLineId, fallbackStatusType, fallbackReason } = input;
   const disruption = readCachedDisruption(stationId);
 
-  // LINE GUARD (fix #1): the cached disruption must belong to the line the
-  // user is resolving a reroute for. The Tier2Cache is keyed by stationId
-  // only, so a disruption grabbed for line A at a multi-line station must
-  // NOT trigger an 'affected' reroute when the user is on line B. Without
-  // this, a DLR-only incident would falsely reroute a Victoria user.
-  // The disruption carries lineId explicitly on write (see tier2Cache.ts)
-  // so this guard survives any refactor of the grab pipeline.
-  if (disruption && disruption.lineId && expectedLineId && disruption.lineId !== expectedLineId) {
-    return { mode: 'empty', disruption, isBranchAffected: false };
-  }
+  // LINE GUARD: the cached disruption must belong to the line the
+  // user is resolving a reroute for. If the cached disruption belongs to a
+  // different line, ignore it for this resolution and check live fallback status.
+  const effectiveDisruption =
+    disruption && disruption.lineId && expectedLineId && disruption.lineId !== expectedLineId
+      ? null
+      : disruption;
 
-  if (!disruption || !disruption.isDisrupted) {
-    // No active disruption on the cache.
-    return { mode: 'empty', disruption, isBranchAffected: false };
+  if (!effectiveDisruption || !effectiveDisruption.isDisrupted) {
+    // No active disruption in the Tier2 cache for THIS line.
+    // Fallback: check the live TfL severity from the latest poll. If it shows
+    // disruption, surface the reroute — default toward showing, never false calm.
+    const isDisrupted =
+      fallbackStatusType &&
+      fallbackStatusType !== 'good' &&
+      fallbackStatusType !== 'unknown' &&
+      fallbackStatusType !== 'offline';
+    if (isDisrupted && confirmedTerminus.length > 0) {
+      return {
+        mode: 'affected',
+        disruption: null,
+        disruptedBranch: confirmedTerminus,
+        isBranchAffected: true,
+      };
+    }
+    return { mode: 'empty', disruption: null, isBranchAffected: false };
   }
 
   // We have an active disruption. Decide affected vs unaffected vs empty.
-  const reason = (disruption.reason || disruption.description || '').toLowerCase();
+  const reason = (
+    effectiveDisruption.reason ||
+    effectiveDisruption.description ||
+    fallbackReason ||
+    ''
+  ).toLowerCase();
 
   // Heuristic: if the disruption reason names the confirmed terminus/branch,
   // the user is affected. If it names the OTHER terminus/branch, the user is
@@ -116,7 +146,7 @@ export function resolveRerouteMode(input: RerouteResolutionInput): RerouteResolu
   if (mentionedConfirmed) {
     return {
       mode: 'affected',
-      disruption,
+      disruption: effectiveDisruption,
       disruptedBranch: confirmedTerminus,
       isBranchAffected: true,
     };
@@ -125,7 +155,7 @@ export function resolveRerouteMode(input: RerouteResolutionInput): RerouteResolu
   if (mentionedOther) {
     return {
       mode: 'unaffected',
-      disruption,
+      disruption: effectiveDisruption,
       disruptedBranch: otherTerminus,
       isBranchAffected: false,
     };
@@ -137,13 +167,13 @@ export function resolveRerouteMode(input: RerouteResolutionInput): RerouteResolu
   if (confirmed.length > 0) {
     return {
       mode: 'affected',
-      disruption,
+      disruption: effectiveDisruption,
       disruptedBranch: confirmedTerminus,
       isBranchAffected: true,
     };
   }
 
-  return { mode: 'empty', disruption, isBranchAffected: false };
+  return { mode: 'empty', disruption: effectiveDisruption, isBranchAffected: false };
 }
 
 /**

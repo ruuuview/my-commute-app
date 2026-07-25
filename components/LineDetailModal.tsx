@@ -287,12 +287,11 @@ export function LineDetailModal({
               {(() => {
                 if (statusType === 'good') return false;
                 const descTrimmed = reasonText.trim();
+                if (!descTrimmed) return false;
                 const descLower = descTrimmed.toLowerCase();
                 const titleLower = (statusLabel || '').trim().toLowerCase();
                 const isDuplicate = descLower === titleLower;
-                const isTooShort = descTrimmed.length < 20;
-                const shouldHide = isDuplicate || isTooShort;
-                return !shouldHide;
+                return !isDuplicate;
               })() ? (
                 <View style={styles.bodySection}>
                   <Text style={styles.bodyText}>{reasonText}</Text>

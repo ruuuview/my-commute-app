@@ -126,6 +126,9 @@ export interface RerouteScreenProps {
    * (we never refetch TfL from here).
    */
   stationId?: string;
+  /** TfL severity code for this line. Used to determine dot color in branch grid:
+   *  unaffected → green, affected+minor(9,7) → amber, affected+severe/suspended(≤6) → red. */
+  severity?: number;
 }
 
 // ─── Component ────────────────────────────────────────────────────
@@ -146,6 +149,7 @@ export default function RerouteScreen({
   googleMapsUrl = 'https://maps.google.com',
   citymapperUrl = 'citymapper://',
   stationId,
+  severity,
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
@@ -373,7 +377,7 @@ export default function RerouteScreen({
         <Text style={s.branchGridTitle}>Where are you headed?</Text>
         {rows.map((row, ri) => (
           <View key={ri} style={s.branchGridRow}>
-            {row.map(branch => {
+            {row.map((branch) => {
               const status = branchStatuses?.[branch];
               const isAffected = status === 'affected';
               return (
@@ -386,7 +390,13 @@ export default function RerouteScreen({
                     <View
                       style={[
                         s.branchStatusDot,
-                        { backgroundColor: isAffected ? '#FF9F43' : '#34D399' },
+                        {
+                          backgroundColor: isAffected
+                            ? severity !== undefined && (severity === 9 || severity === 7)
+                              ? '#FF9F43'
+                              : '#EF4444'
+                            : '#34D399',
+                        },
                       ]}
                     />
                     <Text style={s.branchCardName}>{branch}</Text>

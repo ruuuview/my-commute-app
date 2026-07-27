@@ -101,7 +101,7 @@ const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
   bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
   circle: ['Hammersmith', 'Edgware Road'],
   'hammersmith-city': ['Hammersmith', 'Barking'],
-  overground: ['Watford Junction', 'London Euston'],
+  overground: ['Liberty', 'Lioness', 'Mildmay', 'Suffragette', 'Weaver', 'Windrush'],
 };
 
 const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinutes: number }> = {
@@ -841,18 +841,6 @@ const MyCommuteDashboard: React.FC = () => {
                     onPressAdd={() => setStationModalVisible(true)}
                     isEditing={isEditing}
                   />
-                  {/* v1 scope: single-leg home/work commutes only. Interchange/multi-leg post-v1.
-                      This copy prevents "app is broken" tickets. */}
-                  {selectedStations.length > 0 && (
-                    <View style={dash.scopeBanner}>
-                      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-                      <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.45)" />
-                      <Text style={dash.scopeBannerText}>
-                        Currently covers your pinned commute routes.
-                      </Text>
-                    </View>
-                  )}
-
                   {selectedStations.length === 0 ? (
                     <BouncyPressable
                       onPress={() => {
@@ -1105,6 +1093,7 @@ const MyCommuteDashboard: React.FC = () => {
               googleMapsUrl={links.googleMapsUrl}
               citymapperUrl={links.citymapperUrl}
               stationId={stationId}
+              severity={rerouteLine.status_severity}
             />
           );
         })()}
@@ -1205,28 +1194,6 @@ const dash = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'SpaceGrotesk_500Medium',
     color: 'rgba(255,255,255,0.65)',
-    lineHeight: 18,
-  },
-  // Persistent scope banner — mirrors arrivalBanner but non-interactive (label only, no touch target).
-  // v1 scope: single-leg home/work commutes only. Interchange/multi-leg post-v1. This copy prevents 'app is broken' tickets.
-  scopeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 8,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    overflow: 'hidden',
-  },
-  scopeBannerText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255,255,255,0.45)',
     lineHeight: 18,
   },
 });

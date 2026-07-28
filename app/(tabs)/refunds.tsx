@@ -504,4 +504,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 100,
   },
+  fileClaimButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginTop: 12,
+  },
+  fileClaimButtonText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.80)',
+  },
 })

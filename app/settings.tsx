@@ -24,6 +24,7 @@ import * as Notifications from 'expo-notifications';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancelAnimation } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 import { BlurView } from 'expo-blur';

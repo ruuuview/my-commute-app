@@ -6,11 +6,11 @@ import { Slot, useRouter, usePathname } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useReducedMotion, withTiming } from 'react-native-reanimated';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
-import { House, Radar, Gear } from 'phosphor-react-native';
+import { House, Broadcast, Gear } from 'phosphor-react-native';
 
 const tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[] = [
   { key: 'dashboard', icon: House, label: 'Dashboard' },
-  { key: 'refunds', icon: Radar, label: 'Radar' },
+  { key: 'refunds', icon: Broadcast, label: 'Radar' },
   { key: 'settings', icon: Gear, label: 'Settings' },
 ];
 

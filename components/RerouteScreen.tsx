@@ -34,8 +34,10 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withSpring,
   Easing,
   useReducedMotion,
+  runOnJS,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -50,18 +52,17 @@ import BouncyPressable from './BouncyPressable';
 // the Phosphor package is added, only this alias block changes. Until then it
 // resolves to Ionicons — the closest available glyphs. FLAGGED: swap to real
 // Phosphor once the dependency is installed.
-import { Ionicons as PhosphorIcon } from '@expo/vector-icons';
+import { CaretLeft, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { GLASS } from '../theme/colors';
-// Phosphor glyph mapping (intent): back → CaretLeft, signal-fail → Warning,
-// clock → Clock, map-gm → MapTrifold, map-cm → MapPinLine, fine → CheckCircle.
+// ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
-  back: 'chevron-back' as const,
-  signalFail: 'warning' as const,
-  clock: 'time-outline' as const,
-  googleMaps: 'map-outline' as const,
-  citymapper: 'location-outline' as const,
-  fine: 'checkmark-circle-outline' as const,
-};
+  back: CaretLeft,
+  signalFail: Warning,
+  clock: Clock,
+  googleMaps: MapTrifold,
+  citymapper: MapPinLine,
+  fine: CheckCircle,
+} as const;
 
 // We read disruption from the P0 cache, never re-fetch TfL. The cache is the
 // single source of truth for Reroute (see tier2Cache.ts SINGLE-WRITE DISCIPLINE).
@@ -162,6 +163,60 @@ export default function RerouteScreen({
     if (visible) setInternalBranch(null);
   }, [visible]);
 
+  // ── Rule 38 spring transition: grid → detail ──────────────────
+  // Outgoing grid: withSpring scale to 0.95 + withTiming opacity to 0 over 150ms.
+  // Incoming card: withSpring translateY from +20px + withTiming opacity to 1 over 200ms
+  //   (starts 50ms after grid exit begins).
+  // Spring params: damping: 18, stiffness: 200. Never crossfade.
+  const TRANSITION_DAMPING = 18;
+  const TRANSITION_STIFFNESS = 200;
+  const gridOpacity = useSharedValue(1);
+  const gridScale = useSharedValue(1);
+  const detailTranslateY = useSharedValue(0);
+  const detailOpacity = useSharedValue(0);
+
+  const gridAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: gridOpacity.value,
+    transform: [{ scale: gridScale.value }],
+  }));
+
+  const detailAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: detailOpacity.value,
+    transform: [{ translateY: detailTranslateY.value }],
+  }));
+
+  const [animPhase, setAnimPhase] = useState<'grid' | 'exiting' | 'detail'>('grid');
+
+  const handleBranchTap = (branch: string) => {
+    if (reducedMotion) {
+      setInternalBranch(branch);
+      setAnimPhase('detail');
+      return;
+    }
+    setAnimPhase('exiting');
+    // Phase 1: animate grid out
+    gridOpacity.value = withTiming(0, { duration: 150 });
+    gridScale.value = withSpring(0.95, { damping: TRANSITION_DAMPING, stiffness: TRANSITION_STIFFNESS });
+    // Phase 2: after 50ms delay, animate detail in
+    setTimeout(() => {
+      detailTranslateY.value = withSpring(0, { damping: TRANSITION_DAMPING, stiffness: TRANSITION_STIFFNESS });
+      detailOpacity.value = withTiming(1, { duration: 200 });
+      setInternalBranch(branch);
+      setAnimPhase('detail');
+    }, 50);
+  };
+
+  // Reset animation state when sheet opens or returns to grid
+  useEffect(() => {
+    if (!internalBranch) {
+      gridOpacity.value = 1;
+      gridScale.value = 1;
+      detailTranslateY.value = 20;
+      detailOpacity.value = 0;
+      setAnimPhase('grid');
+    }
+  }, [internalBranch, gridOpacity, gridScale, detailTranslateY, detailOpacity]);
+
   // ── Slide-up animation ─────────────────────────────────────────
   const translateY = useSharedValue(visible ? 0 : 900);
 
@@ -257,7 +312,7 @@ export default function RerouteScreen({
         accessibilityLabel="Back"
         accessibilityRole="button"
       >
-        <PhosphorIcon name={ICON.back} size={22} color="rgba(255,255,255,0.80)" />
+        <ICON.back size={22} color="rgba(255,255,255,0.80)" />
         <Text style={s.backText}>Back</Text>
       </Pressable>
 
@@ -278,7 +333,7 @@ export default function RerouteScreen({
 
       {/* Disrupted badge + reason */}
       <View style={s.disruptionRow}>
-        <PhosphorIcon name={ICON.signalFail} size={15} color="#FF9F43" />
+        <ICON.signalFail size={15} color="#FF9F43" />
         <Text style={s.disruptionLabel}>Disrupted</Text>
       </View>
       <Text style={s.disruptionReason}>
@@ -299,7 +354,7 @@ export default function RerouteScreen({
           <Text style={s.suggestedRouteTitle}>Suggested route</Text>
           <Text style={s.suggestedRouteDesc}>{suggestedRoute.description}</Text>
           <View style={s.extraTimeRow}>
-            <PhosphorIcon name={ICON.clock} size={13} color="rgba(255,255,255,0.45)" />
+            <ICON.clock size={13} color="rgba(255,255,255,0.45)" />
             <Text style={s.extraTimeText}>+{suggestedRoute.extraTimeMinutes} min</Text>
           </View>
         </View>
@@ -309,8 +364,7 @@ export default function RerouteScreen({
       <View style={s.ctaSection}>
         {/* Primary — solid white, ALWAYS present in affected mode */}
         <BouncyPressable onPress={handleOpenGoogleMaps} style={s.primaryCta}>
-          <PhosphorIcon
-            name={ICON.googleMaps}
+          <ICON.googleMaps
             size={18}
             color="#07103a"
             style={{ marginRight: 8 }}
@@ -321,8 +375,7 @@ export default function RerouteScreen({
         {/* Secondary — outline, canOpenURL gated, ABSENT if not installed */}
         {citymapperAvailable && (
           <BouncyPressable onPress={handleOpenCitymapper} style={s.secondaryCta}>
-            <PhosphorIcon
-              name={ICON.citymapper}
+            <ICON.citymapper
               size={18}
               color="rgba(255,255,255,0.80)"
               style={{ marginRight: 8 }}
@@ -350,6 +403,11 @@ export default function RerouteScreen({
           ? `The disruption is on the ${otherBranchName} branch, not yours.`
           : 'The disruption does not affect your route.'}
       </Text>
+
+      {/* Rule 33 — GOT IT dismiss button */}
+      <BouncyPressable onPress={onClose} style={s.gotItButton}>
+        <Text style={s.gotItButtonText}>Got it</Text>
+      </BouncyPressable>
     </View>
   );
 
@@ -357,7 +415,7 @@ export default function RerouteScreen({
     // Single line, no forced card.
     <View style={s.body}>
       <View style={s.emptyStateRow}>
-        <PhosphorIcon name={ICON.fine} size={22} color="rgba(255,255,255,0.35)" />
+        <ICON.fine size={22} color="rgba(255,255,255,0.35)" />
         <Text style={s.emptyStateText}>No impact on your usual routes.</Text>
       </View>
     </View>
@@ -384,7 +442,7 @@ export default function RerouteScreen({
                 <Pressable
                   key={branch}
                   style={s.branchGridCard}
-                  onPress={() => setInternalBranch(branch)}
+                  onPress={() => handleBranchTap(branch)}
                 >
                   <View style={s.branchCardContent}>
                     <View
@@ -455,13 +513,21 @@ export default function RerouteScreen({
 
           {renderHeader()}
 
-          {showGrid
-            ? renderBranchGrid()
-            : detailMode === 'affected'
-              ? renderAffectedState()
-              : detailMode === 'unaffected'
-                ? renderUnaffectedState()
-                : renderEmptyState()}
+          {showGrid && animPhase !== 'detail' ? (
+            <Animated.View style={gridAnimatedStyle}>
+              {renderBranchGrid()}
+            </Animated.View>
+          ) : null}
+
+          {(!showGrid || animPhase === 'detail') && internalBranch ? (
+            <Animated.View style={detailAnimatedStyle}>
+              {detailMode === 'affected'
+                ? renderAffectedState()
+                : detailMode === 'unaffected'
+                  ? renderUnaffectedState()
+                  : renderEmptyState()}
+            </Animated.View>
+          ) : null}
         </Animated.View>
       </View>
     </Modal>
@@ -480,7 +546,7 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    maxHeight: '85%',
+    maxHeight: '48%', // Rule 32 — strictly under 50% screen height
     paddingHorizontal: 20,
     paddingTop: 10,
   },
@@ -631,6 +697,25 @@ const s = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 15,
     color: 'rgba(255,255,255,0.40)',
+  },
+
+  // ── Got it dismiss (Rule 33) ──────────────────────────────────
+  gotItButton: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 26,
+    minHeight: 44,
+    paddingHorizontal: 32,
+    paddingVertical: 10,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  gotItButtonText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.80)',
+    letterSpacing: 0.5,
   },
 
   // ── CTAs ──────────────────────────────────────────────────────

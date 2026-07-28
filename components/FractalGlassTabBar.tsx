@@ -2,13 +2,12 @@
 import React, { memo } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 interface TabBarProps {
-  tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[];
+  tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[];
   activeKey: string;
   onPress: (key: string) => void;
 }
@@ -53,11 +52,10 @@ const TabButton = memo(({ tab, isActive, onPress }: { tab: any; isActive: boolea
       ]}
     >
       <Animated.View style={[styles.tabContent, animatedStyle]}>
-        <Ionicons 
-          name={tab.icon} 
-          size={24} 
-          color={isActive ? "#FFFFFF" : "rgba(255,255,255,0.35)"} 
-        />
+        {React.createElement(tab.icon, {
+          size: 24,
+          color: isActive ? "#FFFFFF" : "rgba(255,255,255,0.35)"
+        })}
         {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
       </Animated.View>
     </Pressable>

@@ -20,7 +20,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { StatusBezel } from './StatusBezel';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretRight } from 'phosphor-react-native';
 import { readCachedDisruption } from './rerouteHelpers';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -70,6 +70,11 @@ interface LineDetailModalProps {
   /** Optional station id — when provided, the CTA is gated on the Tier 2 cache
    *  (shown only when cache.disruption.isDisrupted is true; absent otherwise). */
   stationId?: string;
+  /** Context badge for station impact display (Rule 34):
+   *  'clear' → green "YOUR STATIONS OK"
+   *  'affected' → red "SEVERE DELAYS"
+   *  null/undefined → no badge (suppressed for vague TfL data) */
+  contextBadge?: 'clear' | 'affected' | null;
 }
 
 const STATUS_TOKENS: Record<
@@ -130,6 +135,7 @@ export function LineDetailModal({
   anchorRect,
   onOpenReroute,
   stationId,
+  contextBadge,
 }: LineDetailModalProps) {
   const insets = useSafeAreaInsets();
   const MIN_ALLOWED_TOP = insets.top + 12;
@@ -283,6 +289,27 @@ export function LineDetailModal({
                 </View>
               </View>
 
+              {/* ── Context Badge (Rule 34) — station impact indicator ── */}
+              {contextBadge && (
+                <View style={[
+                  styles.contextBadge,
+                  contextBadge === 'clear'
+                    ? styles.contextBadgeClear
+                    : styles.contextBadgeAffected,
+                ]}>
+                  <View style={[
+                    styles.contextBadgeDot,
+                    { backgroundColor: contextBadge === 'clear' ? '#34D399' : '#FF3B30' },
+                  ]} />
+                  <Text style={[
+                    styles.contextBadgeText,
+                    { color: contextBadge === 'clear' ? '#34D399' : '#FF3B30' },
+                  ]}>
+                    {contextBadge === 'clear' ? 'YOUR STATIONS OK' : 'SEVERE DELAYS'}
+                  </Text>
+                </View>
+              )}
+
               {/* ── Full text description reason string ── */}
               {(() => {
                 if (statusType === 'good') return false;
@@ -336,7 +363,7 @@ export function LineDetailModal({
                   ]}
                 >
                   <Text style={styles.rerouteButtonText}>See alternative routes</Text>
-                  <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.55)" />
+                  <CaretRight size={14} color="rgba(255,255,255,0.55)" />
                 </Pressable>
               ) : null}
             </ScrollView>
@@ -441,6 +468,40 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.78)',
     lineHeight: 22,
+  },
+
+  // ── Context Badge (Rule 34) ──────────────────────────────────
+  contextBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 9999,
+    borderWidth: 1,
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  contextBadgeClear: {
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    borderColor: 'rgba(52, 211, 153, 0.25)',
+  },
+  contextBadgeAffected: {
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    borderColor: 'rgba(255, 59, 48, 0.25)',
+  },
+  contextBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  contextBadgeText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
 
   // ── Reroute CTA ──────────────────────────────────────────────

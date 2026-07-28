@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretLeft } from 'phosphor-react-native';
 import { BlurView } from 'expo-blur';
 import Animated from 'react-native-reanimated';
 import { GLASS } from '../theme/colors';
@@ -26,7 +26,7 @@ export default function PrivacyScreen() {
           style={[styles.backButton, backPress.animatedStyle]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.80)" />
+          <CaretLeft size={24} color="rgba(255,255,255,0.80)" />
         </AnimatedPressable>
         <Text style={styles.headerTitle}>Privacy Policy</Text>
         <View style={styles.backButton} />

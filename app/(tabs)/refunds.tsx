@@ -11,6 +11,8 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  Linking,
+  Clipboard,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur'
@@ -45,6 +47,8 @@ interface ClaimsResponse {
 }
 
 // ── Status display config ───────────────────────────────────────────
+
+const TFL_REFUND_URL = 'https://tfl.gov.uk/fares/refunds/apply-for-a-service-delay-refund'
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   detected:    { label: 'Under Review',  icon: 'time-outline',         color: '#FFB800' },
@@ -112,6 +116,30 @@ const ClaimCard = React.memo(({ claim }: { claim: Claim }) => {
             </View>
           )}
         </View>
+
+        {/* File Claim on TfL — one-tap export (v10.0 §4) */}
+        {(claim.status === 'detected' || claim.status === 'ineligible') && (
+          <Pressable
+            onPress={() => {
+              const evidence = JSON.stringify({
+                date: dateStr,
+                line: claim.lineId,
+                delay: `${claim.delayMinutes}min`,
+                entry: claim.entryStation,
+                exit: claim.exitStation,
+                amount: `£${(claim.amountPence / 100).toFixed(2)}`,
+              }, null, 2)
+              Clipboard.setString(evidence)
+              Linking.openURL(TFL_REFUND_URL).catch(() => {})
+            }}
+            style={({ pressed }) => [
+              styles.fileClaimButton,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={styles.fileClaimButtonText}>File Claim on TfL</Text>
+          </Pressable>
+        )}
       </BlurView>
     </View>
   )
@@ -140,7 +168,7 @@ export default function RefundsScreen() {
         return
       }
       if (!isRefresh) setLoading(true)
-      const res = await fetch(`${APP_CONFIG.BACKEND_URL}/api/claims`, {
+      const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims`, {
         headers: { 'x-user-id': userId, 'x-api-key': apiKey },
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)

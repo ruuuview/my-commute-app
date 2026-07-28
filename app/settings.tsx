@@ -10,7 +10,11 @@ import {
   Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  CaretLeft, Bell, Info, WarningCircle, Warning, Clock, CaretRight,
+  DeviceMobile, Fingerprint, House, MapTrifold, MapPin, Train, Shield,
+  FileText, ArrowsClockwise 
+} from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
@@ -270,7 +274,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
+            <CaretLeft size={28} color="#FFFFFF" />
           </Pressable>
         </Animated.View>
         <Text style={styles.headerTitle}>Settings</Text>
@@ -287,7 +291,7 @@ export default function SettingsScreen() {
               <Animated.View style={[styles.frontCard, frontAnimatedStyle]}>
                 <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
                 <View style={styles.cardHeaderRow}>
-                  <Ionicons name="notifications-outline" size={24} color="#30D158" />
+                  <Bell size={24} color="#30D158" />
                   <Text style={styles.cardHeaderTitle}>{"The Central line doesn't text you when it's cooked. We do."}</Text>
                 </View>
                 <Text style={styles.cardBodyText}>
@@ -351,7 +355,7 @@ export default function SettingsScreen() {
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>Notification Preferences</Text>
             <Pressable onPress={showQuietHoursInfo}>
-              <Ionicons name="information-circle-outline" size={20} color="rgba(255,255,255,0.45)" />
+              <Info size={20} color="rgba(255,255,255,0.45)" />
             </Pressable>
           </View>
           
@@ -366,7 +370,7 @@ export default function SettingsScreen() {
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
                   <View style={styles.settingLabelRow}>
-                    <Ionicons name="notifications" size={20} color="#30D158" style={styles.iconMargin} />
+                    <Bell size={20} color="#30D158" style={styles.iconMargin} />
                     <Text style={styles.settingLabel}>Enable Notifications</Text>
                   </View>
                   <Text style={styles.settingDescription}>
@@ -388,7 +392,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="alert-circle" size={18} color="#DC3545" style={styles.iconMargin} />
+                        <WarningCircle size={18} color="#DC3545" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Severe Delays</Text>
                       </View>
                       <Text style={styles.settingDescription}>
@@ -408,7 +412,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="warning" size={18} color="#FFA500" style={styles.iconMargin} />
+                        <Warning size={18} color="#FFA500" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Minor Delays</Text>
                       </View>
                       <Text style={styles.settingDescription}>
@@ -434,14 +438,14 @@ export default function SettingsScreen() {
                     >
                       <View style={styles.settingInfo}>
                         <View style={styles.settingLabelRow}>
-                          <Ionicons name="time" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                          <Clock size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                           <Text style={styles.settingLabel}>Notification Hours</Text>
                         </View>
                         <Text style={styles.settingDescription}>
                           {notificationSettings.time_window_start} - {notificationSettings.time_window_end}
                         </Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+                      <CaretRight size={20} color="rgba(255,255,255,0.30)" />
                     </Pressable>
                   </Animated.View>
 
@@ -450,7 +454,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="phone-portrait" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                        <DeviceMobile size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Device Notifications</Text>
                       </View>
                       <Text style={[styles.settingDescription, { color: '#FFA500' }]}>
@@ -464,7 +468,7 @@ export default function SettingsScreen() {
                   <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                       <View style={styles.settingLabelRow}>
-                        <Ionicons name="finger-print" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                        <Fingerprint size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                         <Text style={styles.settingLabel}>Haptic Feedback</Text>
                       </View>
                       <Text style={styles.settingDescription}>
@@ -490,7 +494,7 @@ export default function SettingsScreen() {
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
                   <View style={styles.settingLabelRow}>
-                    <Ionicons name="home" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                    <House size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                     <Text style={styles.settingLabel}>Welcome Home</Text>
                   </View>
                   <Text style={styles.settingDescription}>
@@ -514,7 +518,7 @@ export default function SettingsScreen() {
                 >
                   <View style={styles.settingInfo}>
                     <View style={styles.settingLabelRow}>
-                      <Ionicons name="map" size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                      <MapTrifold size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
                       <Text style={styles.settingLabel}>Home & Work</Text>
                     </View>
                     <Text style={styles.settingDescription}>
@@ -531,7 +535,7 @@ export default function SettingsScreen() {
 
           <View style={styles.infoCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <Ionicons name="information-circle" size={24} color="rgba(255,255,255,0.45)" />
+            <Info size={24} color="rgba(255,255,255,0.45)" />
             <Text style={styles.infoText}>
               Notifications will only alert you about lines and stations you&apos;ve saved to your dashboard.
             </Text>
@@ -546,7 +550,7 @@ export default function SettingsScreen() {
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <View style={styles.settingLabelRow}>
-                  <Ionicons name="location" size={20} color="#007AFF" style={styles.iconMargin} />
+                  <MapPin size={20} color="#007AFF" style={styles.iconMargin} />
                   <Text style={styles.settingLabel}>Station Geofencing</Text>
                 </View>
                 <Text style={styles.settingDescription}>
@@ -593,7 +597,7 @@ export default function SettingsScreen() {
           <View style={styles.aboutCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
             <View style={styles.aboutRow}>
-              <Ionicons name="information-circle-outline" size={24} color="rgba(255,255,255,0.45)" />
+              <Info size={24} color="rgba(255,255,255,0.45)" />
               <View style={styles.aboutInfo}>
                 <Text style={styles.aboutLabel}>App Version</Text>
                 <Text style={styles.aboutValue}>1.0.3</Text>
@@ -603,7 +607,7 @@ export default function SettingsScreen() {
             <View style={styles.divider} />
             
             <View style={styles.aboutRow}>
-              <Ionicons name="subway-outline" size={24} color="rgba(255,255,255,0.45)" />
+              <Train size={24} color="rgba(255,255,255,0.45)" />
               <View style={styles.aboutInfo}>
                 <Text style={styles.aboutLabel}>Transport Data</Text>
                 <Text style={styles.aboutValue}>Powered by TfL</Text>
@@ -625,7 +629,7 @@ export default function SettingsScreen() {
                 onPressIn={resetPressAnim.onPressIn}
                 onPressOut={resetPressAnim.onPressOut}
               >
-                <Ionicons name="shield-outline" size={24} color="rgba(255,255,255,0.45)" />
+                <Shield size={24} color="rgba(255,255,255,0.45)" />
                 <View style={styles.aboutInfo}>
                   <Text style={styles.aboutLabel}>Privacy Policy</Text>
                   <Text style={styles.settingDescription}>How we handle your data</Text>
@@ -643,7 +647,7 @@ export default function SettingsScreen() {
                 onPressIn={resetPressAnim.onPressIn}
                 onPressOut={resetPressAnim.onPressOut}
               >
-                <Ionicons name="document-text-outline" size={24} color="rgba(255,255,255,0.45)" />
+                <FileText size={24} color="rgba(255,255,255,0.45)" />
                 <View style={styles.aboutInfo}>
                   <Text style={styles.aboutLabel}>Terms of Service</Text>
                   <Text style={styles.settingDescription}>App usage terms</Text>
@@ -682,7 +686,7 @@ export default function SettingsScreen() {
                 onPressIn={resetPressAnim.onPressIn}
                 onPressOut={resetPressAnim.onPressOut}
               >
-                <Ionicons name="refresh-circle-outline" size={24} color="#DC3545" />
+                <ArrowsClockwise size={24} color="#DC3545" />
                 <View style={styles.aboutInfo}>
                   <Text style={[styles.aboutLabel, { color: '#DC3545', fontWeight: '600' }]}>Reset Onboarding</Text>
                   <Text style={styles.settingDescription}>Start the setup flow from the beginning</Text>

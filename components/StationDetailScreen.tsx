@@ -19,7 +19,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { Train } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -409,7 +409,7 @@ export default function StationDetailScreen({
               <View style={s.separatorRow}>
                 <View style={s.separatorLine} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginHorizontal: 8 }}>
-                  <Ionicons name="train-outline" size={11} color="rgba(255,255,255,0.25)" />
+                  <Train size={11} color="rgba(255,255,255,0.25)" />
                   <Text style={s.separatorText}>Other lines</Text>
                 </View>
                 <View style={s.separatorLine} />

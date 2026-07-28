@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { ShieldCheck, Clock, Lock } from 'phosphor-react-native';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 
 interface ProStatusCardProps {
@@ -21,7 +21,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
       <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Ionicons name="shield-checkmark" size={24} color="#30D158" style={styles.icon} />
+            <ShieldCheck size={24} color="#30D158" style={styles.icon} />
             <View style={styles.textContainer}>
               <Text style={styles.title}>You are a Pro Member</Text>
               <Text style={styles.subtitle}>You have unlimited lifetime access.</Text>
@@ -37,7 +37,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
       <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Ionicons name="time" size={24} color="#30D158" style={styles.icon} />
+            <Clock size={24} color="#30D158" style={styles.icon} />
             <View style={styles.textContainer}>
               <Text style={styles.title}>Pro Trial Active</Text>
               <Text style={styles.subtitle}>
@@ -57,7 +57,7 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
     <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
       <View style={styles.card}>
         <View style={styles.row}>
-          <Ionicons name="lock-closed" size={24} color="#FF453A" style={styles.icon} />
+          <Lock size={24} color="#FF453A" style={styles.icon} />
           <View style={styles.textContainer}>
             <Text style={styles.title}>You are on the Free Plan</Text>
             <Text style={styles.subtitle}>You are limited to 3 items. Upgrade for unlimited access.</Text>

@@ -6,12 +6,12 @@ import { Slot, useRouter, usePathname } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useReducedMotion, withTiming } from 'react-native-reanimated';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
-import { Ionicons } from '@expo/vector-icons';
+import { House, Radar, Gear } from 'phosphor-react-native';
 
-const tabs: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { key: 'dashboard', icon: 'home', label: 'Dashboard' },
-  { key: 'refunds', icon: 'analytics', label: 'Radar' },
-  { key: 'settings', icon: 'settings', label: 'Settings' },
+const tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[] = [
+  { key: 'dashboard', icon: House, label: 'Dashboard' },
+  { key: 'refunds', icon: Radar, label: 'Radar' },
+  { key: 'settings', icon: Gear, label: 'Settings' },
 ];
 
 const TabsLayout = () => {

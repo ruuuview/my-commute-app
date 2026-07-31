@@ -8,6 +8,7 @@ import Animated, {
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
+import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 
 interface StatusBezelProps {
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | string;
@@ -49,22 +50,22 @@ export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType,
 
   let color = '#636366'; // Default suspended/closure/error/loading color
   if (normalizedStatus.includes('good')) {
-    color = '#30D158';
+    color = STATUS_SEVERITY_COLORS.good;
   } else if (normalizedStatus.includes('minor') || normalizedStatus.includes('delay')) {
     if (normalizedStatus.includes('severe')) {
-      color = '#FF3B30';
+      color = STATUS_SEVERITY_COLORS.severe;
     } else {
-      color = '#FF9F0A';
+      color = STATUS_SEVERITY_COLORS.minor;
     }
   } else if (normalizedStatus.includes('severe')) {
-    color = '#FF3B30';
+    color = STATUS_SEVERITY_COLORS.severe;
   } else if (
     normalizedStatus.includes('suspended') ||
     normalizedStatus.includes('suspend') ||
     normalizedStatus.includes('closure') ||
     normalizedStatus.includes('closed')
   ) {
-    color = '#FF3B30';
+    color = STATUS_SEVERITY_COLORS.severe;
   }
 
   return (

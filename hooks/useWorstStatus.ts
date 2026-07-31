@@ -1,8 +1,6 @@
 // hooks/useWorstStatus.ts
 //
-// The single source of truth for commute status severity across the entire app.
-// All gradient colours, Dynamic Island tints, notification dots, and lock screen
-// widgets derive their status from this hook — nothing computes severity elsewhere.
+// Worst-status aggregation across the user's lines.
 //
 // IMPORTANT — severity values in store:
 // useLineData.ts patches status_severity before writing to the store.
@@ -13,15 +11,19 @@
 //    5  → minor      (minor / part / reduced)
 //    1  → good       (good service / catch-all)
 //
+// NOTE: useLineData.ts currently passes through RAW TfL codes (not patched),
+// so code→label is delegated to utils/getSeverityColor.ts — the single
+// source of truth (AGENTS.md §0). Suspended/closure codes collapse into
+// 'severe' (red) per the remediation plan.
+//
 // Community report upgrade rules (v4.1 §2.4):
 //   reports ≥ 3  AND TfL shows 'good'  → upgrade to 'minor'
 //   reports ≥ 5  AND TfL shows 'minor' → upgrade to 'severe'
-//
-// NOTE: useLineData.ts currently passes through RAW TfL codes (not patched).
 
 import { useLineDataStore } from '../store/lineDataStore';
+import { getSeverityLabel } from '../utils/getSeverityColor';
 
-export type StatusLevel = 'good' | 'minor' | 'severe' | 'suspended' | 'unknown';
+export type StatusLevel = 'good' | 'minor' | 'severe' | 'unknown';
 
 // Severity ranking — higher number = worse status
 const SEVERITY: Record<StatusLevel, number> = {
@@ -29,26 +31,16 @@ const SEVERITY: Record<StatusLevel, number> = {
   good: 1,
   minor: 2,
   severe: 3,
-  suspended: 4,
 };
 
 /**
- * Maps the raw TfL status_severity number from lineDataStore
- * to the canonical StatusLevel enum.
- * 
- * Canonical mapping (all files use this table):
- *   10,18,14 → good      (Good Service / Special Service / Information)
- *   9,7      → minor     (Minor Delays / Reduced Service)
- *   6        → severe    (Severe Delays)
- *   5,4,3,0,11,8,16,17,19,1,2,20 → suspended (Part/Planned/Whole Closure, Suspended, Bus Service, Not Running)
+ * Maps a TfL status_severity number to the canonical StatusLevel enum.
+ * Delegated to the single source of truth (utils/getSeverityColor.ts):
+ *   10,18,14 → good · 9,7 → minor · 6 → severe ·
+ *   suspended/closure bucket (0,1,2,3,4,5,8,11,16,17,19,20) → severe.
  */
 function severityToLevel(patchedSeverity: number | undefined): StatusLevel {
-  const code = patchedSeverity ?? 10;
-  if (code === 10 || code === 18 || code === 14) return 'good';
-  if (code === 9 || code === 7) return 'minor';
-  if (code === 6) return 'severe';
-  if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(code)) return 'suspended';
-  return 'unknown';
+  return getSeverityLabel(patchedSeverity);
 }
 
 /**

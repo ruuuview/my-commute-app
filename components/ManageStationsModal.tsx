@@ -26,11 +26,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { GLASS } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
+import { requestPermission } from '../store/permissionOrchestrator';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
 
@@ -40,7 +40,6 @@ import Fuse from 'fuse.js';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const MAX_PINS = 5;
-const SHEET_HEIGHT_RATIO = 0.78;
 
 interface ManageStationsModalProps {
   visible: boolean;
@@ -103,7 +102,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
         <View style={styles.compactPillsContainer}>
           {visibleLines.map((lineId) => {
             const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-            const brandColor = LINE_COLORS[lineId] || '#888';
+            const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
             const colors = getPillColors(lineId, brandColor);
 
             return (
@@ -136,7 +135,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation = useUserPreferencesStore(s => s.pinStation);
-  const { requestLocationPermission } = useDeferredPermissionTriggers();
   const donePress = usePressAnimation('back_btn');
   const clearPress = usePressAnimation('skip_btn');
 
@@ -266,15 +264,16 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
       }, role);
 
       // Trigger location permission request if not already granted
+      // (feature-triggered — the user just pinned a station).
       const locationGranted = useUserPreferencesStore.getState().locationGranted;
       if (!locationGranted) {
         // Request asynchronously after state update
         setTimeout(() => {
-          requestLocationPermission();
+          void requestPermission('locationWhenInUse', 'station_pin');
         }, 100);
       }
     },
-    [pinnedStations, pinStation, triggerMaxPinsShake, requestLocationPermission]
+    [pinnedStations, pinStation, triggerMaxPinsShake]
   );
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
@@ -297,7 +296,12 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     onClose();
   };
 
-  const sheetHeight = screenHeight * SHEET_HEIGHT_RATIO;
+  // No fixed height on the sheet — it sizes to content up to maxHeight
+  // (85% cap, safe-area aware) so the inner list scrolls instead of clipping.
+  const sheetMaxHeight = Math.min(
+    screenHeight * 0.85,
+    Math.max(screenHeight - insets.top - insets.bottom, screenHeight * 0.5)
+  );
 
   return (
     <Modal
@@ -316,8 +320,8 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
           accessibilityLabel="Dismiss manage stations"
         />
 
-        {/* Bottom sheet — 78% of screen height */}
-        <View style={[styles.sheet, { height: sheetHeight }]}>
+        {/* Bottom sheet — sizes to content, capped at 85% of screen height */}
+        <View style={[styles.sheet, { maxHeight: sheetMaxHeight }]}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
 
           {/* Drag handle */}
@@ -405,7 +409,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 windowSize={5}
                 contentContainerStyle={[
                   styles.listContainer,
-                  { paddingBottom: insets.bottom + 24 }
+                  { flexGrow: 1, paddingBottom: insets.bottom + 24 }
                 ]}
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="on-drag"

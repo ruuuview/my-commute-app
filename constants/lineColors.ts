@@ -1,6 +1,8 @@
 // constants/lineColors.ts
+// Line IDENTITY colors (line chips/bars/brand accents). Severity colors are a
+// SEPARATE token system (utils/getSeverityColor.ts) — never merged (AGENTS.md §0).
 
-export const LINE_COLORS: Record<string, string> = {
+export const LINE_IDENTITY_COLORS: Record<string, string> = {
   bakerloo: '#B36305',
   central: '#E32017',
   circle: '#FFD300',

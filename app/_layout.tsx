@@ -22,6 +22,8 @@ import { syncPushTokenWithBackend } from '../services/notificationRegistrationSe
 import * as Notifications from 'expo-notifications';
 import { SessionManager } from '../services/SessionManager';
 import { installDirectionNotification } from '../services/directionNotification';
+import { setupAuthCallbackListener } from '../services/authSession';
+import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 
 SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
@@ -172,6 +174,13 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Auth callback return-path routing (Phase 1 #3/#11): listens for
+  // mycommute://auth/callback warm + cold start, persists the token to
+  // Keychain, and router.replace()s back to the recorded origin screen.
+  useEffect(() => {
+    return setupAuthCallbackListener({ replace: (href) => router.replace(href as never) });
+  }, [router]);
+
   // Register notification categories, response listener, and run dwell check on mount
   useEffect(() => {
     if (_hasHydrated) {
@@ -319,6 +328,7 @@ export default function RootLayout() {
           />
         ) : null}
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
+        <PermissionPrimerModal />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -39,7 +39,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
 import { useWorstStatus, computeWorstStatus } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
-import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
 // ✅ Modal now managed HERE, not upstream
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
@@ -55,8 +54,9 @@ import LivingDot from './LivingDot';
 import BouncyPressable from './BouncyPressable';
 import { useLineDataStore } from '../store/lineDataStore';
 import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
+import { getSeverityColor } from '../utils/getSeverityColor';
 import RerouteScreen from './RerouteScreen';
 import {
   resolveRerouteMode,
@@ -150,35 +150,17 @@ const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinute
 
 
 // ─── Severity mapping ─────────────────────────────────────────────
-// Maps RAW TfL status_severity codes to our Severity enum.
-// Must stay aligned with useWorstStatus.ts severityToLevel() and AGENTS.md §1.
-//
-// TfL codes (raw):
-//   10,18,14 → good     (Good Service / Special Service / Information)
-//    9,7     → minor    (Minor Delays / Reduced Service)
-//    6       → severe   (Severe Delays)
-//    5,4,3,0,11,8,16,17,19,1,2,20 → suspended (Suspended / Part/Planned/Whole Closure / Bus Service / Not Running)
-function getSeverityFromStatus(statusText: string, statusSeverity?: number): Severity {
-  if (statusSeverity !== undefined) {
-    if (statusSeverity === 10 || statusSeverity === 18 || statusSeverity === 14) return 'good';
-    if (statusSeverity === 9 || statusSeverity === 7) return 'minor';
-    if (statusSeverity === 6) return 'severe';
-    if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(statusSeverity)) return 'suspended';
-  }
-  // Fallback: parse status text when severity code is missing or unrecognized
+// Code→label mapping is delegated to the single source of truth in
+// utils/getSeverityColor.ts (AGENTS.md §0). Only the dashboard's own
+// network-state detection (offline/loading/unknown text) stays local —
+// those states are NOT TfL statuses and getSeverityColor deliberately
+// defaults unrecognized input to 'good'.
+function getDashboardSeverity(statusText: string, statusSeverity?: number): Severity {
   const text = String(statusText ?? '').toLowerCase();
-  if (text.includes('good') && !text.includes('delay')) return 'good';
-  if (text.includes('closure')) return 'suspended';
-  if (text.includes('suspended')) return 'suspended';
-  if (text.includes('bus')) return 'suspended';
-  if (text.includes('not running')) return 'suspended';
-  if (text.includes('closed')) return 'suspended';
-  if (text.includes('severe')) return 'severe';
-  if (text.includes('minor')) return 'minor';
-  if (text.includes('information')) return 'good';
-  if (text.includes('reduced')) return 'minor';
-  if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) return 'unknown';
-  return 'good';
+  if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) {
+    return 'unknown';
+  }
+  return getSeverityColor(statusSeverity, statusText).label;
 }
 
 // ─── Smart Heartbeat Dot ─────────────────────────────────────────
@@ -420,13 +402,10 @@ const MyCommuteDashboard: React.FC = () => {
 
 
 
-  // ✅ Deferred Permission Trigger System (Phase 6)
-  const {
-    shouldShowNotificationPrompt,
-    shouldShowCalendarPrompt,
-    requestCalendarPermission,
-    requestNotificationPermission,
-  } = useDeferredPermissionTriggers();
+  // ✅ Permissions: the dashboard is a ZERO permission-ask surface per the
+  // remediation plan Phase 4 (#2) — no session-count triggers, no auto
+  // prompts. All permission asks route through store/permissionOrchestrator
+  // from their feature triggers (onboarding, settings, Tier 1 upgrade).
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -441,7 +420,7 @@ const MyCommuteDashboard: React.FC = () => {
       const freshLines = raw.map((item: any) => ({
         id: String(item?.id ?? ''),
         name: String(item?.name ?? ''),
-        color: LINE_COLORS[String(item?.id ?? '')] || '#888',
+        color: LINE_IDENTITY_COLORS[String(item?.id ?? '')] || '#888',
         status: String(item?.status ?? ''),
         status_severity: item?.status_severity ?? 10,
         reason: String(item?.reason ?? ''),
@@ -477,7 +456,7 @@ const MyCommuteDashboard: React.FC = () => {
         freshLines.push({
           id: 'overground',
           name: 'London Overground',
-          color: LINE_COLORS.overground || '#EE7C0E',
+          color: LINE_IDENTITY_COLORS.overground || '#EE7C0E',
           status: worstBranch.status,
           status_severity: worstBranch.status_severity,
           reason: worstBranch.reason,
@@ -486,7 +465,7 @@ const MyCommuteDashboard: React.FC = () => {
         freshLines.push({
           id: 'overground',
           name: 'London Overground',
-          color: LINE_COLORS.overground || '#EE7C0E',
+          color: LINE_IDENTITY_COLORS.overground || '#EE7C0E',
           status: 'Good service',
           status_severity: 10,
           reason: '',
@@ -528,7 +507,7 @@ const MyCommuteDashboard: React.FC = () => {
         return {
           id,
           name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
-          color: LINE_COLORS[id] || '#888',
+          color: LINE_IDENTITY_COLORS[id] || '#888',
           status: staleState === 'offline' 
             ? 'Offline' 
             : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
@@ -538,22 +517,6 @@ const MyCommuteDashboard: React.FC = () => {
   }, [data.lines, selectedLines, staleState]);
 
   const hasContent = myLines.length > 0 || selectedStations.length > 0;
-
-  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
-  const [showCalPrompt, setShowCalPrompt] = useState(false);
-
-  useEffect(() => {
-    if (hasContent) {
-      const t = setTimeout(() => {
-        if (shouldShowNotificationPrompt()) {
-          setShowNotifPrompt(true);
-        } else if (shouldShowCalendarPrompt()) {
-          setShowCalPrompt(true);
-        }
-      }, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [hasContent, shouldShowNotificationPrompt, shouldShowCalendarPrompt]);
 
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -579,7 +542,7 @@ const MyCommuteDashboard: React.FC = () => {
 
   const renderLineItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<LineData>) => {
     const idx = getIndex() ?? sortedLines.findIndex((l: LineData) => l.id === item.id);
-    const severity = getSeverityFromStatus(item.status, item.status_severity);
+    const severity = getDashboardSeverity(item.status, item.status_severity);
 
     const handlePress = () => {
       const ref = itemRefs.current[item.id];
@@ -732,7 +695,7 @@ const MyCommuteDashboard: React.FC = () => {
                   ) : (
                     <View>
                       {sortedLines.map((item: LineData, idx: number) => {
-                        const severity = getSeverityFromStatus(item.status, item.status_severity);
+                        const severity = getDashboardSeverity(item.status, item.status_severity);
                         const handlePress = () => {
                           if (isEditing) return;
                           const ref = itemRefs.current[item.id];
@@ -912,92 +875,6 @@ const MyCommuteDashboard: React.FC = () => {
           onClose={() => setStationModalVisible(false)}
         />
 
-        {/* Deferred Notification Modal */}
-        <Modal
-          visible={showNotifPrompt}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowNotifPrompt(false)}
-        >
-          <View style={dash.promptScrim}>
-            <View style={dash.promptCard}>
-              <Ionicons name="notifications-outline" size={32} color="#F2A002" style={dash.promptIcon} />
-              <Text style={dash.promptTitle}>Don&apos;t get stuck.</Text>
-              <Text style={dash.promptText}>
-                TfL lines have delays right now. Want an alert next time?
-              </Text>
-              <View style={dash.promptActions}>
-                <BouncyPressable
-                  style={[dash.promptBtn, dash.promptBtnPrimary]}
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                    await requestNotificationPermission();
-                    setShowNotifPrompt(false);
-                  }}
-                  accessibilityLabel="Notify me of line delays"
-                  accessibilityRole="button"
-                >
-                  <Text style={dash.promptBtnTextPrimary}>Notify me</Text>
-                </BouncyPressable>
-                <BouncyPressable
-                  style={dash.promptBtn}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    setShowNotifPrompt(false);
-                  }}
-                  accessibilityLabel="Maybe later"
-                  accessibilityRole="button"
-                >
-                  <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
-                </BouncyPressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Deferred Calendar Modal */}
-        <Modal
-          visible={showCalPrompt}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowCalPrompt(false)}
-        >
-          <View style={dash.promptScrim}>
-            <View style={dash.promptCard}>
-              <Ionicons name="calendar-outline" size={32} color="#0098D4" style={dash.promptIcon} />
-              <Text style={dash.promptTitle}>Know before you leave.</Text>
-              <Text style={dash.promptText}>
-                Your calendar stays on your device. We match your schedule to live departures.
-              </Text>
-              <View style={dash.promptActions}>
-                <BouncyPressable
-                  style={[dash.promptBtn, dash.promptBtnPrimary]}
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                    await requestCalendarPermission();
-                    setShowCalPrompt(false);
-                  }}
-                  accessibilityLabel="Allow Calendar Access"
-                  accessibilityRole="button"
-                >
-                  <Text style={dash.promptBtnTextPrimary}>Allow Calendar Access</Text>
-                </BouncyPressable>
-                <BouncyPressable
-                  style={dash.promptBtn}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    setShowCalPrompt(false);
-                  }}
-                  accessibilityLabel="Maybe later"
-                  accessibilityRole="button"
-                >
-                  <Text style={dash.promptBtnTextSecondary}>Maybe later</Text>
-                </BouncyPressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
         {/* Line Detail Modal */}
         {selectedLineForModal && selectedLineInfo && (
           <LineDetailModal
@@ -1010,7 +887,7 @@ const MyCommuteDashboard: React.FC = () => {
               status: selectedLineForModal.status,
               reason: selectedLineForModal.reason,
             }}
-            statusType={getSeverityFromStatus(selectedLineForModal.status, selectedLineForModal.status_severity)}
+            statusType={getDashboardSeverity(selectedLineForModal.status, selectedLineForModal.status_severity)}
             statusLabel={selectedLineForModal.status}
             anchorRect={selectedLineInfo.anchorRect}
             stationId={
@@ -1058,7 +935,7 @@ const MyCommuteDashboard: React.FC = () => {
             confirmedTerminus: defaultTerminus,
             otherTerminus,
             expectedLineId: rerouteLine.id,
-            fallbackStatusType: getSeverityFromStatus(rerouteLine.status, rerouteLine.status_severity),
+            fallbackStatusType: getDashboardSeverity(rerouteLine.status, rerouteLine.status_severity),
             fallbackReason: rerouteLine.reason || rerouteLine.status,
           });
           const links = buildRerouteLinks(defaultTerminus);

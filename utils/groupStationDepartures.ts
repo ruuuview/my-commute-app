@@ -1,5 +1,5 @@
 import { StationLineData, ArrivalRow } from '../store/stationDataStore';
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { normaliseLineId } from './normaliseLineId';
 
 // ─── Raw TfL API format ───────────────────────────────────────────
@@ -64,7 +64,7 @@ export function groupStationDepartures(arrivals: TflArrivalRow[]): CappedStation
       lineName: firstTrain.lineName,
       destinationName: firstTrain.destinationName,
       platformName: firstTrain.platformName,
-      routeColor: LINE_COLORS[normalisedLine.cleanLineId] || '#FFFFFF',
+      routeColor: LINE_IDENTITY_COLORS[normalisedLine.cleanLineId] || '#FFFFFF',
       trains: rawTrains.slice(0, 3).map(t => ({
         id: t.id,
         expectedArrival: t.expectedArrival,
@@ -194,7 +194,7 @@ export function processStationArrivals(
     const entries = groups[groupKey];
     const first = entries[0];
     const { lineId, cleanLineId } = normaliseLineId(first.line);
-    const lineColor = LINE_COLORS[cleanLineId] || '#888';
+    const lineColor = LINE_IDENTITY_COLORS[cleanLineId] || '#888';
 
     // Cap arrivals to TRAINS_PER_ROUTE
     const cappedArrivals = entries.slice(0, TRAINS_PER_ROUTE);

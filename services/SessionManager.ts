@@ -5,6 +5,7 @@ import { LiveActivityService } from './LiveActivityService';
 import { triggerTier2Grab, onTier2CachePopulated, getTier2Cache } from './tier2Cache';
 import { maybeFireDirectionNotification } from './directionNotification';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { notifyTier1GeofenceHit, requestPermission } from '../store/permissionOrchestrator';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { APP_CONFIG } from '../config/app.config';
 
@@ -45,6 +46,19 @@ export class SessionManager {
 
   static async startSession(originId: string, destinationId: string, lineId: string, lineName: string) {
     console.log(`[SessionManager] Starting session. Origin: ${originId}, Dest: ${destinationId}, Line: ${lineId}`);
+
+    // Tier 1 geofence hit — the "user has seen real value once" signal for
+    // the Always-location upgrade primer (plan Phase 4 #13). First hit
+    // triggers the upgrade ask; fire-and-forget so it never blocks the
+    // session start.
+    try {
+      const hitCount = notifyTier1GeofenceHit();
+      if (hitCount === 1) {
+        void requestPermission('locationAlways', 'tier1_upgrade');
+      }
+    } catch (e) {
+      console.warn('[SessionManager] Tier1 upgrade trigger failed:', e);
+    }
     
     backgroundStorage.set('session_state', 'active');
     backgroundStorage.set('alerts_active', true);

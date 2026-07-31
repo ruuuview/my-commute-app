@@ -7,12 +7,16 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useR
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
 import { House, Broadcast, Gear } from 'phosphor-react-native';
+import { DEMO_MODE } from '../../config/demoMode';
 
-const tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[] = [
+const allTabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[] = [
   { key: 'dashboard', icon: House, label: 'Dashboard' },
   { key: 'refunds', icon: Broadcast, label: 'Radar' },
   { key: 'settings', icon: Gear, label: 'Settings' },
 ];
+
+// Phase 7 #14: a DEMO_MODE build must have ZERO Refund Radar surface.
+const tabs = DEMO_MODE ? allTabs.filter((t) => t.key !== 'refunds') : allTabs;
 
 const TabsLayout = () => {
   const router = useRouter();
@@ -74,6 +78,7 @@ const TabsLayout = () => {
           activeKey={activeKey} 
           onPress={(key: string) => {
             if (key === 'refunds') {
+              if (DEMO_MODE) return; // demo build: Radar is unreachable
               router.push('/(tabs)/refunds');
             } else if (key === 'settings') {
               router.push('/settings');

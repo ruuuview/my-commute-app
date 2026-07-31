@@ -1,5 +1,5 @@
 // data/lineMetadata.ts
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 
 export const LINE_SHORT_NAMES: Record<string, string> = {
   bakerloo: 'Bakerloo',
@@ -27,4 +27,4 @@ export const LINE_SHORT_NAMES: Record<string, string> = {
 
 export const DARK_LINE_IDS = new Set(['northern', 'jubilee']);
 
-export const LINE_BRAND_COLORS: Record<string, string> = { ...LINE_COLORS };
+export const LINE_BRAND_COLORS: Record<string, string> = { ...LINE_IDENTITY_COLORS };

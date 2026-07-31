@@ -19,7 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { useDeferredPermissionTriggers } from '../hooks/useDeferredPermissionTriggers';
+import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import * as Notifications from 'expo-notifications';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancelAnimation } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -52,6 +52,14 @@ interface NotificationSettings {
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const alwaysEntry = usePermissionOrchestrator((s) => s.permissions.locationAlways);
+  const nudgeDismissedAt = usePermissionOrchestrator((s) => s.settingsNudgeDismissedAt);
+  const dismissSettingsNudge = usePermissionOrchestrator((s) => s.dismissSettingsNudge);
+  // #13 silent degrade: Always declined ≥2 times → persistent non-dialog nudge.
+  const showAlwaysNudge =
+    alwaysEntry.decision === 'denied' &&
+    alwaysEntry.askCount >= 2 &&
+    !nudgeDismissedAt;
   const [showFixItSheet, setShowFixItSheet] = useState(false);
   const {
     resetOnboarding,
@@ -63,8 +71,6 @@ export default function SettingsScreen() {
     labelsConfirmed,
     completedJourneys,
   } = useUserPreferencesStore();
-
-  const { requestLocationPermission } = useDeferredPermissionTriggers();
 
   const [isGranted, setIsGranted] = useState(false);
   const [showBack, setShowBack] = useState(false);
@@ -96,15 +102,9 @@ export default function SettingsScreen() {
 
   const handleGrantNotifications = async () => {
     try {
-      const { status } = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-        },
-      });
+      const decision = await requestPermission('notifications', 'settings_toggle');
       
-      if (status === 'granted') {
+      if (decision === 'granted') {
         if (hapticsEnabled) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
@@ -546,6 +546,20 @@ export default function SettingsScreen() {
         {/* Location & Geofencing Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Location & Geofencing</Text>
+          {showAlwaysNudge && (
+            <View style={styles.nudgeBanner}>
+              <View style={styles.nudgeTextWrap}>
+                <Text style={styles.nudgeTitle}>Refund Radar works in the background</Text>
+                <Text style={styles.nudgeBody}>
+                  We track your journey while you use the app. Enable “Always” in iOS Settings to
+                  catch delays automatically, even when the app is closed.
+                </Text>
+              </View>
+              <Pressable onPress={dismissSettingsNudge} style={styles.nudgeDismiss} hitSlop={10}>
+                <Text style={styles.nudgeDismissText}>✕</Text>
+              </Pressable>
+            </View>
+          )}
           <View style={styles.settingCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
             <View style={styles.settingRow}>
@@ -562,8 +576,8 @@ export default function SettingsScreen() {
                 value={locationGranted}
                 onValueChange={async (value) => {
                   if (value) {
-                    const granted = await requestLocationPermission();
-                    if (!granted) {
+                    const decision = await requestPermission('locationAlways', 'settings_toggle');
+                    if (decision !== 'granted') {
                       Alert.alert(
                         'Location Permission Required',
                         'Please enable Always-On Location permissions in iOS Settings to use geofencing.',
@@ -708,6 +722,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0A0F',
+  },
+  nudgeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 179, 0, 0.10)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 179, 0, 0.35)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  nudgeTextWrap: {
+    flex: 1,
+    gap: 3,
+  },
+  nudgeTitle: {
+    color: '#FFD60A',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+  },
+  nudgeBody: {
+    color: 'rgba(255, 255, 255, 0.70)',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  nudgeDismiss: {
+    padding: 4,
+  },
+  nudgeDismissText: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontSize: 13,
   },
   header: {
     flexDirection: 'row',

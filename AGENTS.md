@@ -6,6 +6,14 @@ AI agents (including Fable and Antigravity) must read this file before writing o
 
 ---
 
+## 0. HARD RULE — Single-Source Modules (locked 2026-07-31)
+
+> No component may compute permission state, severity color, or line-filtered arrivals independently. All three MUST route through `permissionOrchestrator.ts`, `getSeverityColor.ts`, `getVisibleArrivals` selector respectively. Any PR introducing a second implementation of any of these three is rejected on sight — this is the exact bug class we just spent a week fixing.
+
+- `store/permissionOrchestrator.ts` — THE permission state machine. Nothing calls `Location.requestForegroundPermissionsAsync()`, `requestBackgroundPermissionsAsync()`, or any OS permission API directly. Everything routes through `requestPermission(key, trigger)`.
+- `utils/getSeverityColor.ts` — THE status→color mapping (single source, TfL statusSeverity code → 3-tier good/minor/severe). `LINE_IDENTITY_COLORS` (line chips/bars) and severity colors (status dots) are two separate token systems — never merged.
+- `selectors/stationLines.ts` — THE `getVisibleArrivals(allArrivals, userSelectedLines)` selector. Every station card imports this; no component computes its own line filter.
+
 ## 1. Visual & UI Design System
 
 ### Frosted Glassmorphism (Level 1 & 2)

@@ -1,7 +1,7 @@
 import { APP_CONFIG } from '../config/app.config';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 
 export interface NormalizedDeparture {
   lineId: string;
@@ -165,7 +165,7 @@ export async function fetchNormalizedStationArrivals(
     return {
       lineId: canonicalLineId,
       lineName: dep.line,
-      lineColor: LINE_COLORS[canonicalLineId] || dep.line_color || '#888',
+      lineColor: LINE_IDENTITY_COLORS[canonicalLineId] || dep.line_color || '#888',
       minutesAway: dep.calculatedMinutes!,
       destination: cleanDestinationName(dep.destination),
       platform: cleanPlatformName(dep.platform),

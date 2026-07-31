@@ -29,6 +29,8 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore, LineStatus } from '../store/lineDataStore';
 import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
+import { getVisibleArrivals } from '../selectors/stationLines';
+import { getSeverityColor } from '../utils/getSeverityColor';
 
 type Departure = NormalizedDeparture;
 
@@ -46,49 +48,19 @@ export interface StationDetailScreenProps {
   selectedLines?: string[];
 }
 
-// ─── Severity (copied from MyCommuteDashboard to avoid circular dep) ─
-type ScreenSeverity = 'severe' | 'minor' | 'good' | 'offline' | 'suspended' | 'unknown';
+// ─── Severity (delegated to the single source of truth, AGENTS.md §0) ─
+type ScreenSeverity = 'severe' | 'minor' | 'good' | 'unknown';
 
-/** Map TfL severity codes: 10/18/14=good, 5=minor, 9/6/7/4/3=severe, 0/11/8/16/17/19/1/2=suspended, 20=unknown */
-function severityFromCode(code: number): ScreenSeverity {
-  if (code === 10 || code === 18 || code === 14) return 'good';
-  if (code === 9 || code === 7) return 'minor';
-  if (code === 6) return 'severe';
-  if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(code)) return 'suspended';
-  return 'unknown';
-}
-
-function parseSeverity(statusText: string): ScreenSeverity {
-  const text = String(statusText ?? '').toLowerCase();
-  if (text.includes('good') && !text.includes('delay')) return 'good';
-  if (text.includes('closure')) return 'suspended';
-  if (text.includes('suspended')) return 'suspended';
-  if (text.includes('bus')) return 'suspended';
-  if (text.includes('not running')) return 'suspended';
-  if (text.includes('closed')) return 'suspended';
-  if (text.includes('severe')) return 'severe';
-  if (text.includes('minor')) return 'minor';
-  if (text.includes('delay')) return 'severe';
-  if (text.includes('information')) return 'good';
-  if (text.includes('reduced')) return 'minor';
-  return 'unknown';
-}
-
-/** Preferred: use numeric code, fall back to text parsing */
+/** Preferred: numeric code first, text parsing fallback — both via getSeverityColor. */
 function lineSeverity(line: LineStatus): ScreenSeverity {
-  if (line.status_severity !== undefined && line.status_severity !== null) {
-    return severityFromCode(line.status_severity);
-  }
-  return parseSeverity(line.status);
+  return getSeverityColor(line.status_severity, line.status).label;
 }
 
 function worstSeverity(lines: any[]): ScreenSeverity {
   if (!lines.length) return 'unknown';
   const severities = lines.map((l: any) => lineSeverity(l));
-  if (severities.includes('suspended')) return 'suspended';
   if (severities.includes('severe')) return 'severe';
   if (severities.includes('minor')) return 'minor';
-  if (severities.includes('offline')) return 'offline';
   return 'good';
 }
 
@@ -150,10 +122,19 @@ export default function StationDetailScreen({
     .replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')
     .trim();
 
+  // ── Route raw arrivals through the single-source line selector ──
+  // (AGENTS.md §0). showAll = explicit "All lines" toggle override →
+  // empty selection passes everything through; otherwise only the user's
+  // selected lines are visible, BEFORE grouping/rendering.
+  const visibleDepartures = useMemo(
+    () => getVisibleArrivals(departures, showAll ? [] : selectedLines),
+    [departures, showAll, selectedLines]
+  );
+
   // ── Group departures by line ──────────────────────────────────
   const lineGroups: LineGroup[] = useMemo(() => {
     const map = new Map<string, LineGroup>();
-    departures.forEach(dep => {
+    visibleDepartures.forEach(dep => {
       const lineId = dep.lineId;
       if (!map.has(lineId)) {
         map.set(lineId, {
@@ -166,7 +147,7 @@ export default function StationDetailScreen({
       map.get(lineId)!.departures.push(dep);
     });
     return Array.from(map.values());
-  }, [departures]);
+  }, [visibleDepartures]);
 
   // ── Filter by ⊞ toggle: Your Lines vs All Departures ─────────
   const filteredGroups = useMemo(() => {

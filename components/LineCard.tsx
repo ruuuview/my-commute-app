@@ -17,6 +17,7 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
 import * as Haptics from 'expo-haptics';
 import { STATUS_SHORT } from '../constants/statusLabels';
+import { getSeverityColor } from '../utils/getSeverityColor';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { StatusBezel } from './StatusBezel';
@@ -66,6 +67,8 @@ interface LineCardProps {
     color: string;
     status?: string;
     reason?: string;
+    /** Raw TfL statusSeverity code when available (dashboard lines carry it) */
+    status_severity?: number;
   };
   selected: boolean;
   onPress?: () => void;
@@ -191,13 +194,13 @@ export const LineCard = memo(function LineCard({
     if (onLongPress) onLongPress();
   };
 
-  // Resolve status text colors
-  let statusTextColor = 'rgba(255, 255, 255, 0.55)';
-  if (statusType === 'good') statusTextColor = '#30D158';
-  else if (statusType === 'minor') statusTextColor = '#FF9F0A';
-  else if (statusType === 'severe' || statusType === 'suspended' || statusType === 'closure' || statusType === 'error') {
-    statusTextColor = '#FF3B30';
-  }
+  // Resolve status text colors — canonical severity colors come from the
+  // single source of truth (utils/getSeverityColor.ts, AGENTS.md §0):
+  // code takes precedence, text parsing is the fallback. Non-severity UI
+  // states (error / offline / unknown) are not TfL statuses and stay local.
+  let statusTextColor = getSeverityColor(line.status_severity, statusLabel).color;
+  if (statusType === 'error') statusTextColor = '#FF3B30';
+  else if (statusType === 'offline' || statusType === 'unknown') statusTextColor = 'rgba(255, 255, 255, 0.55)';
 
   // Selection glow shadow configuration (Apple pill design)
   const selectedShadowStyle = (mode === 'select' && selected) ? {

@@ -24,7 +24,8 @@
           "location",
           "remote-notification"
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["citymapper", "tfl-go"]
       },
       "entitlements": {
         "com.apple.security.application-groups": [
@@ -72,7 +73,8 @@
       "expo-asset",
       "expo-web-browser",
       "./plugins/withFmtCpp17",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

@@ -12,7 +12,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import {
   StyleSheet,
   View,
@@ -34,6 +34,8 @@ import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
 import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
+import { getVisibleArrivals } from '../selectors/stationLines';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
@@ -81,6 +83,8 @@ const DepartureCard = memo(function DepartureCard({
   const [arrivals, setArrivals] = useState<NormalizedDeparture[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const selectedLines = useUserPreferencesStore(s => s.selectedLines);
+
   const pressAnim = usePressAnimation('departure_card');
   const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
     baselineShadowOpacity: GLASS.shadowOpacity,
@@ -125,7 +129,14 @@ const DepartureCard = memo(function DepartureCard({
     )
     .trim();
 
-  const displayArrivals = arrivals.slice(0, MAX_ROWS);
+  // Route raw arrivals through the single-source line selector (AGENTS.md §0):
+  // the card shows only the user's selected lines, re-filtered live on change.
+  const visibleArrivals = useMemo(
+    () => getVisibleArrivals(arrivals, selectedLines),
+    [arrivals, selectedLines]
+  );
+
+  const displayArrivals = visibleArrivals.slice(0, MAX_ROWS);
 
   // ── Search-collapse animation (hideCard prop) ─────────────────
   const collapseOpacity = useSharedValue(hideCard ? 0 : 1);

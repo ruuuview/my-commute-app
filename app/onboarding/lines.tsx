@@ -27,7 +27,8 @@ import { LineCard } from '../../components/LineCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { PREMIUM_BUTTON } from '../../theme/colors';
-import { LINE_COLORS } from '../../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
+import { getSeverityLabel } from '../../utils/getSeverityColor';
 import {
   SCREEN_PADDING,
   COLUMN_GAP,
@@ -35,20 +36,20 @@ import {
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
 const TFL_LINES = [
-  { id: 'bakerloo', name: 'Bakerloo', color: LINE_COLORS.bakerloo, stationCount: 25 },
-  { id: 'central', name: 'Central', color: LINE_COLORS.central, stationCount: 49 },
-  { id: 'circle', name: 'Circle', color: LINE_COLORS.circle, stationCount: 36 },
-  { id: 'district', name: 'District', color: LINE_COLORS.district, stationCount: 60 },
-  { id: 'dlr', name: 'DLR', color: LINE_COLORS.dlr, stationCount: 45 },
-  { id: 'elizabeth', name: 'Elizabeth', color: LINE_COLORS.elizabeth, stationCount: 41 },
-  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_COLORS['hammersmith-city'], stationCount: 29 },
-  { id: 'jubilee', name: 'Jubilee', color: LINE_COLORS.jubilee, stationCount: 27 },
-  { id: 'metropolitan', name: 'Metropolitan', color: LINE_COLORS.metropolitan, stationCount: 34 },
-  { id: 'northern', name: 'Northern', color: LINE_COLORS.northern, stationCount: 52 },
-  { id: 'overground', name: 'Overground', color: LINE_COLORS.overground, stationCount: 112 },
-  { id: 'piccadilly', name: 'Piccadilly', color: LINE_COLORS.piccadilly, stationCount: 53 },
-  { id: 'victoria', name: 'Victoria', color: LINE_COLORS.victoria, stationCount: 16 },
-  { id: 'waterloo-city', name: 'Waterloo & City', color: LINE_COLORS['waterloo-city'], stationCount: 2 },
+  { id: 'bakerloo', name: 'Bakerloo', color: LINE_IDENTITY_COLORS.bakerloo, stationCount: 25 },
+  { id: 'central', name: 'Central', color: LINE_IDENTITY_COLORS.central, stationCount: 49 },
+  { id: 'circle', name: 'Circle', color: LINE_IDENTITY_COLORS.circle, stationCount: 36 },
+  { id: 'district', name: 'District', color: LINE_IDENTITY_COLORS.district, stationCount: 60 },
+  { id: 'dlr', name: 'DLR', color: LINE_IDENTITY_COLORS.dlr, stationCount: 45 },
+  { id: 'elizabeth', name: 'Elizabeth', color: LINE_IDENTITY_COLORS.elizabeth, stationCount: 41 },
+  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_IDENTITY_COLORS['hammersmith-city'], stationCount: 29 },
+  { id: 'jubilee', name: 'Jubilee', color: LINE_IDENTITY_COLORS.jubilee, stationCount: 27 },
+  { id: 'metropolitan', name: 'Metropolitan', color: LINE_IDENTITY_COLORS.metropolitan, stationCount: 34 },
+  { id: 'northern', name: 'Northern', color: LINE_IDENTITY_COLORS.northern, stationCount: 52 },
+  { id: 'overground', name: 'Overground', color: LINE_IDENTITY_COLORS.overground, stationCount: 112 },
+  { id: 'piccadilly', name: 'Piccadilly', color: LINE_IDENTITY_COLORS.piccadilly, stationCount: 53 },
+  { id: 'victoria', name: 'Victoria', color: LINE_IDENTITY_COLORS.victoria, stationCount: 16 },
+  { id: 'waterloo-city', name: 'Waterloo & City', color: LINE_IDENTITY_COLORS['waterloo-city'], stationCount: 2 },
 ];
 
 function getCtaLabel(selectedCount: number): string {
@@ -244,26 +245,12 @@ export default function LinesScreen() {
   const ctaLabel = getCtaLabel(selectedLines.length);
 
   const getLineStatus = (severity: number, desc: string) => {
-    // Canonical mapping — same as MyCommuteDashboard / useWorstStatus / tfl_shared.py
-    if (severity === 10 || severity === 18 || severity === 14) return { statusType: 'good' as const, label: desc || 'Good service' };
-    if (severity === 9 || severity === 7) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-    if (severity === 6) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-    if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(severity)) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
-
-    // Text fallback when severity code is unrecognized
-    const d = desc.toLowerCase();
-    if (d.includes('good') && !d.includes('delay')) return { statusType: 'good' as const, label: desc };
-    if (d.includes('closure')) return { statusType: 'suspended' as const, label: desc };
-    if (d.includes('suspended')) return { statusType: 'suspended' as const, label: desc };
-    if (d.includes('bus')) return { statusType: 'suspended' as const, label: desc };
-    if (d.includes('not running')) return { statusType: 'suspended' as const, label: desc };
-    if (d.includes('closed')) return { statusType: 'suspended' as const, label: desc };
-    if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
-    if (d.includes('minor')) return { statusType: 'minor' as const, label: desc };
-    if (d.includes('delay')) return { statusType: 'severe' as const, label: desc };
-    if (d.includes('information')) return { statusType: 'good' as const, label: desc };
-    if (d.includes('reduced')) return { statusType: 'minor' as const, label: desc };
-    return { statusType: 'good' as const, label: desc || 'Good service' };
+    // Code→statusType mapping delegated to the single source of truth
+    // (utils/getSeverityColor.ts, AGENTS.md §0). Suspended/closure codes
+    // collapse into 'severe'; the user-visible label text is preserved.
+    const statusType = getSeverityLabel(severity, desc);
+    const label = desc || (statusType === 'good' ? 'Good service' : statusType === 'minor' ? 'Minor delays' : 'Severe delays');
+    return { statusType, label };
   };
 
   const resolveLineStatus = (lineId: string) => {

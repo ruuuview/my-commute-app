@@ -11,7 +11,9 @@ import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
 import { GLASS } from '../theme/colors';
 import { fetchNormalizedStationArrivals } from '../services/apiService';
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
+import { getVisibleArrivals } from '../selectors/stationLines';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 export interface Departure {
   lineId: string;
@@ -108,7 +110,7 @@ function generateMockDepartures(stationId: string, lines: string[], count = 3): 
     const platformNum = ((seed + index) % 4) + 1;
     departures.push({
       lineId,
-      lineColor: LINE_COLORS[lineId] || '#888',
+      lineColor: LINE_IDENTITY_COLORS[lineId] || '#888',
       lineName: shortName,
       destination,
       timeText: `${mins} min`,
@@ -152,6 +154,8 @@ export function StationCard({
 
   const [liveDepartures, setLiveDepartures] = useState<Departure[] | null>(null);
 
+  const userSelectedLines = useUserPreferencesStore(s => s.selectedLines);
+
   useEffect(() => {
     if (mode !== 'onboarding' || !showLedger || departures) return;
 
@@ -161,7 +165,11 @@ export function StationCard({
         const data = await fetchNormalizedStationArrivals(station.id);
         if (!active) return;
 
-        const mapped: Departure[] = data.departures.map(d => ({
+        // Route raw arrivals through the single-source line selector
+        // (AGENTS.md §0) — the ledger shows only the user's selected lines.
+        const visible = getVisibleArrivals(data.departures, userSelectedLines);
+
+        const mapped: Departure[] = visible.map(d => ({
           lineId: d.lineId,
           lineColor: d.lineColor,
           lineName: LINE_SHORT_NAMES[d.lineId] || d.lineName,
@@ -179,7 +187,7 @@ export function StationCard({
 
     fetchLive();
     return () => { active = false; };
-  }, [station.id, showLedger, departures, mode]);
+  }, [station.id, showLedger, departures, mode, userSelectedLines]);
 
   const displayDepartures = useMemo(() => {
     const shouldShow = showLedger || mode === 'dashboard';
@@ -201,7 +209,7 @@ export function StationCard({
         <View style={styles.pillsContainer}>
           {visibleLines.map((lineId) => {
             const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-            const brandColor = LINE_COLORS[lineId] || '#888';
+            const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
             const colors = getPillColors(lineId, brandColor);
 
             return (

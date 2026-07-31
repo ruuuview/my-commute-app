@@ -22,56 +22,50 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { LineCard } from './LineCard';
-import { LINE_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { SCREEN_PADDING, COLUMN_GAP, ONBOARDING_CARD_HEIGHT } from '../constants/layout';
+import { getSeverityLabel } from '../utils/getSeverityColor';
 
 
 
 const MAX_LINES = 5;
 
-const SHEET_HEIGHT_RATIO = 0.78;
-
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
 const TFL_LINES = [
-  { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_COLORS.bakerloo },
-  { id: 'central',          name: 'Central',            color: LINE_COLORS.central },
-  { id: 'circle',           name: 'Circle',             color: LINE_COLORS.circle },
-  { id: 'district',         name: 'District',           color: LINE_COLORS.district },
-  { id: 'dlr',              name: 'DLR',                color: LINE_COLORS.dlr },
-  { id: 'elizabeth',        name: 'Elizabeth',          color: LINE_COLORS.elizabeth },
-  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_COLORS['hammersmith-city'] },
-  { id: 'jubilee',          name: 'Jubilee',            color: LINE_COLORS.jubilee },
-  { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_COLORS.metropolitan },
-  { id: 'northern',         name: 'Northern',           color: LINE_COLORS.northern },
-  { id: 'overground',       name: 'Overground',         color: LINE_COLORS.overground },
-  { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_COLORS.piccadilly },
-  { id: 'victoria',         name: 'Victoria',           color: LINE_COLORS.victoria },
-  { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_COLORS['waterloo-city'] },
+  { id: 'bakerloo',         name: 'Bakerloo',           color: LINE_IDENTITY_COLORS.bakerloo },
+  { id: 'central',          name: 'Central',            color: LINE_IDENTITY_COLORS.central },
+  { id: 'circle',           name: 'Circle',             color: LINE_IDENTITY_COLORS.circle },
+  { id: 'district',         name: 'District',           color: LINE_IDENTITY_COLORS.district },
+  { id: 'dlr',              name: 'DLR',                color: LINE_IDENTITY_COLORS.dlr },
+  { id: 'elizabeth',        name: 'Elizabeth',          color: LINE_IDENTITY_COLORS.elizabeth },
+  { id: 'hammersmith-city', name: 'Hammersmith & City', color: LINE_IDENTITY_COLORS['hammersmith-city'] },
+  { id: 'jubilee',          name: 'Jubilee',            color: LINE_IDENTITY_COLORS.jubilee },
+  { id: 'metropolitan',     name: 'Metropolitan',       color: LINE_IDENTITY_COLORS.metropolitan },
+  { id: 'northern',         name: 'Northern',           color: LINE_IDENTITY_COLORS.northern },
+  { id: 'overground',       name: 'Overground',         color: LINE_IDENTITY_COLORS.overground },
+  { id: 'piccadilly',       name: 'Piccadilly',         color: LINE_IDENTITY_COLORS.piccadilly },
+  { id: 'victoria',         name: 'Victoria',           color: LINE_IDENTITY_COLORS.victoria },
+  { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_IDENTITY_COLORS['waterloo-city'] },
 ];
 
 type StatusType = 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown';
 
-// Aligned with TfL Unified API Severity Specifications
+// Fallback label text per canonical severity tier (preserves the previous
+// label output for good/minor/severe; suspended codes collapse into
+// 'severe' per the remediation plan).
+const STATUS_LABEL_FALLBACKS: Record<'good' | 'minor' | 'severe', string> = {
+  good: 'Good service',
+  minor: 'Minor delays',
+  severe: 'Severe delays',
+};
+
+// Code→statusType mapping delegated to the single source of truth
+// (utils/getSeverityColor.ts, AGENTS.md §0). Suspended/closure codes
+// collapse into 'severe'; the user-visible label text is preserved.
 const getLineStatus = (severity: number, desc: string) => {
-  const d = desc.toLowerCase();
-  if (severity === 10 || severity === 18 || severity === 14) return { statusType: 'good' as const, label: desc || 'Good service' };
-  if (severity === 9 || severity === 7) return { statusType: 'minor' as const, label: desc || 'Minor delays' };
-  if (severity === 6) return { statusType: 'severe' as const, label: desc || 'Severe delays' };
-  if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(severity)) return { statusType: 'suspended' as const, label: desc || 'Suspended' };
-  
-  if (d.includes('good') && !d.includes('delay')) return { statusType: 'good' as const, label: desc };
-  if (d.includes('closure')) return { statusType: 'suspended' as const, label: desc };
-  if (d.includes('suspended')) return { statusType: 'suspended' as const, label: desc };
-  if (d.includes('bus')) return { statusType: 'suspended' as const, label: desc };
-  if (d.includes('not running')) return { statusType: 'suspended' as const, label: desc };
-  if (d.includes('closed')) return { statusType: 'suspended' as const, label: desc };
-  if (d.includes('severe')) return { statusType: 'severe' as const, label: desc };
-  if (d.includes('minor')) return { statusType: 'minor' as const, label: desc };
-  if (d.includes('delay')) return { statusType: 'severe' as const, label: desc };
-  if (d.includes('information')) return { statusType: 'good' as const, label: desc };
-  if (d.includes('reduced')) return { statusType: 'minor' as const, label: desc };
-  return { statusType: 'good' as const, label: desc || 'Good service' };
+  const statusType = getSeverityLabel(severity, desc);
+  return { statusType, label: desc || STATUS_LABEL_FALLBACKS[statusType] };
 };
 
 interface ManageLinesModalProps {
@@ -82,7 +76,6 @@ interface ManageLinesModalProps {
 export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
   const insets = useSafeAreaInsets();
   const { width, height: screenHeight } = useWindowDimensions();
-
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);
   const toggleLine = useUserPreferencesStore(s => s.toggleLine);
 
@@ -92,7 +85,12 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
   const maxLinesShakeTranslationX = useSharedValue(0);
 
-  const sheetHeight = screenHeight * SHEET_HEIGHT_RATIO;
+  // No fixed height on the sheet — it sizes to content up to maxHeight
+  // (85% cap, safe-area aware) so the inner list scrolls instead of clipping.
+  const sheetMaxHeight = Math.min(
+    screenHeight * 0.85,
+    Math.max(screenHeight - insets.top - insets.bottom, screenHeight * 0.5)
+  );
   const cardWidth = (width - SCREEN_PADDING * 2 - COLUMN_GAP) / 2;
 
   useEffect(() => {
@@ -241,11 +239,11 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
           accessibilityLabel="Dismiss manage lines"
         />
 
-        {/* Bottom sheet — 78% of screen height */}
+        {/* Bottom sheet — sizes to content, capped at 85% of screen height */}
         <BlurView
           intensity={80}
           tint="dark"
-          style={[styles.sheet, { height: sheetHeight }]}
+          style={[styles.sheet, { maxHeight: sheetMaxHeight }]}
         >
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
@@ -290,7 +288,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             scrollEnabled={true}
             contentContainerStyle={[
               styles.listContainer,
-              { paddingBottom: insets.bottom + 24 },
+              { flexGrow: 1, paddingBottom: insets.bottom + 24 },
             ]}
             showsVerticalScrollIndicator={false}
           />

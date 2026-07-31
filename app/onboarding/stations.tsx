@@ -37,14 +37,13 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
-import { useDeferredPermissionTriggers } from '../../hooks/useDeferredPermissionTriggers';
+import { requestPermission } from '../../store/permissionOrchestrator';
 
 const MAX_PINS = 5;
 
 export default function StationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { requestLocationPermission } = useDeferredPermissionTriggers();
   const params = useLocalSearchParams<{ openSearch?: string }>();
   const openSearch = params.openSearch;
 
@@ -280,7 +279,10 @@ export default function StationsScreen() {
 
     const locationGranted = useUserPreferencesStore.getState().locationGranted;
     if (!locationGranted) {
-      await requestLocationPermission();
+      // Onboarding asks: location While-Using primer, then notifications
+      // primer — strictly sequential via the orchestrator (never stacked).
+      await requestPermission('locationWhenInUse', 'onboarding');
+      await requestPermission('notifications', 'onboarding');
     }
 
     if (hasCompletedOnboarding) {

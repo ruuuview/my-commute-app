@@ -19,6 +19,9 @@ import { BlurView } from 'expo-blur'
 import { Ionicons } from '@expo/vector-icons'
 import { APP_CONFIG } from '../../config/app.config'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { launchTflAuth } from '../../services/authSession'
+import { DEMO_MODE } from '../../config/demoMode'
+import { useRouter } from 'expo-router'
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -47,8 +50,6 @@ interface ClaimsResponse {
 }
 
 // ── Status display config ───────────────────────────────────────────
-
-const TFL_REFUND_URL = 'https://tfl.gov.uk/fares/refunds/apply-for-a-service-delay-refund'
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   detected:    { label: 'Under Review',  icon: 'time-outline',         color: '#FFB800' },
@@ -130,7 +131,7 @@ const ClaimCard = React.memo(({ claim }: { claim: Claim }) => {
                 amount: `£${(claim.amountPence / 100).toFixed(2)}`,
               }, null, 2)
               Clipboard.setString(evidence)
-              Linking.openURL(TFL_REFUND_URL).catch(() => {})
+              launchTflAuth('refund_radar')
             }}
             style={({ pressed }) => [
               styles.fileClaimButton,
@@ -150,10 +151,19 @@ ClaimCard.displayName = 'ClaimCard'
 
 export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const [data, setData] = useState<ClaimsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Phase 7 #14: demo builds must never surface Refund Radar — even via
+  // a deep link.
+  useEffect(() => {
+    if (DEMO_MODE) {
+      router.replace('/(tabs)')
+    }
+  }, [router])
 
   const fetchClaims = useCallback(async (isRefresh = false) => {
     try {

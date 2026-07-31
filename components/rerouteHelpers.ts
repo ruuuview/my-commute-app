@@ -20,6 +20,7 @@
  */
 
 import { getTier2Cache, Tier2Cache } from '../services/tier2Cache';
+import { resolveTflStopIds } from '../utils/resolveTflStopId';
 
 export type RerouteMode = 'affected' | 'unaffected' | 'empty';
 
@@ -196,4 +197,157 @@ export function buildRerouteLinks(destinationLabel?: string): {
       ? `citymapper://directions?end=${q}`
       : 'citymapper://',
   };
+}
+
+// ============================================================================
+// PHASE 6 — 'Plan alternative route' deep link + affected/unaffected stops
+// ============================================================================
+//
+// Single source for:
+//   1. The Citymapper deep-link URL used by the disruption popup's
+//      'Plan alternative route' button (origin = the pinned station the user
+//      is at). TfL Go (`tfl-go://`) is the fallback scheme; the in-app
+//      RerouteScreen remains the last-resort fallback (handled in the UI).
+//   2. Affected-stops intersection: the Tier2Cache disruption shape
+//      (isDisrupted/severity/description/reason/lineId) does NOT carry
+//      affected StopPoints (canonical contract — Swift Live Activity reads it,
+//      never modified), and /api/lines strips them too. So the popup fetches
+//      the TfL Line disruption feed at open time and intersects its
+//      affectedStops against the user's pinned stations here.
+
+/** TfL Go app URL scheme (fallback when Citymapper is not installed). */
+export const TFL_GO_SCHEME = 'tfl-go://';
+
+/** One affected stop point from the TfL Line disruption feed. */
+export interface AffectedStop {
+  id: string;
+  name: string;
+}
+
+/** Minimal station reference used for the affected-stops intersection. */
+export interface StationRef {
+  id: string;
+  name: string;
+}
+
+const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
+
+const DISRUPTION_FETCH_TIMEOUT_MS = 8000;
+
+/** TfL Line disruption feed — one fetch per line id. Empty on any failure. */
+async function fetchAffectedStopsForLineId(lineId: string): Promise<AffectedStop[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DISRUPTION_FETCH_TIMEOUT_MS);
+  try {
+    const resp = await fetch(
+      `https://api.tfl.gov.uk/Line/${encodeURIComponent(lineId)}/Disruption`,
+      { signal: controller.signal }
+    );
+    if (!resp.ok) return [];
+    const data: unknown = await resp.json();
+    if (!Array.isArray(data)) return [];
+
+    const out: AffectedStop[] = [];
+    const seen = new Set<string>();
+    for (const disruption of data) {
+      const stops = Array.isArray((disruption as any)?.affectedStops)
+        ? (disruption as any).affectedStops
+        : [];
+      for (const sp of stops) {
+        const id = String(sp?.id ?? '');
+        const name = String(sp?.name ?? '');
+        const key = id || name;
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push({ id, name });
+      }
+    }
+    return out;
+  } catch (e) {
+    // Network/timeout — treat as "unknown", never throw into the UI.
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Fetch the affected stops for a line from the TfL Line disruption feed.
+ * London Overground is aggregated across its branch ids (the app's canonical
+ * aggregation, matching AGENTS.md §3), so branch feeds are merged too.
+ * Never throws — returns [] on any failure so callers can hide the indicator.
+ */
+export async function fetchLineAffectedStops(lineId: string): Promise<AffectedStop[]> {
+  if (!lineId) return [];
+  const ids =
+    lineId.toLowerCase() === 'overground'
+      ? ['overground', ...OVERGROUND_BRANCH_IDS]
+      : [lineId];
+
+  const results = await Promise.all(ids.map(id => fetchAffectedStopsForLineId(id)));
+
+  const seen = new Set<string>();
+  const merged: AffectedStop[] = [];
+  for (const stops of results) {
+    for (const stop of stops) {
+      const key = stop.id || stop.name;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(stop);
+    }
+  }
+  return merged;
+}
+
+const STOP_NAME_SUFFIXES = [
+  'underground station',
+  'rail station',
+  'national rail station',
+  'elizabeth line station',
+  'dlr station',
+  'station',
+  'dlr',
+  'national rail',
+];
+
+/** Normalize a stop/station name for tolerant intersection matching. */
+export function normalizeStopName(name: string): string {
+  let n = String(name ?? '').toLowerCase().trim();
+  for (const suffix of STOP_NAME_SUFFIXES) {
+    if (n.endsWith(suffix)) {
+      n = n.slice(0, -suffix.length).trim();
+    }
+  }
+  return n.replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * Intersect the user's stations against a line's affected StopPoints.
+ * Matches on resolved NaPTAN ids (sibling-platform expansion via
+ * resolveTflStopIds) with a normalized-name fallback for id mismatches.
+ */
+export function stationsAffectedByStops(
+  stations: StationRef[],
+  affectedStops: AffectedStop[]
+): StationRef[] {
+  if (!stations.length || !affectedStops.length) return [];
+  const affectedIds = new Set(affectedStops.map(s => s.id).filter(Boolean));
+  const affectedNames = new Set(
+    affectedStops.map(s => normalizeStopName(s.name)).filter(Boolean)
+  );
+  return stations.filter(station => {
+    if (resolveTflStopIds(station.id).some(id => affectedIds.has(id))) return true;
+    return affectedNames.has(normalizeStopName(station.name));
+  });
+}
+
+/**
+ * Build the Citymapper deep link for the 'Plan alternative route' button.
+ * Origin = the pinned station the user is at (their modal's station, or the
+ * line's first pinned station). Destination is deliberately omitted — the
+ * user picks it in Citymapper (keep-it-simple contract).
+ */
+export function buildCitymapperDeepLink(originLabel: string): string {
+  const q = encodeURIComponent(String(originLabel ?? '').trim());
+  return q ? `citymapper://directions?start=${q}` : 'citymapper://';
 }

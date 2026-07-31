@@ -24,6 +24,7 @@ import { SessionManager } from '../services/SessionManager';
 import { installDirectionNotification } from '../services/directionNotification';
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
+import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
 
 SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
@@ -73,7 +74,7 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  const isReady = (_hasHydrated && (fontsLoaded || fontError != null)) || timedOut;
+  const isReady = _hasHydrated && (fontsLoaded || fontError != null || timedOut);
 
   useEffect(() => {
     if (isReady) {
@@ -157,7 +158,9 @@ export default function RootLayout() {
       if (nextAppState === 'background') {
         lastBackgroundTime = Date.now();
       } else if (nextAppState === 'active') {
-        void SessionManager.checkSessionStatus();
+        void SessionManager.checkSessionStatus().catch(() => {
+          console.warn('Failed to check session status');
+        });
         // True app open from background (if backgrounded for > 60 seconds to prevent notification check noise)
         if (hasIncrementedSession.current && lastBackgroundTime > 0 && Date.now() - lastBackgroundTime > 60000) {
           const store = useUserPreferencesStore.getState();
@@ -181,10 +184,12 @@ export default function RootLayout() {
     return setupAuthCallbackListener({ replace: (href) => router.replace(href as never) });
   }, [router]);
 
-  // Register notification categories, response listener, and run dwell check on mount
+  // Run session check once store has hydrated
   useEffect(() => {
     if (_hasHydrated) {
-      void SessionManager.checkSessionStatus();
+      void SessionManager.checkSessionStatus().catch(() => {
+        console.warn('Failed to check session status');
+      });
     }
   }, [_hasHydrated]);
 
@@ -233,13 +238,19 @@ export default function RootLayout() {
         const prefs = useUserPreferencesStore.getState();
         if (actionId === 'snooze4h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 4 * 60 * 60 * 1000);
-          await SessionManager.closeSession(true);
+          await SessionManager.closeSession(true).catch(() => {
+            console.warn('Failed to close session');
+          });
         } else if (actionId === 'snooze8h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 8 * 60 * 60 * 1000);
-          await SessionManager.closeSession(true);
+          await SessionManager.closeSession(true).catch(() => {
+            console.warn('Failed to close session');
+          });
         } else if (actionId === 'snooze12h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 12 * 60 * 60 * 1000);
-          await SessionManager.closeSession(true);
+          await SessionManager.closeSession(true).catch(() => {
+            console.warn('Failed to close session');
+          });
         }
       }
     });
@@ -295,11 +306,7 @@ export default function RootLayout() {
       
       const pathSegments = segments as string[];
       const onRootIndex = pathSegments.length === 0 || pathSegments[0] === 'index';
-      const targetPath = onboardingStep === 1
-        ? '/onboarding/stations'
-        : onboardingStep === 2
-          ? '/onboarding/tfl-registration'
-          : '/onboarding/lines';
+      const targetPath = getOnboardingRedirectPath(onboardingStep);
       const currentPath = `/${pathSegments.join('/')}`;
       
       if (!onRootIndex && currentPath !== targetPath) {

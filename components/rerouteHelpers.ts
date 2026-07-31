@@ -263,7 +263,7 @@ async function fetchAffectedStopsForLineId(lineId: string): Promise<AffectedStop
       }
     }
     return out;
-  } catch (e) {
+  } catch {
     // Network/timeout — treat as "unknown", never throw into the UI.
     return [];
   } finally {

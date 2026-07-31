@@ -245,7 +245,7 @@ export function LineDetailModal({
           onClose();
           return;
         }
-      } catch (e) {
+      } catch {
         // Fall through to the in-app reroute CTA.
       }
       onOpenReroute?.();

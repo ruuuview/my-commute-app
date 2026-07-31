@@ -42,6 +42,11 @@
     <string>721</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>citymapper</string>
+      <string>tfl-go</string>
+    </array>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
@@ -54,21 +59,21 @@
       <true/>
     </dict>
     <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>We read departure times alongside your calendar to suggest alerts. Your calendar data stays on your device.</string>
+    <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
     <key>NSCalendarsUsageDescription</key>
-    <string>We read departure times alongside your calendar to suggest alerts. Your calendar data stays on your device.</string>
+    <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSRemindersFullAccessUsageDescription</key>
-    <string>We read departure times alongside your reminders to suggest alerts. Your reminders data stays on your device.</string>
+    <string>Allow $(PRODUCT_NAME) to access your reminders</string>
     <key>NSRemindersUsageDescription</key>
-    <string>We read departure times alongside your reminders to suggest alerts. Your reminders data stays on your device.</string>
+    <string>Allow $(PRODUCT_NAME) to access your reminders</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
@@ -107,7 +112,5 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
-    <key>NSSupportsLiveActivities</key>
-    <true/>
   </dict>
 </plist>

@@ -6,12 +6,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "22.14.0",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-16.4"
       }
     },
     "preview": {
       "distribution": "internal",
+      "node": "22.14.0",
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",
@@ -19,6 +21,7 @@
       }
     },
     "production": {
+      "node": "22.14.0",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-16.4"
       }

@@ -113,5 +113,8 @@
     "typescript": "~5.9.2"
   },
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "packageManager": "yarn@1.22.22"
 }

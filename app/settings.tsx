@@ -66,6 +66,7 @@ export default function SettingsScreen() {
     hapticsEnabled,
     setHapticsEnabled,
     locationGranted,
+    calendarGranted,
     arrivalNotificationsEnabled,
     setArrivalNotificationsEnabled,
     labelsConfirmed,
@@ -253,6 +254,9 @@ export default function SettingsScreen() {
   };
 
   const handleEditQuietHours = () => {
+    // Plan Permission 2 entry point 2 — commute window: the user is telling
+    // us when their commute lives. Cheap ask → native dialog on this tap.
+    void requestPermission('notifications', 'commute_window', { primer: false });
     Alert.alert(
       'Quiet Hours',
       'Notification hours are currently set to:\n\n' +
@@ -296,7 +300,7 @@ export default function SettingsScreen() {
                   <Text style={styles.cardHeaderTitle}>{"The Central line doesn't text you when it's cooked. We do."}</Text>
                 </View>
                 <Text style={styles.cardBodyText}>
-                  Get live disruption alerts and leave-by reminders, straight to your lock screen.
+                  We'll tell you before you're standing on a dead platform wondering why.
                 </Text>
                 <Animated.View style={ctaPressAnim.animatedStyle}>
                   <Pressable
@@ -307,7 +311,7 @@ export default function SettingsScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Enable notifications"
                   >
-                    <Text style={styles.ctaButtonText}>Hit me with it</Text>
+                    <Text style={styles.ctaButtonText}>Turn On Alerts</Text>
                   </Pressable>
                 </Animated.View>
               </Animated.View>
@@ -449,6 +453,34 @@ export default function SettingsScreen() {
                       <CaretRight size={20} color="rgba(255,255,255,0.30)" />
                     </Pressable>
                   </Animated.View>
+
+                  <View style={styles.divider} />
+
+                  {/* Permission 3 — Auto-detect commute start (calendar).
+                      Cheap ask → native dialog on this tap; orchestrator
+                      handles cooldown/caps. */}
+                  <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                      <View style={styles.settingLabelRow}>
+                        <Clock size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
+                        <Text style={styles.settingLabel}>Auto-detect commute start</Text>
+                      </View>
+                      <Text style={styles.settingDescription}>
+                        We peek, we don't pry. Just the start time of your next thing — enough to time your alert right.
+                      </Text>
+                    </View>
+                    <Switch
+                      value={calendarGranted}
+                      onValueChange={async (value) => {
+                        if (value) {
+                          const decision = await requestPermission('calendar', 'auto_detect', { primer: false });
+                          if (decision !== 'granted') return;
+                        }
+                      }}
+                      trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
 
                   <View style={styles.divider} />
 

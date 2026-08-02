@@ -23,6 +23,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { requestPermission } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 
@@ -59,6 +60,9 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
     requestAnimationFrame(() => {
       setChanged(true);
     });
+    // Feature-triggered While-Using ask (plan Permission 1): the user just
+    // confirmed a station as home/work. Cheap ask → native dialog, no primer.
+    void requestPermission('locationWhenInUse', 'set_station_role', { primer: false });
   }, [setStationRole, hasChanged]);
 
   // Reset state when sheet opens

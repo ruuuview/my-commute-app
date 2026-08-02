@@ -64,22 +64,26 @@ const DEFAULT_ENTRY: PermissionEntry = {
   askCount: 0,
 };
 
-export const PRIMER_COPY: Record<PermissionKey, { title: string; body: string }> = {
+export const PRIMER_COPY: Record<PermissionKey, { title: string; body: string; button: string }> = {
   locationWhenInUse: {
-    title: 'Track your live disruption alerts',
-    body: 'While you are using the app, My Commute uses your location to detect delays on your exact journey and start Refund Radar tracking. Nothing leaves your phone.',
+    title: 'Home turf, locked.',
+    body: "We'll keep your station front and centre so you're not hunting for it every morning like it's a personality test.",
+    button: 'Lock My Station',
   },
   locationAlways: {
-    title: 'Never miss a delay again',
-    body: 'Refund Radar caught your delay because we tracked your journey — enable Always to never miss one automatically, even when the app is closed.',
+    title: 'YOU MISSED A DELAY. WE DIDN\u2019T.',
+    body: 'Let us track your Home–Work route in the background and we\u2019ll flag every delay like this — no more digging through old journeys yourself.',
+    button: 'Never Miss One',
   },
   notifications: {
-    title: 'Delay alerts, the moment they hit',
-    body: 'Get a push the second a disruption affects one of your lines or stations — before you leave, not after.',
+    title: 'Tube drama moves fast.',
+    body: "We'll tell you before you're standing on a dead platform wondering why.",
+    button: 'Turn On Alerts',
   },
   calendar: {
-    title: 'Leave-by reminders',
-    body: 'My Commute reads your calendar to schedule leave-by reminders before your events. All on-device.',
+    title: 'We peek, we don\u2019t pry.',
+    body: "Just the start time of your next thing — enough to time your alert right. Not your meetings, not your plans, not your business.",
+    button: 'Sync My Next Event',
   },
 };
 
@@ -169,16 +173,18 @@ export function getPermissionEntry(key: PermissionKey): PermissionEntry {
 interface PrimerRequest {
   key: PermissionKey;
   trigger: string;
+  copy?: { title: string; body: string; button: string }; // dynamic override (e.g. the £X.XX money line)
   resolve: (proceed: boolean) => void;
 }
 let primerRequest: PrimerRequest | null = null;
 
 export function requestPrimer(
   key: PermissionKey,
-  trigger: string
+  trigger: string,
+  copy?: { title: string; body: string; button: string }
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    primerRequest = { key, trigger, resolve };
+    primerRequest = { key, trigger, copy, resolve };
     primerListeners.forEach((l) => l(primerRequest));
   });
 }
@@ -246,7 +252,7 @@ async function osPrompt(key: PermissionKey): Promise<boolean> {
 export async function requestPermission(
   key: PermissionKey,
   trigger: string,
-  opts?: { primer?: boolean }
+  opts?: { primer?: boolean; copy?: { title: string; body: string; button: string } }
 ): Promise<PermissionDecision> {
   const entry = getPermissionEntry(key);
 
@@ -277,7 +283,7 @@ export async function requestPermission(
     // Custom primer FIRST; OS dialog only if the user proceeds.
     const showPrimer = opts?.primer !== false;
     if (showPrimer) {
-      const proceed = await requestPrimer(key, trigger);
+      const proceed = await requestPrimer(key, trigger, opts?.copy);
       if (!proceed) {
         // User declined at the primer: record deferred (not a hard deny —
         // cooldown logic still applies via lastAskedAt semantics below).

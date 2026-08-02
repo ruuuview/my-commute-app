@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { APP_CONFIG } from '../config/app.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestPermission } from '../store/permissionOrchestrator';
 
 // Lazy load FCM on Android
 let messaging: any = null;
@@ -34,16 +35,17 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
         console.warn('⚠️ APNS: Failed to fetch iOS device token (this is expected on simulator):', err);
       }
     } else if (Platform.OS === 'android' && messaging) {
-      // FCM token on Android
+      // FCM token on Android. Bug #6 fix: the permission ask must route
+      // through the orchestrator (never a direct OS call) — same dedupe,
+      // cooldown, and analytics as every other ask. Cheap ask → no primer.
       try {
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-        if (enabled) {
-          token = await messaging().getToken();
-          console.log('📱 FCM: Fetched Android device push token:', token ? `${token.substring(0, 12)}...` : null);
+        const decision = await requestPermission('notifications', 'push_token_registration', { primer: false });
+        if (decision !== 'granted') {
+          console.log('⚠️ FCM: permission not granted via orchestrator. Skipping token registration.');
+          return;
         }
+        token = await messaging().getToken();
+        console.log('📱 FCM: Fetched Android device push token:', token ? `${token.substring(0, 12)}...` : null);
       } catch (err) {
         console.error('❌ FCM token fetch failed:', err);
       }

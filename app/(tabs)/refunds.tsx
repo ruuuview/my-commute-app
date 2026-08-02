@@ -8,7 +8,7 @@
 //   buttons, not one: a single button would leave "received" permanently
 //   unknown and the loop never closes.
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -28,6 +28,10 @@ import { launchTflAuth } from '../../services/authSession'
 import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import { DEMO_MODE } from '../../config/demoMode'
 import { useRouter } from 'expo-router'
+import { Switch } from 'react-native'
+import { requestPermission, usePermissionOrchestrator } from '../../store/permissionOrchestrator'
+import { useUserPreferencesStore } from '../../store/userPreferencesStore'
+import { Linking } from 'react-native'
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -273,6 +277,9 @@ function workingDaysSince(fromIso: string): number {
 export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted)
+  const notifDenied = usePermissionOrchestrator(s => s.permissions.notifications?.decision === 'denied')
+  const openAppSettings = useCallback(() => { Linking.openSettings().catch(() => {}) }, [])
   const [data, setData] = useState<ClaimsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -317,6 +324,28 @@ export default function RefundsScreen() {
   }, [])
 
   useEffect(() => { fetchClaims() }, [fetchClaims])
+
+  // Permission 4 — the Always-location money ask. Fires ONCE, the first time
+  // an eligible (app-detected, not yet filed) claim is on screen. The primer
+  // carries the actual £ amount. Tier-1 geofence hit remains the fallback
+  // (SessionManager) if Refund Radar never connects.
+  const alwaysAskFiredRef = useRef(false)
+  useEffect(() => {
+    if (alwaysAskFiredRef.current) return
+    const eligible = (data?.claims ?? []).find(
+      c => c.status === 'detected' || c.status === 'notified'
+    )
+    if (!eligible) return
+    alwaysAskFiredRef.current = true
+    const amount = formatPence(eligible.amountPence)
+    void requestPermission('locationAlways', 'first_eligible_claim', {
+      copy: {
+        title: 'YOU MISSED A DELAY. WE DIDN\u2019T.',
+        body: `${amount} might be sitting there because of that delay. Let us track your Home–Work route in the background and we\u2019ll flag every one like this — no more digging through old journeys yourself.`,
+        button: 'Never Miss One',
+      },
+    })
+  }, [data])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
@@ -446,6 +475,35 @@ export default function RefundsScreen() {
         <Text style={styles.subtitle}>Auto-detected delay claims</Text>
       </View>
 
+      {/* Permission 2 entry point 3 — claim-status alerts. Cheap ask → native
+          dialog on this exact tap; orchestrator dedupes across the 3 entries. */}
+      <View style={styles.claimAlertsRow}>
+        <View style={styles.claimAlertsInfo}>
+          <Text style={styles.claimAlertsTitle}>Claim status alerts</Text>
+          <Text style={styles.claimAlertsBody}>
+            Money doesn't announce itself. We will, the second it moves.
+          </Text>
+          {notifDenied && (
+            <Pressable onPress={openAppSettings} hitSlop={8}>
+              <Text style={styles.denialLine}>
+                Notifications are off for My Commute — tap to fix in Settings
+              </Text>
+            </Pressable>
+          )}
+        </View>
+        <Switch
+          value={notificationsGranted}
+          onValueChange={async (value) => {
+            if (value) {
+              const decision = await requestPermission('notifications', 'refund_status', { primer: false });
+              if (decision !== 'granted') return;
+            }
+          }}
+          trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+
       {/* Recovered-so-far banner (the pitch stat) */}
       {recoveredFormatted && (
         <View style={styles.pendingBannerOuter}>
@@ -522,6 +580,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255,255,255,0.4)',
     marginTop: 2,
+  },
+
+  // Permission 2 entry 3 — claim-status alerts toggle row
+  claimAlertsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+    gap: 12,
+  },
+  claimAlertsInfo: {
+    flex: 1,
+  },
+  claimAlertsTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  claimAlertsBody: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+  denialLine: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12,
+    color: '#FF9F0A',
+    marginTop: 4,
+    textDecorationLine: 'underline',
   },
 
   // Banners

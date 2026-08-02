@@ -26,6 +26,7 @@ export function PermissionPrimerModal() {
   const [request, setRequest] = useState<{
     key: PermissionKey;
     trigger: string;
+    copy?: { title: string; body: string; button: string };
   } | null>(null);
   const continuePress = usePressAnimation('continue_btn');
   const dismissPress = usePressAnimation('back_btn');
@@ -33,16 +34,16 @@ export function PermissionPrimerModal() {
   useEffect(() => {
     // Hydrate the current request (may exist before this modal mounted).
     const current = getPrimerRequest();
-    if (current) setRequest({ key: current.key, trigger: current.trigger });
+    if (current) setRequest({ key: current.key, trigger: current.trigger, copy: current.copy });
 
     const unsubscribe = subscribePrimer((next) => {
-      setRequest(next ? { key: next.key, trigger: next.trigger } : null);
+      setRequest(next ? { key: next.key, trigger: next.trigger, copy: next.copy } : null);
     });
     return unsubscribe;
   }, []);
 
   if (!request) return null;
-  const copy = PRIMER_COPY[request.key];
+  const copy = request.copy ?? PRIMER_COPY[request.key];
 
   return (
     <Modal
@@ -65,7 +66,7 @@ export function PermissionPrimerModal() {
               onPress={() => resolvePrimer(true)}
               style={[styles.primaryCta, continuePress.animatedStyle]}
             >
-              <Text style={styles.primaryCtaText}>Continue</Text>
+              <Text style={styles.primaryCtaText}>{copy.button}</Text>
             </Pressable>
 
             <Pressable

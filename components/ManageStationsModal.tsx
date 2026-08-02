@@ -263,13 +263,12 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         zone: station.zone,
       }, role);
 
-      // Trigger location permission request if not already granted
-      // (feature-triggered — the user just pinned a station).
-      const locationGranted = useUserPreferencesStore.getState().locationGranted;
-      if (!locationGranted) {
-        // Request asynchronously after state update
+      // Plan Permission 1: the While-Using ask fires ONLY when a station is
+      // confirmed as home/work — pinning as 'other' asks nothing (the
+      // permission copy promises exactly this). Cheap ask → native dialog.
+      if (role !== 'other' && !useUserPreferencesStore.getState().locationGranted) {
         setTimeout(() => {
-          void requestPermission('locationWhenInUse', 'station_pin');
+          void requestPermission('locationWhenInUse', 'set_station_role', { primer: false });
         }, 100);
       }
     },

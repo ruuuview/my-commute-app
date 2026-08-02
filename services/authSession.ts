@@ -36,7 +36,16 @@ export async function launchTflAuth(origin: AuthOrigin): Promise<void> {
   useAuthFlowStore.getState().beginAuth(origin);
 
   if (!isOAuthConfigured()) {
-    await Linking.openURL(TFL_REFUND_URL).catch(() => {});
+    // No OAuth client configured yet — open TfL in SFSafariViewController
+    // (in-app browser) instead of the system browser:
+    //  1. Shares cookies with Safari → the TfL login persists, so the next
+    //     claim tap arrives at TfL ALREADY logged in (no second login wall).
+    //  2. Has a built-in Done button → user returns to the app, landing back
+    //     on the origin screen (Refund Radar). Bug #1 (never returns) fixed.
+    // User taps Done → back in the app on the origin screen (no routing
+    // needed — the browser was in-app). Clear the in-flight flag.
+    await WebBrowser.openBrowserAsync(TFL_REFUND_URL).catch(() => {});
+    useAuthFlowStore.getState().failAuth();
     return;
   }
 

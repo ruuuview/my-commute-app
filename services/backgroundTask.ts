@@ -326,14 +326,17 @@ export async function syncGeofencesAsync(pinnedStations: any[]) {
 
     const regions: Location.LocationRegion[] = [];
     pinnedStations.forEach((station) => {
+      // Locked decision: geofence circles ONLY home + work (200m). 'other'
+      // stations get no circle — the permission copy promises exactly this,
+      // so anything else would be a lie to the user.
+      if (station.role !== 'home' && station.role !== 'work') return;
       const coord = stationCoordinates[station.id];
       if (coord && typeof coord.lat === 'number' && typeof coord.lon === 'number') {
-        const radius = (station.role === 'home' || station.role === 'work') ? 200 : 100;
         regions.push({
           identifier: station.id,
           latitude: coord.lat,
           longitude: coord.lon,
-          radius: radius,
+          radius: 200,
           notifyOnEnter: true,
           notifyOnExit: true,
         });

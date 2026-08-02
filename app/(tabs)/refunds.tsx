@@ -1,5 +1,12 @@
 // app/(tabs)/refunds.tsx
 // Refund Radar — claims history with frosted glassmorphism (per AGENTS.md).
+//
+// The "Did you get it?" loop (v10 spec):
+//   Eligible (app-detected) → Filed (user taps "I filed my claim") →
+//   Received (user taps "Money received").
+//   filed/received are self-reported — the app cannot see TfL's side. Two
+//   buttons, not one: a single button would leave "received" permanently
+//   unknown and the loop never closes.
 
 import React, { useEffect, useState, useCallback } from 'react'
 import {
@@ -17,8 +24,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur'
 import { Ionicons } from '@expo/vector-icons'
 import { APP_CONFIG } from '../../config/app.config'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { launchTflAuth } from '../../services/authSession'
+import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import { DEMO_MODE } from '../../config/demoMode'
 import { useRouter } from 'expo-router'
 
@@ -27,6 +34,9 @@ import { useRouter } from 'expo-router'
 interface Claim {
   id: number
   status: string
+  claimStatus: 'eligible' | 'filed' | 'received' | null
+  filedAt: string | null
+  receivedAt: string | null
   amountPence: number
   cause: string | null
   causeEligible: boolean
@@ -45,23 +55,65 @@ interface Claim {
 interface ClaimsResponse {
   claims: Claim[]
   pendingTotal: number
+  recoveredTotal: number
   count: number
 }
 
 // ── Status display config ───────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  detected:    { label: 'Under Review',  icon: 'time-outline',         color: '#FFB800' },
-  ineligible:  { label: 'Not Eligible',  icon: 'close-circle-outline', color: 'rgba(255,255,255,0.35)' },
-  submitted:   { label: 'Submitted',     icon: 'send-outline',         color: '#4A9EFF' },
-  paid:        { label: 'Paid',           icon: 'checkmark-circle',     color: '#34C759' },
-  expired:     { label: 'Expired',       icon: 'alert-circle-outline', color: 'rgba(255,255,255,0.2)' },
+  eligible:   { label: 'Eligible — file on TfL', icon: 'alert-circle-outline', color: '#FFB800' },
+  filed:      { label: 'Filed — awaiting payment', icon: 'send-outline',         color: '#4A9EFF' },
+  received:   { label: 'Received',                icon: 'checkmark-circle',      color: '#34C759' },
+  ineligible: { label: 'Not Eligible',            icon: 'close-circle-outline',  color: 'rgba(255,255,255,0.35)' },
+  expired:    { label: 'Expired',                 icon: 'alert-circle-outline',  color: 'rgba(255,255,255,0.2)' },
+}
+
+// Loop state derived from the claim: eligible = detected/notified without a
+// claimStatus; filed/received come straight from claimStatus.
+function loopState(claim: Claim): 'eligible' | 'filed' | 'received' | 'closed' {
+  if (claim.claimStatus) return claim.claimStatus
+  if (claim.status === 'detected' || claim.status === 'notified') return 'eligible'
+  return 'closed'
+}
+
+// filedAt + 10 working days (skip Sat/Sun) — mirrors the backend's nudge
+// schedule so the in-app badge matches the push.
+function addWorkingDays(from: Date, days: number): Date {
+  const d = new Date(from)
+  let remaining = days
+  while (remaining > 0) {
+    d.setDate(d.getDate() + 1)
+    const dow = d.getDay()
+    if (dow !== 0 && dow !== 6) remaining--
+  }
+  return d
+}
+
+function isOverdue(claim: Claim): boolean {
+  if (claim.claimStatus !== 'filed' || !claim.filedAt) return false
+  const due = addWorkingDays(new Date(claim.filedAt), 10)
+  return new Date() > due
+}
+
+function formatPence(pence: number): string {
+  return (pence / 100).toLocaleString('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    minimumFractionDigits: 2,
+  })
 }
 
 // ── Claim Card ──────────────────────────────────────────────────────
 
-const ClaimCard = React.memo(({ claim }: { claim: Claim }) => {
-  const cfg = STATUS_CONFIG[claim.status] ?? { label: claim.status, icon: 'help-outline', color: '#888' }
+const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
+  claim: Claim
+  onUpdate: (id: number, next: 'filed' | 'received') => void
+  updating?: 'filed' | 'received'
+}) => {
+  const state = loopState(claim)
+  const cfg = STATUS_CONFIG[state] ?? { label: state, icon: 'help-outline', color: '#888' }
+  const overdue = isOverdue(claim)
 
   const dateStr = claim.entryTime
     ? new Date(claim.entryTime).toLocaleDateString('en-GB', {
@@ -80,13 +132,7 @@ const ClaimCard = React.memo(({ claim }: { claim: Claim }) => {
             <Ionicons name={cfg.icon as any} size={14} color={cfg.color} />
             <Text style={[styles.statusLabel, { color: cfg.color }]}>{cfg.label}</Text>
           </View>
-          <Text style={styles.amountText}>
-            {(claim.amountPence / 100).toLocaleString('en-GB', {
-              style: 'currency',
-              currency: 'GBP',
-              minimumFractionDigits: 2,
-            })}
-          </Text>
+          <Text style={styles.amountText}>{formatPence(claim.amountPence)}</Text>
         </View>
 
         {/* Journey details */}
@@ -117,34 +163,110 @@ const ClaimCard = React.memo(({ claim }: { claim: Claim }) => {
           )}
         </View>
 
-        {/* File Claim on TfL — one-tap export (v10.0 §4) */}
-        {(claim.status === 'detected' || claim.status === 'ineligible') && (
-          <Pressable
-            onPress={() => {
-              const evidence = JSON.stringify({
-                date: dateStr,
-                line: claim.lineId,
-                delay: `${claim.delayMinutes}min`,
-                entry: claim.entryStation,
-                exit: claim.exitStation,
-                amount: `£${(claim.amountPence / 100).toFixed(2)}`,
-              }, null, 2)
-              Clipboard.setString(evidence)
-              launchTflAuth('refund_radar')
-            }}
-            style={({ pressed }) => [
-              styles.fileClaimButton,
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Text style={styles.fileClaimButtonText}>File Claim on TfL</Text>
-          </Pressable>
+        {/* Loop actions — only for claims still in the game */}
+        {state === 'eligible' && (
+          <>
+            <Pressable
+              onPress={() => {
+                const evidence = JSON.stringify({
+                  date: dateStr,
+                  line: claim.lineId,
+                  delay: `${claim.delayMinutes}min`,
+                  entry: claim.entryStation,
+                  exit: claim.exitStation,
+                  amount: formatPence(claim.amountPence),
+                }, null, 2)
+                Clipboard.setString(evidence)
+                launchTflAuth('refund_radar')
+              }}
+              style={({ pressed }) => [
+                styles.fileClaimButton,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={styles.fileClaimButtonText}>File Claim on TfL</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => onUpdate(claim.id, 'filed')}
+              disabled={updating === 'filed'}
+              style={({ pressed }) => [
+                styles.loopButton,
+                pressed && { opacity: 0.7 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="I filed my claim"
+            >
+              {updating === 'filed' ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="send-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.loopButtonText}>I filed my claim</Text>
+                </>
+              )}
+            </Pressable>
+          </>
+        )}
+
+        {state === 'filed' && (
+          <>
+            {overdue && (
+              <View style={styles.overdueBanner}>
+                <Ionicons name="notifications-outline" size={14} color="#FFB800" style={{ marginRight: 6 }} />
+                <Text style={styles.overdueText}>
+                  Filed {workingDaysSince(claim.filedAt!)} working days ago. Landed yet?
+                </Text>
+              </View>
+            )}
+            <Pressable
+              onPress={() => onUpdate(claim.id, 'received')}
+              disabled={updating === 'received'}
+              style={({ pressed }) => [
+                styles.loopButton,
+                styles.receivedButton,
+                pressed && { opacity: 0.7 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Money received"
+            >
+              {updating === 'received' ? (
+                <ActivityIndicator size="small" color="#34C759" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={15} color="#34C759" style={{ marginRight: 6 }} />
+                  <Text style={[styles.loopButtonText, { color: '#34C759' }]}>Money received</Text>
+                </>
+              )}
+            </Pressable>
+          </>
+        )}
+
+        {state === 'received' && claim.receivedAt && (
+          <Text style={styles.receivedMeta}>
+            Received {new Date(claim.receivedAt).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'short',
+            })} — added to your running total
+          </Text>
         )}
       </BlurView>
     </View>
   )
 })
 ClaimCard.displayName = 'ClaimCard'
+
+function workingDaysSince(fromIso: string): number {
+  const from = new Date(fromIso)
+  let count = 0
+  const now = new Date()
+  const cursor = new Date(from)
+  while (cursor < now) {
+    cursor.setDate(cursor.getDate() + 1)
+    const dow = cursor.getDay()
+    if (dow !== 0 && dow !== 6) count++
+  }
+  return count
+}
 
 // ── Main Screen ─────────────────────────────────────────────────────
 
@@ -155,6 +277,7 @@ export default function RefundsScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [updating, setUpdating] = useState<Record<number, 'filed' | 'received'>>({})
 
   // Phase 7 #14: demo builds must never surface Refund Radar — even via
   // a deep link.
@@ -167,22 +290,23 @@ export default function RefundsScreen() {
   const fetchClaims = useCallback(async (isRefresh = false) => {
     try {
       setError(null)
-      const [userId, apiKey] = await Promise.all([
-        AsyncStorage.getItem('userId'),
-        AsyncStorage.getItem('apiKey'),
-      ])
-      if (!userId || !apiKey) {
-        setError('Sign in or complete onboarding to view your claims.')
-        if (!isRefresh) setLoading(false)
-        return
-      }
+      // Bug #3 fix: keys are guaranteed to exist (created at onboarding
+      // finish); lazy ensure self-heals older installs.
+      const { userId, apiKey } = await ensureDeviceIdentity()
       if (!isRefresh) setLoading(true)
       const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims`, {
         headers: { 'x-user-id': userId, 'x-api-key': apiKey },
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: ClaimsResponse = await res.json()
-      setData(json)
+      // Overdue-filed claims surface to the top; the rest newest-first.
+      const sorted = [...json.claims].sort((a, b) => {
+        const aOver = isOverdue(a) ? 1 : 0
+        const bOver = isOverdue(b) ? 1 : 0
+        if (aOver !== bOver) return bOver - aOver
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      setData({ ...json, claims: sorted })
     } catch (e) {
       console.warn('[Refunds] fetch error:', e)
       setError('Could not load claims. Pull down to retry.')
@@ -197,6 +321,38 @@ export default function RefundsScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     fetchClaims(true)
+  }, [fetchClaims])
+
+  // Optimistic loop update: PATCH the server, then re-fetch so the
+  // server-computed recoveredTotal stays the source of truth.
+  const updateClaim = useCallback(async (id: number, next: 'filed' | 'received') => {
+    setUpdating(prev => ({ ...prev, [id]: next }))
+    try {
+      const { userId, apiKey } = await ensureDeviceIdentity()
+      const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({ claimStatus: next }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error ?? `HTTP ${res.status}`)
+      }
+      await fetchClaims(true)
+    } catch (e) {
+      console.warn('[Refunds] update error:', e)
+      setError('Could not update claim. Pull down to retry.')
+    } finally {
+      setUpdating(prev => {
+        const nextState = { ...prev }
+        delete nextState[id]
+        return nextState
+      })
+    }
   }, [fetchClaims])
 
   // ── Error state ────────────────────────────────────────────────────
@@ -273,12 +429,15 @@ export default function RefundsScreen() {
 
   // ── Claims list ───────────────────────────────────────────────────
   const pendingFormatted = data
-    ? (data.pendingTotal / 100).toLocaleString('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        minimumFractionDigits: 2,
-      })
+    ? formatPence(data.pendingTotal)
     : '£0.00'
+  const recoveredFormatted = data && data.recoveredTotal > 0
+    ? formatPence(data.recoveredTotal)
+    : null
+
+  const badgeCount = data
+    ? data.claims.filter(c => c.claimStatus === 'filed' && isOverdue(c)).length
+    : 0
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -287,7 +446,20 @@ export default function RefundsScreen() {
         <Text style={styles.subtitle}>Auto-detected delay claims</Text>
       </View>
 
-      {/* Total pending banner */}
+      {/* Recovered-so-far banner (the pitch stat) */}
+      {recoveredFormatted && (
+        <View style={styles.pendingBannerOuter}>
+          <BlurView intensity={45} tint="dark" style={styles.recoveredBanner}>
+            <View>
+              <Text style={styles.pendingLabel}>Recovered so far</Text>
+              <Text style={styles.recoveredCaption}>Money you've told us landed</Text>
+            </View>
+            <Text style={styles.recoveredAmount}>{recoveredFormatted}</Text>
+          </BlurView>
+        </View>
+      )}
+
+      {/* Pending refunds banner */}
       {data && data.pendingTotal > 0 && (
         <View style={styles.pendingBannerOuter}>
           <BlurView intensity={45} tint="dark" style={styles.pendingBanner}>
@@ -297,10 +469,22 @@ export default function RefundsScreen() {
         </View>
       )}
 
+      {/* In-app passive badge — covers notif-denied users */}
+      {badgeCount > 0 && (
+        <View style={styles.badgeRow}>
+          <View style={styles.badgeDot} />
+          <Text style={styles.badgeText}>
+            {badgeCount} filed {badgeCount === 1 ? 'claim is' : 'claims are'} past 10 working days — did the money land?
+          </Text>
+        </View>
+      )}
+
       <FlatList
         data={data?.claims ?? []}
         keyExtractor={item => String(item.id)}
-        renderItem={({ item }) => <ClaimCard claim={item} />}
+        renderItem={({ item }) => (
+          <ClaimCard claim={item} onUpdate={updateClaim} updating={updating[item.id]} />
+        )}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -340,10 +524,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Pending banner
+  // Banners
   pendingBannerOuter: {
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pendingBanner: {
     flexDirection: 'row',
@@ -357,6 +541,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
   },
+  recoveredBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(52,199,89,0.10)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(52,199,89,0.35)',
+    overflow: 'hidden',
+  },
   pendingLabel: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 16,
@@ -367,6 +563,39 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#34C759',
     letterSpacing: -0.3,
+  },
+  recoveredAmount: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 24,
+    color: '#34C759',
+    letterSpacing: -0.3,
+  },
+  recoveredCaption: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(52,199,89,0.6)',
+    marginTop: 2,
+  },
+
+  // Badge row (passive in-app layer)
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  badgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFB800',
+  },
+  badgeText: {
+    flex: 1,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
   },
 
   // Card
@@ -529,5 +758,53 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.80)',
+  },
+
+  // Loop buttons
+  loopButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(74,158,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,158,255,0.45)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginTop: 8,
+  },
+  receivedButton: {
+    backgroundColor: 'rgba(52,199,89,0.12)',
+    borderColor: 'rgba(52,199,89,0.40)',
+  },
+  loopButtonText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+
+  // Overdue surface
+  overdueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,184,0,0.10)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,184,0,0.30)',
+  },
+  overdueText: {
+    flex: 1,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: '#FFB800',
+  },
+  receivedMeta: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(52,199,89,0.7)',
+    marginTop: 10,
   },
 })

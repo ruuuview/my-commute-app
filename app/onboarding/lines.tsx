@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useNavigation } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
@@ -64,6 +64,7 @@ function getCtaLabel(selectedCount: number): string {
 
 export default function LinesScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const { width, height: screenHeight } = useWindowDimensions();
@@ -233,13 +234,18 @@ export default function LinesScreen() {
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Skip line selection → still surface the TfL registration step (hard
-    // prerequisite, Day 1). Do NOT jump straight to the dashboard.
-    useUserPreferencesStore.setState({ onboardingStep: 2 });
-
-    requestAnimationFrame(() => {
-      router.push('/onboarding/tfl-registration' as any);
-    });
+    // Skip line selection → dashboard. Onboarding is 2 value screens
+    // (lines, stations): no TfL registration, no permission asks up front.
+    useUserPreferencesStore.getState().completeOnboarding();
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      (parentNav as any).reset({
+        index: 0,
+        routes: [{ name: '(tabs)' }],
+      });
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   const ctaLabel = getCtaLabel(selectedLines.length);

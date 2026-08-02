@@ -1,6 +1,9 @@
-// app/onboarding/tfl-registration.tsx — Screen 3: TfL Registration (v1)
-// Hard prerequisite, surfaced Day 1. Framed as "this is what makes Refund Radar work",
-// not a barrier. See master plan → REFUND RADAR → TfL registration section.
+// app/onboarding/tfl-registration.tsx — TfL Registration (v1)
+// REMOVED from the onboarding flow (2026-08-01): onboarding is exactly 2 value
+// screens (lines, stations) — no permission asks, no TfL account sign-in.
+// Kept on disk as a rescue path for persisted mid-onboarding users
+// (onboardingStep === 2) and as the screen to re-surface with Refund Radar
+// post-activation. See master plan → REFUND RADAR → TfL registration section.
 //
 // ICON NOTE: This file uses @expo/vector-icons (MaterialIcons) as a stand-in for Phosphor.
 // AGENTS.md mandates Phosphor-only icons, but `phosphor-react-native` is not yet in package.json.

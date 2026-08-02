@@ -8,6 +8,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { notifyTier1GeofenceHit, requestPermission } from '../store/permissionOrchestrator';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { APP_CONFIG } from '../config/app.config';
+import { ensureDeviceIdentity } from './deviceIdentity';
 
 export const CONSENT_DWELL_MINUTES = 27;
 export const CONSENT_DWELL_MS = CONSENT_DWELL_MINUTES * 60 * 1000;
@@ -444,16 +445,14 @@ export class SessionManager {
     exitTime: string;
   }) {
     try {
-      const [userId, apiKey] = await Promise.all([
-        AsyncStorage.getItem('userId'),
-        AsyncStorage.getItem('apiKey'),
-      ]);
-      if (!userId || !apiKey) {
-        console.warn('[SessionManager] No auth in AsyncStorage — skipping backend POST');
-        return;
-      }
+      // Bug #3 fix: keys are guaranteed to exist (created at onboarding
+      // finish); this lazy ensure also self-heals older installs.
+      const { userId, apiKey } = await ensureDeviceIdentity();
 
-      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/sessions`, {
+      // /api/sessions lives on the Next.js backend (Railway), NOT the push
+      // brain (Vercel) — the old BACKEND_URL target returned 404 and sessions
+      // never landed in Neon, so claims could never be created from them.
+      const response = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -24,9 +24,10 @@ import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
+import { ensureDeviceIdentity } from '../../services/deviceIdentity';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../../data/tflStations';
 import { tflCapitalise } from '../../utils/tflCapitalise';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
@@ -37,12 +38,12 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
-import { requestPermission } from '../../store/permissionOrchestrator';
 
 const MAX_PINS = 5;
 
 export default function StationsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ openSearch?: string }>();
   const openSearch = params.openSearch;
@@ -268,6 +269,26 @@ export default function StationsScreen() {
     }
   };
 
+  // Onboarding is complete after 2 value screens — clear the onboarding
+  // stack and land on the dashboard (mirrors the old tfl-registration exit).
+  const finishOnboarding = useCallback(() => {
+    useUserPreferencesStore.getState().completeOnboarding();
+    // Bug #3 fix: create + persist device auth keys so the claims list can
+    // actually load. Fire-and-forget — never blocks the 2-screen flow.
+    ensureDeviceIdentity().catch(e =>
+      console.warn('[onboarding] device identity creation failed:', e)
+    );
+    const parentNav = navigation.getParent();
+    if (parentNav) {
+      (parentNav as any).reset({
+        index: 0,
+        routes: [{ name: '(tabs)' }],
+      });
+    } else {
+      router.replace('/(tabs)');
+    }
+  }, [navigation, router]);
+
   const handleCTAPress = async () => {
     if (pinnedStations.length === 0) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -276,14 +297,6 @@ export default function StationsScreen() {
 
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playSound('confirm');
-
-    const locationGranted = useUserPreferencesStore.getState().locationGranted;
-    if (!locationGranted) {
-      // Onboarding asks: location While-Using primer, then notifications
-      // primer — strictly sequential via the orchestrator (never stacked).
-      await requestPermission('locationWhenInUse', 'onboarding');
-      await requestPermission('notifications', 'onboarding');
-    }
 
     if (hasCompletedOnboarding) {
       if (router.canGoBack()) {
@@ -305,26 +318,19 @@ export default function StationsScreen() {
         pinnedStations: mappedStations,
       });
 
-      // First-time onboarding: advance to the TfL registration step (step 2),
-      // NOT straight to the dashboard. TfL registration is a hard prerequisite
-      // surfaced on Day 1 — the user must see it before the Grand Reveal.
-      useUserPreferencesStore.setState({ onboardingStep: 2 });
-
-      requestAnimationFrame(() => {
-        router.push('/onboarding/tfl-registration' as any);
-      });
+      // Onboarding = 2 value screens (lines, stations). Straight to the
+      // dashboard — no permission asks, no TfL registration. Permissions are
+      // asked contextually post-activation (station pin, settings toggles,
+      // Tier-1 upgrade); TfL registration resurfaces with Refund Radar.
+      finishOnboarding();
     }
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Skip station selection → still surface the TfL registration step
-    // (hard prerequisite, Day 1). Do NOT jump straight to the dashboard.
-    useUserPreferencesStore.setState({ onboardingStep: 2 });
-
-    requestAnimationFrame(() => {
-      router.push('/onboarding/tfl-registration' as any);
-    });
+    // Skip station selection → dashboard. Onboarding is 2 value screens —
+    // no TfL registration, no permission asks up front.
+    finishOnboarding();
   };
 
   const handleRecentPress = (station: TfLStation) => {

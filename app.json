@@ -73,6 +73,7 @@
       "expo-asset",
       "expo-web-browser",
       "./plugins/withFmtCpp17",
+      "@bacons/apple-targets",
       "expo-secure-store"
     ],
     "experiments": {
@@ -86,7 +87,17 @@
         "build": {
           "experimental": {
             "ios": {
-              "appExtensions": []
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.mycommute.app.MyCommuteWidget",
+                  "targetName": "MyCommuteWidget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.mycommute.app"
+                    ]
+                  }
+                }
+              ]
             }
           }
         },

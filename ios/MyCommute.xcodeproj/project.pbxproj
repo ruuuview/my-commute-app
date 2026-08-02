@@ -1,30 +1,90 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
+	objectVersion = 54;
 	classes = {
 	};
-	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		91193EDA6A144C67894C9E8A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8515D3D1C97A4D758BB2A25D /* GoogleService-Info.plist */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		AD5E594500D44B2695DDD55C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7A7174ECAD5E47AEB446C649 /* GoogleService-Info.plist */; };
+		XX12B55A1EDABF083C3B51XX /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = XX470101BAEB8E0BBC8B0DXX /* WidgetKit.framework */; };
+		XX1A6800511A685AB346D2XX /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = XXA12889081EB894481655XX /* AppIntents.framework */; };
+		XX3C562DEF346B45594832XX /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = XXCAF23C3FC41F82140FA1XX /* ActivityKit.framework */; };
+		XX6A44985675A04437B8C4XX /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = XX4DFF38D47332D6BF0183XX /* SwiftUI.framework */; };
+		XX8FA614CCD0F5311C5893XX /* MyCommuteWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XX2136AFD4C45ED87FC66DXX /* MyCommuteWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		XXDF4DCD5B354F1D248268XX /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = XXC3905569C69D3E2E7591XX;
+			remoteInfo = MyCommuteWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		XX72A8CFBF0FBA13A79902XX /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			name = "Embed Foundation Extensions";
+			files = (
+				XX8FA614CCD0F5311C5893XX /* MyCommuteWidget.appex in Embed Foundation Extensions */,
+			);
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			buildActionMask = 2147483647;
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		13B07F961A680F5B00A75B9A /* MyCommute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyCommute.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MyCommute/Images.xcassets; sourceTree = "<group>"; };
-		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MyCommute/Info.plist; sourceTree = "<group>"; };
-		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MyCommute/SplashScreen.storyboard; sourceTree = "<group>"; };
-		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyCommute/AppDelegate.swift; sourceTree = "<group>"; };
-		F11748442D0722820044C1D9 /* MyCommute-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MyCommute-Bridging-Header.h"; path = "MyCommute/MyCommute-Bridging-Header.h"; sourceTree = "<group>"; };
-		7A7174ECAD5E47AEB446C649 /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "MyCommute/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		13B07F961A680F5B00A75B9A /* MyCommute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyCommute.app; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = 4; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MyCommute/Images.xcassets; sourceTree = "<group>"; fileEncoding = 4; includeInIndex = 0; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MyCommute/Info.plist; sourceTree = "<group>"; includeInIndex = 0; };
+		8515D3D1C97A4D758BB2A25D /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "MyCommute/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MyCommute/SplashScreen.storyboard; sourceTree = "<group>"; includeInIndex = 0; };
+		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; includeInIndex = 0; };
+		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; fileEncoding = 4; includeInIndex = undefined; };
+		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyCommute/AppDelegate.swift; sourceTree = "<group>"; fileEncoding = 4; includeInIndex = 0; };
+		F11748442D0722820044C1D9 /* MyCommute-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MyCommute-Bridging-Header.h"; path = "MyCommute/MyCommute-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; includeInIndex = 0; };
+		XX2136AFD4C45ED87FC66DXX /* MyCommuteWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MyCommuteWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = 4; };
+		XX470101BAEB8E0BBC8B0DXX /* WidgetKit.framework */ = {isa = PBXFileReference; path = System/Library/Frameworks/WidgetKit.framework; fileEncoding = 4; lastKnownFileType = wrapper.framework; includeInIndex = undefined; name = WidgetKit.framework; sourceTree = SDKROOT; };
+		XX4DFF38D47332D6BF0183XX /* SwiftUI.framework */ = {isa = PBXFileReference; path = System/Library/Frameworks/SwiftUI.framework; fileEncoding = 4; lastKnownFileType = wrapper.framework; includeInIndex = undefined; name = SwiftUI.framework; sourceTree = SDKROOT; };
+		XXA12889081EB894481655XX /* AppIntents.framework */ = {isa = PBXFileReference; path = System/Library/Frameworks/AppIntents.framework; fileEncoding = 4; lastKnownFileType = wrapper.framework; includeInIndex = undefined; name = AppIntents.framework; sourceTree = SDKROOT; };
+		XXCAF23C3FC41F82140FA1XX /* ActivityKit.framework */ = {isa = PBXFileReference; path = System/Library/Frameworks/ActivityKit.framework; fileEncoding = 4; lastKnownFileType = wrapper.framework; includeInIndex = undefined; name = ActivityKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		XXC53B9F7BA516E4D799E3XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			target = XXC3905569C69D3E2E7591XX /* MyCommuteWidget */;
+			membershipExceptions = (
+				Info.plist,
+				"expo-target.config.js",
+			);
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		XX66086579F197243D0FB6XX /* MyCommuteWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MyCommuteWidget;
+			exceptions = (
+				XXC53B9F7BA516E4D799E3XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		13B07F8C1A680F5B00A75B9A /* Frameworks */ = {
@@ -33,6 +93,17 @@
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
+		};
+		XX074B8811C1CF8E8A3D74XX /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			runOnlyForDeploymentPostprocessing = 0;
+			files = (
+				XX12B55A1EDABF083C3B51XX /* WidgetKit.framework in Frameworks */,
+				XX6A44985675A04437B8C4XX /* SwiftUI.framework in Frameworks */,
+				XX3C562DEF346B45594832XX /* ActivityKit.framework in Frameworks */,
+				XX1A6800511A685AB346D2XX /* AppIntents.framework in Frameworks */,
+			);
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -46,7 +117,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				7A7174ECAD5E47AEB446C649 /* GoogleService-Info.plist */,
+				8515D3D1C97A4D758BB2A25D /* GoogleService-Info.plist */,
 			);
 			name = MyCommute;
 			sourceTree = "<group>";
@@ -55,6 +126,10 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
+				XX470101BAEB8E0BBC8B0DXX /* WidgetKit.framework */,
+				XX4DFF38D47332D6BF0183XX /* SwiftUI.framework */,
+				XXCAF23C3FC41F82140FA1XX /* ActivityKit.framework */,
+				XXA12889081EB894481655XX /* AppIntents.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -69,6 +144,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				XX3E41C1850246162C0061XX /* expo:targets */,
 				13B07FAE1A68108700A75B9A /* MyCommute */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
@@ -83,6 +159,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* MyCommute.app */,
+				XX2136AFD4C45ED87FC66DXX /* MyCommuteWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +172,15 @@
 			name = Supporting;
 			path = MyCommute/Supporting;
 			sourceTree = "<group>";
+		};
+		XX3E41C1850246162C0061XX /* expo:targets */ = {
+			isa = PBXGroup;
+			children = (
+				XX66086579F197243D0FB6XX /* MyCommuteWidget */,
+			);
+			sourceTree = "<group>";
+			name = expo:targets;
+			path = ../targets;
 		};
 /* End PBXGroup section */
 
@@ -109,15 +195,37 @@
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				XX72A8CFBF0FBA13A79902XX /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				XX1188DDE4E871ABDB47EBXX /* PBXTargetDependency */,
 			);
 			name = MyCommute;
 			productName = MyCommute;
 			productReference = 13B07F961A680F5B00A75B9A /* MyCommute.app */;
 			productType = "com.apple.product-type.application";
+		};
+		XXC3905569C69D3E2E7591XX /* MyCommuteWidget */ = {
+			isa = PBXNativeTarget;
+			buildPhases = (
+				XX074B8811C1CF8E8A3D74XX /* Frameworks */,
+				XXE45443DC38DCFE1DB622XX /* Sources */,
+				XXFA5A8CCDD805DF7AEF9CXX /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			buildConfigurationList = XXFAB1696F8E93F04AEDB8XX /* Build configuration list for PBXNativeTarget "MyCommuteWidget" */;
+			name = MyCommuteWidget;
+			productName = MyCommuteWidget;
+			productReference = XX2136AFD4C45ED87FC66DXX /* MyCommuteWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+			fileSystemSynchronizedGroups = (
+				XX66086579F197243D0FB6XX /* MyCommuteWidget */,
+			);
 		};
 /* End PBXNativeTarget section */
 
@@ -129,6 +237,11 @@
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
+					};
+					XXC3905569C69D3E2E7591XX = {
+						CreatedOnToolsVersion = 14.3;
+						ProvisioningStyle = Automatic;
+						DevelopmentTeam = PM83YLJ8T9;
 					};
 				};
 			};
@@ -146,6 +259,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* MyCommute */,
+				XXC3905569C69D3E2E7591XX /* MyCommuteWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -158,9 +272,16 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				AD5E594500D44B2695DDD55C /* GoogleService-Info.plist in Resources */,
+				91193EDA6A144C67894C9E8A /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
+		};
+		XXFA5A8CCDD805DF7AEF9CXX /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			runOnlyForDeploymentPostprocessing = 0;
+			files = (
+			);
 		};
 /* End PBXResourcesBuildPhase section */
 
@@ -181,6 +302,10 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
+			outputFileListPaths = (
+			);
+			inputFileListPaths = (
+			);
 		};
 		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -225,6 +350,10 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCommute/Pods-MyCommute-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+			outputFileListPaths = (
+			);
+			inputFileListPaths = (
+			);
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -237,7 +366,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		XXE45443DC38DCFE1DB622XX /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			runOnlyForDeploymentPostprocessing = 0;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		XX1188DDE4E871ABDB47EBXX /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = XXC3905569C69D3E2E7591XX /* MyCommuteWidget */;
+			targetProxy = XXDF4DCD5B354F1D248268XX /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
@@ -257,14 +401,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.45;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mycommute.app";
-				PRODUCT_NAME = "MyCommute";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mycommute.app;
+				PRODUCT_NAME = MyCommute;
 				SWIFT_OBJC_BRIDGING_HEADER = "MyCommute/MyCommute-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -287,14 +431,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.45;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mycommute.app";
-				PRODUCT_NAME = "MyCommute";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mycommute.app;
+				PRODUCT_NAME = MyCommute;
 				SWIFT_OBJC_BRIDGING_HEADER = "MyCommute/MyCommute-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -415,6 +559,88 @@
 			};
 			name = Release;
 		};
+		XX2CAAE7613BEF33704F9FXX /* Debug */ = {
+			isa = XCBuildConfiguration;
+			name = Debug;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 721;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ../targets/MyCommuteWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "My Commute Live";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.45;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mycommute.app.MyCommuteWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				CODE_SIGN_ENTITLEMENTS = ../targets/MyCommuteWidget/MyCommuteWidget.entitlements;
+				REGISTER_APP_GROUPS = YES;
+				DEVELOPMENT_TEAM = PM83YLJ8T9;
+			};
+		};
+		XXEF2719BEB5E1A637CF2BXX /* Release */ = {
+			isa = XCBuildConfiguration;
+			name = Release;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 721;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ../targets/MyCommuteWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "My Commute Live";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.45;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mycommute.app.MyCommuteWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				CODE_SIGN_ENTITLEMENTS = ../targets/MyCommuteWidget/MyCommuteWidget.entitlements;
+				REGISTER_APP_GROUPS = YES;
+				DEVELOPMENT_TEAM = PM83YLJ8T9;
+			};
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -434,6 +660,15 @@
 				83CBBA211A601CBA00E9B192 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		XXFAB1696F8E93F04AEDB8XX /* Build configuration list for PBXNativeTarget "MyCommuteWidget" */ = {
+			isa = XCConfigurationList;
+			defaultConfigurationIsVisible = 0;
+			buildConfigurations = (
+				XX2CAAE7613BEF33704F9FXX /* Debug */,
+				XXEF2719BEB5E1A637CF2BXX /* Release */,
+			);
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */

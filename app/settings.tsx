@@ -20,7 +20,7 @@ import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { PermissionRow } from '../components/PermissionRow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
+import { requestPermission, usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
 import * as Notifications from 'expo-notifications';
 import * as Calendar from 'expo-calendar';
 import * as ExpoLocation from 'expo-location';
@@ -82,6 +82,12 @@ export default function SettingsScreen() {
   const [showBack, setShowBack] = useState(false);
   const flipRotation = useSharedValue(0);
   const flipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Plan step 11 — permission analytics readout (Debug section).
+  const permissionAnalytics = usePermissionOrchestrator((s) => ({
+    permissions: s.permissions,
+    tier1HitCount: s.tier1HitCount,
+  }));
 
   const ctaPressAnim = usePressAnimation('continue_btn', false);
   const backAnim = usePressAnimation('back_btn', false);
@@ -672,6 +678,52 @@ export default function SettingsScreen() {
         {/* Debug Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Debug Options</Text>
+
+          {/* Permission analytics — live readout of the orchestrator's
+              persisted state (plan step 11). Every ask is also tracked as
+              permission_requested/granted/denied per key+trigger in
+              analyticsService. */}
+          <View style={styles.aboutCard}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            {PERMISSION_KEYS.map((key) => {
+              const entry = permissionAnalytics.permissions[key];
+              const decisionColor =
+                entry?.decision === 'granted'
+                  ? '#30D158'
+                  : entry?.decision === 'denied'
+                    ? '#FF3B30'
+                    : entry?.decision === 'deferred'
+                      ? '#FF9F0A'
+                      : 'rgba(255,255,255,0.45)';
+              return (
+                <View key={key}>
+                  <View style={styles.analyticsRow}>
+                    <View style={styles.analyticsInfo}>
+                      <Text style={styles.analyticsKey}>{key}</Text>
+                      <Text style={styles.analyticsMeta}>
+                        asked {entry?.askCount ?? 0}×
+                        {entry?.lastAskedAt
+                          ? ` · last ${new Date(entry.lastAskedAt).toLocaleDateString()}`
+                          : ' · never'}
+                      </Text>
+                    </View>
+                    <Text style={[styles.analyticsDecision, { color: decisionColor }]}>
+                      {entry?.decision ?? 'not_asked'}
+                    </Text>
+                  </View>
+                  <View style={styles.divider} />
+                </View>
+              );
+            })}
+            <View style={styles.analyticsRow}>
+              <View style={styles.analyticsInfo}>
+                <Text style={styles.analyticsKey}>tier1 geofence hits</Text>
+                <Text style={styles.analyticsMeta}>Always-upgrade fallback triggers</Text>
+              </View>
+              <Text style={styles.analyticsDecision}>{permissionAnalytics.tier1HitCount}</Text>
+            </View>
+          </View>
+
           <View style={styles.aboutCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
             <Animated.View style={resetPressAnim.animatedStyle}>
@@ -752,6 +804,33 @@ const styles = StyleSheet.create({
   nudgeDismissText: {
     color: 'rgba(255, 255, 255, 0.55)',
     fontSize: 13,
+  },
+  analyticsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  analyticsInfo: {
+    flex: 1,
+  },
+  analyticsKey: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  analyticsMeta: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  analyticsDecision: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   header: {
     flexDirection: 'row',

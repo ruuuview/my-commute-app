@@ -47,6 +47,14 @@ export type PermissionKey =
   | 'notifications'
   | 'calendar';
 
+/** All permission keys, in display order (Settings analytics readout). */
+export const PERMISSION_KEYS: PermissionKey[] = [
+  'locationWhenInUse',
+  'locationAlways',
+  'notifications',
+  'calendar',
+];
+
 export type PermissionDecision = 'granted' | 'denied' | 'not_asked' | 'deferred';
 
 export interface PermissionEntry {

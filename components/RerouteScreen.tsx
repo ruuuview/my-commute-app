@@ -28,6 +28,7 @@ import {
   Text,
   View,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { getTier2Cache, Tier2Cache, Tier2Disruption } from '../services/tier2Cache';
 import Animated, {
@@ -53,6 +54,7 @@ import BouncyPressable from './BouncyPressable';
 // Phosphor once the dependency is installed.
 import { CaretLeft, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { GLASS } from '../theme/colors';
+import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
   back: CaretLeft,
@@ -332,7 +334,7 @@ export default function RerouteScreen({
 
       {/* Disrupted badge + reason */}
       <View style={s.disruptionRow}>
-        <ICON.signalFail size={15} color="#FF9F43" />
+        <ICON.signalFail size={15} color={STATUS_SEVERITY_COLORS.minor} />
         <Text style={s.disruptionLabel}>Disrupted</Text>
       </View>
       <Text style={s.disruptionReason}>
@@ -450,9 +452,9 @@ export default function RerouteScreen({
                         {
                           backgroundColor: isAffected
                             ? severity !== undefined && (severity === 9 || severity === 7)
-                              ? '#FF9F43'
-                              : '#EF4444'
-                            : '#34D399',
+                              ? STATUS_SEVERITY_COLORS.minor
+                              : STATUS_SEVERITY_COLORS.severe
+                            : STATUS_SEVERITY_COLORS.good,
                         },
                       ]}
                     />
@@ -510,23 +512,30 @@ export default function RerouteScreen({
           />
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: GLASS.background }]} />
 
-          {renderHeader()}
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={s.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            {renderHeader()}
 
-          {showGrid && animPhase !== 'detail' ? (
-            <Animated.View style={gridAnimatedStyle}>
-              {renderBranchGrid()}
-            </Animated.View>
-          ) : null}
+            {showGrid && animPhase !== 'detail' ? (
+              <Animated.View style={gridAnimatedStyle}>
+                {renderBranchGrid()}
+              </Animated.View>
+            ) : null}
 
-          {(!showGrid || animPhase === 'detail') && internalBranch ? (
-            <Animated.View style={detailAnimatedStyle}>
-              {detailMode === 'affected'
-                ? renderAffectedState()
-                : detailMode === 'unaffected'
-                  ? renderUnaffectedState()
-                  : renderEmptyState()}
-            </Animated.View>
-          ) : null}
+            {(!showGrid || animPhase === 'detail') && internalBranch ? (
+              <Animated.View style={detailAnimatedStyle}>
+                {detailMode === 'affected'
+                  ? renderAffectedState()
+                  : detailMode === 'unaffected'
+                    ? renderUnaffectedState()
+                    : renderEmptyState()}
+              </Animated.View>
+            ) : null}
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -548,6 +557,12 @@ const s = StyleSheet.create({
     maxHeight: '48%', // Rule 32 — strictly under 50% screen height
     paddingHorizontal: 20,
     paddingTop: 10,
+  },
+  scroll: {
+    flexGrow: 0,
+  },
+  scrollContent: {
+    paddingBottom: 16,
   },
   handle: {
     width: 40,
@@ -611,7 +626,7 @@ const s = StyleSheet.create({
   disruptionLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 14,
-    color: '#FF9F43',
+    color: STATUS_SEVERITY_COLORS.minor,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
@@ -675,12 +690,12 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#34D399',
+    backgroundColor: STATUS_SEVERITY_COLORS.good,
   },
   runningFineLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 14,
-    color: '#34D399',
+    color: STATUS_SEVERITY_COLORS.good,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },

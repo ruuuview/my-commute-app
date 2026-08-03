@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
+import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
 import { CaretRight } from 'phosphor-react-native';
 import { usePressAnimation } from '../hooks/usePressAnimation';
@@ -89,45 +90,56 @@ interface LineDetailModalProps {
   contextBadge?: 'clear' | 'affected' | null;
 }
 
+// Derived from the canonical severity palette (utils/getSeverityColor.ts —
+// AGENTS.md §0: no component may compute severity color independently).
+// Hex→rgba helper keeps the pill tints on-palette without a second copy.
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const STATUS_TOKENS: Record<
   string,
   { text: string; pillBg: string; pillBorder: string; dotColor: string }
 > = {
   good: {
-    text: '#30D158',
-    pillBg: 'rgba(48, 209, 88, 0.12)',
-    pillBorder: 'rgba(48, 209, 88, 0.25)',
-    dotColor: '#30D158',
+    text: STATUS_SEVERITY_COLORS.good,
+    pillBg: hexToRgba(STATUS_SEVERITY_COLORS.good, 0.12),
+    pillBorder: hexToRgba(STATUS_SEVERITY_COLORS.good, 0.25),
+    dotColor: STATUS_SEVERITY_COLORS.good,
   },
   minor: {
-    text: '#FF9F0A',
-    pillBg: 'rgba(255, 159, 10, 0.12)',
-    pillBorder: 'rgba(255, 159, 10, 0.25)',
-    dotColor: '#FF9F0A',
+    text: STATUS_SEVERITY_COLORS.minor,
+    pillBg: hexToRgba(STATUS_SEVERITY_COLORS.minor, 0.12),
+    pillBorder: hexToRgba(STATUS_SEVERITY_COLORS.minor, 0.25),
+    dotColor: STATUS_SEVERITY_COLORS.minor,
   },
   severe: {
-    text: '#FF3B30',
-    pillBg: 'rgba(255, 59, 48, 0.12)',
-    pillBorder: 'rgba(255, 59, 48, 0.25)',
-    dotColor: '#FF3B30',
+    text: STATUS_SEVERITY_COLORS.severe,
+    pillBg: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.12),
+    pillBorder: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.25),
+    dotColor: STATUS_SEVERITY_COLORS.severe,
   },
   suspended: {
-    text: '#FF3B30',
-    pillBg: 'rgba(255, 59, 48, 0.12)',
-    pillBorder: 'rgba(255, 59, 48, 0.25)',
-    dotColor: '#FF3B30',
+    text: STATUS_SEVERITY_COLORS.severe,
+    pillBg: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.12),
+    pillBorder: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.25),
+    dotColor: STATUS_SEVERITY_COLORS.severe,
   },
   closure: {
-    text: '#FF3B30',
-    pillBg: 'rgba(255, 59, 48, 0.12)',
-    pillBorder: 'rgba(255, 59, 48, 0.25)',
-    dotColor: '#FF3B30',
+    text: STATUS_SEVERITY_COLORS.severe,
+    pillBg: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.12),
+    pillBorder: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.25),
+    dotColor: STATUS_SEVERITY_COLORS.severe,
   },
   error: {
-    text: '#FF3B30',
-    pillBg: 'rgba(255, 59, 48, 0.12)',
-    pillBorder: 'rgba(255, 59, 48, 0.25)',
-    dotColor: '#FF3B30',
+    text: STATUS_SEVERITY_COLORS.severe,
+    pillBg: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.12),
+    pillBorder: hexToRgba(STATUS_SEVERITY_COLORS.severe, 0.25),
+    dotColor: STATUS_SEVERITY_COLORS.severe,
   },
 };
 
@@ -413,11 +425,11 @@ export function LineDetailModal({
                 ]}>
                   <View style={[
                     styles.contextBadgeDot,
-                    { backgroundColor: contextBadge === 'clear' ? '#34D399' : '#FF3B30' },
+                    { backgroundColor: contextBadge === 'clear' ? STATUS_SEVERITY_COLORS.good : STATUS_SEVERITY_COLORS.severe },
                   ]} />
                   <Text style={[
                     styles.contextBadgeText,
-                    { color: contextBadge === 'clear' ? '#34D399' : '#FF3B30' },
+                    { color: contextBadge === 'clear' ? STATUS_SEVERITY_COLORS.good : STATUS_SEVERITY_COLORS.severe },
                   ]}>
                     {contextBadge === 'clear' ? 'YOUR STATIONS OK' : 'SEVERE DELAYS'}
                   </Text>

@@ -224,7 +224,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   list: {
-    flexGrow: 0,
+    // Bug #8 fix: flexGrow:0 pinned the ScrollView to content height, so
+    // content taller than maxHeight:'70%' clipped instead of scrolling.
+    flexGrow: 1,
     marginBottom: 16,
   },
   doneBtn: {

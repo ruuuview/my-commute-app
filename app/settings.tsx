@@ -18,9 +18,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ProStatusCard } from '../components/ProStatusCard';
+import { PermissionRow } from '../components/PermissionRow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import * as Notifications from 'expo-notifications';
+import * as Calendar from 'expo-calendar';
+import * as ExpoLocation from 'expo-location';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancelAnimation } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -66,7 +69,9 @@ export default function SettingsScreen() {
     hapticsEnabled,
     setHapticsEnabled,
     locationGranted,
+    setLocationGranted,
     calendarGranted,
+    setCalendarGranted,
     arrivalNotificationsEnabled,
     setArrivalNotificationsEnabled,
     labelsConfirmed,
@@ -372,24 +377,20 @@ export default function SettingsScreen() {
           ) : (
             <View style={styles.settingCard}>
               <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <View style={styles.settingLabelRow}>
-                    <Bell size={20} color="#30D158" style={styles.iconMargin} />
-                    <Text style={styles.settingLabel}>Enable Notifications</Text>
-                  </View>
-                  <Text style={styles.settingDescription}>
-                    Get real-time alerts for service disruptions
-                  </Text>
-                </View>
-                <Switch
-                  value={notificationSettings.enabled}
-                  onValueChange={handleToggleNotifications}
-                  trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
+              <PermissionRow
+                permissionKey="notifications"
+                trigger="settings_toggle"
+                title="Enable Notifications"
+                description="Get real-time alerts for service disruptions"
+                icon={<Bell size={20} color="#30D158" style={styles.iconMargin} />}
+                iconColor="#30D158"
+                featureEnabled={notificationSettings.enabled}
+                onFeatureToggle={(v) => handleToggleNotifications(v)}
+                checkOsStatus={async () => {
+                  const { status } = await Notifications.getPermissionsAsync();
+                  return status === 'granted';
+                }}
+              />
               {notificationSettings.enabled && (
                 <>
                   <View style={styles.divider} />
@@ -456,31 +457,20 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Permission 3 — Auto-detect commute start (calendar).
-                      Cheap ask → native dialog on this tap; orchestrator
-                      handles cooldown/caps. */}
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingInfo}>
-                      <View style={styles.settingLabelRow}>
-                        <Clock size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
-                        <Text style={styles.settingLabel}>Auto-detect commute start</Text>
-                      </View>
-                      <Text style={styles.settingDescription}>
-                        We peek, we don't pry. Just the start time of your next thing — enough to time your alert right.
-                      </Text>
-                    </View>
-                    <Switch
-                      value={calendarGranted}
-                      onValueChange={async (value) => {
-                        if (value) {
-                          const decision = await requestPermission('calendar', 'auto_detect', { primer: false });
-                          if (decision !== 'granted') return;
-                        }
-                      }}
-                      trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
+                  <PermissionRow
+                    permissionKey="calendar"
+                    trigger="auto_detect"
+                    title="Auto-detect commute start"
+                    description="We peek, we don't pry. Just the start time of your next thing — enough to time your alert right."
+                    icon={<Clock size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />}
+                    iconColor="rgba(255,255,255,0.45)"
+                    featureEnabled={calendarGranted}
+                    onFeatureToggle={(v) => setCalendarGranted(v)}
+                    checkOsStatus={async () => {
+                      const p = await Calendar.getCalendarPermissionsAsync();
+                      return p.status === 'granted';
+                    }}
+                  />
 
                   <View style={styles.divider} />
 
@@ -594,46 +584,20 @@ export default function SettingsScreen() {
           )}
           <View style={styles.settingCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <View style={styles.settingLabelRow}>
-                  <MapPin size={20} color="#007AFF" style={styles.iconMargin} />
-                  <Text style={styles.settingLabel}>Station Geofencing</Text>
-                </View>
-                <Text style={styles.settingDescription}>
-                  Trigger live commute tracking when approaching pinned stations
-                </Text>
-              </View>
-              <Switch
-                value={locationGranted}
-                onValueChange={async (value) => {
-                  if (value) {
-                    const decision = await requestPermission('locationAlways', 'settings_toggle');
-                    if (decision !== 'granted') {
-                      Alert.alert(
-                        'Location Permission Required',
-                        'Please enable Always-On Location permissions in iOS Settings to use geofencing.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Go to Settings', onPress: () => Linking.openSettings() }
-                        ]
-                      );
-                    }
-                  } else {
-                    Alert.alert(
-                      'Disable Geofencing',
-                      'To fully disable location access, please turn off location permissions in iOS Settings.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Go to Settings', onPress: () => Linking.openSettings() }
-                      ]
-                    );
-                  }
-                }}
-                trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
+            <PermissionRow
+              permissionKey="locationAlways"
+              trigger="settings_toggle"
+              title="Station Geofencing"
+              description="Trigger live commute tracking when approaching pinned stations"
+              icon={<MapPin size={20} color="#007AFF" style={styles.iconMargin} />}
+              iconColor="#007AFF"
+              featureEnabled={locationGranted}
+              onFeatureToggle={(v) => setLocationGranted(v)}
+              checkOsStatus={async () => {
+                const p = await ExpoLocation.getForegroundPermissionsAsync();
+                return p.status === 'granted';
+              }}
+            />
           </View>
         </View>
 

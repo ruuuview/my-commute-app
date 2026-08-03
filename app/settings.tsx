@@ -311,7 +311,7 @@ export default function SettingsScreen() {
                   <Text style={styles.cardHeaderTitle}>{"The Central line doesn't text you when it's cooked. We do."}</Text>
                 </View>
                 <Text style={styles.cardBodyText}>
-                  We&apos;ll tell you before you&apos;re standing on a dead platform wondering why.
+                  {"We'll tell you before you're standing on a dead platform wondering why."}
                 </Text>
                 <Animated.View style={ctaPressAnim.animatedStyle}>
                   <Pressable

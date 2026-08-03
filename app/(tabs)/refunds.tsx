@@ -481,7 +481,7 @@ export default function RefundsScreen() {
         <View style={styles.claimAlertsInfo}>
           <Text style={styles.claimAlertsTitle}>Claim status alerts</Text>
           <Text style={styles.claimAlertsBody}>
-            Money doesn&apos;t announce itself. We will, the second it moves.
+            {"Money doesn't announce itself. We will, the second it moves."}
           </Text>
           {notifDenied && (
             <Pressable onPress={openAppSettings} hitSlop={8}>
@@ -510,7 +510,7 @@ export default function RefundsScreen() {
           <BlurView intensity={45} tint="dark" style={styles.recoveredBanner}>
             <View>
               <Text style={styles.pendingLabel}>Recovered so far</Text>
-              <Text style={styles.recoveredCaption}>Money you&apos;ve told us landed</Text>
+              <Text style={styles.recoveredCaption}>{"Money you've told us landed"}</Text>
             </View>
             <Text style={styles.recoveredAmount}>{recoveredFormatted}</Text>
           </BlurView>

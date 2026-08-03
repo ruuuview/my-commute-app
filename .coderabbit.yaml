@@ -1,0 +1,37 @@
+# CodeRabbit review scope — limit to the app's source folders.
+# Without this, the PR vs stale main exceeds the 150-file free-plan limit
+# and reviews get skipped. Only these paths are processed.
+reviews:
+  paths:
+    - "app/**"
+    - "components/**"
+    - "services/**"
+    - "store/**"
+    - "utils/**"
+    - "config/**"
+    - "hooks/**"
+    - "theme/**"
+    - "constants/**"
+    - "selectors/**"
+    - "modules/**"
+    - "targets/**"
+  ignore:
+    - "ios/**"
+    - "data/**"
+    - "brain/**"
+    - "scripts/**"
+    - "assets/**"
+    - "*.md"
+    - "*.json"
+    - "*.csv"
+    - "*.gif"
+    - "*.mp4"
+    - ".claude*"
+    - ".hermes/**"
+    - ".agents/**"
+    - "check_*.js"
+    - "test_*.js"
+    - "verify_*.js"
+    - "find_*.js"
+    - "parse_*.js"
+    - "useTflApi.ts"

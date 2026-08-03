@@ -24,6 +24,8 @@ export async function saveAuthToken(
     await SecureStore.setItemAsync(TOKEN_META_KEY, JSON.stringify(meta), {
       keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
+  } else {
+    await SecureStore.deleteItemAsync(TOKEN_META_KEY);
   }
 }
 

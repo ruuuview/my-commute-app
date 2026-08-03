@@ -1,6 +1,5 @@
 import { createMMKV } from 'react-native-mmkv';
 import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LiveActivityService } from './LiveActivityService';
 import { triggerTier2Grab, onTier2CachePopulated, getTier2Cache } from './tier2Cache';
 import { maybeFireDirectionNotification } from './directionNotification';
@@ -10,14 +9,19 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
 
+export type SessionState = 'idle' | 'active' | 'closing';
+
+const backgroundStorage = createMMKV({ id: 'background-storage' });
+
 export const CONSENT_DWELL_MINUTES = 27;
 export const CONSENT_DWELL_MS = CONSENT_DWELL_MINUTES * 60 * 1000;
 export const ARRIVAL_DWELL_MINUTES = 5;
 export const ARRIVAL_DWELL_MS = ARRIVAL_DWELL_MINUTES * 60 * 1000;
 
-const backgroundStorage = createMMKV({ id: 'background-storage' });
-
-export type SessionState = 'idle' | 'active' | 'closing';
+const activeCacheSubs = new Map<
+  string,
+  { unsubDirection?: () => void; unsubLiveActivity?: () => void; timer?: ReturnType<typeof setTimeout> }
+>();
 
 export class SessionManager {
   static getSessionState(): SessionState {
@@ -110,18 +114,25 @@ export class SessionManager {
     // Fire the Type B direction notification once the Tier 2 cache populates.
     // Single-shot subscription: fires for THIS station, then cleans itself up.
     // Falls through to Priority 2 (no notification) if no endpoints derivable.
-    const unsub = onTier2CachePopulated((cache) => {
-      if (cache.stationId !== stationId) return; // not our station yet
-      unsub();
+    // Fire the Type B direction notification once the Tier 2 cache populates.
+    // Single-shot subscription: fires for THIS station, then cleans itself up.
+    // Falls through to Priority 2 (no notification) if no endpoints derivable.
+    let unsubDirection: (() => void) | undefined;
+    let firedDirection = false;
+    unsubDirection = onTier2CachePopulated((cache) => {
+      if (cache.stationId !== stationId || firedDirection) return;
+      firedDirection = true;
+      unsubDirection?.();
       maybeFireDirectionNotification(stationId, lineId, cache).catch((e) =>
         console.error('[SessionManager] Direction notification failed:', e)
       );
     });
+    if (firedDirection) unsubDirection?.();
 
     // Live Activity reads the Tier 2 cache. Subscribe so every cache refresh
     // (re-)renders the Island / Lock Screen. Single source of truth, no dup.
-    let wasNoSignal = !getTier2Cache(stationId);
-    const unsubscribe = onTier2CachePopulated((cache) => {
+    let wasNoSignal = false;
+    const unsubLiveActivity = onTier2CachePopulated((cache) => {
       if (cache.stationId !== stationId) return;
       LiveActivityService.update(stationId, lineId).catch((e) =>
         console.error('[SessionManager] Live Activity update from cache failed:', e)
@@ -142,13 +153,13 @@ export class SessionManager {
         }).catch(() => {});
       }
     });
-    (LiveActivityService as any).__unsub = unsubscribe;
 
     // No-signal handling: if the cache never populates within a short window,
     // fire the one-time Type B local push (zero network). Honest void, not a
     // false card — the Live Activity is simply not started until data exists.
     const noSignalTimer = setTimeout(() => {
       if (!getTier2Cache(stationId)) {
+        wasNoSignal = true;
         Notifications.scheduleNotificationAsync({
           content: {
             title: "Signal's patchy here — still trying.",
@@ -159,9 +170,14 @@ export class SessionManager {
         }).catch(() => {});
       }
     }, 6000);
-    backgroundStorage.set('__no_signal_timer', '1');
-    // Store timer handle for cleanup on session end.
-    (LiveActivityService as any).__noSignalTimer = noSignalTimer;
+
+    const previous = activeCacheSubs.get(stationId);
+    if (previous) {
+      previous.unsubDirection?.();
+      previous.unsubLiveActivity?.();
+      if (previous.timer != null) clearTimeout(previous.timer);
+    }
+    activeCacheSubs.set(stationId, { unsubDirection, unsubLiveActivity, timer: noSignalTimer });
 
     const state = useUserPreferencesStore.getState();
     const pinnedStations = state.pinnedStations || [];
@@ -298,7 +314,7 @@ export class SessionManager {
         if (expiresStr) {
           const expires = parseInt(expiresStr, 10);
           if (Date.now() < expires) {
-            console.log(`[SessionManager] Exited destination before ${CONSENT_DWELL_MINUTES}m dwell. Restoring active session.`);
+            console.log(`[SessionManager] Exited destination before ${ARRIVAL_DWELL_MINUTES}m dwell. Restoring active session.`);
             await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
             backgroundStorage.set('session_state', 'active');
             backgroundStorage.remove('dwell_timer_expires');
@@ -331,11 +347,13 @@ export class SessionManager {
 
     await LiveActivityService.end().catch(e => console.error('[SessionManager] End Live Activity failed:', e));
 
-    // Detach the Tier 2 cache listener + clear the no-signal timer.
-    const unsub = (LiveActivityService as any).__unsub;
-    if (typeof unsub === 'function') { try { unsub(); } catch {} }
-    const timer = (LiveActivityService as any).__noSignalTimer;
-    if (typeof timer === 'number') { clearTimeout(timer); }
+    // Detach all Tier 2 cache listeners + clear active timers.
+    for (const [, handle] of activeCacheSubs.entries()) {
+      try { handle.unsubDirection?.(); } catch {}
+      try { handle.unsubLiveActivity?.(); } catch {}
+      if (handle.timer != null) { clearTimeout(handle.timer); }
+    }
+    activeCacheSubs.clear();
     backgroundStorage.remove('__no_signal_timer');
     backgroundStorage.remove('tfl_global_outage');
     backgroundStorage.set('session_state', 'idle');

@@ -36,8 +36,9 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 
 // ---- Storage: App Group MMKV so Swift Live Activity can READ the same cache ----
-// This is the single persisted source. The native layer reads TIER2_KEY_PREFIX + stationId.
-const tier2Storage = createMMKV({ id: 'tier2-cache', ...(APP_CONFIG.APP_GROUP_ID ? { groupId: APP_CONFIG.APP_GROUP_ID } : {}) });
+// App Group sharing is configured natively via the `AppGroupIdentifier` key in
+// Info.plist (`AppGroup` on react-native-mmkv v3). It cannot be set from JS.
+const tier2Storage = createMMKV({ id: 'tier2-cache' });
 const TIER2_KEY_PREFIX = 'tier2:';
 
 // ---- Public cache shape (canonical — Swift reads this exact contract) ----
@@ -127,13 +128,14 @@ export function triggerTier2Grab(stationId: string, lineId: string): void {
     console.error('[TIER2_CACHE_FAIL] triggerTier2Grab called with empty stationId.');
     return;
   }
-  const key = `${stationId}:${lineId}`;
+  const { cleanLineId } = normaliseLineId(lineId);
+  const key = `${stationId}:${cleanLineId}`;
   if (inFlight.has(key)) {
     return; // already grabbing this station+line combo
   }
   inFlight.add(key);
   // Fire-and-forget: silent, no UI. Failures are logged as P0, not thrown.
-  runGrab(stationId, lineId)
+  runGrab(stationId, cleanLineId)
     .catch((err) => {
       console.error('[TIER2_CACHE_FAIL] Unhandled rejection in Tier 2 grab:', err);
     })
@@ -152,11 +154,14 @@ async function runGrab(stationId: string, lineId: string): Promise<void> {
   const grabbedAt = new Date().toISOString();
 
   // Both grabs run concurrently — disruption is cheap, arrivals is time-sensitive.
-  const [disruption, platforms, arrivalsLastUpdated] = await Promise.all([
+  const [disruption, arrivalsResult] = await Promise.all([
     grabDisruption(lineId),
-    grabArrivals(stationId),
-    Promise.resolve(new Date().toISOString()),
+    grabArrivals(stationId).then((platforms) => ({
+      platforms,
+      arrivalsLastUpdated: new Date().toISOString(),
+    })),
   ]);
+  const { platforms, arrivalsLastUpdated } = arrivalsResult;
 
   // If arrivals completely failed after all retries, we still persist what we
   // have but flag the failure loudly. A cache with no arrivals is a degraded
@@ -202,7 +207,7 @@ async function grabDisruption(lineId: string): Promise<Tier2Disruption | null> {
 
   try {
     return await attempt();
-  } catch (firstErr) {
+  } catch {
     // SILENT RETRY — single retry, no exponential backoff (disruption is slow-moving).
     try {
       return await attempt();
@@ -246,8 +251,7 @@ async function grabArrivals(stationId: string): Promise<Tier2PlatformArrival[]> 
       clearTimeout(timeout);
 
       const arrivals = flattenArrivals(responses);
-      if (arrivals.length > 0 || attemptIdx === ARRIVALS_BACKOFF_MS.length - 1) {
-        // Success, OR we've exhausted retries — return whatever we have.
+      if (arrivals.length > 0) {
         return arrivals;
       }
       lastError = new Error(`Arrivals fetch returned no data on attempt ${attemptIdx + 1}`);

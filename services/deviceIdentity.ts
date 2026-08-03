@@ -28,9 +28,9 @@ async function createProfile(): Promise<{ userId: string; apiKey: string }> {
   if (!res.ok) throw new Error(`profile creation failed: HTTP ${res.status}`)
   const json = await res.json()
   if (!json.userId || !json.apiKey) throw new Error('profile response missing keys')
-  await Promise.all([
-    AsyncStorage.setItem(USER_ID_KEY, json.userId),
-    AsyncStorage.setItem(API_KEY_KEY, json.apiKey),
+  await AsyncStorage.multiSet([
+    [USER_ID_KEY, json.userId],
+    [API_KEY_KEY, json.apiKey],
   ])
   return { userId: json.userId, apiKey: json.apiKey }
 }

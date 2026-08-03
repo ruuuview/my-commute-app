@@ -7,6 +7,7 @@ import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
 import { SessionManager } from './SessionManager';
+import { getSeverityRank } from '../utils/getSeverityColor';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
@@ -147,14 +148,6 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         let worstBranchData: any = null;
         let worstBranchSeverity = 10;
 
-        const getRank = (s: number) => {
-          if (s === 10 || s === 18 || s === 14) return 0;                    // good
-          if (s === 9 || s === 7) return 1;                                  // minor
-          if (s === 6) return 2;                                             // severe
-          if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(s)) return 3; // suspended
-          return 4;
-        };
-
         OVERGROUND_BRANCH_IDS.forEach(branchId => {
           const branchData = fetchedLinesMap[branchId];
           if (branchData) {
@@ -167,7 +160,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
             } else if (statusText.includes('minor') || statusText.includes('reduced')) {
               branchSeverity = 9; // minor
             }
-            if (getRank(branchSeverity) > getRank(worstBranchSeverity)) {
+            if (getSeverityRank(branchSeverity, statusText) > getSeverityRank(worstBranchSeverity)) {
               worstBranchSeverity = branchSeverity;
               worstBranchData = branchData;
             }
@@ -214,14 +207,17 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         severity: currentSeverity === 1 ? 10 : currentSeverity,
       });
 
-      if (currentSeverity !== lastSeverity) {
+      const currentRank = getSeverityRank(currentSeverity, statusDescription);
+      const lastRank = getSeverityRank(lastSeverity);
+
+      if (currentRank !== lastRank) {
         triggeredAnyAlert = true;
 
         const { lineNotificationToggles } = getNotificationToggles();
         const isLineEnabled = lineNotificationToggles[lineId] !== false;
 
         if (canScheduleNotifications && isLineEnabled) {
-          if (currentSeverity > lastSeverity) {
+          if (currentRank > lastRank) {
             // Severity worsened - trigger disruption alert
             await Notifications.scheduleNotificationAsync({
               content: {
@@ -231,7 +227,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
               },
               trigger: null,
             });
-          } else if (currentSeverity === 1 && lastSeverity > 1) {
+          } else if (currentRank === 0 && lastRank > 0) {
             // Severity cleared - trigger cleared alert
             await Notifications.scheduleNotificationAsync({
               content: {

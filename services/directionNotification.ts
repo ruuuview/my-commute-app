@@ -41,6 +41,8 @@ import * as Notifications from 'expo-notifications';
 import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import type { Tier2Cache } from './tier2Cache';
+import { TFL_STATIONS, cleanDisplayStationName } from '../data/tflStations';
+import { normaliseLineId } from '../utils/normaliseLineId';
 
 // ----------------------------------------------------------------------------
 // Interface we expect from Tier2CacheManager (already implemented in
@@ -80,26 +82,18 @@ export const DECAY_MAX_REPROMPTS = 3;
 const LEARNED_WINDOW_HALF_WIDTH_MIN = 45;
 
 /**
- * True termini — stations with exactly ONE physical platform direction.
+ * True termini — stations with exactly ONE physical platform direction per line.
  * Asking "which way?" is noise here. One direction, no choice.
- * Set is intentionally small and explicit; add more as they're confirmed.
  */
-export const TERMINI = new Set<string>([
-  'morden',
-  'edgware', // Edgware Road (Bakerloo) is a terminus; Edgware (Northern) too.
-  'cockfosters',
-  'kennington', // southern terminus of the Charing Cross branch (off-peak)
-  'walthamstow central',
-  'stanmore',
-  'high barnet', // terminus of the High Barnet branch
-  'mill hill east',
-  'ealing broadway', // western terminus (Central/District termini vary by branch)
-  'upminster',
-  'hounslow west',
-  'heathrow terminal 4',
-  'heathrow terminal 5',
-  'watford', // Watford branch terminus
-]);
+export const TERMINI_BY_LINE: Record<string, ReadonlySet<string>> = {
+  northern: new Set(['morden', 'edgware', 'high barnet', 'mill hill east', 'kennington']),
+  piccadilly: new Set(['cockfosters', 'uxbridge', 'heathrow terminal 4', 'heathrow terminal 5']),
+  victoria: new Set(['walthamstow central', 'brixton']),
+  jubilee: new Set(['stanmore', 'stratford']),
+  central: new Set(['ealing broadway', 'west ruislip', 'epping', 'hainault']),
+  district: new Set(['upminster', 'richmond', 'wimbledon', 'edgware road']),
+  bakerloo: new Set(['harrow & wealdstone', 'elephant & castle']),
+};
 
 /**
  * Notification category identifier. The two action buttons render as the
@@ -419,18 +413,23 @@ export async function maybeFireDirectionNotification(
   // titles (Rule 18: chips show physical platform signage, never "Left/Right"
   // or compass prose). Expo renders buttonTitle from the category at fire time,
   // so we set it here with the real endpoints before scheduling.
-  Notifications.setNotificationCategoryAsync(DIRECTION_CHOICE_CATEGORY, [
-    {
-      identifier: 'chip-a',
-      buttonTitle: optionA,
-      options: { opensAppToForeground: true },
-    },
-    {
-      identifier: 'chip-b',
-      buttonTitle: optionB,
-      options: { opensAppToForeground: true },
-    },
-  ]).catch((e) => console.warn('[DIRECTION_NOTIF] category re-register failed:', e));
+  try {
+    await Notifications.setNotificationCategoryAsync(DIRECTION_CHOICE_CATEGORY, [
+      {
+        identifier: 'chip-a',
+        buttonTitle: optionA,
+        options: { opensAppToForeground: true },
+      },
+      {
+        identifier: 'chip-b',
+        buttonTitle: optionB,
+        options: { opensAppToForeground: true },
+      },
+    ]);
+  } catch (e) {
+    console.warn('[DIRECTION_NOTIF] category re-register failed:', e);
+    return false;
+  }
 
   // 3. Attempt zero-tap prediction from history at this time-of-day.
   const now = new Date();
@@ -453,6 +452,10 @@ export async function maybeFireDirectionNotification(
     console.log(
       `[DIRECTION_NOTIF] ${stationName}: entry drifted outside learned window (re-prompt #${state.decayReprompts}/${DECAY_MAX_REPROMPTS}).`
     );
+  } else if (withinWindow && state.decayReprompts > 0) {
+    // The entry matches the learned pattern. The drift run is broken.
+    state.decayReprompts = 0;
+    saveStationState(stationId, state);
   }
 
   // 4. Build the notification. Binary chips. Signage strings. No compass prose.
@@ -511,12 +514,19 @@ function recordChoice(stationId: string, dest: string): void {
   saveStationState(stationId, state);
 }
 
-function isTerminus(stationId: string, stationName: string): boolean {
+function isTerminus(stationId: string, stationName: string, lineId?: string): boolean {
+  const cleanLine = lineId ? normaliseLineId(lineId).cleanLineId : null;
+  const set = cleanLine ? TERMINI_BY_LINE[cleanLine] : null;
+
   const key = (stationId || '').toLowerCase().replace(/[-_]/g, ' ').trim();
-  if (TERMINI.has(key)) return true;
-  if (stationName) {
-    const nameKey = stationName.toLowerCase().trim();
-    if (TERMINI.has(nameKey)) return true;
+  const nameKey = (stationName || '').toLowerCase().trim();
+
+  if (set) {
+    return set.has(key) || set.has(nameKey);
+  }
+
+  for (const lineSet of Object.values(TERMINI_BY_LINE)) {
+    if (lineSet.has(key) || lineSet.has(nameKey)) return true;
   }
   return false;
 }
@@ -525,7 +535,14 @@ function stationDisplayName(stationId: string): string {
   try {
     const pinned = useUserPreferencesStore.getState().pinnedStations || [];
     const s = pinned.find((p) => p.id === stationId);
-    return s?.name || stationId;
+    if (s?.name) return cleanDisplayStationName(s.name);
+
+    const ref = TFL_STATIONS.find(
+      (st) => st.id.toLowerCase() === stationId.toLowerCase() || st.name.toLowerCase() === stationId.toLowerCase()
+    );
+    if (ref?.name) return cleanDisplayStationName(ref.name);
+
+    return stationId;
   } catch {
     return stationId;
   }
@@ -559,6 +576,6 @@ export default {
   installDirectionNotification,
   maybeFireDirectionNotification,
   onDirectionResolved,
-  TERMINI,
+  TERMINI_BY_LINE,
   DECAY_MAX_REPROMPTS,
 };

@@ -126,7 +126,9 @@ export async function fetchNormalizedStationArrivals(
 
     const mins = dep.calculatedMinutes!;
     const dueKey = mins <= 0 ? 'due' : mins;
-    const key = `${dep.line}-${dep.platform || dep.destination}-${dueKey}`;
+    const cleanedPlatform = cleanPlatformName(dep.platform);
+    const cleanedDest = cleanDestinationName(dest);
+    const key = `${dep.line}-${cleanedPlatform || cleanedDest}-${dueKey}`;
 
     if (seen.has(key)) return false;
     seen.add(key);

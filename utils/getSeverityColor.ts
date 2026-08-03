@@ -89,3 +89,24 @@ export function getSeverityColor(
 export function getSeverityLabel(statusSeverity?: number, statusText?: string): Severity {
   return getSeverityColor(statusSeverity, statusText).label;
 }
+
+const SEVERITY_RANK_MAP: Record<Severity, number> = {
+  good: 0,
+  minor: 1,
+  severe: 2,
+};
+
+/**
+ * Get canonical severity rank (0=good, 1=minor, 2=severe, 3=suspended/closure).
+ * Delegates directly to the single source of truth for status parsing.
+ */
+export function getSeverityRank(statusSeverity?: number, statusText?: string): number {
+  if (statusSeverity !== undefined) {
+    if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(statusSeverity)) return 3; // suspended / closure
+    if (statusSeverity === 6) return 2; // severe
+    if (statusSeverity === 9 || statusSeverity === 7) return 1; // minor
+    if (statusSeverity === 10 || statusSeverity === 18 || statusSeverity === 14) return 0; // good
+  }
+  const label = getSeverityLabel(statusSeverity, statusText);
+  return SEVERITY_RANK_MAP[label] ?? 0;
+}

@@ -22,7 +22,8 @@
  * ============================================================================
  */
 
-import { NativeModules, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { createMMKV } from 'react-native-mmkv';
 import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -31,8 +32,8 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 // Re-use the same background MMKV the SessionManager uses (single store).
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
-// The Expo Modules bridge (expo-modules-core requireNativeModule).
-const { MyCommuteLiveActivityModule } = NativeModules;
+// The Expo Modules bridge (expo-modules-core requireOptionalNativeModule).
+const MyCommuteLiveActivityModule = requireOptionalNativeModule('MyCommuteLiveActivity');
 
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
 
@@ -47,6 +48,7 @@ export interface LiveActivityBridgePayload {
   signalState: LiveActivitySignalState;
 }
 
+const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
 export class LiveActivityService {
   private static activeAbortController: AbortController | null = null;
@@ -55,10 +57,20 @@ export class LiveActivityService {
    * Build the bridge payload from the Tier 2 cache + session context.
    * Returns null when there is nothing usable to show (honest void).
    */
-  private static buildPayload(stationId: string, lineId: string): LiveActivityBridgePayload | null {
+  private static buildPayload(
+    stationId: string,
+    lineId: string,
+    signalStateOverride?: LiveActivitySignalState
+  ): LiveActivityBridgePayload | null {
     const cache = getTier2Cache(stationId);
     if (!cache) {
       // Truly nothing cached -> do NOT start a false card.
+      return null;
+    }
+
+    const ageMs = Date.now() - new Date(cache.arrivalsLastUpdated || cache.grabbedAt).getTime();
+    if (!Number.isFinite(ageMs) || ageMs > MAX_CACHE_AGE_MS) {
+      console.log(`[LiveActivityService] Tier 2 cache for ${stationId} is stale (${Math.round(ageMs / 1000)}s old) — dropping.`);
       return null;
     }
 
@@ -87,10 +99,9 @@ export class LiveActivityService {
     // Branch known when the session has resolved a destination (Priority 1-3).
     const branchKnown = !!backgroundStorage.getString('commute_destination_id');
 
-    // Signal state: meltdown is a backend global-outage flag; no-signal is the
-    // absence of any cache (handled above as null). We pass 'ok' here and the
-    // caller can force 'meltdown' via startWithSignalState().
-    const signalState: LiveActivitySignalState = LiveActivityService.readSignalState();
+    // Signal state override or read from storage.
+    const signalState: LiveActivitySignalState =
+      signalStateOverride ?? LiveActivityService.readSignalState();
 
     return {
       stationId,
@@ -105,8 +116,6 @@ export class LiveActivityService {
   }
 
   private static readSignalState(): LiveActivitySignalState {
-    // Backend flags global outage after 2 consecutive failed poll cycles.
-    // The poller/backend writes this flag; we only read it.
     const meltdown = backgroundStorage.getBoolean('tfl_global_outage') ?? false;
     return meltdown ? 'meltdown' : 'ok';
   }
@@ -145,12 +154,16 @@ export class LiveActivityService {
    * If signal returns after a gap, the widget flashes the resumed content
    * (handled natively by ActivityKit re-render).
    */
-  static async update(stationId: string, lineId: string): Promise<void> {
+  static async update(
+    stationId: string,
+    lineId: string,
+    signalStateOverride?: LiveActivitySignalState
+  ): Promise<void> {
     if (Platform.OS !== 'ios') return;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.updateCommuteActivity !== 'function') {
       return;
     }
-    const payload = this.buildPayload(stationId, lineId);
+    const payload = this.buildPayload(stationId, lineId, signalStateOverride);
     if (!payload) {
       // Cache vanished mid-session: keep the last rendered content (it stays
       // softened as normal). Do not crash the activity.
@@ -168,7 +181,7 @@ export class LiveActivityService {
     if (Platform.OS !== 'ios') return;
     if (state === 'meltdown') {
       backgroundStorage.set('tfl_global_outage', true);
-    } else if (state === 'ok') {
+    } else {
       backgroundStorage.set('tfl_global_outage', false);
     }
     // For meltdown / no-signal we still need a payload to drive the copy. If we
@@ -176,7 +189,7 @@ export class LiveActivityService {
     const sid = stationId || backgroundStorage.getString('commute_origin_id') || '';
     const lid = lineId || backgroundStorage.getString('commute_line_id') || '';
     if (sid) {
-      await this.update(sid, lid);
+      await this.update(sid, lid, state);
     }
   }
 

@@ -17,11 +17,17 @@ if (Platform.OS === 'android') {
 
 export async function syncPushTokenWithBackend(selectedLines: string[]) {
   try {
-    // Check permission first
+    // Check permission first. If it is not granted, route the ask through the
+    // orchestrator so dedupe, cooldown, and analytics apply.
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') {
-      console.log('⚠️ Push permission not granted. Skipping token registration.');
-      return;
+      const decision = await requestPermission('notifications', 'push_token_registration', {
+        primer: false,
+      });
+      if (decision !== 'granted') {
+        console.log('⚠️ Push permission not granted. Skipping token registration.');
+        return;
+      }
     }
 
     let token: string | null = null;
@@ -35,15 +41,7 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
         console.warn('⚠️ APNS: Failed to fetch iOS device token (this is expected on simulator):', err);
       }
     } else if (Platform.OS === 'android' && messaging) {
-      // FCM token on Android. Bug #6 fix: the permission ask must route
-      // through the orchestrator (never a direct OS call) — same dedupe,
-      // cooldown, and analytics as every other ask. Cheap ask → no primer.
       try {
-        const decision = await requestPermission('notifications', 'push_token_registration', { primer: false });
-        if (decision !== 'granted') {
-          console.log('⚠️ FCM: permission not granted via orchestrator. Skipping token registration.');
-          return;
-        }
         token = await messaging().getToken();
         console.log('📱 FCM: Fetched Android device push token:', token ? `${token.substring(0, 12)}...` : null);
       } catch (err) {
@@ -61,6 +59,7 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
     const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/devices/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify({
         token: token,
         lines: selectedLines,

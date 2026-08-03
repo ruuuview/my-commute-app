@@ -28,7 +28,10 @@ export interface AuthFlowState {
   originScreen: AuthOrigin | null;
   authInFlight: boolean;
   lastAuthAttemptAt: number | null;
+  pendingState: string | null;
+  pendingCodeVerifier: string | null;
   beginAuth: (origin: AuthOrigin) => void;
+  setPendingAuthParams: (params: { state: string; codeVerifier?: string }) => void;
   completeAuth: () => void;
   failAuth: () => void;
 }
@@ -39,6 +42,8 @@ export const useAuthFlowStore = create<AuthFlowState>()(
       originScreen: null,
       authInFlight: false,
       lastAuthAttemptAt: null,
+      pendingState: null,
+      pendingCodeVerifier: null,
 
       // Call BEFORE launching ASWebAuthenticationSession so the callback
       // handler knows where to router.replace() back to.
@@ -47,13 +52,21 @@ export const useAuthFlowStore = create<AuthFlowState>()(
           originScreen: origin,
           authInFlight: true,
           lastAuthAttemptAt: Date.now(),
+          pendingState: null,
+          pendingCodeVerifier: null,
+        }),
+
+      setPendingAuthParams: ({ state, codeVerifier }) =>
+        set({
+          pendingState: state,
+          pendingCodeVerifier: codeVerifier ?? null,
         }),
 
       completeAuth: () =>
-        set({ originScreen: null, authInFlight: false }),
+        set({ originScreen: null, authInFlight: false, pendingState: null, pendingCodeVerifier: null }),
 
       failAuth: () =>
-        set({ originScreen: null, authInFlight: false }),
+        set({ originScreen: null, authInFlight: false, pendingState: null, pendingCodeVerifier: null }),
     }),
     {
       name: 'auth-flow',

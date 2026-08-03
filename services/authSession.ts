@@ -32,61 +32,76 @@ export function isOAuthConfigured(): boolean {
  * - Otherwise falls back to the plain TfL Delay Repay web page (prior behavior),
  *   with origin still recorded so a future callback routes correctly.
  */
+function generateRandomState(): string {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
 export async function launchTflAuth(origin: AuthOrigin): Promise<void> {
   useAuthFlowStore.getState().beginAuth(origin);
 
   if (!isOAuthConfigured()) {
-    // No OAuth client configured yet — open TfL in SFSafariViewController
-    // (in-app browser) instead of the system browser:
-    //  1. Shares cookies with Safari → the TfL login persists, so the next
-    //     claim tap arrives at TfL ALREADY logged in (no second login wall).
-    //  2. Has a built-in Done button → user returns to the app, landing back
-    //     on the origin screen (Refund Radar). Bug #1 (never returns) fixed.
-    // User taps Done → back in the app on the origin screen (no routing
-    // needed — the browser was in-app). Clear the in-flight flag.
     await WebBrowser.openBrowserAsync(TFL_REFUND_URL).catch(() => {});
     useAuthFlowStore.getState().failAuth();
     return;
   }
 
+  const state = generateRandomState();
+  useAuthFlowStore.getState().setPendingAuthParams({ state });
+
   const authUrl =
     `${OAUTH_AUTH_URL}?client_id=${encodeURIComponent(OAUTH_CLIENT_ID!)}` +
     `&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}` +
-    `&response_type=code`;
+    `&response_type=code` +
+    `&state=${encodeURIComponent(state)}`;
 
   const result = await WebBrowser.openAuthSessionAsync(authUrl, AUTH_REDIRECT_URI);
 
   if (result.type === 'success' && result.url) {
-    handleAuthCallbackUrl(result.url);
-  } else if (result.type === 'cancel') {
-    useAuthFlowStore.getState().failAuth();
+    await handleAuthCallbackUrl(result.url);
   } else {
     useAuthFlowStore.getState().failAuth();
   }
 }
 
 /**
- * Parse a mycommute://auth/callback URL, persist any token to Keychain,
- * and return true when the URL belongs to the auth callback.
+ * Parse a mycommute://auth/callback URL, validate state parameter,
+ * persist token to Keychain, and return true when the URL belongs to the auth callback.
  * Does NOT route — the caller routes after reading originScreen.
  */
-export function handleAuthCallbackUrl(rawUrl: string): boolean {
+export async function handleAuthCallbackUrl(rawUrl: string): Promise<boolean> {
   if (!rawUrl.startsWith(AUTH_REDIRECT_URI)) return false;
 
   const { queryParams } = Linking.parse(rawUrl);
   const error = queryParams?.error ?? null;
   const code = queryParams?.code ?? queryParams?.token ?? null;
+  const returnedState = queryParams?.state ? String(queryParams.state) : null;
+  const { pendingState } = useAuthFlowStore.getState();
 
   if (error) {
     useAuthFlowStore.getState().failAuth();
     return true;
   }
 
-  if (code) {
-    void saveAuthToken(String(code), { issuedAt: Date.now() });
+  // Validate state parameter to prevent CSRF / login injection attacks.
+  if (!returnedState || !pendingState || returnedState !== pendingState) {
+    console.error('[authSession] OAuth state mismatch or missing state:', { returnedState, pendingState });
+    useAuthFlowStore.getState().failAuth();
+    return true;
   }
 
-  useAuthFlowStore.getState().completeAuth();
+  if (!code) {
+    useAuthFlowStore.getState().failAuth();
+    return true;
+  }
+
+  try {
+    await saveAuthToken(String(code), { issuedAt: Date.now() });
+    useAuthFlowStore.getState().completeAuth();
+  } catch (err) {
+    console.error('[authSession] Failed to persist auth token:', err);
+    useAuthFlowStore.getState().failAuth();
+  }
+
   return true;
 }
 
@@ -111,27 +126,37 @@ export function getOriginRoute(origin: AuthOrigin | null): string {
 export function setupAuthCallbackListener(router: {
   replace: (href: string) => void;
 }): () => void {
-  const routeAfterCallback = (url: string) => {
-    // Read origin BEFORE handling — handleAuthCallbackUrl() runs
-    // completeAuth() which clears originScreen.
+  let disposed = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const routeAfterCallback = async (url: string) => {
+    if (disposed) return;
     const { originScreen } = useAuthFlowStore.getState();
-    if (!handleAuthCallbackUrl(url)) return;
+    const isAuth = await handleAuthCallbackUrl(url);
+    if (!isAuth || disposed) return;
     const target = getOriginRoute(originScreen);
     // Small delay lets the router settle on cold start.
-    setTimeout(() => {
+    timer = setTimeout(() => {
+      if (disposed) return;
       router.replace(target as never);
     }, 150);
   };
 
   // Warm path: app was alive, system returns via the custom scheme.
   const subscription = Linking.addEventListener('url', ({ url }) => {
-    routeAfterCallback(url);
+    void routeAfterCallback(url);
   });
 
   // Cold start: app was killed mid-auth and relaunched via the scheme URL.
-  Linking.getInitialURL().then((url) => {
-    if (url) routeAfterCallback(url);
-  });
+  Linking.getInitialURL()
+    .then((url) => {
+      if (url && !disposed) void routeAfterCallback(url);
+    })
+    .catch(() => {});
 
-  return () => subscription.remove();
+  return () => {
+    disposed = true;
+    if (timer) clearTimeout(timer);
+    subscription.remove();
+  };
 }

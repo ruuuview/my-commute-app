@@ -34,6 +34,7 @@ import { createMMKV } from 'react-native-mmkv';
 import { APP_CONFIG } from '../config/app.config';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
+import { getSeverityRank } from '../utils/getSeverityColor';
 
 // ---- Storage: App Group MMKV so Swift Live Activity can READ the same cache ----
 // App Group sharing is configured natively via the `AppGroupIdentifier` key in
@@ -307,7 +308,7 @@ function mapLineToDisruption(lines: any[], lineId: string): Tier2Disruption | nu
     OVERGROUND_BRANCHES.forEach((b) => {
       const branch = byId[b];
       if (branch) {
-        const rank = severityRank(parseSeverity(branch));
+        const rank = getSeverityRank(parseSeverity(branch));
         if (rank > worstRank) {
           worstRank = rank;
           worst = branch;
@@ -323,7 +324,11 @@ function mapLineToDisruption(lines: any[], lineId: string): Tier2Disruption | nu
 
   const severity = parseSeverity(lineData);
   const statusText = String(lineData.status ?? '').toLowerCase();
-  const isDisrupted = severity < 10 || /(delay|closure|suspend|reduced|part closure|severe)/.test(statusText);
+  // Canonical severity rank (single source of truth). The old `severity < 10`
+  // ordinal check missed codes 11/16/17/19/20 (suspended/bus service — all
+  // >= 10) and the regex lacked 'bus service'/'not running' → false calm on
+  // bus-replacement lines. Rank > 0 = disrupted.
+  const isDisrupted = getSeverityRank(severity, statusText) > 0;
   // Good-service codes explicitly mean not disrupted.
   if ([10, 18, 14].includes(severity)) {
     return { isDisrupted: false, severity, description: lineData.status || 'Good Service', reason: lineData.reason || null, lineId };
@@ -346,13 +351,6 @@ function parseSeverity(lineData: any): number {
   if (/minor|reduced/.test(statusText)) return 9;
   if (statusText.includes('good') || statusText.includes('special') || statusText.includes('information')) return 10;
   return 10; // default to good when unknown
-}
-
-function severityRank(sev: number): number {
-  if (sev === 10 || sev === 18 || sev === 14) return 0;
-  if (sev === 9 || sev === 7) return 1;
-  if (sev === 6) return 2;
-  return 3; // suspended / worst
 }
 
 /** Flatten API station responses into the Tier2PlatformArrival[] shape. */

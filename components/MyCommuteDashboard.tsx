@@ -55,7 +55,7 @@ import { useLineDataStore } from '../store/lineDataStore';
 import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
-import { getSeverityColor } from '../utils/getSeverityColor';
+import { getSeverityColor, getSeverityRank } from '../utils/getSeverityColor';
 import RerouteScreen from './RerouteScreen';
 import {
   resolveRerouteMode,
@@ -430,20 +430,14 @@ const MyCommuteDashboard: React.FC = () => {
       let worstBranch: any = null;
       let worstSeverityRank = -1;
 
-      const getRank = (s: number) => {
-        if (s === 10 || s === 18 || s === 14) return 0;                    // good
-        if (s === 9 || s === 7) return 1;                                  // minor
-        if (s === 6) return 2;                                             // severe
-        if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(s)) return 3; // suspended
-        return 4;                                                          // unknown / error
-      };
-
       let foundAny = false;
       OVERGROUND_BRANCH_IDS.forEach(branchId => {
         const branchData = freshLines.find((l: any) => l.id === branchId);
         if (branchData) {
           foundAny = true;
-          const rank = getRank(branchData.status_severity ?? 10);
+          // Canonical severity rank — single source of truth (was a local
+          // getRank copy that could silently diverge from utils/getSeverityColor).
+          const rank = getSeverityRank(branchData.status_severity, branchData.status);
           if (rank > worstSeverityRank) {
             worstSeverityRank = rank;
             worstBranch = branchData;

@@ -28,7 +28,7 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { PREMIUM_BUTTON } from '../../theme/colors';
 import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
-import { getSeverityLabel } from '../../utils/getSeverityColor';
+import { getSeverityLabel, getSeverityRank } from '../../utils/getSeverityColor';
 import {
   SCREEN_PADDING,
   COLUMN_GAP,
@@ -273,14 +273,9 @@ export default function LinesScreen() {
           if (apiStatuses[branchId]) {
             foundAny = true;
             const statusData = apiStatuses[branchId];
-            const getRank = (s: number) => {
-              if (s === 10 || s === 18 || s === 14) return 0;                    // good
-              if (s === 9 || s === 7) return 1;                                  // minor
-              if (s === 6) return 2;                                             // severe
-              if ([0, 11, 8, 16, 17, 19, 1, 2, 5, 4, 3, 20].includes(s)) return 3; // suspended
-              return 4;                                                          // unknown / error
-            };
-            if (getRank(statusData.severity) > getRank(worstSeverity)) {
+            // Canonical severity rank — single source of truth (was a local
+            // getRank copy that could silently diverge from utils/getSeverityColor).
+            if (getSeverityRank(statusData.severity, statusData.description) > getSeverityRank(worstSeverity)) {
               worstSeverity = statusData.severity;
               worstDescription = statusData.description;
             }

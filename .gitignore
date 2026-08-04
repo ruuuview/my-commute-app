@@ -50,4 +50,8 @@ android/
 .env
 .env
 .env
+
+# Firebase config (contains API keys)
+google-services.json
+GoogleService-Info.plist
 .env

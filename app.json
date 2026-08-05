@@ -14,7 +14,7 @@
     },
     "ios": {
       "appleTeamId": "PM83YLJ8T9",
-      "buildNumber": "721",
+      "buildNumber": "723",
       "supportsTablet": true,
       "bundleIdentifier": "com.mycommute.app",
       "googleServicesFile": "./GoogleService-Info.plist",

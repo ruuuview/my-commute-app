@@ -20,28 +20,32 @@ module.exports = function withFmtCpp17(config) {
       let contents = fs.readFileSync(podfile, 'utf8');
 
       const patchBlock = `
-    installer.pods_project.targets.each do |target|
-      if target.name == 'fmt' || target.name == 'RCT-Folly'
-        target.build_configurations.each do |bc|
-          bc.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
-          bc.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-          bc.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FMT_USE_CONSTEVAL=0'
-        end
+    # Xcode 16 consteval workaround for fmt
+    fmt_base = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      content = File.read(fmt_base)
+      unless content.include?('Xcode 16 workaround')
+        patched = content.gsub(
+          /(#\\s*define\\s+FMT_USE_CONSTEVAL)\\s+1/,
+          "\\\\1 0 // Xcode 16 workaround"
+        )
+        File.chmod(0644, fmt_base)
+        File.write(fmt_base, patched)
       end
     end`;
 
-      if (contents.includes("target.name == 'fmt' || target.name == 'RCT-Folly'")) {
+      if (contents.includes("Xcode 16 consteval workaround for fmt")) {
         console.log('[withFmtCpp17] Patch already applied, skipping.');
         return config;
       }
 
       contents = contents.replace(
         /post_install do \|installer\|/,
-        `post_install do |installer|${patchBlock}`
+        `post_install do |installer|\n${patchBlock}\n`
       );
 
       fs.writeFileSync(podfile, contents);
-      console.log('[withFmtCpp17] Applied C++17 + FMT_USE_CONSTEVAL=0 to fmt/RCT-Folly pods.');
+      console.log('[withFmtCpp17] Applied FMT_USE_CONSTEVAL=0 patch to fmt/base.h');
       return config;
     },
   ]);

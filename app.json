@@ -1,0 +1,109 @@
+{
+  "expo": {
+    "name": "My Commute",
+    "slug": "my-commute",
+    "version": "1.0.45",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mycommute",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "appleTeamId": "PM83YLJ8T9",
+      "buildNumber": "725",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mycommute.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "location",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["citymapper", "tfl-go"]
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.mycommute.app"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.mycommute.app",
+      "permissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4",
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": true
+          }
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "We read departure times alongside your calendar — all on your device. Nothing leaves your phone."
+        }
+      ],
+      "expo-font",
+      "expo-asset",
+      "expo-web-browser",
+      "./plugins/withFmtCpp17",
+      "@bacons/apple-targets",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.mycommute.app.MyCommuteWidget",
+                  "targetName": "MyCommuteWidget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.mycommute.app"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "7c3dff01-759d-48db-b1ec-50df46a7f614"
+      }
+    },
+    "owner": "rudra1998"
+  }
+}

@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { APP_CONFIG } from '../../config/app.config'
 import { launchTflAuth } from '../../services/authSession'
 import { ensureDeviceIdentity } from '../../services/deviceIdentity'
+import { STATUS_SEVERITY_COLORS } from '../../utils/getSeverityColor'
 import { DEMO_MODE } from '../../config/demoMode'
 import { useRouter } from 'expo-router'
 import { requestPermission, usePermissionOrchestrator } from '../../store/permissionOrchestrator'
@@ -615,7 +616,7 @@ const styles = StyleSheet.create({
   denialLine: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 12,
-    color: '#FF9F0A',
+    color: STATUS_SEVERITY_COLORS.minor,
     marginTop: 4,
     textDecorationLine: 'underline',
   },

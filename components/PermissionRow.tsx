@@ -5,6 +5,7 @@ import {
   usePermissionOrchestrator,
 } from '../store/permissionOrchestrator';
 import type { PermissionKey } from '../store/permissionOrchestrator';
+import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 
 /**
  * PermissionRow — the Settings Hub row (plan step 6).
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   denialLine: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 12,
-    color: '#FF9F0A',
+    color: STATUS_SEVERITY_COLORS.minor,
     marginTop: 4,
     textDecorationLine: 'underline',
   },

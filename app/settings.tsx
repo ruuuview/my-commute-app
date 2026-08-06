@@ -28,6 +28,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancel
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 import { BlurView } from 'expo-blur';
@@ -693,7 +694,7 @@ export default function SettingsScreen() {
                   : entry?.decision === 'denied'
                     ? '#FF3B30'
                     : entry?.decision === 'deferred'
-                      ? '#FF9F0A'
+                      ? STATUS_SEVERITY_COLORS.minor
                       : 'rgba(255,255,255,0.45)';
               return (
                 <View key={key}>

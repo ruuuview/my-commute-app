@@ -200,23 +200,14 @@ export function buildRerouteLinks(destinationLabel?: string): {
 }
 
 // ============================================================================
-// PHASE 6 — 'Plan alternative route' deep link + affected/unaffected stops
+// PHASE 6 — affected/unaffected stops intersection
 // ============================================================================
 //
-// Single source for:
-//   1. The Citymapper deep-link URL used by the disruption popup's
-//      'Plan alternative route' button (origin = the pinned station the user
-//      is at). TfL Go (`tfl-go://`) is the fallback scheme; the in-app
-//      RerouteScreen remains the last-resort fallback (handled in the UI).
-//   2. Affected-stops intersection: the Tier2Cache disruption shape
-//      (isDisrupted/severity/description/reason/lineId) does NOT carry
-//      affected StopPoints (canonical contract — Swift Live Activity reads it,
-//      never modified), and /api/lines strips them too. So the popup fetches
-//      the TfL Line disruption feed at open time and intersects its
-//      affectedStops against the user's pinned stations here.
-
-/** TfL Go app URL scheme (fallback when Citymapper is not installed). */
-export const TFL_GO_SCHEME = 'tfl-go://';
+// The Tier2Cache disruption shape (isDisrupted/severity/description/reason/
+// lineId) does NOT carry affected StopPoints (canonical contract — Swift Live
+// Activity reads it, never modified), and /api/lines strips them too. So the
+// popup fetches the TfL Line disruption feed at open time and intersects its
+// affectedStops against the user's pinned stations here.
 
 /** One affected stop point from the TfL Line disruption feed. */
 export interface AffectedStop {
@@ -342,12 +333,35 @@ export function stationsAffectedByStops(
 }
 
 /**
- * Build the Citymapper deep link for the 'Plan alternative route' button.
- * Origin = the pinned station the user is at (their modal's station, or the
- * line's first pinned station). Destination is deliberately omitted — the
- * user picks it in Citymapper (keep-it-simple contract).
+ * Fallback evidence path for the station-impact indicator: match the user's
+ * pinned stations against the DISRUPTION REASON text itself.
+ *
+ * WHY: the TfL Line disruption feed often returns an empty affectedStops
+ * array for minor delays (or the fetch can fail), so ID/name intersection
+ * alone yields a false "not affected" while the reason text explicitly
+ * names the station (e.g. "Minor delays between Camden Town and Morden").
+ *
+ * Matching rules (tolerant, false-positive-safe):
+ *  - Full normalized station name as a substring (e.g. "camden town"),
+ *    OR the station's first significant word as a whole word (len >= 4)
+ *    — covers TfL's short forms ("between Camden and Morden").
  */
-export function buildCitymapperDeepLink(originLabel: string): string {
-  const q = encodeURIComponent(String(originLabel ?? '').trim());
-  return q ? `citymapper://directions?start=${q}` : 'citymapper://';
+export function stationsMentionedInReason(
+  stations: StationRef[],
+  reasonText: string
+): StationRef[] {
+  if (!stations.length || !reasonText) return [];
+  const reasonLower = String(reasonText).toLowerCase();
+  return stations.filter(station => {
+    const norm = normalizeStopName(station.name);
+    if (!norm) return false;
+    if (reasonLower.includes(norm)) return true;
+    const firstWord = norm.split(' ')[0];
+    if (firstWord && firstWord.length >= 4) {
+      // Whole-word match only — prevents "bank" matching "banking"/"embankment"
+      const escaped = firstWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`\\b${escaped}\\b`).test(reasonLower)) return true;
+    }
+    return false;
+  });
 }

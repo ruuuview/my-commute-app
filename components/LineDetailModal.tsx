@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   Dimensions,
   Platform,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -23,18 +22,14 @@ import { GLASS } from '../theme/colors';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
 import { CaretRight } from 'phosphor-react-native';
-import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   readCachedDisruption,
   fetchLineAffectedStops,
   stationsAffectedByStops,
-  buildCitymapperDeepLink,
-  TFL_GO_SCHEME,
+  stationsMentionedInReason,
 } from './rerouteHelpers';
 import type { AffectedStop } from './rerouteHelpers';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
@@ -165,7 +160,6 @@ export function LineDetailModal({
   const MIN_ALLOWED_TOP = insets.top + 12;
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
-  const planRoutePress = usePressAnimation('continue_btn');
 
   // ── Disrupted gate (Rule 11) — shared by the affected/unaffected
   //    indicator, the 'Plan alternative route' deep link and the existing
@@ -193,19 +187,6 @@ export function LineDetailModal({
       p => Array.isArray(p.lines) && p.lines.includes(line.id)
     );
   }, [pinnedStations, line]);
-
-  // Origin for 'Plan alternative route': the station whose modal is open,
-  // else the line's first pinned station, else any pinned station, else the
-  // line name itself (keep-it-simple contract).
-  const originStationName = useMemo(() => {
-    if (!line) return '';
-    const byProp = stationId
-      ? pinnedStations.find(p => p.id === stationId)
-      : undefined;
-    const byLine = relevantPinnedStations[0];
-    const first = pinnedStations[0];
-    return (byProp?.name || byLine?.name || first?.name || line.name).trim();
-  }, [pinnedStations, stationId, relevantPinnedStations, line]);
 
   // ── Affected stops: the Tier 2 cache disruption shape and /api/lines do
   //    NOT carry affected StopPoints (canonical cache contract — never
@@ -236,35 +217,8 @@ export function LineDetailModal({
     };
   }, [visible, lineId, isDisrupted]);
 
-  const stationImpacted = useMemo(
-    () => stationsAffectedByStops(relevantPinnedStations, affectedStops).length > 0,
-    [relevantPinnedStations, affectedStops]
-  );
-
-  // ── 'Plan alternative route' — Citymapper deep link first, TfL Go app
-  //    fallback, in-app reroute CTA as last resort (mirrors RerouteScreen).
-  const handlePlanAlternativeRoute = useCallback(() => {
-    const openDeepLink = async () => {
-      try {
-        const citymapperUrl = buildCitymapperDeepLink(originStationName);
-        if (await Linking.canOpenURL(citymapperUrl)) {
-          await Linking.openURL(citymapperUrl);
-          onClose();
-          return;
-        }
-        if (await Linking.canOpenURL(TFL_GO_SCHEME)) {
-          await Linking.openURL(TFL_GO_SCHEME);
-          onClose();
-          return;
-        }
-      } catch {
-        // Fall through to the in-app reroute CTA.
-      }
-      onOpenReroute?.();
-      onClose();
-    };
-    openDeepLink();
-  }, [originStationName, onOpenReroute, onClose]);
+  // ── 'See alternative routes' — the reroute CTA (single disruption action).
+  //    Rule 11: absent (never greyed) when not disrupted.
 
   // ── Compute anchored position ──
   const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
@@ -343,6 +297,30 @@ export function LineDetailModal({
       'Service information is currently unavailable.'
     );
   }, [line, statusType, statusLabel]);
+
+  // ── Station impact evidence (two independent sources) ────────────
+  // 1. TfL Line disruption feed affectedStops (fetched at open) — reliable
+  //    but often EMPTY for minor delays, so it can never prove "not affected".
+  // 2. The disruption REASON text — if it names a pinned station
+  //    (e.g. "between Camden Town and Morden"), that station IS affected
+  //    even when the feed returns no stops (or the fetch fails/times out).
+  const stationImpacted = useMemo(() => {
+    if (relevantPinnedStations.length === 0) return false;
+    if (stationsAffectedByStops(relevantPinnedStations, affectedStops).length > 0) {
+      return true;
+    }
+    // Fallback evidence path: reason-text mention (never false-calm on an
+    // empty affectedStops feed — the user's Camden Town case).
+    return stationsMentionedInReason(relevantPinnedStations, reasonText).length > 0;
+  }, [relevantPinnedStations, affectedStops, reasonText]);
+
+  // Evidence gate: only render the impact badge when we actually have data.
+  // An empty feed + no reason mention = "unknown", NOT "not affected".
+  const hasImpactEvidence = useMemo(() => {
+    if (relevantPinnedStations.length === 0) return false;
+    if (stopsLoaded && affectedStops.length > 0) return true;
+    return stationsMentionedInReason(relevantPinnedStations, reasonText).length > 0;
+  }, [relevantPinnedStations, affectedStops, stopsLoaded, reasonText]);
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -453,15 +431,15 @@ export function LineDetailModal({
 
               {/* ── Disruption actions — only when disrupted ──\
                   Rule 11: absent (never greyed) when not disrupted.
-                  1) affected/unaffected station indicator (computed from the
-                     TfL Line disruption feed's affected StopPoints),
-                  2) 'Plan alternative route' deep link (Citymapper →
-                     tfl-go → in-app reroute CTA),
-                  3) existing 'See alternative routes' CTA (kept in place). */}
+                  1) affected/unaffected station indicator — rendered ONLY when
+                     we have real evidence (non-empty affected-stops feed OR the
+                     disruption reason names a pinned station). Never claims
+                     "not affected" on an empty feed — that's a false-calm.
+                  2) 'See alternative routes' CTA (single disruption action). */}
               {isDisrupted && onOpenReroute ? (
                 <>
-                  {/* Affected/unaffected station indicator */}
-                  {stopsLoaded && relevantPinnedStations.length > 0 ? (
+                  {/* Affected/unaffected station indicator (evidence-gated) */}
+                  {hasImpactEvidence ? (
                     <View
                       style={[
                         styles.impactBadge,
@@ -495,23 +473,7 @@ export function LineDetailModal({
                     </View>
                   ) : null}
 
-                  {/* 'Plan alternative route' deep link */}
-                  <AnimatedPressable
-                    onPressIn={planRoutePress.onPressIn}
-                    onPressOut={planRoutePress.onPressOut}
-                    onPress={handlePlanAlternativeRoute}
-                    style={[
-                      styles.planRouteButton,
-                      planRoutePress.animatedStyle,
-                    ]}
-                  >
-                    <Text style={styles.planRouteButtonText}>
-                      Plan alternative route
-                    </Text>
-                    <CaretRight size={14} color="rgba(255,255,255,0.55)" />
-                  </AnimatedPressable>
-
-                  {/* Existing reroute CTA — kept in place */}
+                  {/* Reroute CTA — 'See alternative routes' (single action) */}
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -698,27 +660,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-  },
-
-  // ── Phase 6: 'Plan alternative route' deep link ────────────────
-  planRouteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginTop: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-  },
-  planRouteButtonText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.95)',
-    letterSpacing: 0.3,
   },
 
   // ── Reroute CTA ──────────────────────────────────────────────

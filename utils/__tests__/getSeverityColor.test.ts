@@ -6,7 +6,7 @@
 import { getSeverityColor, getSeverityLabel, STATUS_SEVERITY_COLORS } from '../getSeverityColor';
 
 const GOOD = '#30D158';
-const MINOR = '#FF9F0A';
+const MINOR = '#FFB000';
 const SEVERE = '#FF3B30';
 
 // Suspended / closure / bus / not-running bucket — collapsed into 'severe'.
@@ -28,7 +28,7 @@ describe('getSeverityColor — invariant snapshot', () => {
     }
   });
 
-  it('maps 9/7 → minor + #FF9F0A', () => {
+  it('maps 9/7 → minor + #FFB000', () => {
     for (const code of [9, 7]) {
       expect(getSeverityColor(code)).toEqual({ color: MINOR, label: 'minor' });
       expect(getSeverityLabel(code)).toBe('minor');

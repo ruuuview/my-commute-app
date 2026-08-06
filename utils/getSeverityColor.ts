@@ -12,7 +12,7 @@
 //                 3-tier 'severe' bucket per the remediation plan)
 //
 // Severity colors (app-wide canonical values):
-//   good #30D158 · minor #FF9F0A · severe #FF3B30
+//   good #30D158 · minor #FFB000 · severe #FF3B30
 
 export type Severity = 'good' | 'minor' | 'severe';
 
@@ -23,7 +23,7 @@ export interface SeverityColor {
 
 export const STATUS_SEVERITY_COLORS: Record<Severity, string> = {
   good: '#30D158',
-  minor: '#FF9F0A',
+  minor: '#FFB000',
   severe: '#FF3B30',
 };
 

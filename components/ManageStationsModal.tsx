@@ -27,7 +27,7 @@ import { GLASS } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission } from '../store/permissionOrchestrator';
-import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../data/tflStations';
+import { TfLStation, FULL_STATIONS, POPULAR_STATIONS, cleanDisplayStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
@@ -391,7 +391,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
             {/* Main List Area */}
             <View style={styles.listArea}>
               <FlatList
-                data={query.trim() === '' ? [] : unpinnedResults}
+                data={query.trim() === '' ? POPULAR_STATIONS.filter(s => !pinnedIds.has(s.id)) : unpinnedResults}
                 renderItem={renderStationItem}
                 keyExtractor={(item) => item.id}
                 initialNumToRender={12}
@@ -415,7 +415,8 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                   }
                   return (
                     <View style={styles.emptyState}>
-                      <Text style={styles.emptyText}>No popular stations available</Text>
+                      <Text style={styles.emptyText}>All popular stations added</Text>
+                      <Text style={styles.emptySubText}>Search for more stations</Text>
                     </View>
                   );
                 }}

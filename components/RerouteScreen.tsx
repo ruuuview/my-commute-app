@@ -445,7 +445,13 @@ export default function RerouteScreen({
                   style={s.branchGridCard}
                   onPress={() => handleBranchTap(branch)}
                 >
-                  <View style={s.branchCardContent}>
+                  <Text style={s.branchCardName} numberOfLines={1} ellipsizeMode="tail">
+                    {branch}
+                  </Text>
+                  <View style={s.branchCardRight}>
+                    <Text style={s.branchCardStatus}>
+                      {isAffected ? 'Affected' : 'Running fine'}
+                    </Text>
                     <View
                       style={[
                         s.branchStatusDot,
@@ -458,10 +464,6 @@ export default function RerouteScreen({
                         },
                       ]}
                     />
-                    <Text style={s.branchCardName}>{branch}</Text>
-                    <Text style={s.branchCardStatus}>
-                      {isAffected ? 'Affected' : 'Running fine'}
-                    </Text>
                   </View>
                 </Pressable>
               );
@@ -785,29 +787,35 @@ const s = StyleSheet.create({
   },
   branchGridCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: GLASS.background,
+    borderRadius: 9999,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
-    padding: 14,
-    minHeight: 80,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 52,
+    gap: 12,
   },
-  branchCardContent: {
-    flex: 1,
-    justifyContent: 'center',
+  branchCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
   },
   branchStatusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginBottom: 8,
   },
   branchCardName: {
+    flex: 1,
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 14,
     color: '#FFFFFF',
-    marginBottom: 2,
   },
   branchCardStatus: {
     fontFamily: 'SpaceGrotesk_500Medium',

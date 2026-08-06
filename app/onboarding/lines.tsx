@@ -196,6 +196,8 @@ export default function LinesScreen() {
     async (id: string) => {
       const isSelected = selectedLines.includes(id);
       if (isSelected) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playSound('deselect', 0.35);
         toggleLine(id);
       } else {
         if (selectedLines.length >= 5) {
@@ -205,6 +207,8 @@ export default function LinesScreen() {
           setTimeout(() => setMaxLinesToast(false), 1500);
           return;
         }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        playSound('select', 0.45);
         toggleLine(id);
       }
     },

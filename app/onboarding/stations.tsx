@@ -171,12 +171,7 @@ export default function StationsScreen() {
     return combined;
   }, [query, fuse, cleanFullStations]);
 
-  useEffect(() => {
-    if (query.trim() && results.length === 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      playSound('error');
-    }
-  }, [results.length, query]);
+
 
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
@@ -206,7 +201,7 @@ export default function StationsScreen() {
           setTimeout(() => setMaxPinsToast(false), 1500);
           return;
         }
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         playSound('select', 0.45);
 
         // Deduplicate and reinsert recent search at index 0 first

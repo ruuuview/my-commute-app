@@ -150,7 +150,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
-  const hasTriggeredErrorRef = useRef(false);
+
 
   const maxPinsShakeX = useSharedValue(0);
   const maxPinsShakeStyle = useAnimatedStyle(() => ({
@@ -219,17 +219,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     return results.filter(s => !pinnedIds.has(s.id));
   }, [results, pinnedIds]);
 
-  useEffect(() => {
-    const cleanQuery = query.trim();
-    if (cleanQuery.length >= 4 && unpinnedResults.length === 0) {
-      if (!hasTriggeredErrorRef.current) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        hasTriggeredErrorRef.current = true;
-      }
-    } else {
-      hasTriggeredErrorRef.current = false;
-    }
-  }, [unpinnedResults.length, query]);
+
 
 
 

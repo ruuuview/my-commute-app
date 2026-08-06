@@ -19,6 +19,7 @@ import Animated, {
 
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { playSound } from '../utils/sound';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { LineCard } from './LineCard';
@@ -194,6 +195,15 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
         setTimeout(() => setMaxLinesToast(false), 1500);
         return;
       }
+      
+      if (isSelected) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playSound('deselect', 0.35);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        playSound('select', 0.45);
+      }
+
       // Saves immediately — store persists via MMKV
       toggleLine(id);
     },

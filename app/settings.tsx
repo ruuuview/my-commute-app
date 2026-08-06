@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   Linking,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -100,7 +101,13 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     checkPermissionsStatus();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void checkPermissionsStatus();
+      }
+    });
     return () => {
+      sub.remove();
       if (flipTimeoutRef.current) {
         clearTimeout(flipTimeoutRef.current);
       }
@@ -118,6 +125,11 @@ export default function SettingsScreen() {
       const decision = await requestPermission('notifications', 'settings_toggle');
       
       if (decision === 'granted') {
+        // Guard against re-entry during the flip animation
+        if (flipTimeoutRef.current) {
+          clearTimeout(flipTimeoutRef.current);
+          flipTimeoutRef.current = null;
+        }
         if (hapticsEnabled) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
@@ -352,6 +364,8 @@ export default function SettingsScreen() {
                 <Switch
                   value={true}
                   onValueChange={handleToggleOff}
+                  accessibilityLabel="Live disruption alerts"
+                  accessibilityHint="Alerts are managed in iOS Settings. Activate to open iOS Settings."
                   trackColor={{ false: '#D1D5DB', true: '#28A745' }}
                   thumbColor="#FFFFFF"
                 />
@@ -601,7 +615,10 @@ export default function SettingsScreen() {
               featureEnabled={locationGranted}
               onFeatureToggle={(v) => setLocationGranted(v)}
               checkOsStatus={async () => {
-                const p = await ExpoLocation.getForegroundPermissionsAsync();
+                // Must check background permission — geofences require Always authorization.
+                // Foreground-only status returns 'granted' even when Always is not set,
+                // which would incorrectly mark the row as satisfied.
+                const p = await ExpoLocation.getBackgroundPermissionsAsync();
                 return p.status === 'granted';
               }}
             />
@@ -676,7 +693,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Debug Section */}
+        {/* Debug Section — internal instrumentation, production users must never see this */}
+        {__DEV__ && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Debug Options</Text>
 
@@ -760,6 +778,7 @@ export default function SettingsScreen() {
             </Animated.View>
           </View>
         </View>
+        )}
 
         <View style={styles.spacer40} />
       </ScrollView>

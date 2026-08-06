@@ -307,9 +307,16 @@ export default function RootLayout() {
       const pathSegments = segments as string[];
       const onRootIndex = pathSegments.length === 0 || pathSegments[0] === 'index';
       const targetPath = getOnboardingRedirectPath(onboardingStep);
-      const currentPath = `/${pathSegments.join('/')}`;
-      
-      if (!onRootIndex && currentPath !== targetPath) {
+
+      // Strip route-group segments like (onboarding) before comparing —
+      // useSegments() includes them but targetPath hrefs do not, causing a
+      // permanent mismatch that triggers a redirect loop every 100 ms.
+      const normalize = (parts: string[]) =>
+        parts.filter((p) => p && !p.startsWith('(')).join('/');
+      const currentPath = normalize(pathSegments);
+      const wantedPath = normalize(targetPath.split('/').filter(Boolean));
+
+      if (!onRootIndex && currentPath !== wantedPath) {
         const t = setTimeout(() => {
           router.replace(targetPath as any);
         }, 100);

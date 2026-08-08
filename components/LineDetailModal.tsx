@@ -232,9 +232,16 @@ export function LineDetailModal({
     return anchorRect.y + anchorRect.height + 8;
   }, [anchorRect, MIN_ALLOWED_TOP]);
 
+  // Clamp BOTH edges: the popup must never start above the safe area AND
+  // never extend past the screen bottom (tab bar zone). Previously only the
+  // top was clamped — a card anchored low on screen pushed the popup's footer
+  // ("See alternative routes") off-screen behind the tab bar. The scroll
+  // viewport inside is capped at MAX_POPUP_HEIGHT, so reserve that much room
+  // below the top clamp.
   const safePopupTop = useMemo(() => {
-    return Math.max(popupTop, MIN_ALLOWED_TOP);
-  }, [popupTop, MIN_ALLOWED_TOP]);
+    const maxTop = SCREEN_HEIGHT - MAX_POPUP_HEIGHT - (insets.bottom + 24);
+    return Math.min(Math.max(popupTop, MIN_ALLOWED_TOP), Math.max(maxTop, MIN_ALLOWED_TOP));
+  }, [popupTop, MIN_ALLOWED_TOP, insets.bottom]);
 
   // ── Spring animation values ──
   const translateY = useSharedValue(0);
@@ -366,14 +373,14 @@ export function LineDetailModal({
             <ScrollView
               style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
               contentContainerStyle={{ paddingBottom: 4 }}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator
               bounces={false}
             >
               {/* ── Header: line name left, status pill right ── */}
               <View style={styles.heroHeader}>
                 <View style={styles.heroLeft}>
                   <View style={[styles.colorBar, { backgroundColor: line.color }]} />
-                  <Text style={styles.lineName} numberOfLines={1}>
+                  <Text style={styles.lineName} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
                     {displayLineName}
                   </Text>
                 </View>

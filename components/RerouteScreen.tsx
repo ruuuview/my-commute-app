@@ -517,7 +517,7 @@ export default function RerouteScreen({
           <ScrollView
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator
             bounces={false}
           >
             {renderHeader()}
@@ -561,7 +561,11 @@ const s = StyleSheet.create({
     paddingTop: 10,
   },
   scroll: {
-    flexGrow: 0,
+    // flexShrink: 1 — the ScrollView must shrink to the sheet's 48% maxHeight
+    // when content is long. flexGrow: 0 (previous) left it sized to content,
+    // so the sheet's overflow:hidden clipped the tail and scrolling never
+    // engaged → "frozen, cut off" popup.
+    flexShrink: 1,
   },
   scrollContent: {
     paddingBottom: 16,

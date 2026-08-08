@@ -29,6 +29,7 @@ import {
   View,
   Linking,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { getTier2Cache, Tier2Cache, Tier2Disruption } from '../services/tier2Cache';
 import Animated, {
@@ -76,6 +77,15 @@ const ICON = {
 // card (DepartureCard, StationCard) and retunes in one place. Only the 4px
 // LINE_COLORS accent bar is Reroute-specific (kept local).
 const ACCENT_BAR_HEIGHT = 4;
+
+// ─── Height constraints (Rule 32) ─────────────────────────────────
+// App is locked to portrait (app.json "orientation": "portrait"), so static
+// Dimensions at module scope is safe (mirrors LineDetailModal's proven
+// MAX_POPUP_HEIGHT pattern).
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.48; // Rule 32: strictly under 50% screen height
+// Sum of: 4px handle + 14px handle margin-bottom + 10px sheet paddingTop + 14px header margin-bottom + 6px backButton margin-bottom
+const SHEET_HEADER_OFFSET = 48;
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -556,16 +566,13 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    maxHeight: '48%', // Rule 32 — strictly under 50% screen height
+    maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
     paddingHorizontal: 20,
     paddingTop: 10,
   },
   scroll: {
-    // flexShrink: 1 — the ScrollView must shrink to the sheet's 48% maxHeight
-    // when content is long. flexGrow: 0 (previous) left it sized to content,
-    // so the sheet's overflow:hidden clipped the tail and scrolling never
-    // engaged → "frozen, cut off" popup.
-    flexShrink: 1,
+    flexGrow: 0,
+    maxHeight: SHEET_MAX_HEIGHT - SHEET_HEADER_OFFSET,
   },
   scrollContent: {
     paddingBottom: 16,

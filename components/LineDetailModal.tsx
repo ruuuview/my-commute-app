@@ -21,6 +21,7 @@ import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
 import { CaretRight, CaretDown } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   readCachedDisruption,
@@ -378,10 +379,12 @@ export function LineDetailModal({
         {/* Anchored popup */}
         <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
           <Pressable style={styles.popupInner} onPress={(e) => e.stopPropagation()}>
-            {/* Static dark glass — NO live BlurView: expo-blur behind a
-                scrolling ScrollView recomputes every frame on iOS (the "very
-                laggy" scroll). Solid dark fill + hairline border reads as
-                frosted with zero scroll cost. */}
+            {/* Apple liquid glass — AGENTS.md §1: BlurView intensity 45 tint dark + translucent white overlay */}
+            <BlurView
+              intensity={GLASS.blurIntensity}
+              tint="dark"
+              style={StyleSheet.absoluteFillObject}
+            />
             <View style={styles.glassTint} pointerEvents="none" />
 
             {/* ── Content wrapper: scrollable when content is long ── */}
@@ -558,7 +561,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: '#12121A',
+    backgroundColor: 'transparent',
     padding: 0,
   },
 

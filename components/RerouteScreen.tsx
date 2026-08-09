@@ -43,6 +43,8 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyPressable from './BouncyPressable';
+import { BlurView } from 'expo-blur';
+import { GLASS } from '../theme/colors';
 
 // ─── Icons ────────────────────────────────────────────────────────
 // The design system mandates Phosphor icons only (AGENTS.md: "Icons: Phosphor
@@ -537,12 +539,13 @@ export default function RerouteScreen({
             sheetAnimatedStyle,
           ]}
         >
-          {/* Glass: static dark sheet fill. Deliberately NO live BlurView here —
-              expo-blur behind a scrolling ScrollView recomputes every frame on
-              iOS and was the source of the "very laggy" scroll. A near-opaque
-              dark fill + hairline border + top fade reads as premium dark glass
-              with zero scroll cost. */}
-          <View style={[StyleSheet.absoluteFillObject, s.sheetFill]} />
+          {/* Apple liquid glass — AGENTS.md §1: BlurView intensity 45 tint dark + translucent white overlay */}
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} />
           <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} />
 
           <ScrollView
@@ -605,8 +608,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  sheetFill: {
-    backgroundColor: 'rgba(12,12,18,0.96)',
+  sheetTint: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   sheetRim: {
     borderTopWidth: StyleSheet.hairlineWidth,

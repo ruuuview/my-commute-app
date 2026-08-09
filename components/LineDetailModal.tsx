@@ -297,13 +297,15 @@ export function LineDetailModal({
   }, [popupMetrics, fadeOpacity]);
 
   const handlePopupScroll = (e: any) => {
-    setPopupMetrics(m => ({ ...m, offset: e.nativeEvent.contentOffset.y }));
+    const y = e?.nativeEvent?.contentOffset?.y ?? 0;
+    setPopupMetrics(m => ({ ...m, offset: y }));
   };
   const handlePopupContentSize = (_w: number, h: number) => {
     setPopupMetrics(m => ({ ...m, content: h }));
   };
   const handlePopupLayout = (e: any) => {
-    setPopupMetrics(m => ({ ...m, layout: e.nativeEvent.layout.height }));
+    const height = e?.nativeEvent?.layout?.height ?? 0;
+    setPopupMetrics(m => ({ ...m, layout: height }));
   };
 
   const displayLineName = useMemo(() => {

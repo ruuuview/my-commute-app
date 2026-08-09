@@ -22,6 +22,7 @@ import { ProStatusCard } from '../components/ProStatusCard';
 import { PermissionRow } from '../components/PermissionRow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission, usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
+import { useShallow } from 'zustand/react/shallow';
 import * as Notifications from 'expo-notifications';
 import * as Calendar from 'expo-calendar';
 import * as ExpoLocation from 'expo-location';
@@ -86,10 +87,12 @@ export default function SettingsScreen() {
   const flipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Plan step 11 — permission analytics readout (Debug section).
-  const permissionAnalytics = usePermissionOrchestrator((s) => ({
-    permissions: s.permissions,
-    tier1HitCount: s.tier1HitCount,
-  }));
+  const permissionAnalytics = usePermissionOrchestrator(
+    useShallow((s) => ({
+      permissions: s.permissions,
+      tier1HitCount: s.tier1HitCount,
+    }))
+  );
 
   const ctaPressAnim = usePressAnimation('continue_btn', false);
   const backAnim = usePressAnimation('back_btn', false);

@@ -376,15 +376,16 @@ export function LineDetailModal({
           accessibilityLabel="Dismiss line detail"
         />
 
-        {/* Anchored popup */}
+        {/* Anchored popup — Apple liquid glass: BlurView is the CONTAINER.
+            (expo-blur iOS gotcha: BlurView as an absolute-fill sibling blurs
+            the content rendered on top of it — the "frozen/illegible" bug.
+            Content must live INSIDE the BlurView.) */}
         <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
-          <Pressable style={styles.popupInner} onPress={(e) => e.stopPropagation()}>
-            {/* Apple liquid glass — AGENTS.md §1: BlurView intensity 45 tint dark + translucent white overlay */}
-            <BlurView
-              intensity={GLASS.blurIntensity}
-              tint="dark"
-              style={StyleSheet.absoluteFillObject}
-            />
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="dark"
+            style={styles.popupInner}
+          >
             <View style={styles.glassTint} pointerEvents="none" />
 
             {/* ── Content wrapper: scrollable when content is long ── */}
@@ -530,7 +531,7 @@ export function LineDetailModal({
               />
               <CaretDown size={14} color="rgba(255,255,255,0.40)" />
             </Animated.View>
-          </Pressable>
+          </BlurView>
         </Animated.View>
       </View>
     </Modal>

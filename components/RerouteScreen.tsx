@@ -539,16 +539,14 @@ export default function RerouteScreen({
             sheetAnimatedStyle,
           ]}
         >
-          {/* Apple liquid glass — AGENTS.md §1: BlurView intensity 45 tint dark + translucent white overlay */}
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="dark"
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} />
-          <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} />
+          {/* Apple liquid glass — BlurView as CONTAINER (see LineDetailModal:
+              sibling-positioned BlurView blurs the content on top of it on iOS.
+              Content must live INSIDE the BlurView.) */}
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={s.sheetGlass}>
+            <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} />
+            <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} />
 
-          <ScrollView
+            <ScrollView
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator
@@ -586,6 +584,7 @@ export default function RerouteScreen({
             />
             <ICON.chevronDown size={16} color="rgba(255,255,255,0.45)" />
           </Animated.View>
+          </BlurView>
         </Animated.View>
       </View>
     </Modal>
@@ -601,10 +600,12 @@ const s = StyleSheet.create({
   },
   sheet: {
     position: 'relative',
+    maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
+  },
+  sheetGlass: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
     paddingHorizontal: 16,
     paddingTop: 8,
   },

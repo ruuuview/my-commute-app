@@ -378,29 +378,32 @@ export function LineDetailModal({
           accessibilityLabel="Dismiss line detail"
         />
 
-        {/* Anchored popup — Apple liquid glass: BlurView is the CONTAINER.
-            (expo-blur iOS gotcha: BlurView as an absolute-fill sibling blurs
-            the content rendered on top of it — the "frozen/illegible" bug.
-            Content must live INSIDE the BlurView.) */}
+        {/* Anchored popup — Apple liquid glass. popupShadow (plain Animated.View)
+            owns layout + shape + hard cap. BlurView is an ABSOLUTE background
+            sibling (UIVisualEffectView ignores maxHeight on iOS — never the
+            layout container). ScrollView is an in-flow SIBLING: it drives the
+            popup's height (capped), renders crisp ON TOP of the glass. */}
         <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
           <BlurView
             intensity={GLASS.blurIntensity}
             tint="dark"
-            style={styles.popupInner}
-          >
-            <View style={styles.glassTint} pointerEvents="none" />
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+          <View style={styles.glassTint} pointerEvents="none" />
 
-            {/* ── Content wrapper: scrollable when content is long ── */}
-            <ScrollView
-              style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
-              contentContainerStyle={{ paddingBottom: 4 }}
-              showsVerticalScrollIndicator
-              bounces={false}
-              onScroll={handlePopupScroll}
-              scrollEventThrottle={16}
-              onContentSizeChange={handlePopupContentSize}
-              onLayout={handlePopupLayout}
-            >
+          {/* ── Content wrapper: scrollable when content is long ── */}
+          <ScrollView
+            style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            showsVerticalScrollIndicator
+            scrollEnabled
+            nestedScrollEnabled
+            onScroll={handlePopupScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={handlePopupContentSize}
+            onLayout={handlePopupLayout}
+          >
               {/* ── Header: line name left, status pill right ── */}
               <View style={styles.heroHeader}>
                 <View style={styles.heroLeft}>
@@ -533,7 +536,6 @@ export function LineDetailModal({
               />
               <CaretDown size={14} color="rgba(255,255,255,0.40)" />
             </Animated.View>
-          </BlurView>
         </Animated.View>
       </View>
     </Modal>
@@ -553,22 +555,15 @@ const styles = StyleSheet.create({
     left: 0,
     width: POPUP_WIDTH,
     maxHeight: MAX_POPUP_HEIGHT, // hard cap — popup can never exceed this
+    borderRadius: 18, // shape owned here (BlurView is an absolute background)
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
     shadowRadius: GLASS.shadowRadius,
     elevation: 15,
-  },
-
-  popupInner: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'transparent',
-    padding: 0,
-    flexShrink: 1, // bound by popupShadow's maxHeight → ScrollView gets a real viewport
-    maxHeight: MAX_POPUP_HEIGHT - 12,
   },
 
   glassTint: {

@@ -512,13 +512,30 @@ export default function RerouteScreen({
   };
 
   // ── Show branch grid or mode-specific detail ────────────────
-  const showGrid = branches && branches.length > 2 && !internalBranch;
+  const hasGrid = Boolean(branches && branches.length > 2);
+  const showGrid = hasGrid && !internalBranch;
   const detailMode = internalBranch && branchStatuses
     ? branchStatuses[internalBranch] === 'affected'
       ? 'affected'
       : 'unaffected'
     : mode;
   const resolvedTerminus = internalBranch || terminus;
+
+  useEffect(() => {
+    if (visible) {
+      setInternalBranch(null);
+      if (!hasGrid) {
+        detailOpacity.value = 1;
+        detailTranslateY.value = 0;
+      } else {
+        gridOpacity.value = 1;
+        gridScale.value = 1;
+        detailTranslateY.value = 20;
+        detailOpacity.value = 0;
+        setAnimPhase('grid');
+      }
+    }
+  }, [visible, hasGrid, detailOpacity, detailTranslateY, gridOpacity, gridScale]);
 
   return (
     <Modal
@@ -539,23 +556,22 @@ export default function RerouteScreen({
             sheetAnimatedStyle,
           ]}
         >
-          {/* Apple liquid glass — BlurView as CONTAINER (see LineDetailModal:
-              sibling-positioned BlurView blurs the content on top of it on iOS.
-              Content must live INSIDE the BlurView.) */}
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={s.sheetGlass}>
-            <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} />
-            <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} />
+          {/* Apple liquid glass — the plain s.sheet View owns layout + clip */}
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} pointerEvents="none" />
+          <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} pointerEvents="none" />
 
-            <ScrollView
+          <ScrollView
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator
-            bounces={false}
+            scrollEnabled
+            nestedScrollEnabled
             onScroll={handleSheetScroll}
             scrollEventThrottle={16}
             onContentSizeChange={handleSheetContentSize}
             onLayout={handleSheetLayout}
-            >
+          >
             {renderHeader()}
 
             {showGrid && animPhase !== 'detail' ? (
@@ -564,8 +580,8 @@ export default function RerouteScreen({
               </Animated.View>
             ) : null}
 
-            {(!showGrid || animPhase === 'detail') && internalBranch ? (
-              <Animated.View style={detailAnimatedStyle}>
+            {!showGrid ? (
+              <Animated.View style={hasGrid ? detailAnimatedStyle : undefined}>
                 {detailMode === 'affected'
                   ? renderAffectedState()
                   : detailMode === 'unaffected'
@@ -584,7 +600,6 @@ export default function RerouteScreen({
             />
             <ICON.chevronDown size={16} color="rgba(255,255,255,0.45)" />
           </Animated.View>
-          </BlurView>
         </Animated.View>
       </View>
     </Modal>
@@ -602,13 +617,8 @@ const s = StyleSheet.create({
     position: 'relative',
     maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
     overflow: 'hidden', // clip guard: inner glass can never extend past screen bottom
-  },
-  sheetGlass: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    overflow: 'hidden',
-    flexShrink: 1, // bound by parent's maxHeight → ScrollView gets a real viewport
-    maxHeight: SHEET_MAX_HEIGHT - SHEET_HEADER_OFFSET,
     paddingHorizontal: 16,
     paddingTop: 8,
   },

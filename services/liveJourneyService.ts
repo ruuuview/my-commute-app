@@ -1,8 +1,8 @@
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import { resolveTflStopId } from '../utils/resolveTflStopId';
-import { BACKEND_URL } from '../config';
+import { APP_CONFIG } from '../config/app.config';
 
-const journeyCache = new MMKV({ id: 'live-journey-penalty-cache' });
+const journeyCache = createMMKV({ id: 'live-journey-penalty-cache' });
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 const API_TIMEOUT_MS = 3000; // 3-second strict AbortController timeout
 
@@ -49,7 +49,7 @@ export async function fetchLiveJourneyPenalty({
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
-    const url = `${BACKEND_URL}/api/journey-planner`;
+    const url = `${APP_CONFIG.BACKEND_URL}/api/journey-planner`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -77,7 +77,7 @@ export async function fetchLiveJourneyPenalty({
 
       return { extraTimeMinutes, isLive: true };
     }
-  } catch (e: any) {
+  } catch {
     clearTimeout(timeoutId);
     // Network failure or 3s timeout -> return null to signal graceful fallback
     return null;

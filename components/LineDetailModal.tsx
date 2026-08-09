@@ -7,10 +7,9 @@ import {
   Pressable,
   ScrollView,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
-import { CaretRight } from 'phosphor-react-native';
+import { CaretRight, CaretDown } from 'phosphor-react-native';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   readCachedDisruption,
@@ -284,6 +283,28 @@ export function LineDetailModal({
 
   const token = STATUS_TOKENS[statusType] ?? FALLBACK_TOKEN;
 
+  // ── Scroll affordance — bottom fade + chevron ─────────────────
+  // Visible only while content overflows the popup AND the user hasn't
+  // scrolled to the end. Evaluated from live scroll metrics (no timers).
+  const [popupMetrics, setPopupMetrics] = useState({ content: 0, layout: 0, offset: 0 });
+  const fadeOpacity = useSharedValue(0);
+  useEffect(() => {
+    const { content, layout, offset } = popupMetrics;
+    const canScroll = content > layout + 4;
+    const atEnd = offset + layout >= content - 40;
+    fadeOpacity.value = withTiming(canScroll && !atEnd ? 1 : 0, { duration: 180 });
+  }, [popupMetrics, fadeOpacity]);
+
+  const handlePopupScroll = (e: any) => {
+    setPopupMetrics(m => ({ ...m, offset: e.nativeEvent.contentOffset.y }));
+  };
+  const handlePopupContentSize = (_w: number, h: number) => {
+    setPopupMetrics(m => ({ ...m, content: h }));
+  };
+  const handlePopupLayout = (e: any) => {
+    setPopupMetrics(m => ({ ...m, layout: e.nativeEvent.layout.height }));
+  };
+
   const displayLineName = useMemo(() => {
     if (!line) return '';
     const stripped = line.name.replace(/\s*line\s*$/i, '').trim();
@@ -357,16 +378,10 @@ export function LineDetailModal({
         {/* Anchored popup */}
         <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
           <Pressable style={styles.popupInner} onPress={(e) => e.stopPropagation()}>
-            {Platform.OS !== 'android' && (
-              <BlurView
-                intensity={GLASS.blurIntensity}
-                tint="dark"
-                style={StyleSheet.absoluteFillObject}
-              >
-              </BlurView>
-            )}
-
-            {/* Outer glass tint */}
+            {/* Static dark glass — NO live BlurView: expo-blur behind a
+                scrolling ScrollView recomputes every frame on iOS (the "very
+                laggy" scroll). Solid dark fill + hairline border reads as
+                frosted with zero scroll cost. */}
             <View style={styles.glassTint} pointerEvents="none" />
 
             {/* ── Content wrapper: scrollable when content is long ── */}
@@ -375,6 +390,10 @@ export function LineDetailModal({
               contentContainerStyle={{ paddingBottom: 4 }}
               showsVerticalScrollIndicator
               bounces={false}
+              onScroll={handlePopupScroll}
+              scrollEventThrottle={16}
+              onContentSizeChange={handlePopupContentSize}
+              onLayout={handlePopupLayout}
             >
               {/* ── Header: line name left, status pill right ── */}
               <View style={styles.heroHeader}>
@@ -498,6 +517,16 @@ export function LineDetailModal({
                 </>
               ) : null}
             </ScrollView>
+
+            {/* Scroll affordance — bottom fade + chevron, visible only
+                while content overflows and the user hasn't reached the end */}
+            <Animated.View pointerEvents="none" style={[styles.popupFade, { opacity: fadeOpacity }]}>
+              <LinearGradient
+                colors={['rgba(18,18,26,0)', 'rgba(18,18,26,0.95)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <CaretDown size={14} color="rgba(255,255,255,0.40)" />
+            </Animated.View>
           </Pressable>
         </Animated.View>
       </View>
@@ -525,27 +554,41 @@ const styles = StyleSheet.create({
   },
 
   popupInner: {
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#12121A',
     padding: 0,
   },
 
   glassTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 20,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+
+  popupFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 2,
   },
 
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
 
   heroLeft: {
@@ -563,10 +606,10 @@ const styles = StyleSheet.create({
   },
 
   lineName: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#FFFFFF',
-    letterSpacing: 1.0,
+    letterSpacing: 0.9,
     flexShrink: 1,
   },
 
@@ -576,8 +619,8 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     borderRadius: 9999,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     flexShrink: 0,
   },
 
@@ -589,16 +632,16 @@ const styles = StyleSheet.create({
   },
 
   bodySection: {
-    marginTop: 14,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    marginTop: 12,
+    marginHorizontal: 16,
+    marginBottom: 14,
   },
 
   bodyText: {
     fontSize: 14,
     fontFamily: 'SpaceGrotesk_400Regular',
-    color: 'rgba(255, 255, 255, 0.78)',
-    lineHeight: 22,
+    color: 'rgba(255,255,255,0.78)',
+    lineHeight: 21,
   },
 
   // ── Context Badge (Rule 34) ──────────────────────────────────
@@ -611,7 +654,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 9999,
     borderWidth: 1,
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginTop: 4,
     marginBottom: 4,
   },
@@ -645,8 +688,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 9999,
     borderWidth: 1,
-    marginHorizontal: 20,
-    marginTop: 10,
+    marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 2,
   },
   impactBadgeAffected: {
@@ -674,15 +717,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 12,
-    paddingVertical: 10,
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 10,
+    paddingVertical: 9,
     paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   rerouteButtonText: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

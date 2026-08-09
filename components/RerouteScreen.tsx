@@ -40,7 +40,7 @@ import Animated, {
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyPressable from './BouncyPressable';
@@ -53,12 +53,12 @@ import BouncyPressable from './BouncyPressable';
 // the Phosphor package is added, only this alias block changes. Until then it
 // resolves to Ionicons — the closest available glyphs. FLAGGED: swap to real
 // Phosphor once the dependency is installed.
-import { CaretLeft, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
-import { GLASS } from '../theme/colors';
+import { CaretLeft, CaretDown, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
   back: CaretLeft,
+  chevronDown: CaretDown,
   signalFail: Warning,
   clock: Clock,
   googleMaps: MapTrifold,
@@ -281,6 +281,29 @@ export default function RerouteScreen({
     }
   }, [visible, effectiveMode, citymapperUrl]);
 
+  // ── Scroll affordance — bottom fade + chevron ─────────────────
+  // Visible only while content overflows the sheet AND the user hasn't
+  // scrolled to the end. Evaluated from live scroll metrics (no timers).
+  const [scrollMetrics, setScrollMetrics] = useState({ content: 0, layout: 0, offset: 0 });
+  const fadeOpacity = useSharedValue(0);
+  useEffect(() => {
+    const { content, layout, offset } = scrollMetrics;
+    const canScroll = content > layout + 4;
+    const atEnd = offset + layout >= content - 40;
+    const show = canScroll && !atEnd;
+    fadeOpacity.value = withTiming(show ? 1 : 0, { duration: 180 });
+  }, [scrollMetrics, fadeOpacity]);
+
+  const handleSheetScroll = (e: any) => {
+    setScrollMetrics(m => ({ ...m, offset: e.nativeEvent.contentOffset.y }));
+  };
+  const handleSheetContentSize = (_w: number, h: number) => {
+    setScrollMetrics(m => ({ ...m, content: h }));
+  };
+  const handleSheetLayout = (e: any) => {
+    setScrollMetrics(m => ({ ...m, layout: e.nativeEvent.layout.height }));
+  };
+
   // ── Open handlers ─────────────────────────────────────────────
   const handleOpenGoogleMaps = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -354,14 +377,11 @@ export default function RerouteScreen({
       {/* Divider */}
       <View style={s.divider} />
 
-      {/* Suggested route glass card */}
+      {/* Suggested route glass card — static dark glass (no live blur: iOS
+          UIVisualEffectView janks scroll; flat translucent fill reads as
+          frosted at a fraction of the cost) */}
       {suggestedRoute && (
         <View style={s.suggestedRouteCard}>
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="light"
-            style={StyleSheet.absoluteFillObject}
-          />
           <Text style={s.suggestedRouteTitle}>Suggested route</Text>
           <Text style={s.suggestedRouteDesc}>{suggestedRoute.description}</Text>
           <View style={s.extraTimeRow}>
@@ -511,25 +531,28 @@ export default function RerouteScreen({
         <Animated.View
           style={[
             s.sheet,
-            { paddingBottom: insets.bottom + 24 },
+            { paddingBottom: insets.bottom + 16 },
             sheetAnimatedStyle,
           ]}
         >
-          {/* Glass: shared GLASS token (blurIntensity=45, white fill) over
-              the sheet — consistent with every other card in the app. */}
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="light"
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: GLASS.background }]} />
+          {/* Glass: static dark sheet fill. Deliberately NO live BlurView here —
+              expo-blur behind a scrolling ScrollView recomputes every frame on
+              iOS and was the source of the "very laggy" scroll. A near-opaque
+              dark fill + hairline border + top fade reads as premium dark glass
+              with zero scroll cost. */}
+          <View style={[StyleSheet.absoluteFillObject, s.sheetFill]} />
+          <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} />
 
           <ScrollView
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator
             bounces={false}
-          >
+            onScroll={handleSheetScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={handleSheetContentSize}
+            onLayout={handleSheetLayout}
+            >
             {renderHeader()}
 
             {showGrid && animPhase !== 'detail' ? (
@@ -548,6 +571,16 @@ export default function RerouteScreen({
               </Animated.View>
             ) : null}
           </ScrollView>
+
+          {/* Scroll affordance — bottom fade + chevron, visible only while
+              content overflows and the user hasn't reached the end */}
+          <Animated.View pointerEvents="none" style={[s.scrollFade, { opacity: fadeOpacity }]}>
+            <LinearGradient
+              colors={['rgba(12,12,18,0)', 'rgba(12,12,18,0.96)']}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <ICON.chevronDown size={16} color="rgba(255,255,255,0.45)" />
+          </Animated.View>
         </Animated.View>
       </View>
     </Modal>
@@ -567,36 +600,55 @@ const s = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
     maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  sheetFill: {
+    backgroundColor: 'rgba(12,12,18,0.96)',
+  },
+  sheetRim: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.10)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   scroll: {
     flexGrow: 0,
     maxHeight: SHEET_MAX_HEIGHT - SHEET_HEADER_OFFSET,
   },
   scrollContent: {
-    paddingBottom: 16,
+    paddingBottom: 20,
+  },
+  scrollFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.25)',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     minHeight: 44, // 44x44pt touch target (Rule)
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingRight: 12,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   backText: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 16,
+    fontSize: 15,
     color: 'rgba(255,255,255,0.80)',
     marginLeft: 2,
   },
@@ -604,7 +656,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   lineColorBar: {
     width: 3,
@@ -612,33 +664,33 @@ const s = StyleSheet.create({
   },
   lineHeaderName: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.55)',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 
   // ── Body ──────────────────────────────────────────────────────
   body: {
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingTop: 2,
+    paddingBottom: 4,
   },
   branchLabel: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 22,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: -0.3,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   disruptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   disruptionLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
     color: STATUS_SEVERITY_COLORS.minor,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -647,24 +699,25 @@ const s = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 13,
     color: 'rgba(255,255,255,0.65)',
-    lineHeight: 18,
+    lineHeight: 17,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    marginVertical: 16,
+    marginVertical: 12,
   },
 
-  // ── Suggested route card (same glass treatment as the shell) ──
+  // ── Suggested route card (static dark glass — no live blur) ──
   suggestedRouteCard: {
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
-    marginBottom: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+    marginBottom: 16,
   },
   suggestedRouteTitle: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
@@ -676,9 +729,9 @@ const s = StyleSheet.create({
   },
   suggestedRouteDesc: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 14,
+    fontSize: 13.5,
     color: 'rgba(255,255,255,0.90)',
-    lineHeight: 20,
+    lineHeight: 19,
     marginBottom: 8,
   },
   extraTimeRow: {
@@ -688,7 +741,7 @@ const s = StyleSheet.create({
   },
   extraTimeText: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
+    fontSize: 12.5,
     color: 'rgba(255,255,255,0.50)',
   },
 
@@ -697,7 +750,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   runningFineDot: {
     width: 8,
@@ -707,7 +760,7 @@ const s = StyleSheet.create({
   },
   runningFineLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
     color: STATUS_SEVERITY_COLORS.good,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -718,11 +771,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   emptyStateText: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 15,
+    fontSize: 14.5,
     color: 'rgba(255,255,255,0.40)',
   },
 
@@ -732,28 +785,28 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 26,
     minHeight: 44,
-    paddingHorizontal: 32,
-    paddingVertical: 10,
-    marginTop: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 8,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.30)',
   },
   gotItButtonText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+    fontSize: 14.5,
     color: 'rgba(255,255,255,0.80)',
     letterSpacing: 0.5,
   },
 
   // ── CTAs ──────────────────────────────────────────────────────
   ctaSection: {
-    gap: 10,
-    marginTop: 4,
+    gap: 8,
+    marginTop: 0,
   },
   primaryCta: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 26,
-    minHeight: 52, // 44x44pt+ target
+    borderRadius: 24,
+    minHeight: 48, // 44x44pt+ target
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -761,13 +814,13 @@ const s = StyleSheet.create({
   },
   primaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
+    fontSize: 15.5,
     color: '#07103a',
   },
   secondaryCta: {
     backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 26,
-    minHeight: 52,
+    borderRadius: 24,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -777,39 +830,39 @@ const s = StyleSheet.create({
   },
   secondaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
+    fontSize: 15.5,
     color: 'rgba(255,255,255,0.80)',
   },
 
   // ── Branch Grid ──────────────────────────────────────────────
   branchGridBody: {
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   branchGridTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 20,
+    fontSize: 18,
     color: '#FFFFFF',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   branchGridRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 8,
   },
   branchGridCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: GLASS.background,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 9999,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 52,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 44,
+    gap: 10,
   },
   branchCardRight: {
     flexDirection: 'row',
@@ -825,7 +878,7 @@ const s = StyleSheet.create({
   branchCardName: {
     flex: 1,
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
     color: '#FFFFFF',
   },
   branchCardStatus: {
@@ -836,13 +889,13 @@ const s = StyleSheet.create({
   },
   branchGridDismiss: {
     alignSelf: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 24,
-    marginTop: 6,
+    marginTop: 4,
   },
   branchGridDismissText: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 14,
+    fontSize: 13.5,
     color: 'rgba(255,255,255,0.50)',
   },
 });

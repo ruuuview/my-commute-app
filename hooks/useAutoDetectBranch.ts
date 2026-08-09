@@ -11,12 +11,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveBranch, ResolvedBranch, AmbiguousBranchResult } from '../utils/resolveBranch';
-import { buildNetworkGraph } from '../utils/networkGraph';
-import { useLineDataStore } from '../store/lineDataStore';
+import { getPreboardedDirection } from '../services/directionNotification';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
-export type DetectionSource = 'session' | 'history' | 'pinned' | 'manual';
+export type DetectionSource = 'session' | 'notification' | 'history' | 'pinned' | 'manual';
 
 export interface AutoDetectResult {
   /** Branch info — fully resolved or ambiguous */
@@ -176,7 +175,7 @@ export function useAutoDetectBranch(
           });
           setIsDetecting(false);
           return;
-        } catch (e) {
+        } catch {
           overrideRef.current = null;
         }
       }
@@ -215,7 +214,25 @@ export function useAutoDetectBranch(
         }
       } catch {}
 
-      // ── Step 2: Time-of-day pattern from history ──
+      // ── Step 2: Pre-boarded direction notification tap ──
+      const preboardedDest = getPreboardedDirection();
+      if (preboardedDest) {
+        try {
+          const branch = resolveBranch(lineId, fromStationId, preboardedDest);
+          setResult({
+            branch: branch as ResolvedBranch,
+            source: 'notification',
+            confidence: 'high',
+            userOverride: false,
+            fromStationName,
+            lineName: lineId,
+          });
+          setIsDetecting(false);
+          return;
+        } catch {}
+      }
+
+      // ── Step 3: Time-of-day pattern from history ──
       const history = await loadJourneyHistory();
       const now = new Date();
       const pattern = findTimeOfDayPattern(history, lineId, now.getHours(), now.getDay());
@@ -245,7 +262,7 @@ export function useAutoDetectBranch(
       // ── Step 4 (fallthrough): Manual — no auto-detect ──
       setIsDetecting(false);
 
-    } catch (e) {
+    } catch {
       setIsDetecting(false);
     }
   }, [lineId, fromStationId, fromStationName]);

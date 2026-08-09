@@ -572,10 +572,37 @@ function buildBody(optionA: string, optionB: string, predicted?: string): string
 //   maybeFireDirectionNotification(stationId, lineId, cache).
 // ----------------------------------------------------------------------------
 
+export const PREBOARDED_DIRECTION_TTL_MS = 90 * 60 * 1000; // 90 minutes TTL
+
+export function setPreboardedDirection(dest: string, timestamp?: number): void {
+  directionStorage.set('last_preboarded_dest', dest);
+  directionStorage.set('last_preboarded_ts', timestamp || Date.now());
+}
+
+export function getPreboardedDirection(): string | null {
+  const dest = directionStorage.getString('last_preboarded_dest');
+  const ts = directionStorage.getNumber('last_preboarded_ts');
+  if (!dest || !ts) return null;
+  if (Date.now() - ts > PREBOARDED_DIRECTION_TTL_MS) {
+    clearPreboardedDirection();
+    return null;
+  }
+  return dest;
+}
+
+export function clearPreboardedDirection(): void {
+  directionStorage.remove('last_preboarded_dest');
+  directionStorage.remove('last_preboarded_ts');
+}
+
 export default {
   installDirectionNotification,
   maybeFireDirectionNotification,
   onDirectionResolved,
+  setPreboardedDirection,
+  getPreboardedDirection,
+  clearPreboardedDirection,
+  PREBOARDED_DIRECTION_TTL_MS,
   TERMINI_BY_LINE,
   DECAY_MAX_REPROMPTS,
 };

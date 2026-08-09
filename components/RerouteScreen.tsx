@@ -32,6 +32,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { getTier2Cache, Tier2Cache, Tier2Disruption } from '../services/tier2Cache';
+import { fetchLiveJourneyPenalty } from '../services/liveJourneyService';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -140,6 +141,10 @@ export interface RerouteScreenProps {
    * (we never refetch TfL from here).
    */
   stationId?: string;
+  /** Confidence tier of direction confirmation engine ('high' | 'medium'). */
+  confidence?: 'high' | 'medium';
+  /** Source of direction confirmation engine ('session' | 'history' | 'pinned' | 'manual'). */
+  source?: string;
   /** TfL severity code for this line. Used to determine dot color in branch grid:
    *  unaffected → green, affected+minor(9,7) → amber, affected+severe/suspended(≤6) → red. */
   severity?: number;
@@ -163,6 +168,8 @@ export default function RerouteScreen({
   googleMapsUrl = 'https://maps.google.com',
   citymapperUrl = 'citymapper://',
   stationId,
+  confidence = 'high',
+  source = 'manual',
   severity,
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
@@ -172,6 +179,7 @@ export default function RerouteScreen({
   // When branches has 4 entries the component shows a grid first.
   // internalBranch = null means "show grid"; set = "show detail for this branch."
   const [internalBranch, setInternalBranch] = useState<string | null>(null);
+  const resolvedTerminus = internalBranch || terminus;
   const [isReasonExpanded, setIsReasonExpanded] = useState(false);
   useEffect(() => {
     if (visible) {
@@ -269,6 +277,43 @@ export default function RerouteScreen({
       if (cache?.disruption) setDisruption(cache.disruption);
     }
   }, [visible, stationId]);
+
+  // ── Live TfL Journey Planner Calculation (Dynamic Real-Time Extra Time) ──
+  const [liveExtraTime, setLiveExtraTime] = useState<number | null>(null);
+  const [isLiveResolving, setIsLiveResolving] = useState<boolean>(false);
+  const [isLiveFallback, setIsLiveFallback] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!visible || !stationId || !resolvedTerminus) {
+      setLiveExtraTime(null);
+      setIsLiveResolving(false);
+      setIsLiveFallback(false);
+      return;
+    }
+
+    let active = true;
+    setIsLiveResolving(true);
+    setIsLiveFallback(false);
+
+    fetchLiveJourneyPenalty({
+      originStationId: stationId,
+      destinationTerminus: resolvedTerminus,
+      lineId,
+    }).then(result => {
+      if (!active) return;
+      setIsLiveResolving(false);
+      if (result && typeof result.extraTimeMinutes === 'number') {
+        setLiveExtraTime(result.extraTimeMinutes);
+        setIsLiveFallback(false);
+      } else {
+        setIsLiveFallback(true);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [visible, stationId, resolvedTerminus, lineId]);
 
   const effectiveMode = internalBranch && branchStatuses
     ? (branchStatuses[internalBranch] === 'affected' ? 'affected' : 'unaffected')
@@ -370,8 +415,31 @@ export default function RerouteScreen({
 
   const renderAffectedState = () => (
     <View style={s.body}>
-      {/* Your <terminus> trains */}
-      <Text style={s.branchLabel}>Your {resolvedTerminus} trains</Text>
+      {/* Your <terminus> trains + Change button */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text style={s.branchLabel}>
+          {confidence === 'medium' ? `Likely your ${resolvedTerminus} trains` : `Your ${resolvedTerminus} trains`}
+        </Text>
+        {branches && branches.length > 1 && (
+          <BouncyPressable
+            onPress={() => {
+              setInternalBranch(null);
+              setLiveExtraTime(null);
+              setIsLiveResolving(true);
+            }}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 8,
+              backgroundColor: confidence === 'medium' ? 'rgba(255,149,0,0.20)' : 'rgba(255,255,255,0.12)',
+            }}
+          >
+            <Text style={{ fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 12, color: confidence === 'medium' ? '#FF9500' : 'rgba(255,255,255,0.85)' }}>
+              Change
+            </Text>
+          </BouncyPressable>
+        )}
+      </View>
 
       {/* Disrupted badge + reason */}
       <View style={s.disruptionRow}>
@@ -401,7 +469,13 @@ export default function RerouteScreen({
           <Text style={s.suggestedRouteDesc}>{suggestedRoute.description}</Text>
           <View style={s.extraTimeRow}>
             <ICON.clock size={13} color="rgba(255,255,255,0.45)" />
-            <Text style={s.extraTimeText}>+{suggestedRoute.extraTimeMinutes} min</Text>
+            <Text style={[s.extraTimeText, isLiveResolving && { opacity: 0.4 }]}>
+              {isLiveResolving
+                ? '+·· min'
+                : liveExtraTime !== null
+                  ? `+${liveExtraTime} min`
+                  : `${isLiveFallback ? '~' : '+'}${suggestedRoute.extraTimeMinutes} min`}
+            </Text>
           </View>
         </View>
       )}
@@ -530,7 +604,6 @@ export default function RerouteScreen({
       ? 'affected'
       : 'unaffected'
     : mode;
-  const resolvedTerminus = internalBranch || terminus;
 
   useEffect(() => {
     if (visible) {

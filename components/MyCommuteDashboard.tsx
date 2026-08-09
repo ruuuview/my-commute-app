@@ -169,7 +169,7 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 
   let color = '#4CAF50';
   let duration = 2400;
-  
+
   if (severity === 'minor') {
     color = '#F2A002';
     duration = 1200;
@@ -221,7 +221,7 @@ const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd
     {onPressAdd && !isEditing && (
       <BouncyPressable
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
           onPressAdd();
         }}
         style={section.addBtn}
@@ -501,8 +501,8 @@ const MyCommuteDashboard: React.FC = () => {
           id,
           name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
           color: LINE_IDENTITY_COLORS[id] || '#888',
-          status: staleState === 'offline' 
-            ? 'Offline' 
+          status: staleState === 'offline'
+            ? 'Offline'
             : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
           status_severity: staleState ? 0 : 10,
         };
@@ -656,9 +656,9 @@ const MyCommuteDashboard: React.FC = () => {
             <>
               {sortedLines.length > 0 && (
                 <View style={dash.section}>
-                  <SectionHeader 
-                    title="My lines" 
-                    icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                  <SectionHeader
+                    title="My lines"
+                    icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />}
                     onPressAdd={() => setModalVisible(true)}
                     isEditing={isEditing}
                   />
@@ -791,16 +791,16 @@ const MyCommuteDashboard: React.FC = () => {
 
               {(selectedStations.length > 0 || isEditing) && (
                 <View style={dash.section}>
-                  <SectionHeader 
-                    title="My stations" 
-                    icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />} 
+                  <SectionHeader
+                    title="My stations"
+                    icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />}
                     onPressAdd={() => setStationModalVisible(true)}
                     isEditing={isEditing}
                   />
                   {selectedStations.length === 0 ? (
                     <BouncyPressable
                       onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
                         setStationModalVisible(true);
                       }}
                       style={dash.addStationCard}
@@ -899,20 +899,23 @@ const MyCommuteDashboard: React.FC = () => {
           const branches = REROUTE_LINE_BRANCHES[rerouteLine.id] || [];
           const defaultTerminus = branches[0] || rerouteLine.name;
           const otherTerminus = branches[1] || '';
-          // Station the reroute is scoped to: first pinned station on this line, else first pinned.
+          // Station the reroute is scoped to: pinned station on line -> home/work -> first pinned -> empty fallback
           const stationId =
             selectedStations.find((st: any) =>
               Array.isArray(st.lines) ? st.lines.includes(rerouteLine.id) : false
-            )?.id || selectedStations[0]?.id || '';
+            )?.id ||
+            selectedStations.find((st: any) => st.role === 'home' || st.role === 'work')?.id ||
+            selectedStations[0]?.id ||
+            '';
 
           // Per-branch status: parse disruption reason to mark which branches are affected.
           const reasonLower = (rerouteLine.reason || '').toLowerCase();
-          const hasMentionedBranch = branches.some(branch =>
+          const hasMentionedBranch = branches.some((branch: string) =>
             branch.toLowerCase().split(' ').some(word =>
               word.length > 3 && reasonLower.includes(word)
             )
           );
-          const branchStatuses = branches.reduce((acc, branch) => {
+          const branchStatuses = branches.reduce((acc: any, branch: string) => {
             const isMentioned = branch.toLowerCase().split(' ').some(word =>
               word.length > 3 && reasonLower.includes(word)
             );

@@ -395,7 +395,7 @@ export function LineDetailModal({
           {/* ── Content wrapper: scrollable when content is long ── */}
           <ScrollView
             style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 12 }}
             showsVerticalScrollIndicator
             scrollEnabled
             nestedScrollEnabled

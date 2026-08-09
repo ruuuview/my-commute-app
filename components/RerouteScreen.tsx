@@ -172,8 +172,12 @@ export default function RerouteScreen({
   // When branches has 4 entries the component shows a grid first.
   // internalBranch = null means "show grid"; set = "show detail for this branch."
   const [internalBranch, setInternalBranch] = useState<string | null>(null);
+  const [isReasonExpanded, setIsReasonExpanded] = useState(false);
   useEffect(() => {
-    if (visible) setInternalBranch(null);
+    if (visible) {
+      setInternalBranch(null);
+      setIsReasonExpanded(false);
+    }
   }, [visible]);
 
   // ── Rule 38 spring transition: grid → detail ──────────────────
@@ -374,9 +378,16 @@ export default function RerouteScreen({
         <ICON.signalFail size={15} color={STATUS_SEVERITY_COLORS.minor} />
         <Text style={s.disruptionLabel}>Disrupted</Text>
       </View>
-      <Text style={s.disruptionReason}>
-        {resolvedReason || 'Disruption reported on your route.'}
-      </Text>
+      <Pressable onPress={() => setIsReasonExpanded(prev => !prev)} hitSlop={4}>
+        <Text style={s.disruptionReason} numberOfLines={isReasonExpanded ? undefined : 3} ellipsizeMode="tail">
+          {resolvedReason || 'Disruption reported on your route.'}
+        </Text>
+        {resolvedReason && resolvedReason.length > 120 && (
+          <Text style={{ fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
+            {isReasonExpanded ? 'Show less' : 'Tap to read full status'}
+          </Text>
+        )}
+      </Pressable>
 
       {/* Divider */}
       <View style={s.divider} />
@@ -433,7 +444,7 @@ export default function RerouteScreen({
         <Text style={s.runningFineLabel}>Running fine — no action needed</Text>
       </View>
 
-      <Text style={s.disruptionReason}>
+      <Text style={s.disruptionReason} numberOfLines={3} ellipsizeMode="tail">
         {otherBranchName
           ? `The disruption is on the ${otherBranchName} branch, not yours.`
           : 'The disruption does not affect your route.'}

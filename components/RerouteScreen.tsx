@@ -601,11 +601,14 @@ const s = StyleSheet.create({
   sheet: {
     position: 'relative',
     maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
+    overflow: 'hidden', // clip guard: inner glass can never extend past screen bottom
   },
   sheetGlass: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
+    flexShrink: 1, // bound by parent's maxHeight → ScrollView gets a real viewport
+    maxHeight: SHEET_MAX_HEIGHT - SHEET_HEADER_OFFSET,
     paddingHorizontal: 16,
     paddingTop: 8,
   },

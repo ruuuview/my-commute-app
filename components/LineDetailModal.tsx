@@ -552,6 +552,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     width: POPUP_WIDTH,
+    maxHeight: MAX_POPUP_HEIGHT, // hard cap — popup can never exceed this
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
@@ -566,6 +567,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
     backgroundColor: 'transparent',
     padding: 0,
+    flexShrink: 1, // bound by popupShadow's maxHeight → ScrollView gets a real viewport
+    maxHeight: MAX_POPUP_HEIGHT - 12,
   },
 
   glassTint: {

@@ -295,13 +295,15 @@ export default function RerouteScreen({
   }, [scrollMetrics, fadeOpacity]);
 
   const handleSheetScroll = (e: any) => {
-    setScrollMetrics(m => ({ ...m, offset: e.nativeEvent.contentOffset.y }));
+    const offset = e.nativeEvent.contentOffset.y;
+    setScrollMetrics(m => ({ ...m, offset }));
   };
   const handleSheetContentSize = (_w: number, h: number) => {
     setScrollMetrics(m => ({ ...m, content: h }));
   };
   const handleSheetLayout = (e: any) => {
-    setScrollMetrics(m => ({ ...m, layout: e.nativeEvent.layout.height }));
+    const layoutHeight = e.nativeEvent.layout.height;
+    setScrollMetrics(m => ({ ...m, layout: layoutHeight }));
   };
 
   // ── Open handlers ─────────────────────────────────────────────

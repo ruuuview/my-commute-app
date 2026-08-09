@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,7 +31,7 @@ import {
 import type { AffectedStop } from './rerouteHelpers';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 32, 380);
+const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 40, 380);
 const MAX_POPUP_HEIGHT = SCREEN_HEIGHT * 0.55;
 
 const PERSONALITY_POOL = [

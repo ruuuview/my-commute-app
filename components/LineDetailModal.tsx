@@ -395,7 +395,7 @@ export function LineDetailModal({
           {/* ── Content wrapper: scrollable when content is long ── */}
           <ScrollView
             style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
-            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 12 }}
+            contentContainerStyle={{ paddingBottom: 14 }}
             showsVerticalScrollIndicator
             scrollEnabled
             nestedScrollEnabled
@@ -464,23 +464,23 @@ export function LineDetailModal({
                 </View>
               ) : null}
 
-              {/* ── Disruption actions — only when disrupted ──\
+              {/* ── Disruption actions — only when disrupted ──
                   Rule 11: absent (never greyed) when not disrupted.
-                  1) affected/unaffected station indicator — rendered ONLY when
-                     we have real evidence (non-empty affected-stops feed OR the
-                     disruption reason names a pinned station). Never claims
-                     "not affected" on an empty feed — that's a false-calm.
+                  1) affected/unaffected station indicator — rendered when user has pinned stations
+                     or explicit evidence exists.
                   2) 'See alternative routes' CTA (single disruption action). */}
               {isDisrupted && onOpenReroute ? (
                 <>
-                  {/* Affected/unaffected station indicator (evidence-gated) */}
-                  {hasImpactEvidence ? (
+                  {/* Affected/unaffected station indicator */}
+                  {relevantPinnedStations.length > 0 || hasImpactEvidence ? (
                     <View
                       style={[
                         styles.impactBadge,
                         stationImpacted
                           ? styles.impactBadgeAffected
-                          : styles.impactBadgeClear,
+                          : hasImpactEvidence
+                            ? styles.impactBadgeClear
+                            : { backgroundColor: 'rgba(255, 159, 10, 0.12)', borderColor: 'rgba(255, 159, 10, 0.25)' },
                       ]}
                     >
                       <View
@@ -489,7 +489,9 @@ export function LineDetailModal({
                           {
                             backgroundColor: stationImpacted
                               ? '#FF3B30'
-                              : '#30D158',
+                              : hasImpactEvidence
+                                ? '#30D158'
+                                : '#FF9F0A',
                           },
                         ]}
                       />
@@ -497,13 +499,19 @@ export function LineDetailModal({
                         style={[
                           styles.impactBadgeText,
                           {
-                            color: stationImpacted ? '#FF3B30' : '#30D158',
+                            color: stationImpacted
+                              ? '#FF3B30'
+                              : hasImpactEvidence
+                                ? '#30D158'
+                                : '#FF9F0A',
                           },
                         ]}
                       >
                         {stationImpacted
                           ? 'Your station is affected'
-                          : 'Your station is not affected'}
+                          : hasImpactEvidence
+                            ? 'Your station is not affected'
+                            : 'Line disruption reported'}
                       </Text>
                     </View>
                   ) : null}
@@ -583,7 +591,7 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: 2,
+    paddingBottom: 14,
   },
 
   heroHeader: {

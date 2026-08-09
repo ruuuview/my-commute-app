@@ -657,7 +657,7 @@ const s = StyleSheet.create({
     height: 64,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: 4,
+    paddingBottom: 16,
   },
   handle: {
     width: 36,

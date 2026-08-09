@@ -186,16 +186,23 @@ export function buildRerouteLinks(destinationLabel?: string): {
   googleMapsUrl: string;
   citymapperUrl: string;
 } {
-  const q = destinationLabel
-    ? encodeURIComponent(destinationLabel)
-    : '';
+  if (!destinationLabel) {
+    return {
+      googleMapsUrl: 'https://maps.google.com',
+      citymapperUrl: 'citymapper://',
+    };
+  }
+
+  const cleanLabel = destinationLabel.replace(/\s*line\s*$/i, '').trim();
+  const fullSearchTerm = cleanLabel.toLowerCase().includes('station')
+    ? `${cleanLabel}, London`
+    : `${cleanLabel} Station, London`;
+
+  const q = encodeURIComponent(fullSearchTerm);
+
   return {
-    googleMapsUrl: q
-      ? `https://www.google.com/maps/dir/?api=1&destination=${q}`
-      : 'https://maps.google.com',
-    citymapperUrl: q
-      ? `citymapper://directions?end=${q}`
-      : 'citymapper://',
+    googleMapsUrl: `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=transit`,
+    citymapperUrl: `citymapper://directions?end=${q}`,
   };
 }
 

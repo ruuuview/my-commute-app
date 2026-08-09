@@ -40,7 +40,6 @@ import Animated, {
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyPressable from './BouncyPressable';
@@ -53,8 +52,8 @@ import BouncyPressable from './BouncyPressable';
 // the Phosphor package is added, only this alias block changes. Until then it
 // resolves to Ionicons — the closest available glyphs. FLAGGED: swap to real
 // Phosphor once the dependency is installed.
-import { CaretLeft, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
-import { GLASS } from '../theme/colors';
+import { CaretLeft, CaretDown, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {

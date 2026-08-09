@@ -9,7 +9,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,6 +20,7 @@ import { GLASS } from '../theme/colors';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
 import { CaretRight, CaretDown } from 'phosphor-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   readCachedDisruption,

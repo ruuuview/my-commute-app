@@ -78,11 +78,6 @@ interface LineDetailModalProps {
   /** Optional station id — when provided, the CTA is gated on the Tier 2 cache
    *  (shown only when cache.disruption.isDisrupted is true; absent otherwise). */
   stationId?: string;
-  /** Context badge for station impact display (Rule 34):
-   *  'clear' → green "YOUR STATIONS OK"
-   *  'affected' → red "SEVERE DELAYS"
-   *  null/undefined → no badge (suppressed for vague TfL data) */
-  contextBadge?: 'clear' | 'affected' | null;
 }
 
 // Derived from the canonical severity palette (utils/getSeverityColor.ts —
@@ -154,7 +149,6 @@ export function LineDetailModal({
   anchorRect,
   onOpenReroute,
   stationId,
-  contextBadge,
 }: LineDetailModalProps) {
   const insets = useSafeAreaInsets();
   const MIN_ALLOWED_TOP = insets.top + 12;
@@ -428,26 +422,38 @@ export function LineDetailModal({
                 </View>
               </View>
 
-              {/* ── Context Badge (Rule 34) — station impact indicator ── */}
-              {contextBadge && (
+              {/* ── Context Badge (Rule 34) — station impact indicator ──
+                  Driven by this modal's OWN evidence (relevantPinnedStations,
+                  affectedStops, stationImpacted, hasImpactEvidence) — the
+                  previously unwired `contextBadge` prop is dead code removed.
+                  Renders whenever the user has pinned stations on this line,
+                  regardless of disruption state (shows "OK" on good service).
+                  No evidence → no badge (never assert). */}
+              {relevantPinnedStations.length > 0 ? (
                 <View style={[
                   styles.contextBadge,
-                  contextBadge === 'clear'
-                    ? styles.contextBadgeClear
-                    : styles.contextBadgeAffected,
+                  stationImpacted
+                    ? styles.contextBadgeAffected
+                    : hasImpactEvidence
+                      ? styles.contextBadgeClear
+                      : null,
                 ]}>
                   <View style={[
                     styles.contextBadgeDot,
-                    { backgroundColor: contextBadge === 'clear' ? STATUS_SEVERITY_COLORS.good : STATUS_SEVERITY_COLORS.severe },
+                    { backgroundColor: stationImpacted ? STATUS_SEVERITY_COLORS.severe : hasImpactEvidence ? STATUS_SEVERITY_COLORS.good : 'rgba(255,255,255,0.35)' },
                   ]} />
                   <Text style={[
                     styles.contextBadgeText,
-                    { color: contextBadge === 'clear' ? STATUS_SEVERITY_COLORS.good : STATUS_SEVERITY_COLORS.severe },
+                    { color: stationImpacted ? STATUS_SEVERITY_COLORS.severe : hasImpactEvidence ? STATUS_SEVERITY_COLORS.good : 'rgba(255,255,255,0.50)' },
                   ]}>
-                    {contextBadge === 'clear' ? 'YOUR STATIONS OK' : 'SEVERE DELAYS'}
+                    {stationImpacted
+                      ? 'YOUR STATION IS AFFECTED'
+                      : hasImpactEvidence
+                        ? 'YOUR STATION IS OK'
+                        : 'NO IMPACT DATA'}
                   </Text>
                 </View>
-              )}
+              ) : null}
 
               {/* ── Full text description reason string ── */}
               {(() => {

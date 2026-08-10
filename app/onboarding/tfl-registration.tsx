@@ -29,7 +29,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter, useNavigation } from 'expo-router';
+import { Stack, useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
@@ -52,6 +52,7 @@ export default function TflRegistrationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { from } = useLocalSearchParams<{ from?: string }>();
 
   const setTflRegistered = useUserPreferencesStore((s) => s.setTflRegistered);
   const completeOnboarding = useUserPreferencesStore((s) => s.completeOnboarding);
@@ -71,6 +72,13 @@ export default function TflRegistrationScreen() {
 
   const finishAndExit = useCallback(() => {
     completeOnboarding();
+    // When re-surfaced from Refund Radar (?from=refunds), return the user to
+    // Refund Radar — never bounce them to the dashboard ("auto coming back
+    // to the same page" bug). Onboarding rescue path keeps the reset.
+    if (from === 'refunds') {
+      router.replace('/(tabs)/refunds');
+      return;
+    }
     const parentNav = navigation.getParent();
     if (parentNav) {
       (parentNav as any).reset({
@@ -80,7 +88,7 @@ export default function TflRegistrationScreen() {
     } else {
       router.replace('/(tabs)');
     }
-  }, [completeOnboarding, navigation, router]);
+  }, [completeOnboarding, navigation, router, from]);
 
   const handleRegister = useCallback(async () => {
     // Haptics on CTA tap — interaction feedback only, matches AGENTS.md.

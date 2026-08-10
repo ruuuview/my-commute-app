@@ -260,6 +260,39 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
 })
 ClaimCard.displayName = 'ClaimCard'
 
+// ── Connect to TfL card ─────────────────────────────────────────────
+// Re-surfaced 2026-08-10: tfl-registration was removed from onboarding
+// (2026-08-01) with the note "re-surface with Refund Radar post-activation".
+// This card IS that re-surface — shown while tflRegistered === false.
+const ConnectTflCard = React.memo(({ onConnect }: { onConnect: () => void }) => (
+  <View style={styles.connectOuter}>
+    <BlurView intensity={45} tint="dark" style={styles.connectCard}>
+      <View style={styles.connectRow}>
+        <View style={styles.connectIconWrap}>
+          <Ionicons name="link" size={18} color="#0098D4" />
+        </View>
+        <View style={styles.connectInfo}>
+          <Text style={styles.connectTitle}>Connect to TfL</Text>
+          <Text style={styles.connectBody}>
+            Without your TfL account we can only see 7 days of journey history.
+            Connect to unlock 12 months of claimable delays.
+          </Text>
+        </View>
+      </View>
+      <Pressable
+        onPress={onConnect}
+        style={({ pressed }) => [styles.connectButton, pressed && { opacity: 0.7 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Connect to TfL"
+      >
+        <Ionicons name="open-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+        <Text style={styles.connectButtonText}>Connect to TfL</Text>
+      </Pressable>
+    </BlurView>
+  </View>
+))
+ConnectTflCard.displayName = 'ConnectTflCard'
+
 function workingDaysSince(fromIso: string): number {
   const from = new Date(fromIso)
   let count = 0
@@ -279,8 +312,12 @@ export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted)
+  const tflRegistered = useUserPreferencesStore(s => s.tflRegistered)
   const notifDenied = usePermissionOrchestrator(s => s.permissions.notifications?.decision === 'denied')
   const openAppSettings = useCallback(() => { Linking.openSettings().catch(() => {}) }, [])
+  const goConnectTfl = useCallback(() => {
+    router.push('/onboarding/tfl-registration?from=refunds')
+  }, [router])
   const [data, setData] = useState<ClaimsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -430,6 +467,7 @@ export default function RefundsScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Refund Radar</Text>
         </View>
+        {!tflRegistered && <ConnectTflCard onConnect={goConnectTfl} />}
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
             <Ionicons name="cash-outline" size={64} color="rgba(255,255,255,0.1)" />
@@ -475,6 +513,9 @@ export default function RefundsScreen() {
         <Text style={styles.title}>Refund Radar</Text>
         <Text style={styles.subtitle}>Auto-detected delay claims</Text>
       </View>
+
+      {/* Connect to TfL — re-surfaced post-activation (tfl-registration note) */}
+      {!tflRegistered && <ConnectTflCard onConnect={goConnectTfl} />}
 
       {/* Permission 2 entry point 3 — claim-status alerts. Cheap ask → native
           dialog on this exact tap; orchestrator dedupes across the 3 entries. */}
@@ -622,6 +663,65 @@ const styles = StyleSheet.create({
   },
 
   // Banners
+  connectOuter: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  connectCard: {
+    borderRadius: 20,
+    padding: 16,
+    backgroundColor: 'rgba(0,152,212,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,152,212,0.35)',
+    overflow: 'hidden',
+  },
+  connectRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  connectIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,152,212,0.15)',
+  },
+  connectInfo: {
+    flex: 1,
+  },
+  connectTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginBottom: 3,
+  },
+  connectBody: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  connectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,152,212,0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,152,212,0.6)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  connectButtonText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+
   pendingBannerOuter: {
     paddingHorizontal: 20,
     marginBottom: 12,

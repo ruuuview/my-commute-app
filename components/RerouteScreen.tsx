@@ -8,6 +8,18 @@
  *   • 'unaffected'  — disruption exists but on a DIFFERENT branch.
  *   • 'empty'       — disruption touches neither detected nor selected branch.
  *
+ * PART 1 — DIRECTION GRID: for lines with >2 branches the sheet opens with an
+ * ALWAYS-VISIBLE inline branch grid at the top (one step, not two). The tile
+ * the direction engine resolved is pre-highlighted by source/confidence:
+ *   • session/notification (high)  → emerald solid border + fill
+ *   • history medium               → soft-orange (same rgba(255,149,0,0.20)
+ *                                     token the old "Change" pill used)
+ *   • pinned/manual or unresolved  → NO highlight (never assert confidence
+ *                                     the engine doesn't have)
+ * Tapping any tile re-targets the content + live-time fetch inline. Lines
+ * with ≤2 branches (Jubilee, Lioness, …) skip the grid entirely — the
+ * resolved branch renders directly, no ambiguity to confirm.
+ *
  * Rule 10 (AGENTS.md): the UNAFFECTED state carries EQUAL design weight to the
  * affected state. Same glass card, same 4px accent bar, same typography, same
  * investment. No padding button, no lesser build. This is half the product.
@@ -20,7 +32,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -31,13 +43,11 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { getTier2Cache, Tier2Cache, Tier2Disruption } from '../services/tier2Cache';
 import { fetchLiveJourneyPenalty } from '../services/liveJourneyService';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  withSpring,
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -46,6 +56,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyPressable from './BouncyPressable';
 import { BlurView } from 'expo-blur';
 import { GLASS } from '../theme/colors';
+import type { DetectionSource } from '../hooks/useAutoDetectBranch';
 
 // ─── Icons ────────────────────────────────────────────────────────
 // The design system mandates Phosphor icons only (AGENTS.md: "Icons: Phosphor
@@ -101,8 +112,9 @@ export interface RerouteScreenProps {
   onClose: () => void;
   /**
    * Branch grid — 2+ destinations for this line.
-   * When provided with 4 entries, the component shows a 2x2 branch picker
-   * before routing to the affected/unaffected/empty content for that branch.
+   * Lines with >2 entries render an ALWAYS-VISIBLE inline grid at the top of
+   * the drawer; ≤2-branch lines skip the grid and render the resolved branch
+   * directly (no ambiguity, no forced confirmation).
    */
   branches?: string[];
   /**
@@ -117,10 +129,6 @@ export interface RerouteScreenProps {
   lineId: string;
   lineName: string;
   lineColor: string;
-  /** User's confirmed branch terminus, e.g. 'Edgware'. */
-  terminus: string;
-  /** Human-readable disruption reason from the cache (affected mode). */
-  disruptionReason?: string;
   /** Suggested alternate route (affected mode only). */
   suggestedRoute?: {
     description: string; // e.g. 'Take Bank branch to Euston\nCross-platform to Charing Cross branch'
@@ -141,13 +149,18 @@ export interface RerouteScreenProps {
    * (we never refetch TfL from here).
    */
   stationId?: string;
-  /** Confidence tier of direction confirmation engine ('high' | 'medium'). */
-  confidence?: 'high' | 'medium';
-  /** Source of direction confirmation engine ('session' | 'history' | 'pinned' | 'manual'). */
-  source?: string;
   /** TfL severity code for this line. Used to determine dot color in branch grid:
    *  unaffected → green, affected+minor(9,7) → amber, affected+severe/suspended(≤6) → red. */
   severity?: number;
+  /**
+   * The branch the direction engine resolved (useAutoDetectBranch) — the
+   * pre-highlighted tile + the branch live-time is fetched for on open.
+   */
+  resolvedTerminus?: string;
+  /** Source of the direction-engine resolution — drives highlight + caption. */
+  resolvedSource?: DetectionSource;
+  /** Confidence of the resolution — drives highlight strength. */
+  resolvedConfidence?: 'high' | 'medium' | 'low';
 }
 
 // ─── Component ────────────────────────────────────────────────────
@@ -161,86 +174,43 @@ export default function RerouteScreen({
   lineId,
   lineName,
   lineColor,
-  terminus,
-  disruptionReason,
   suggestedRoute,
   otherBranchName,
   googleMapsUrl = 'https://maps.google.com',
   citymapperUrl = 'citymapper://',
   stationId,
-  confidence = 'high',
-  source = 'manual',
   severity,
+  resolvedTerminus,
+  resolvedSource,
+  resolvedConfidence,
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
 
-  // ── Branch selection (2x2 grid) ────────────────────────────────
-  // When branches has 4 entries the component shows a grid first.
-  // internalBranch = null means "show grid"; set = "show detail for this branch."
+  // ── Branch selection ────────────────────────────────────────────
+  // internalBranch = the branch currently driving content + live fetch.
+  // null = nothing selected yet → fall back to the dashboard-computed mode.
   const [internalBranch, setInternalBranch] = useState<string | null>(null);
-  const resolvedTerminus = internalBranch || terminus;
-  const [isReasonExpanded, setIsReasonExpanded] = useState(false);
+
+  // On open (or when the engine's resolution arrives while nothing is tapped),
+  // pre-select the resolved branch so the content below the grid and the live
+  // fetch both target the pre-highlighted tile.
   useEffect(() => {
-    if (visible) {
+    if (!visible) return;
+    if (resolvedTerminus && branches?.includes(resolvedTerminus)) {
+      setInternalBranch(resolvedTerminus);
+    } else {
       setInternalBranch(null);
-      setIsReasonExpanded(false);
     }
-  }, [visible]);
+  }, [visible, resolvedTerminus, branches]);
 
-  // ── Rule 38 spring transition: grid → detail ──────────────────
-  // Outgoing grid: withSpring scale to 0.95 + withTiming opacity to 0 over 150ms.
-  // Incoming card: withSpring translateY from +20px + withTiming opacity to 1 over 200ms
-  //   (starts 50ms after grid exit begins).
-  // Spring params: damping: 18, stiffness: 200. Never crossfade.
-  const TRANSITION_DAMPING = 18;
-  const TRANSITION_STIFFNESS = 200;
-  const gridOpacity = useSharedValue(1);
-  const gridScale = useSharedValue(1);
-  const detailTranslateY = useSharedValue(0);
-  const detailOpacity = useSharedValue(0);
-
-  const gridAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: gridOpacity.value,
-    transform: [{ scale: gridScale.value }],
-  }));
-
-  const detailAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: detailOpacity.value,
-    transform: [{ translateY: detailTranslateY.value }],
-  }));
-
-  const [animPhase, setAnimPhase] = useState<'grid' | 'exiting' | 'detail'>('grid');
-
-  const handleBranchTap = (branch: string) => {
-    if (reducedMotion) {
-      setInternalBranch(branch);
-      setAnimPhase('detail');
-      return;
-    }
-    setAnimPhase('exiting');
-    // Phase 1: animate grid out
-    gridOpacity.value = withTiming(0, { duration: 150 });
-    gridScale.value = withSpring(0.95, { damping: TRANSITION_DAMPING, stiffness: TRANSITION_STIFFNESS });
-    // Phase 2: after 50ms delay, animate detail in
-    setTimeout(() => {
-      detailTranslateY.value = withSpring(0, { damping: TRANSITION_DAMPING, stiffness: TRANSITION_STIFFNESS });
-      detailOpacity.value = withTiming(1, { duration: 200 });
-      setInternalBranch(branch);
-      setAnimPhase('detail');
-    }, 50);
-  };
-
-  // Reset animation state when sheet opens or returns to grid
-  useEffect(() => {
-    if (!internalBranch) {
-      gridOpacity.value = 1;
-      gridScale.value = 1;
-      detailTranslateY.value = 20;
-      detailOpacity.value = 0;
-      setAnimPhase('grid');
-    }
-  }, [internalBranch, gridOpacity, gridScale, detailTranslateY, detailOpacity]);
+  // The branch live-time is fetched for. Engine resolution wins; user tap wins
+  // over everything; final fallback is the line's first branch (the same
+  // default the dashboard's mode computation uses).
+  const activeTerminus =
+    internalBranch ||
+    resolvedTerminus ||
+    (branches && branches.length > 0 ? branches[0] : lineName);
 
   // ── Slide-up animation ─────────────────────────────────────────
   const translateY = useSharedValue(visible ? 0 : 900);
@@ -268,23 +238,16 @@ export default function RerouteScreen({
     prevVisible.current = visible;
   }, [visible]);
 
-  // ── Refresh disruption from the Tier 2 cache on open ───────────
-  // We DO NOT hit TfL here. We read the P0 cache B1 populated.
-  const [disruption, setDisruption] = useState<Tier2Disruption | null>(null);
-  useEffect(() => {
-    if (visible && stationId) {
-      const cache: Tier2Cache | null = getTier2Cache(stationId);
-      if (cache?.disruption) setDisruption(cache.disruption);
-    }
-  }, [visible, stationId]);
-
   // ── Live TfL Journey Planner Calculation (Dynamic Real-Time Extra Time) ──
+  // Fires for ONE branch only: the pre-highlighted (engine-resolved) tile on
+  // open, then the tapped tile on tap. Never N simultaneous queries for a grid
+  // nobody's going to fully explore.
   const [liveExtraTime, setLiveExtraTime] = useState<number | null>(null);
   const [isLiveResolving, setIsLiveResolving] = useState<boolean>(false);
   const [isLiveFallback, setIsLiveFallback] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!visible || !stationId || !resolvedTerminus) {
+    if (!visible || !stationId || !activeTerminus) {
       setLiveExtraTime(null);
       setIsLiveResolving(false);
       setIsLiveFallback(false);
@@ -297,7 +260,7 @@ export default function RerouteScreen({
 
     fetchLiveJourneyPenalty({
       originStationId: stationId,
-      destinationTerminus: resolvedTerminus,
+      destinationTerminus: activeTerminus,
       lineId,
     }).then(result => {
       if (!active) return;
@@ -313,11 +276,35 @@ export default function RerouteScreen({
     return () => {
       active = false;
     };
-  }, [visible, stationId, resolvedTerminus, lineId]);
+  }, [visible, stationId, activeTerminus, lineId]);
 
+  // effectiveMode drives affected/unaffected/empty content below the grid.
+  // When a tile is selected its own branchStatus wins; otherwise the
+  // dashboard-computed mode (which used the line's default branch).
   const effectiveMode = internalBranch && branchStatuses
     ? (branchStatuses[internalBranch] === 'affected' ? 'affected' : 'unaffected')
     : mode;
+
+  // ── Pre-highlight tier from the direction engine ────────────────
+  // high (session / notification / strong history pattern) → emerald solid.
+  // medium (history with weak pattern) → soft-orange (old "Change" pill token).
+  // none (pinned/manual fallthrough, or nothing resolved) → neutral grid.
+  // The UI must never assert confidence the engine doesn't have.
+  const highlightTier: 'high' | 'medium' | 'none' = (() => {
+    if (!resolvedTerminus || !resolvedSource) return 'none';
+    if (resolvedSource === 'session' || resolvedSource === 'notification') return 'high';
+    if (resolvedSource === 'history') return resolvedConfidence === 'high' ? 'high' : 'medium';
+    return 'none';
+  })();
+
+  const highlightCaption =
+    highlightTier === 'none'
+      ? null
+      : resolvedSource === 'session'
+        ? 'Active now'
+        : resolvedSource === 'notification'
+          ? 'From your last tap'
+          : 'Usual route';
 
   // ── Citymapper availability (canOpenURL gate) ─────────────────
   // Rule 11: the Citymapper button is ABSENT (not greyed) when not installed.
@@ -370,20 +357,21 @@ export default function RerouteScreen({
     onClose();
   };
 
-  // ── Resolve the live reason (cache wins, prop fallback) ───────
-  const resolvedReason = useMemo(() => {
-    if (disruption?.reason) return disruption.reason;
-    if (disruption?.description) return disruption.description;
-    return disruptionReason;
-  }, [disruption, disruptionReason]);
+  // ── Tile tap: re-target inline (no grid↔detail navigation anymore).
+  // Setting internalBranch changes activeTerminus, which re-fires the live
+  // fetch effect for the tapped branch — the same re-trigger the old
+  // "Change" button used, now wired to grid taps.
+  const handleBranchTap = (branch: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setInternalBranch(branch);
+    setLiveExtraTime(null);
+    setIsLiveResolving(true);
+  };
 
-  // ── Back handler: grid → close, detail → back to grid ─────────
+  // ── Back handler: with the grid inline there's no second step to return
+  // from — Back always closes the drawer.
   const handleBack = () => {
-    if (internalBranch && branches && branches.length > 2) {
-      setInternalBranch(null); // return to branch grid
-    } else {
-      onClose(); // close the drawer
-    }
+    onClose();
   };
 
   const renderHeader = () => (
@@ -413,52 +401,97 @@ export default function RerouteScreen({
     </>
   );
 
-  const renderAffectedState = () => (
-    <View style={s.body}>
-      {/* Your <terminus> trains + Change button */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <Text style={s.branchLabel}>
-          {confidence === 'medium' ? `Likely your ${resolvedTerminus} trains` : `Your ${resolvedTerminus} trains`}
+  // ── Inline branch grid — ALWAYS visible at the top of the drawer for
+  // multi-branch lines. No hidden second step, no "Change" button: the
+  // resolution is shown up front, and tapping a tile swaps the content below.
+  const renderBranchGrid = () => {
+    if (!branches || branches.length <= 2) return null;
+    // Split branches into pairs for rows (2x2 for 4-branch lines)
+    const rows: string[][] = [];
+    for (let i = 0; i < branches.length; i += 2) {
+      rows.push(branches.slice(i, i + 2));
+    }
+
+    return (
+      <View style={s.branchGridBody}>
+        {/* Static header — line name only, no terminus asserted in copy */}
+        <Text style={s.branchGridTitle}>
+          {`${lineName.replace(/\s*line\s*$/i, '').trim()} — where are you headed?`}
         </Text>
-        {branches && branches.length > 1 && (
-          <BouncyPressable
-            onPress={() => {
-              setInternalBranch(null);
-              setLiveExtraTime(null);
-              setIsLiveResolving(true);
-            }}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 8,
-              backgroundColor: confidence === 'medium' ? 'rgba(255,149,0,0.20)' : 'rgba(255,255,255,0.12)',
-            }}
-          >
-            <Text style={{ fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 12, color: confidence === 'medium' ? '#FF9500' : 'rgba(255,255,255,0.85)' }}>
-              Change
-            </Text>
-          </BouncyPressable>
+        {rows.map((row, ri) => (
+          <View key={ri} style={s.branchGridRow}>
+            {row.map((branch) => {
+              const status = branchStatuses?.[branch];
+              const isAffected = status === 'affected';
+              const isHighlighted = highlightTier !== 'none' && branch === resolvedTerminus;
+              return (
+                <Pressable
+                  key={branch}
+                  style={[
+                    s.branchGridCard,
+                    isHighlighted && highlightTier === 'high' && s.branchGridCardEmerald,
+                    isHighlighted && highlightTier === 'medium' && s.branchGridCardOrange,
+                  ]}
+                  onPress={() => handleBranchTap(branch)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${branch} branch`}
+                  accessibilityState={{ selected: isHighlighted }}
+                >
+                  <Text
+                    style={[
+                      s.branchCardName,
+                      isHighlighted && highlightTier === 'medium' && { color: '#FF9500' },
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {branch}
+                  </Text>
+                  <View style={s.branchCardRight}>
+                    <Text style={s.branchCardStatus}>
+                      {isAffected ? 'Affected' : 'Running fine'}
+                    </Text>
+                    <View
+                      style={[
+                        s.branchStatusDot,
+                        {
+                          backgroundColor: isAffected
+                            ? severity !== undefined && (severity === 9 || severity === 7)
+                              ? STATUS_SEVERITY_COLORS.minor
+                              : STATUS_SEVERITY_COLORS.severe
+                            : STATUS_SEVERITY_COLORS.good,
+                        },
+                      ]}
+                    />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+        {/* Source caption — under the highlighted tile ONLY */}
+        {highlightCaption && (
+          <View style={s.branchGridCaptionRow}>
+            <View
+              style={[
+                s.branchGridCaptionDot,
+                { backgroundColor: highlightTier === 'high' ? STATUS_SEVERITY_COLORS.good : '#FF9500' },
+              ]}
+            />
+            <Text style={s.branchGridCaption}>{highlightCaption}</Text>
+          </View>
         )}
       </View>
+    );
+  };
 
-      {/* Disrupted badge + reason */}
+  const renderAffectedState = () => (
+    <View style={s.body}>
+      {/* Disrupted badge — reason lives one tap away in LineDetailModal */}
       <View style={s.disruptionRow}>
         <ICON.signalFail size={15} color={STATUS_SEVERITY_COLORS.minor} />
         <Text style={s.disruptionLabel}>Disrupted</Text>
       </View>
-      <Pressable onPress={() => setIsReasonExpanded(prev => !prev)} hitSlop={4}>
-        <Text style={s.disruptionReason} numberOfLines={isReasonExpanded ? undefined : 3} ellipsizeMode="tail">
-          {resolvedReason || 'Disruption reported on your route.'}
-        </Text>
-        {resolvedReason && resolvedReason.length > 120 && (
-          <Text style={{ fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
-            {isReasonExpanded ? 'Show less' : 'Tap to read full status'}
-          </Text>
-        )}
-      </Pressable>
-
-      {/* Divider */}
-      <View style={s.divider} />
 
       {/* Suggested route glass card — static dark glass (no live blur: iOS
           UIVisualEffectView janks scroll; flat translucent fill reads as
@@ -511,8 +544,6 @@ export default function RerouteScreen({
     // EQUAL WEIGHT: same glass card, same accent bar, same typography as affected.
     // No CTA. No lesser build. This is half the product, not an afterthought.
     <View style={s.body}>
-      <Text style={s.branchLabel}>Your {resolvedTerminus} trains</Text>
-
       <View style={s.runningFineRow}>
         <View style={s.runningFineDot} />
         <Text style={s.runningFineLabel}>Running fine — no action needed</Text>
@@ -541,85 +572,10 @@ export default function RerouteScreen({
     </View>
   );
 
-  // ── Branch selection grid (2x2 for 4-branch lines) ──────────
-  const renderBranchGrid = () => {
-    if (!branches || branches.length <= 2) return null;
-    // Split branches into pairs for rows
-    const rows: string[][] = [];
-    for (let i = 0; i < branches.length; i += 2) {
-      rows.push(branches.slice(i, i + 2));
-    }
-
-    return (
-      <View style={s.branchGridBody}>
-        <Text style={s.branchGridTitle}>Where are you headed?</Text>
-        {rows.map((row, ri) => (
-          <View key={ri} style={s.branchGridRow}>
-            {row.map((branch) => {
-              const status = branchStatuses?.[branch];
-              const isAffected = status === 'affected';
-              return (
-                <Pressable
-                  key={branch}
-                  style={s.branchGridCard}
-                  onPress={() => handleBranchTap(branch)}
-                >
-                  <Text style={s.branchCardName} numberOfLines={1} ellipsizeMode="tail">
-                    {branch}
-                  </Text>
-                  <View style={s.branchCardRight}>
-                    <Text style={s.branchCardStatus}>
-                      {isAffected ? 'Affected' : 'Running fine'}
-                    </Text>
-                    <View
-                      style={[
-                        s.branchStatusDot,
-                        {
-                          backgroundColor: isAffected
-                            ? severity !== undefined && (severity === 9 || severity === 7)
-                              ? STATUS_SEVERITY_COLORS.minor
-                              : STATUS_SEVERITY_COLORS.severe
-                            : STATUS_SEVERITY_COLORS.good,
-                        },
-                      ]}
-                    />
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-        <BouncyPressable onPress={onClose} style={s.branchGridDismiss}>
-          <Text style={s.branchGridDismissText}>Dismiss</Text>
-        </BouncyPressable>
-      </View>
-    );
-  };
-
-  // ── Show branch grid or mode-specific detail ────────────────
+  // Lines with ≤2 real directions (Jubilee, Lioness, …) skip the grid entirely:
+  // no ambiguity, no reason to confirm the obvious. Resolved branch renders
+  // directly. The header question is part of the grid, so it's skipped too.
   const hasGrid = Boolean(branches && branches.length > 2);
-  const showGrid = hasGrid && !internalBranch;
-  const detailMode = internalBranch && branchStatuses
-    ? branchStatuses[internalBranch] === 'affected'
-      ? 'affected'
-      : 'unaffected'
-    : mode;
-
-  useEffect(() => {
-    if (visible) {
-      setInternalBranch(null);
-      if (!hasGrid) {
-        detailOpacity.value = 1;
-        detailTranslateY.value = 0;
-      } else {
-        gridOpacity.value = 1;
-        gridScale.value = 1;
-        detailTranslateY.value = 20;
-        detailOpacity.value = 0;
-        setAnimPhase('grid');
-      }
-    }
-  }, [visible, hasGrid, detailOpacity, detailTranslateY, gridOpacity, gridScale]);
 
   return (
     <Modal
@@ -658,21 +614,15 @@ export default function RerouteScreen({
           >
             {renderHeader()}
 
-            {showGrid && animPhase !== 'detail' ? (
-              <Animated.View style={gridAnimatedStyle}>
-                {renderBranchGrid()}
-              </Animated.View>
-            ) : null}
+            {/* Inline, permanently-visible grid — the entire point of
+                "one step not two". */}
+            {hasGrid && renderBranchGrid()}
 
-            {!showGrid ? (
-              <Animated.View style={hasGrid ? detailAnimatedStyle : undefined}>
-                {detailMode === 'affected'
-                  ? renderAffectedState()
-                  : detailMode === 'unaffected'
-                    ? renderUnaffectedState()
-                    : renderEmptyState()}
-              </Animated.View>
-            ) : null}
+            {effectiveMode === 'affected'
+              ? renderAffectedState()
+              : effectiveMode === 'unaffected'
+                ? renderUnaffectedState()
+                : renderEmptyState()}
           </ScrollView>
 
           {/* Scroll affordance — bottom fade + chevron, visible only while
@@ -778,18 +728,11 @@ const s = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 4,
   },
-  branchLabel: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 20,
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-    marginBottom: 8,
-  },
   disruptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
+    marginBottom: 12,
   },
   disruptionLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
@@ -803,11 +746,6 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.65)',
     lineHeight: 17,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginVertical: 12,
   },
 
   // ── Suggested route card (static dark glass — no live blur) ──
@@ -937,7 +875,7 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.80)',
   },
 
-  // ── Branch Grid ──────────────────────────────────────────────
+  // ── Branch Grid (inline, always visible) ─────────────────────
   branchGridBody: {
     paddingVertical: 6,
   },
@@ -967,6 +905,19 @@ const s = StyleSheet.create({
     minHeight: 44,
     gap: 10,
   },
+  // High confidence (session/notification/strong history) — emerald solid.
+  branchGridCardEmerald: {
+    borderWidth: 2,
+    borderColor: STATUS_SEVERITY_COLORS.good,
+    backgroundColor: 'rgba(48,209,88,0.12)',
+  },
+  // Medium confidence (weak history pattern) — soft-orange, the exact
+  // rgba(255,149,0,0.20) token the old "Change" pill used.
+  branchGridCardOrange: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,149,0,0.45)',
+    backgroundColor: 'rgba(255,149,0,0.20)',
+  },
   branchCardRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -990,15 +941,24 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.50)',
     letterSpacing: 0.3,
   },
-  branchGridDismiss: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    marginTop: 4,
+  // Source caption — under the highlighted tile ONLY
+  branchGridCaptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+    marginBottom: 6,
+    paddingLeft: 6,
   },
-  branchGridDismissText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13.5,
-    color: 'rgba(255,255,255,0.50)',
+  branchGridCaptionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  branchGridCaption: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.3,
   },
 });

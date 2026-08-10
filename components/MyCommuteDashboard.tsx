@@ -57,6 +57,8 @@ import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
 import { getSeverityColor, getSeverityRank } from '../utils/getSeverityColor';
 import RerouteScreen from './RerouteScreen';
+import { useAutoDetectBranch } from '../hooks/useAutoDetectBranch';
+import type { ResolvedBranch } from '../utils/resolveBranch';
 import {
   resolveRerouteMode,
   buildRerouteLinks,
@@ -892,88 +894,116 @@ const MyCommuteDashboard: React.FC = () => {
           />
         )}
 
-        {/* Reroute Screen — full-screen slide-up with 2x2 branch grid for 4-branch lines.
-            Mode resolved from cache + branch. Branches from REROUTE_LINE_BRANCHES. */}
-        {rerouteLine && (() => {
-          // Expanded branch data supporting up to 4 destinations per line (2x2 grid).
-          const branches = REROUTE_LINE_BRANCHES[rerouteLine.id] || [];
-          const defaultTerminus = branches[0] || rerouteLine.name;
-          const otherTerminus = branches[1] || '';
-          // Station the reroute is scoped to: pinned station on line -> home/work -> first pinned -> empty fallback
-          const stationId =
-            selectedStations.find((st: any) =>
-              Array.isArray(st.lines) ? st.lines.includes(rerouteLine.id) : false
-            )?.id ||
-            selectedStations.find((st: any) => st.role === 'home' || st.role === 'work')?.id ||
-            selectedStations[0]?.id ||
-            '';
-
-          // Per-branch status: parse disruption reason to mark which branches are affected.
-          const reasonLower = (rerouteLine.reason || '').toLowerCase();
-          const hasMentionedBranch = branches.some((branch: string) =>
-            branch.toLowerCase().split(' ').some(word =>
-              word.length > 3 && reasonLower.includes(word)
-            )
-          );
-          const branchStatuses = branches.reduce((acc: any, branch: string) => {
-            const isMentioned = branch.toLowerCase().split(' ').some(word =>
-              word.length > 3 && reasonLower.includes(word)
-            );
-            acc[branch] =
-              isMentioned || (!hasMentionedBranch && branch === defaultTerminus)
-                ? 'affected'
-                : 'unaffected';
-            return acc;
-          }, {} as Record<string, 'affected' | 'unaffected'>);
-
-          const resolution = resolveRerouteMode({
-            stationId,
-            confirmedTerminus: defaultTerminus,
-            otherTerminus,
-            expectedLineId: rerouteLine.id,
-            fallbackStatusType: getDashboardSeverity(rerouteLine.status, rerouteLine.status_severity),
-            fallbackReason: rerouteLine.reason || rerouteLine.status,
-          });
-          const links = buildRerouteLinks(defaultTerminus);
-
-          return (
-            <RerouteScreen
-              visible={!!rerouteLine}
-              onClose={() => setRerouteLine(null)}
-              branches={branches}
-              branchStatuses={branchStatuses}
-              mode={resolution.mode}
-              lineId={rerouteLine.id}
-              lineName={rerouteLine.name}
-              lineColor={rerouteLine.color}
-              terminus={defaultTerminus}
-              otherBranchName={otherTerminus}
-              disruptionReason={
-                resolution.disruption?.reason ||
-                resolution.disruption?.description ||
-                rerouteLine.reason ||
-                rerouteLine.status ||
-                'Disruption reported'
-              }
-              suggestedRoute={
-                resolution.mode === 'affected'
-                  ? (REROUTE_SUGGESTIONS[rerouteLine.id] || {
-                      description: 'Use parallel London Bus routes or interchange via nearest operating line.',
-                      extraTimeMinutes: 8,
-                    })
-                  : undefined
-              }
-              googleMapsUrl={links.googleMapsUrl}
-              citymapperUrl={links.citymapperUrl}
-              stationId={stationId}
-              severity={rerouteLine.status_severity}
-            />
-          );
-        })()}
+        {/* Reroute Screen — full-screen slide-up with the inline direction grid.
+            RerouteContainer computes branches/statuses/mode/links AND runs the
+            direction engine (useAutoDetectBranch), passing the resolved branch,
+            source, and confidence through so the grid can pre-highlight. */}
+        {rerouteLine && (
+          <RerouteContainer
+            rerouteLine={rerouteLine}
+            selectedStations={selectedStations}
+            onClose={() => setRerouteLine(null)}
+          />
+        )}
       </Animated.View>
     </View>
   );
 };
+
+// ─── Reroute Container ─────────────────────────────────────────────
+// Owns all reroute data computation (extracted from the old inline IIFE in the
+// dashboard JSX) and runs useAutoDetectBranch so RerouteScreen receives real
+// resolved-terminus / source / confidence data for the pre-highlighted inline
+// direction grid. Rendered only while a reroute line is active.
+interface RerouteContainerProps {
+  rerouteLine: LineData;
+  selectedStations: { id: string; name: string; lines?: string[]; role?: string }[];
+  onClose: () => void;
+}
+
+function RerouteContainer({ rerouteLine, selectedStations, onClose }: RerouteContainerProps) {
+  // Station the reroute is scoped to: pinned station on line -> home/work -> first pinned -> empty fallback
+  const scopedStation =
+    selectedStations.find((st) =>
+      Array.isArray(st.lines) ? st.lines.includes(rerouteLine.id) : false
+    ) ||
+    selectedStations.find((st) => st.role === 'home' || st.role === 'work') ||
+    selectedStations[0];
+  const stationId = scopedStation?.id || '';
+  const stationName = scopedStation?.name;
+
+  // Direction engine — session → notification → history → pinned/manual.
+  // Drives the pre-highlighted grid tile + source caption in RerouteScreen.
+  const { result } = useAutoDetectBranch(rerouteLine.id, stationId || undefined, stationName);
+
+  // Expanded branch data supporting up to 4 destinations per line (2x2 grid).
+  const branches = REROUTE_LINE_BRANCHES[rerouteLine.id] || [];
+  const defaultTerminus = branches[0] || rerouteLine.name;
+  const otherTerminus = branches[1] || '';
+
+  // Engine-resolved terminus — only when fully resolved (not ambiguous).
+  const resolvedTerminus =
+    result.branch && !('possibleBranches' in result.branch)
+      ? (result.branch as ResolvedBranch).terminus
+      : undefined;
+
+  // Per-branch status: parse disruption reason to mark which branches are affected.
+  const reasonLower = (rerouteLine.reason || '').toLowerCase();
+  const hasMentionedBranch = branches.some((branch: string) =>
+    branch.toLowerCase().split(' ').some(word =>
+      word.length > 3 && reasonLower.includes(word)
+    )
+  );
+  const branchStatuses = branches.reduce((acc: any, branch: string) => {
+    const isMentioned = branch.toLowerCase().split(' ').some(word =>
+      word.length > 3 && reasonLower.includes(word)
+    );
+    acc[branch] =
+      isMentioned || (!hasMentionedBranch && branch === defaultTerminus)
+        ? 'affected'
+        : 'unaffected';
+    return acc;
+  }, {} as Record<string, 'affected' | 'unaffected'>);
+
+  const resolution = resolveRerouteMode({
+    stationId,
+    confirmedTerminus: defaultTerminus,
+    otherTerminus,
+    expectedLineId: rerouteLine.id,
+    fallbackStatusType: getDashboardSeverity(rerouteLine.status, rerouteLine.status_severity),
+    fallbackReason: rerouteLine.reason || rerouteLine.status,
+  });
+  const links = buildRerouteLinks(defaultTerminus);
+
+  return (
+    <RerouteScreen
+      visible
+      onClose={onClose}
+      branches={branches}
+      branchStatuses={branchStatuses}
+      mode={resolution.mode}
+      lineId={rerouteLine.id}
+      lineName={rerouteLine.name}
+      lineColor={rerouteLine.color}
+      otherBranchName={otherTerminus}
+      suggestedRoute={
+        resolution.mode === 'affected'
+          ? (REROUTE_SUGGESTIONS[rerouteLine.id] || {
+              description: 'Use parallel London Bus routes or interchange via nearest operating line.',
+              extraTimeMinutes: 8,
+            })
+          : undefined
+      }
+      googleMapsUrl={links.googleMapsUrl}
+      citymapperUrl={links.citymapperUrl}
+      stationId={stationId}
+      severity={rerouteLine.status_severity}
+      resolvedTerminus={resolvedTerminus}
+      resolvedSource={result.source}
+      resolvedConfidence={result.confidence}
+    />
+  );
+}
 
 const dash = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },

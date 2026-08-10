@@ -19,7 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
-import { CaretRight, CaretDown } from 'phosphor-react-native';
+import { CaretRight, CaretDown, X } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -535,6 +535,17 @@ export function LineDetailModal({
               ) : null}
             </ScrollView>
 
+            {/* Fixed close button — top-right, does not scroll with content */}
+            <Pressable
+              onPress={handleClose}
+              hitSlop={4}
+              style={styles.closeButton}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+            >
+              <X size={20} color="rgba(255,255,255,0.75)" />
+            </Pressable>
+
             {/* Scroll affordance — bottom fade + chevron, visible only
                 while content overflows and the user hasn't reached the end */}
             <Animated.View pointerEvents="none" style={[styles.popupFade, { opacity: fadeOpacity }]}>
@@ -555,7 +566,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrim: {
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
 
   popupShadow: {
@@ -594,12 +605,25 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
 
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 14,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 52,
     paddingBottom: 12,
   },
 

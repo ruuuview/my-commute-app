@@ -405,7 +405,7 @@ export default function RerouteScreen({
   // multi-branch lines. No hidden second step, no "Change" button: the
   // resolution is shown up front, and tapping a tile swaps the content below.
   const renderBranchGrid = () => {
-    if (!branches || branches.length <= 2) return null;
+    if (!branches || branches.length < 2) return null;
     // Split branches into pairs for rows (2x2 for 4-branch lines)
     const rows: string[][] = [];
     for (let i = 0; i < branches.length; i += 2) {

@@ -227,13 +227,11 @@ export function LineDetailModal({
   }, [anchorRect, MIN_ALLOWED_TOP]);
 
   // Clamp BOTH edges: the popup must never start above the safe area AND
-  // never extend past the screen bottom (tab bar zone). Previously only the
-  // top was clamped — a card anchored low on screen pushed the popup's footer
-  // ("See alternative routes") off-screen behind the tab bar. The scroll
-  // viewport inside is capped at MAX_POPUP_HEIGHT, so reserve that much room
-  // below the top clamp.
+  // never extend past the screen bottom (tab bar zone). Reserve bottom tab bar space
+  // (84pt + insets.bottom + 16pt margin) so low-anchored cards never overflow.
   const safePopupTop = useMemo(() => {
-    const maxTop = SCREEN_HEIGHT - MAX_POPUP_HEIGHT - (insets.bottom + 24);
+    const bottomTabHeight = 84 + insets.bottom + 16;
+    const maxTop = SCREEN_HEIGHT - MAX_POPUP_HEIGHT - bottomTabHeight;
     return Math.min(Math.max(popupTop, MIN_ALLOWED_TOP), Math.max(maxTop, MIN_ALLOWED_TOP));
   }, [popupTop, MIN_ALLOWED_TOP, insets.bottom]);
 
@@ -477,51 +475,6 @@ export function LineDetailModal({
                   2) 'See alternative routes' CTA (single disruption action). */}
               {isDisrupted && onOpenReroute ? (
                 <>
-                  {/* Affected/unaffected station indicator */}
-                  {relevantPinnedStations.length > 0 || hasImpactEvidence ? (
-                    <View
-                      style={[
-                        styles.impactBadge,
-                        stationImpacted
-                          ? styles.impactBadgeAffected
-                          : hasImpactEvidence
-                            ? styles.impactBadgeClear
-                            : { backgroundColor: 'rgba(255, 159, 10, 0.12)', borderColor: 'rgba(255, 159, 10, 0.25)' },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.impactBadgeDot,
-                          {
-                            backgroundColor: stationImpacted
-                              ? '#FF3B30'
-                              : hasImpactEvidence
-                                ? '#30D158'
-                                : '#FF9F0A',
-                          },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.impactBadgeText,
-                          {
-                            color: stationImpacted
-                              ? '#FF3B30'
-                              : hasImpactEvidence
-                                ? '#30D158'
-                                : '#FF9F0A',
-                          },
-                        ]}
-                      >
-                        {stationImpacted
-                          ? 'Your station is affected'
-                          : hasImpactEvidence
-                            ? 'Your station is not affected'
-                            : 'Line disruption reported'}
-                      </Text>
-                    </View>
-                  ) : null}
-
                   {/* Reroute CTA — 'See alternative routes' (single action) */}
                   <Pressable
                     onPress={() => {

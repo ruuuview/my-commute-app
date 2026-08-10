@@ -618,6 +618,18 @@ export default function RerouteScreen({
                 "one step not two". */}
             {hasGrid && renderBranchGrid()}
 
+            {/* Non-grid lines (≤2 branches: Jubilee, Victoria, Bakerloo, …):
+                no tappable grid — but the destination must STILL be surfaced.
+                The plan says "render the resolved single branch directly"; this
+                is that render. Shows the active terminus as a destination row. */}
+            {!hasGrid && branches && branches.length > 0 && (
+              <View style={s.nonGridEndpoint}>
+                <ICON.clock size={14} color="rgba(255,255,255,0.45)" />
+                <Text style={s.nonGridEndpointLabel}>DIRECTION</Text>
+                <Text style={s.nonGridEndpointValue}>{activeTerminus}</Text>
+              </View>
+            )}
+
             {effectiveMode === 'affected'
               ? renderAffectedState()
               : effectiveMode === 'unaffected'
@@ -960,5 +972,32 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.45)',
     letterSpacing: 0.3,
+  },
+
+  // ── Non-grid endpoint (≤2-branch lines) — the resolved destination row ──
+  nonGridEndpoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  nonGridEndpointLabel: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  nonGridEndpointValue: {
+    flex: 1,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: '#FFFFFF',
   },
 });

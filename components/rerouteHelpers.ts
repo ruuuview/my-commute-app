@@ -372,3 +372,44 @@ export function stationsMentionedInReason(
     return false;
   });
 }
+
+/**
+ * Normalize line IDs across TfL API, user preferences store, and UI components.
+ * Standardizes line name variants (e.g. 'hammersmith-and-city' -> 'hammersmith-city',
+ * 'elizabeth-line' -> 'elizabeth', 'Central' -> 'central') for reliable matching.
+ */
+export function normalizeLineId(lineId: string): string {
+  if (!lineId) return '';
+  let id = String(lineId).toLowerCase().trim();
+  id = id.replace(/[\s-]line$/i, '');
+  if (id === 'hammersmith-and-city' || id === 'hammersmith & city' || id === 'hammersmithandcity') return 'hammersmith-city';
+  if (id === 'waterloo-and-city' || id === 'waterloo & city' || id === 'waterlooandcity') return 'waterloo-city';
+  if (id === 'london-overground' || id === 'london overground') return 'overground';
+  if (id === 'elizabeth-line' || id === 'elizabeth line') return 'elizabeth';
+  if (id === 'docklands-light-railway' || id === 'docklands light railway') return 'dlr';
+  return id;
+}
+
+/**
+ * Check whether a disruption reason or statusType indicates a line-wide / network disruption.
+ * Covers phrasing like "across the line", "entire line", "all stations", "suspended", "closure".
+ */
+export function isLineWideDisruption(reasonText: string, statusType?: string): boolean {
+  const s = String(statusType ?? '').toLowerCase();
+  if (s === 'suspended' || s === 'closure') return true;
+  const r = String(reasonText ?? '').toLowerCase();
+  if (!r) return false;
+  return (
+    r.includes('entire line') ||
+    r.includes('across the line') ||
+    r.includes('line-wide') ||
+    r.includes('line wide') ||
+    r.includes('all stations') ||
+    r.includes('whole line') ||
+    r.includes('all branches') ||
+    r.includes('entire network') ||
+    r.includes('no service on the line') ||
+    r.includes('suspended across')
+  );
+}
+

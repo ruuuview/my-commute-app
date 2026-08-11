@@ -28,6 +28,8 @@ import {
   fetchLineAffectedStops,
   stationsAffectedByStops,
   stationsMentionedInReason,
+  normalizeLineId,
+  isLineWideDisruption,
 } from './rerouteHelpers';
 import type { AffectedStop } from './rerouteHelpers';
 
@@ -173,14 +175,38 @@ export function LineDetailModal({
     return cached?.lineId === line.id ? !!cached.isDisrupted : isLiveDisruption;
   }, [line, stationId, statusType]);
 
-  // Stations the user pinned on this line — origin for the deep link and
-  // the affected-stops intersection below.
+  // Stations the user pinned/selected for this line — origin for the deep link and
+  // the affected-stops intersection below. Normalizes line IDs and falls back
+  // to stationId prop or pinned stations so stations are never missed.
   const relevantPinnedStations = useMemo(() => {
     if (!line) return [];
-    return pinnedStations.filter(
-      p => Array.isArray(p.lines) && p.lines.includes(line.id)
+    const modalLineNorm = normalizeLineId(line.id);
+
+    // 1. Filter pinnedStations using normalized line matching
+    let matched = pinnedStations.filter(
+      p => Array.isArray(p.lines) && p.lines.some(l => normalizeLineId(l) === modalLineNorm)
     );
-  }, [pinnedStations, line]);
+
+    // 2. If no direct line match, but stationId prop was passed, find that station in pinnedStations
+    if (matched.length === 0 && stationId) {
+      const target = pinnedStations.find(p => p.id === stationId);
+      if (target) {
+        matched = [target];
+      }
+    }
+
+    // 3. Fallback: if matched is still empty but pinnedStations exists, use all pinnedStations
+    if (matched.length === 0 && pinnedStations.length > 0) {
+      matched = pinnedStations;
+    }
+
+    // 4. Fallback 2: if pinnedStations is empty but stationId prop was passed, construct station ref
+    if (matched.length === 0 && stationId) {
+      matched = [{ id: stationId, name: stationId, lines: [line.id], zone: 1, role: 'home' }];
+    }
+
+    return matched;
+  }, [pinnedStations, line, stationId]);
 
   // ── Affected stops: the Tier 2 cache disruption shape and /api/lines do
   //    NOT carry affected StopPoints (canonical cache contract — never
@@ -321,29 +347,29 @@ export function LineDetailModal({
     );
   }, [line, statusType, statusLabel]);
 
-  // ── Station impact evidence (two independent sources) ────────────
-  // 1. TfL Line disruption feed affectedStops (fetched at open) — reliable
-  //    but often EMPTY for minor delays, so it can never prove "not affected".
-  // 2. The disruption REASON text — if it names a pinned station
-  //    (e.g. "between Camden Town and Morden"), that station IS affected
-  //    even when the feed returns no stops (or the fetch fails/times out).
+  // ── Station impact evidence (two independent sources + line-wide check) ────
   const stationImpacted = useMemo(() => {
     if (relevantPinnedStations.length === 0) return false;
+    if (isDisrupted && isLineWideDisruption(reasonText, statusType)) {
+      return true;
+    }
     if (stationsAffectedByStops(relevantPinnedStations, affectedStops).length > 0) {
       return true;
     }
-    // Fallback evidence path: reason-text mention (never false-calm on an
-    // empty affectedStops feed — the user's Camden Town case).
     return stationsMentionedInReason(relevantPinnedStations, reasonText).length > 0;
-  }, [relevantPinnedStations, affectedStops, reasonText]);
+  }, [relevantPinnedStations, isDisrupted, statusType, affectedStops, reasonText]);
 
-  // Evidence gate: only render the impact badge when we actually have data.
-  // An empty feed + no reason mention = "unknown", NOT "not affected".
+  // Evidence gate: determine whether we have sufficient evidence to judge impact.
+  // - Good service (not disrupted) is definitive ground truth ("YOUR STATION IS OK").
+  // - Line-wide disruption is definitive ("YOUR STATION IS AFFECTED").
+  // - Loaded affectedStops or explicit reason mentions provide evidence.
   const hasImpactEvidence = useMemo(() => {
     if (relevantPinnedStations.length === 0) return false;
-    if (stopsLoaded && affectedStops.length > 0) return true;
+    if (!isDisrupted || statusType === 'good') return true;
+    if (isLineWideDisruption(reasonText, statusType)) return true;
+    if (stopsLoaded) return true;
     return stationsMentionedInReason(relevantPinnedStations, reasonText).length > 0;
-  }, [relevantPinnedStations, affectedStops, stopsLoaded, reasonText]);
+  }, [relevantPinnedStations, isDisrupted, statusType, stopsLoaded, reasonText]);
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -448,7 +474,7 @@ export function LineDetailModal({
                       ? 'YOUR STATION IS AFFECTED'
                       : hasImpactEvidence
                         ? 'YOUR STATION IS OK'
-                        : 'NO IMPACT DATA'}
+                        : 'CHECKING IMPACT...'}
                   </Text>
                 </View>
               ) : null}

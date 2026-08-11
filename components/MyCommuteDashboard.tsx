@@ -62,6 +62,7 @@ import type { ResolvedBranch } from '../utils/resolveBranch';
 import {
   resolveRerouteMode,
   buildRerouteLinks,
+  normalizeLineId,
 } from './rerouteHelpers';
 
 
@@ -887,7 +888,9 @@ const MyCommuteDashboard: React.FC = () => {
             anchorRect={selectedLineInfo.anchorRect}
             stationId={
               selectedStations.find((st: any) =>
-                Array.isArray(st.lines) ? st.lines.includes(selectedLineForModal.id) : false
+                Array.isArray(st.lines)
+                  ? st.lines.some((l: string) => normalizeLineId(l) === normalizeLineId(selectedLineForModal.id))
+                  : false
               )?.id || selectedStations[0]?.id || undefined
             }
             onOpenReroute={() => setRerouteLine(selectedLineForModal)}

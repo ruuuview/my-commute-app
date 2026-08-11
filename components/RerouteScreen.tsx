@@ -294,6 +294,9 @@ export default function RerouteScreen({
     if (!resolvedTerminus || !resolvedSource) return 'none';
     if (resolvedSource === 'session' || resolvedSource === 'notification') return 'high';
     if (resolvedSource === 'history') return resolvedConfidence === 'high' ? 'high' : 'medium';
+    // Pinned station = deterministic topology (user's own home/work station
+    // past the branch split) — same confidence class as session/notification.
+    if (resolvedSource === 'pinned') return 'high';
     return 'none';
   })();
 
@@ -487,12 +490,6 @@ export default function RerouteScreen({
 
   const renderAffectedState = () => (
     <View style={s.body}>
-      {/* Disrupted badge — reason lives one tap away in LineDetailModal */}
-      <View style={s.disruptionRow}>
-        <ICON.signalFail size={15} color={STATUS_SEVERITY_COLORS.minor} />
-        <Text style={s.disruptionLabel}>Disrupted</Text>
-      </View>
-
       {/* Suggested route glass card — static dark glass (no live blur: iOS
           UIVisualEffectView janks scroll; flat translucent fill reads as
           frosted at a fraction of the cost) */}
@@ -739,19 +736,6 @@ const s = StyleSheet.create({
   body: {
     paddingTop: 2,
     paddingBottom: 4,
-  },
-  disruptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  disruptionLabel: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: STATUS_SEVERITY_COLORS.minor,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
   },
   disruptionReason: {
     fontFamily: 'SpaceGrotesk_400Regular',

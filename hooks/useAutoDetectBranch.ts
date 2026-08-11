@@ -253,11 +253,26 @@ export function useAutoDetectBranch(
         } catch {}
       }
 
-      // ── Step 3: Pinned station destination text ──
-      // The code comment here implements the critical correction:
-      // "Only trust destination text from stations past the branch split point"
-      // For now, we fall through to manual since pinned station inference
-      // requires the full graph topology check
+      // ── Step 3: Pinned station resolution ──
+      // resolveBranch performs the full graph topology check the original
+      // stub comment claimed was missing: stations past the branch split
+      // resolve to exactly one branch; stations before it return an
+      // AmbiguousBranchResult, in which case we never assert — fall to manual.
+      try {
+        const pinnedBranch = resolveBranch(lineId, fromStationId);
+        if (pinnedBranch && !('possibleBranches' in pinnedBranch)) {
+          setResult({
+            branch: pinnedBranch as ResolvedBranch,
+            source: 'pinned',
+            confidence: 'high',
+            userOverride: false,
+            fromStationName,
+            lineName: lineId,
+          });
+          setIsDetecting(false);
+          return;
+        }
+      } catch {}
 
       // ── Step 4 (fallthrough): Manual — no auto-detect ──
       setIsDetecting(false);

@@ -942,10 +942,16 @@ function RerouteContainer({ rerouteLine, selectedStations, onClose }: RerouteCon
   const otherTerminus = branches[1] || '';
 
   // Engine-resolved terminus — only when fully resolved (not ambiguous).
-  const resolvedTerminus =
+  const engineBranch =
     result.branch && !('possibleBranches' in result.branch)
-      ? (result.branch as ResolvedBranch).terminus
-      : undefined;
+      ? (result.branch as ResolvedBranch)
+      : null;
+  // Fallback: the line's default terminus (branches[0]) — the same default
+  // resolveRerouteMode treats as confirmedTerminus. The grid is ALWAYS
+  // pre-highlighted (plan: no hidden auto-resolution, no "Change" step).
+  const resolvedTerminus = engineBranch?.terminus ?? defaultTerminus;
+  const resolvedSource = engineBranch ? result.source : 'manual';
+  const resolvedConfidence = engineBranch ? result.confidence : 'low';
 
   // Per-branch status: parse disruption reason to mark which branches are affected.
   const reasonLower = (rerouteLine.reason || '').toLowerCase();

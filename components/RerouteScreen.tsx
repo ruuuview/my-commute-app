@@ -297,11 +297,15 @@ export default function RerouteScreen({
     // Pinned station = deterministic topology (user's own home/work station
     // past the branch split) — same confidence class as session/notification.
     if (resolvedSource === 'pinned') return 'high';
+    // Manual/default fallthrough — the grid must still be pre-highlighted
+    // (plan), but at a softer tier: it's the app's default terminus, not a
+    // confident direction-engine assertion.
+    if (resolvedSource === 'manual') return 'medium';
     return 'none';
   })();
 
   const highlightCaption =
-    highlightTier === 'none'
+    highlightTier === 'none' || resolvedSource === 'manual'
       ? null
       : resolvedSource === 'session'
         ? 'Active now'

@@ -1008,8 +1008,8 @@ function RerouteContainer({ rerouteLine, selectedStations, onClose }: RerouteCon
       stationId={stationId}
       severity={rerouteLine.status_severity}
       resolvedTerminus={resolvedTerminus}
-      resolvedSource={result.source}
-      resolvedConfidence={result.confidence}
+      resolvedSource={resolvedSource}
+      resolvedConfidence={resolvedConfidence}
     />
   );
 }

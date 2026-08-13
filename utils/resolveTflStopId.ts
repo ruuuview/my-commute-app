@@ -16,6 +16,15 @@ const MANUAL_HUBS: Record<string, string[]> = {
   HUBZFD: ['940GZZLUFCN', '910GFRNDXR'],
   HUBKGX: ['940GZZLUKSX'],
   HUBSDE: ['940GZZDLSHA', '910GSHADWEL'],
+  HUBHX4: ['940GZZLUHR4', '910GHTRWTM4'],
+  HUBHX5: ['940GZZLUHR5', '910GHTRWTM5'],
+  HUBSBP: ['940GZZLUSBP', '910GSTNBRGP'],
+  HUBUPM: ['940GZZLUUPM', '910GUPMNSTR'],
+  HUBWHC: ['940GZZLUWWL', '910GWLTHSTW'],
+  HUBWMB: ['940GZZLUWMC', '910GWMBYCEN'],
+  HUBWBP: ['940GZZLUWBT', '910GWSTBRMP'],
+  HUBWHD: ['940GZZLUWHP', '910GWHMDSTD', '910GWSTHMPD'],
+  HUBCUT: ['940GZZDLCUT'],
 };
 
 const SLUG_TO_HUB: Record<string, string> = {
@@ -62,6 +71,14 @@ const SLUG_TO_HUB: Record<string, string> = {
   'new-cross-gate': 'HUBNXG',
   'willesden-junction': 'HUBWIJ',
   'clapham-junction': 'HUBCLJ',
+  'stonebridge-park': 'HUBSBP',
+  'upminster': 'HUBUPM',
+  'walthamstow-central': 'HUBWHC',
+  'wembley-central': 'HUBWMB',
+  'west-brompton': 'HUBWBP',
+  'west-hampstead': 'HUBWHD',
+  'cutty-sark': 'HUBCUT',
+  'cutty-sark-for-maritime-greenwich': 'HUBCUT',
 };
 
 // ── 1. Explicit hand-verified mappings mapping to NaPTAN arrays ──────────────────
@@ -72,6 +89,17 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   ...MANUAL_HUBS,
  
   // Manual slug aliases for interchanges / common variants
+  'camden-road':      ['910GCMDNRD', '9100CMDNRD0', '9100CMDNRD1'],
+  'camden-road-station': ['910GCMDNRD', '9100CMDNRD0', '9100CMDNRD1'],
+  'camden-town':      ['940GZZLUCTN'],
+  'canonbury':        ['910GCNNB'],
+  'gospel-oak':       ['910GGOSPLOK'],
+  'kentish-town-west': ['910GKNTSHTW'],
+  'caledonian-road-barnsbury': ['910GCLDNNRB'],
+  'dalston-kingsland': ['910GDALSKLD'],
+  'hackney-central':  ['910GHACKNYC'],
+  'homerton':         ['910GHOMRTON'],
+  'hackney-wick':     ['910GHACKNYW'],
   'bank':            ['940GZZLUBNK', '940GZZDLBNK'],
   'bank-monument':   ['940GZZLUBNK', '940GZZDLBNK'],
   'monument':        ['940GZZLUMMT'],
@@ -124,6 +152,26 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   'clapham-junction': ['910GCLPHMJ1'],
 };
 
+// Helper: strip common TfL station name suffixes for clean slug resolution
+function cleanStationSlug(rawName: string): string {
+  const suffixes = [
+    ' Elizabeth line Station',
+    ' Underground Station',
+    ' Overground Station',
+    ' DLR Station',
+    ' Rail Station',
+    ' Station',
+  ];
+  let name = rawName;
+  for (const s of suffixes) {
+    if (name.endsWith(s)) {
+      name = name.slice(0, -s.length);
+      break;
+    }
+  }
+  return name.trim();
+}
+
 // ── 2. Auto-built slug → NaPTAN map from full dataset ─────────────────────────
 function toSlug(name: string): string {
   return name
@@ -137,14 +185,18 @@ const SLUG_TO_NAPTAN: Record<string, string> = {};
 for (const entry of fullStationsData as { id: string; name: string }[]) {
   // Index entries that have a 940GZZ or 910G NaPTAN id (tube/DLR/Overground/Elizabeth Line/Rail stop points)
   if (entry.id.startsWith('940GZZ') || entry.id.startsWith('910G')) {
-    const slug = toSlug(entry.name);
-    const existing = SLUG_TO_NAPTAN[slug];
-    if (!existing) {
-      SLUG_TO_NAPTAN[slug] = entry.id;
-    } else {
-      // Collision rule: prefer tube (940GZZ) over rail/Overground (910G)
-      if (existing.startsWith('910G') && entry.id.startsWith('940GZZ')) {
+    const rawSlug = toSlug(entry.name);
+    const cleanSlug = toSlug(cleanStationSlug(entry.name));
+
+    for (const slug of [rawSlug, cleanSlug]) {
+      const existing = SLUG_TO_NAPTAN[slug];
+      if (!existing) {
         SLUG_TO_NAPTAN[slug] = entry.id;
+      } else {
+        // Collision rule: prefer tube (940GZZ) over rail/Overground (910G)
+        if (existing.startsWith('910G') && entry.id.startsWith('940GZZ')) {
+          SLUG_TO_NAPTAN[slug] = entry.id;
+        }
       }
     }
   }

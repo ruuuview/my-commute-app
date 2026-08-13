@@ -1,6 +1,9 @@
 # UX & UI MASTER PLAN
+
 ## My Commute — London Transport Dashboard
+
 ### "Fractal Glass — Ambient Status Refraction" — Complete Specification
+
 ### v4.8 — Onboarding Permissions Screen (Phase 11)
 
 ---
@@ -9,6 +12,7 @@
 > This is the **visual and interaction design authority document**. It owns all UX/UI decisions — design system tokens, animation specs, accessibility mandates, component states, and screen-level behaviour. It does not own product strategy (→ `MY_COMMUTE_MASTER_PLAN.md`), implementation file structure (→ `MY_COMMUTE_EXECUTION_PLAN.md`), or infrastructure costs (→ `MY_COMMUTE_INFRASTRUCTURE.md`).
 >
 > **Linked Documents:**
+>
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
 > - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.6+)
 > - Infrastructure authority: `MY_COMMUTE_INFRASTRUCTURE.md` (v4.5+)
@@ -20,7 +24,7 @@
 ## AUDIT CONFLICT RESOLUTIONS (v4.2 → v4.3 → v4.4 → v4.5 → v4.6)
 
 | # | Change | Resolution |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Dark Mode Only Justification | Resolved: Explicitly documented the dark-only decision to satisfy Apple App Store accessibility review. The cinematic "Void" identity relies on OLED black; no light mode will be shipped. |
 | 2 | Fractal Glass Contrast | Resolved: All text rendered inside `expo-blur` glass components MUST pass the WCAG 4.5:1 contrast ratio minimum. |
 | 3 | VoiceOver Traversal Order | Resolved: Screens 1, 2, and 3 must explicitly utilise `importantForAccessibility` and `accessibilityElements` array ordering so blind users aren't trapped in a random grid reading order. |
@@ -43,6 +47,7 @@
 This app is a premium, native iOS transport companion built on a single core thesis: **passive intelligence.**
 
 **Two visual environments, one product:**
+
 - **"The Foyer" (Onboarding):** Option C linear gradient (`['#070714', '#0A1128', '#001040', '#000810']` at `[0, 0.38, 0.65, 1]`) + film grain overlay. SpaceGrotesk. High-contrast, cinematic (no frosted glass/BlurView elements).
 - **"Fractal Glass" (App interior):** `GradientBackground` component (dynamic traffic-light gradient) + `expo-blur` glass cards (`tint="light"`). SF Pro.
 
@@ -60,12 +65,13 @@ The Grand Reveal transition is the deliberate handoff between these two worlds.
 ### 1.1 Token System
 
 | Token | Value | Usage |
-|---|---|---|
+| --- | --- | --- |
 | `glass-bg-card` | `rgba(255, 255, 255, 0.15)` | Frosted surface over gradient |
 | `glass-border-default` | `rgba(255, 255, 255, 0.40)` | Crisp 0.5px white border, defines glass edge |
 | `text-primary` | `rgba(255, 255, 255, 0.95)` | Top 65% of gradient screen, and always inside cards |
 
 **Blur tokens:**
+
 - `blur-card`: `tint="light"`, intensity 20 — MUST be light tint so gradient refracts through the glass. NEVER use dark tint on blur; it absorbs the ambient gradient.
 
 > **↑ Implementation Reference — Execution Plan: "Step 2 — VoidBackground.tsx"**
@@ -81,7 +87,8 @@ All animations use React Native Reanimated 3.
 The Edit Mode (Jiggle Mode) animation uses a fluid, sinusoidal float pattern using `withTiming` with a duration of 900ms and a peak rotation of `1.5deg` to achieve a highly premium, non-jittery iOS-native feel rather than a hyperactive spring sequence. When reduced motion is active, the rotation cancels instantly and falls back to a clean static layout.
 
 **Reduced motion (App Store Requirement):**
-You MUST wrap/guard ALL animations using Reanimated's native `useReducedMotion()` hook. 
+You MUST wrap/guard ALL animations using Reanimated's native `useReducedMotion()` hook.
+
 - When `useReducedMotion()` is `true`, replace all spring/translate animations with instant opacity changes or extremely fast fades.
 - The `LivingDot` pulsing radar must immediately revert to static concentric rings.
 - The `StaleStatusText` pulsing opacity (3000ms duration, 0.4 to 0.9 opacity) must fall back to a static 0.7 opacity.
@@ -98,7 +105,7 @@ You MUST wrap/guard ALL animations using Reanimated's native `useReducedMotion()
 This is the core of the Ambient Status Refraction system.
 
 | Status | Token | Condition |
-|---|---|---|
+| --- | --- | --- |
 | `status-good` | Green | Good Service |
 | `status-minor` | Amber | Minor Delays |
 | `status-severe` | Red | Severe Delays |
@@ -124,7 +131,7 @@ Shown when a card is in loading state (first ever fetch).
 **Critical distinction — two skeleton states:**
 
 | State | Trigger | Skeleton opacity | Shimmer / Pulse |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Zero state | `hasContent === false` | 10% (faint, ghosted) | None |
 | Loading state | `hasContent === true`, data fetching | 100% (full opacity) | Yes |
 | Stale state | Data exists but TfL cache expired | 100% | Pulsing text (`0.4` to `0.9` opacity, `3000ms` timing) |
@@ -163,6 +170,7 @@ Shown when a card is in loading state (first ever fetch).
 ### 11.4 Post-Expiry Locked Card State
 
 When `entitlementActive === false`:
+
 - First departure renders normally.
 - Remaining slots render as blurred pill placeholders.
 - Inline CTA: *"Unlock all departures →"*. Tapping opens Subscription Sheet.
@@ -175,6 +183,7 @@ When `entitlementActive === false`:
 ## SECTION 17 — "THE FOYER": ONBOARDING ARCHITECTURE
 
 ### 17.2 Step 0 — Splash Screen & Font Hydration (Updated)
+
 **File:** `app/splash.tsx`
 
 - **Font Loading:** You MUST utilise `useFonts()` for SpaceGrotesk and `SplashScreen.preventAutoHideAsync()`. Do not let the app boot with fallback system fonts.
@@ -188,6 +197,7 @@ When `entitlementActive === false`:
 ### 17.6 Screen 3 — Permissions ("The Superpowers")
 
 **Layout & Structure:**
+
 - Back swipe gesture to return to Onboarding Screen 2 (Stations) must be active and state-preserving.
 - Sticky bottom area containing:
   - `ProgressDots` component (`total={3} current={3}`) centered.
@@ -204,11 +214,13 @@ When `entitlementActive === false`:
        - Button "Enable Alerts" styled in solid high-contrast theme.
 
 **Visual Language ("The Foyer"):**
+
 - Linear Option C gradient background (`['#070714', '#0A1128', '#001040', '#000810']` at `[0, 0.38, 0.65, 1]`) with 3% photographic grain overlay.
 - NO frosted glass (glassmorphism is forbidden in "The Foyer" to prevent performance lag and visual inconsistency before the Grand Reveal).
 - Use high-contrast solid pills/elements.
 
 **VoiceOver Accessibility (CRITICAL):**
+
 - Use explicit `accessibilityElements` array or `importantForAccessibility` to guide the screen reader sequentially from the Title -> Calendar Disclosure -> Calendar CTA Button -> Notifications Card -> Notifications CTA Button -> Progress Dots -> "Maybe later" button. This prevents random reading orders.
 - Set `accessibilityLanguage="en-GB"` on the root container.
 - Verbatim calendar disclosure copy must be read immediately before the user selects the "Allow Calendar Access" button.
@@ -240,7 +252,7 @@ Shown when `hasCompletedOnboarding === true` but `pinnedStations.length === 0`.
 ## OPEN ACTION ITEMS (Post v4.6)
 
 | # | Item | Owner | Blocks |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Implement loading state skeleton (100% opacity + shimmer) in `MyCommuteDashboard.tsx` | Engineering | Section 5.3 |
 | 2 | Confirm WCAG 4.5:1 contrast on all glass card text tokens | Design | Section 1.1 + App Store review |
 | 3 | Add `accessibilityLanguage="en-GB"` to root component | Engineering | Section 10.1 |

@@ -240,26 +240,30 @@ export function LineDetailModal({
   // ── 'See alternative routes' — the reroute CTA (single disruption action).
   //    Rule 11: absent (never greyed) when not disrupted.
 
-  // ── Compute anchored position ──
+  // ── Compute anchored position with dynamic height measurement ──
   const popupLeft = (SCREEN_WIDTH - POPUP_WIDTH) / 2;
+  const [popupContentHeight, setPopupContentHeight] = useState<number>(0);
 
   const popupTop = useMemo(() => {
-    if (!anchorRect) return Math.max(SCREEN_HEIGHT / 2 - MAX_POPUP_HEIGHT / 2, MIN_ALLOWED_TOP);
+    const currentHeight = popupContentHeight > 0 ? popupContentHeight : 110;
+    if (!anchorRect) return Math.max(SCREEN_HEIGHT / 2 - currentHeight / 2, MIN_ALLOWED_TOP);
     const spaceBelow = SCREEN_HEIGHT - (anchorRect.y + anchorRect.height);
-    if (spaceBelow < 300) {
-      return Math.max(60, anchorRect.y - MAX_POPUP_HEIGHT - 8);
+    const bottomTabHeight = 84 + insets.bottom + 16;
+    if (spaceBelow < currentHeight + 20 || spaceBelow < bottomTabHeight) {
+      return Math.max(MIN_ALLOWED_TOP, anchorRect.y - currentHeight - 8);
     }
     return anchorRect.y + anchorRect.height + 8;
-  }, [anchorRect, MIN_ALLOWED_TOP]);
+  }, [anchorRect, MIN_ALLOWED_TOP, popupContentHeight, insets.bottom]);
 
   // Clamp BOTH edges: the popup must never start above the safe area AND
   // never extend past the screen bottom (tab bar zone). Reserve bottom tab bar space
   // (84pt + insets.bottom + 16pt margin) so low-anchored cards never overflow.
   const safePopupTop = useMemo(() => {
+    const currentHeight = popupContentHeight > 0 ? popupContentHeight : 110;
     const bottomTabHeight = 84 + insets.bottom + 16;
-    const maxTop = SCREEN_HEIGHT - MAX_POPUP_HEIGHT - bottomTabHeight;
+    const maxTop = SCREEN_HEIGHT - currentHeight - bottomTabHeight;
     return Math.min(Math.max(popupTop, MIN_ALLOWED_TOP), Math.max(maxTop, MIN_ALLOWED_TOP));
-  }, [popupTop, MIN_ALLOWED_TOP, insets.bottom]);
+  }, [popupTop, MIN_ALLOWED_TOP, popupContentHeight, insets.bottom]);
 
   // ── Spring animation values ──
   const translateY = useSharedValue(0);
@@ -323,7 +327,10 @@ export function LineDetailModal({
   };
   const handlePopupLayout = (e: any) => {
     const height = e?.nativeEvent?.layout?.height ?? 0;
-    setPopupMetrics(m => ({ ...m, layout: height }));
+    if (height > 0) {
+      setPopupMetrics(m => ({ ...m, layout: height }));
+      setPopupContentHeight(height);
+    }
   };
 
   const displayLineName = useMemo(() => {
@@ -401,7 +408,10 @@ export function LineDetailModal({
             sibling (UIVisualEffectView ignores maxHeight on iOS — never the
             layout container). ScrollView is an in-flow SIBLING: it drives the
             popup's height (capped), renders crisp ON TOP of the glass. */}
-        <Animated.View style={[styles.popupShadow, { top: safePopupTop }, animStyle]}>
+        <Animated.View
+          onLayout={handlePopupLayout}
+          style={[styles.popupShadow, { top: safePopupTop }, animStyle]}
+        >
           <BlurView
             intensity={GLASS.blurIntensity}
             tint="dark"
@@ -410,17 +420,16 @@ export function LineDetailModal({
           />
           <View style={styles.glassTint} pointerEvents="none" />
 
-          {/* ── Content wrapper: scrollable when content is long ── */}
+          {/* ── Content wrapper: scrollable when content is long, flexGrow: 0 shrink-wraps short content ── */}
           <ScrollView
-            style={{ maxHeight: MAX_POPUP_HEIGHT - 20 }}
-            contentContainerStyle={{ paddingBottom: 14 }}
-            showsVerticalScrollIndicator
+            style={{ flexGrow: 0, maxHeight: MAX_POPUP_HEIGHT - 20 }}
+            contentContainerStyle={{ paddingBottom: 8 }}
+            showsVerticalScrollIndicator={false}
             scrollEnabled
             nestedScrollEnabled
             onScroll={handlePopupScroll}
             scrollEventThrottle={16}
             onContentSizeChange={handlePopupContentSize}
-            onLayout={handlePopupLayout}
           >
               {/* ── Header: line name left, status pill right ── */}
               <View style={styles.heroHeader}>
@@ -446,13 +455,7 @@ export function LineDetailModal({
                 </View>
               </View>
 
-              {/* ── Context Badge (Rule 34) — station impact indicator ──
-                  Driven by this modal's OWN evidence (relevantPinnedStations,
-                  affectedStops, stationImpacted, hasImpactEvidence) — the
-                  previously unwired `contextBadge` prop is dead code removed.
-                  Renders whenever the user has pinned stations on this line,
-                  regardless of disruption state (shows "OK" on good service).
-                  No evidence → no badge (never assert). */}
+              {/* ── Context Badge (Rule 34) — station impact indicator ── */}
               {relevantPinnedStations.length > 0 ? (
                 <View style={[
                   styles.contextBadge,
@@ -494,11 +497,7 @@ export function LineDetailModal({
                 </View>
               ) : null}
 
-              {/* ── Disruption actions — only when disrupted ──
-                  Rule 11: absent (never greyed) when not disrupted.
-                  1) affected/unaffected station indicator — rendered when user has pinned stations
-                     or explicit evidence exists.
-                  2) 'See alternative routes' CTA (single disruption action). */}
+              {/* ── Disruption actions — only when disrupted ── */}
               {isDisrupted && onOpenReroute ? (
                 <>
                   {/* Reroute CTA — 'See alternative routes' (single action) */}
@@ -528,7 +527,7 @@ export function LineDetailModal({
               accessibilityLabel="Close"
               accessibilityRole="button"
             >
-              <X size={20} color="rgba(255,255,255,0.75)" />
+              <X size={16} color="rgba(255,255,255,0.75)" />
             </Pressable>
 
             {/* Scroll affordance — bottom fade + chevron, visible only
@@ -559,7 +558,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: POPUP_WIDTH,
     maxHeight: MAX_POPUP_HEIGHT, // hard cap — popup can never exceed this
-    borderRadius: 18, // shape owned here (BlurView is an absolute background)
+    borderRadius: 16, // shape owned here (BlurView is an absolute background)
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.12)',
@@ -592,24 +591,24 @@ const styles = StyleSheet.create({
 
   closeButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
 
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 14,
-    paddingLeft: 16,
-    paddingRight: 52,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingLeft: 14,
+    paddingRight: 48,
+    paddingBottom: 10,
   },
 
   heroLeft: {

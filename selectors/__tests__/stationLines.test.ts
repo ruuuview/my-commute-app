@@ -82,4 +82,12 @@ describe('getVisibleArrivals', () => {
     expect(result).toHaveLength(1);
     expect(result[0].lineId).toBe('hammersmith-city');
   });
+
+  it('matches Overground branch names (mildmay, weaver, etc.) when overground is selected', () => {
+    const mildmayArrival = makeArrival('mildmay', 'Mildmay line', 0);
+    const result = getVisibleArrivals([northern, mildmayArrival], ['overground']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].lineId).toBe('mildmay');
+  });
 });

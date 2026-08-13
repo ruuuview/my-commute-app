@@ -20,6 +20,17 @@ import { normaliseLineId } from '../utils/normaliseLineId';
  *   as well as the backend-normalised departure rows used by the render
  *   paths (NormalizedDeparture[]) — only `lineId` is read.
  */
+const OVERGROUND_BRANCHES = new Set([
+  'overground',
+  'london-overground',
+  'liberty',
+  'lioness',
+  'mildmay',
+  'suffragette',
+  'weaver',
+  'windrush',
+]);
+
 export function getVisibleArrivals<T extends { lineId: string }>(
   allArrivals: T[],
   userSelectedLines: string[]
@@ -28,9 +39,15 @@ export function getVisibleArrivals<T extends { lineId: string }>(
   if (!userSelectedLines || userSelectedLines.length === 0) return allArrivals;
 
   const selected = new Set(
-    userSelectedLines.map((line) => normaliseLineId(line).cleanLineId)
+    userSelectedLines.map((line) => {
+      const clean = normaliseLineId(line).cleanLineId;
+      return OVERGROUND_BRANCHES.has(clean) ? 'overground' : clean;
+    })
   );
-  return allArrivals.filter((arrival) =>
-    selected.has(normaliseLineId(arrival.lineId).cleanLineId)
-  );
+
+  return allArrivals.filter((arrival) => {
+    const clean = normaliseLineId(arrival.lineId).cleanLineId;
+    const finalId = OVERGROUND_BRANCHES.has(clean) ? 'overground' : clean;
+    return selected.has(finalId);
+  });
 }

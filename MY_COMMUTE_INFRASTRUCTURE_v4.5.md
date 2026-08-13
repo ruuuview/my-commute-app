@@ -1,5 +1,7 @@
 # INFRASTRUCTURE & SERVICES
+
 ## My Commute — Stack, Free Tiers, Upgrade Triggers & Cost Tracking
+
 ### v4.8 — Calendar & Notification Caching Boundaries (Phase 11)
 
 ---
@@ -8,6 +10,7 @@
 > This is the **operational cost and quota authority document**. It owns service configuration, spend thresholds, upgrade triggers, and environment architecture. It does not own product decisions (→ `MY_COMMUTE_MASTER_PLAN.md`), implementation steps (→ `MY_COMMUTE_EXECUTION_PLAN.md`), or visual/UX specifications (→ `MY_COMMUTE_UX_PLAN.md`).
 >
 > **Linked Documents:**
+>
 > - Strategy authority: `MY_COMMUTE_MASTER_PLAN.md` (v2.0+)
 > - Implementation authority: `MY_COMMUTE_EXECUTION_PLAN.md` (v4.6+)
 > - UX/UI authority: `MY_COMMUTE_UX_PLAN.md` (v4.6+)
@@ -19,7 +22,7 @@
 ## DOCUMENT STATUS
 
 | Field | Value |
-|---|---|
+| --- | --- |
 | Last reviewed | June 2026 (Production Audit Sync — v4.7) |
 | Monthly infra spend | £0 (pre-launch, all free tiers) |
 | First required paid upgrade | Vercel Pro (~£17/mo) — Required before TestFlight |
@@ -71,6 +74,7 @@ The app is entirely dependent on the TfL Unified API. TfL goes down regularly.
 To protect user battery, reduce API requests, and guarantee 100% offline functionality (e.g. while deep in the London Underground), the client must cache journey durations locally.
 
 **Mechanism:**
+
 - **Storage Engine:** MMKV via `react-native-mmkv`.
 - **Cache Key Schema:** `commute_duration_${origin_station_id}_${destination_station_id}`
 - **Cache Validity:** 24 hours. If a cached value exists and is less than 24 hours old, it must be returned without making a network request to the backend.
@@ -78,6 +82,7 @@ To protect user battery, reduce API requests, and guarantee 100% offline functio
 - **Storage Limits:** Keep only the most recent 100 station-to-station commute durations. Evict oldest entries when this limit is exceeded to prevent MMKV storage bloat.
 
 **Client-Side Execution Boundaries:**
+
 - Native permissions (`expo-calendar` and `expo-notifications`) must be audited prior to executing background operations.
 - Background processes must catch and gracefully handle permission revocation at runtime without crashing.
 
@@ -97,10 +102,11 @@ To protect user battery, reduce API requests, and guarantee 100% offline functio
 ---
 
 ### 1. RevenueCat
+
 **Role:** Subscription and entitlement layer
 
 | Metric | Free tier | Paid |
-|---|---|---|
+| --- | --- | --- |
 | Monthly Tracked Revenue (MTR) | Up to $2,500/mo | — |
 | Fee above threshold | — | 1% of MTR (gross, before Apple's cut) |
 | Core features on free | Full SDK, webhooks, entitlements, paywalls | — |
@@ -114,11 +120,12 @@ To protect user battery, reduce API requests, and guarantee 100% offline functio
 ---
 
 ### 2. Vercel
+
 **Role:** Python serverless API functions + landing page hosting
 **Risk level: RED — Action required before Beta**
 
 | Metric | Hobby (free) | Pro ($20/mo) |
-|---|---|---|
+| --- | --- | --- |
 | Function invocations | 1M/mo | 10M/mo |
 | Runtime log retention | 1 hour | 1 day |
 | Commercial use | Personal/non-commercial only | Full commercial |
@@ -135,11 +142,12 @@ To protect user battery, reduce API requests, and guarantee 100% offline functio
 ---
 
 ### 3. MongoDB Atlas
+
 **Role:** Primary database (line states, devices, sync data)
 **Risk level: RED — Code action required immediately**
 
 | Metric | M0 Free | M10 Paid (first paid tier) |
-|---|---|---|
+| --- | --- | --- |
 | Storage | 512 MB | 10 GB |
 | Max connections | 500 | 1,500 |
 | Automated backups | None | Yes |
@@ -149,7 +157,9 @@ The 500-connection ceiling is a launch killer. Vercel serverless functions open 
 **Required Fix:** Apply the Singleton pattern in `api/index.py` to cache the connection across warm invocations:
 
 ```python
+
 # Singleton pattern — reuse the MongoClient across warm invocations
+
 _client = None
 
 def get_db():
@@ -172,11 +182,12 @@ def get_db():
 ---
 
 ### 4. Sentry
+
 **Role:** Mobile crash reporting and error monitoring
 **Risk level: RED — Configuration action required**
 
 | Metric | Developer (free) | Team ($26/mo annual) |
-|---|---|---|
+| --- | --- | --- |
 | Errors/month | 5,000 | 50,000 |
 | Performance monitoring | Basic (shared quota) | Full |
 
@@ -195,6 +206,7 @@ def get_db():
 ---
 
 ### 5. Expo EAS Build
+
 **Role:** Cloud CI/CD for building the bare workflow app for App Store submission
 **Risk level: RED — Action required**
 
@@ -211,7 +223,7 @@ Why this is required: Expo bare workflow apps cannot be reliably signed for Appl
 ## COST TIMELINE
 
 | Stage | Trigger | Monthly cost | Services paying for |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Pre-launch (now) | — | £0 | All free tiers |
 | Beta Launch | First TestFlight Invite | ~£17 | Vercel Pro (Commercial License) |
 | Early growth | $2,500 MTR | ~£17 + 1% MTR | Vercel Pro + RevenueCat |
@@ -226,7 +238,7 @@ Why this is required: Expo bare workflow apps cannot be reliably signed for Appl
 ## OPEN ACTION ITEMS (Post v4.6)
 
 | # | Item | Risk | Blocks |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Run `eas build:configure` | P0 | Every signed build |
 | 2 | Upgrade Vercel to Pro | P0 | TestFlight / App Store review |
 | 3 | Set Sentry `tracesSampleRate: 0` + daily cap | P0 | Quota burn |

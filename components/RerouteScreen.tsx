@@ -69,6 +69,7 @@ import type { DetectionSource } from '../hooks/useAutoDetectBranch';
 import { CaretLeft, CaretDown, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
+import { getBranchSuggestedRoute } from './rerouteHelpers';
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
   back: CaretLeft,
@@ -211,6 +212,13 @@ export default function RerouteScreen({
     internalBranch ||
     resolvedTerminus ||
     (branches && branches.length > 0 ? branches[0] : lineName);
+
+  // Dynamic branch-specific suggested route
+  const resolvedSuggestedRoute = getBranchSuggestedRoute(
+    lineId,
+    activeTerminus,
+    suggestedRoute
+  );
 
   // ── Slide-up animation ─────────────────────────────────────────
   const translateY = useSharedValue(visible ? 0 : 900);
@@ -430,14 +438,15 @@ export default function RerouteScreen({
             {row.map((branch) => {
               const status = branchStatuses?.[branch];
               const isAffected = status === 'affected';
-              const isHighlighted = highlightTier !== 'none' && branch === resolvedTerminus;
+              const isHighlighted = branch === activeTerminus;
+              const activeTier = branch === resolvedTerminus ? highlightTier : 'high';
               return (
                 <Pressable
                   key={branch}
                   style={[
                     s.branchGridCard,
-                    isHighlighted && highlightTier === 'high' && s.branchGridCardEmerald,
-                    isHighlighted && highlightTier === 'medium' && s.branchGridCardOrange,
+                    isHighlighted && activeTier === 'high' && s.branchGridCardEmerald,
+                    isHighlighted && activeTier === 'medium' && s.branchGridCardOrange,
                   ]}
                   onPress={() => handleBranchTap(branch)}
                   accessibilityRole="button"
@@ -445,10 +454,7 @@ export default function RerouteScreen({
                   accessibilityState={{ selected: isHighlighted }}
                 >
                   <Text
-                    style={[
-                      s.branchCardName,
-                      isHighlighted && highlightTier === 'medium' && { color: '#FF9500' },
-                    ]}
+                    style={s.branchCardName}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
@@ -477,12 +483,12 @@ export default function RerouteScreen({
           </View>
         ))}
         {/* Source caption — under the highlighted tile ONLY */}
-        {highlightCaption && (
+        {highlightCaption && activeTerminus === resolvedTerminus && (
           <View style={s.branchGridCaptionRow}>
             <View
               style={[
                 s.branchGridCaptionDot,
-                { backgroundColor: highlightTier === 'high' ? STATUS_SEVERITY_COLORS.good : '#FF9500' },
+                { backgroundColor: 'rgba(255,255,255,0.7)' },
               ]}
             />
             <Text style={s.branchGridCaption}>{highlightCaption}</Text>
@@ -497,10 +503,10 @@ export default function RerouteScreen({
       {/* Suggested route glass card — static dark glass (no live blur: iOS
           UIVisualEffectView janks scroll; flat translucent fill reads as
           frosted at a fraction of the cost) */}
-      {suggestedRoute && (
+      {resolvedSuggestedRoute && (
         <View style={s.suggestedRouteCard}>
           <Text style={s.suggestedRouteTitle}>Suggested route</Text>
-          <Text style={s.suggestedRouteDesc}>{suggestedRoute.description}</Text>
+          <Text style={s.suggestedRouteDesc}>{resolvedSuggestedRoute.description}</Text>
           <View style={s.extraTimeRow}>
             <ICON.clock size={13} color="rgba(255,255,255,0.45)" />
             <Text style={[s.extraTimeText, isLiveResolving && { opacity: 0.4 }]}>
@@ -508,7 +514,7 @@ export default function RerouteScreen({
                 ? '+·· min'
                 : liveExtraTime !== null
                   ? `+${liveExtraTime} min`
-                  : `${isLiveFallback ? '~' : '+'}${suggestedRoute.extraTimeMinutes} min`}
+                  : `${isLiveFallback ? '~' : '+'}${resolvedSuggestedRoute.extraTimeMinutes} min`}
             </Text>
           </View>
         </View>
@@ -905,18 +911,17 @@ const s = StyleSheet.create({
     minHeight: 44,
     gap: 10,
   },
-  // High confidence (session/notification/strong history) — emerald solid.
+  // High confidence / manual selection highlight — premium status-neutral white.
   branchGridCardEmerald: {
     borderWidth: 2,
-    borderColor: STATUS_SEVERITY_COLORS.good,
-    backgroundColor: 'rgba(48,209,88,0.12)',
+    borderColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  // Medium confidence (weak history pattern) — soft-orange, the exact
-  // rgba(255,149,0,0.20) token the old "Change" pill used.
+  // Medium confidence highlight — premium status-neutral translucent white.
   branchGridCardOrange: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,149,0,0.45)',
-    backgroundColor: 'rgba(255,149,0,0.20)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.80)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
   branchCardRight: {
     flexDirection: 'row',

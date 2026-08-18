@@ -413,3 +413,146 @@ export function isLineWideDisruption(reasonText: string, statusType?: string): b
   );
 }
 
+/**
+ * Get branch-specific suggested route recommendations.
+ * Replaces vague static text with highly specific, justified alternatives.
+ */
+export interface SuggestedRouteData {
+  description: string;
+  extraTimeMinutes: number;
+}
+
+export function getBranchSuggestedRoute(
+  lineId: string,
+  terminus: string,
+  fallbackRoute?: SuggestedRouteData
+): SuggestedRouteData | undefined {
+  const normLine = normalizeLineId(lineId);
+  const term = String(terminus ?? '').trim();
+
+  if (normLine === 'elizabeth') {
+    if (term === 'Reading') {
+      return {
+        description: 'Use fast Great Western Railway (GWR) services from London Paddington directly to Reading.',
+        extraTimeMinutes: 10,
+      };
+    }
+    if (term.startsWith('Heathrow')) {
+      return {
+        description: 'Take the Piccadilly line or the Heathrow Express from Paddington to reach Heathrow terminals.',
+        extraTimeMinutes: 15,
+      };
+    }
+    if (term === 'Shenfield') {
+      return {
+        description: 'Use Greater Anglia services from Liverpool Street or the Central line to Stratford for parallel travel.',
+        extraTimeMinutes: 8,
+      };
+    }
+    if (term === 'Abbey Wood') {
+      return {
+        description: 'Use Southeastern services from London Bridge or the Jubilee line + DLR via Canning Town to Woolwich/Abbey Wood.',
+        extraTimeMinutes: 12,
+      };
+    }
+  }
+
+  if (normLine === 'northern') {
+    if (term === 'Morden') {
+      return {
+        description: 'Use Thameslink services from London Bridge / Elephant & Castle for parallel travel south to Morden.',
+        extraTimeMinutes: 8,
+      };
+    }
+    if (term === 'Edgware') {
+      return {
+        description: 'Use Thameslink services from St Pancras to Mill Hill Broadway, then connect via local buses.',
+        extraTimeMinutes: 14,
+      };
+    }
+    if (term === 'High Barnet') {
+      return {
+        description: 'Take Great Northern services from Moorgate to Finsbury Park / Highbury & Islington for northbound travel.',
+        extraTimeMinutes: 11,
+      };
+    }
+    if (term.startsWith('Battersea')) {
+      return {
+        description: 'Use London Buses or Southern rail services from Victoria to Battersea Park / Power Station.',
+        extraTimeMinutes: 6,
+      };
+    }
+  }
+
+  if (normLine === 'central') {
+    if (term === 'Ealing Broadway') {
+      return {
+        description: 'Use the Elizabeth line or Great Western Railway (GWR) from Paddington for faster parallel travel.',
+        extraTimeMinutes: 6,
+      };
+    }
+    if (term === 'West Ruislip') {
+      return {
+        description: 'Use Chiltern Railways services from London Marylebone directly to West Ruislip.',
+        extraTimeMinutes: 12,
+      };
+    }
+    if (term === 'Epping') {
+      return {
+        description: 'Take London Overground to Chingford, then connect via local bus routes (e.g. 97/212/379) to Epping.',
+        extraTimeMinutes: 15,
+      };
+    }
+    if (term.includes('Hainault')) {
+      return {
+        description: 'Use London Overground to Walthamstow Central/Leytonstone High Road and parallel buses to Hainault.',
+        extraTimeMinutes: 10,
+      };
+    }
+  }
+
+  if (normLine === 'piccadilly') {
+    if (term.startsWith('Heathrow')) {
+      return {
+        description: 'Use the Elizabeth line or Heathrow Express from Paddington to Heathrow terminals.',
+        extraTimeMinutes: 10,
+      };
+    }
+    if (term === 'Uxbridge') {
+      return {
+        description: 'Use the Metropolitan line running parallel from Rayners Lane to Uxbridge.',
+        extraTimeMinutes: 5,
+      };
+    }
+  }
+
+  if (normLine === 'district') {
+    if (term === 'Richmond') {
+      return {
+        description: 'Take London Overground or South Western Railway (SWR) services from London Waterloo / Richmond.',
+        extraTimeMinutes: 8,
+      };
+    }
+    if (term === 'Wimbledon') {
+      return {
+        description: 'Take South Western Railway (SWR) services from London Waterloo directly to Wimbledon.',
+        extraTimeMinutes: 7,
+      };
+    }
+    if (term === 'Ealing Broadway') {
+      return {
+        description: 'Use the Central line or Elizabeth line services from Paddington to Ealing Broadway.',
+        extraTimeMinutes: 6,
+      };
+    }
+    if (term === 'Upminster') {
+      return {
+        description: 'Use c2c National Rail services from London Fenchurch Street directly to Upminster.',
+        extraTimeMinutes: 5,
+      };
+    }
+  }
+
+  return fallbackRoute;
+}
+

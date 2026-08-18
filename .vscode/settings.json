@@ -4,13 +4,18 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
+    "gradle.autoDetect": "off",
+    "gradle.nestedProjects": false,
     "java.gradle.buildServer.enabled": "off",
     "java.import.gradle.enabled": false,
+    "java.import.gradle.wrapper.enabled": false,
     "java.autobuild.enabled": false,
     "java.configuration.updateBuildConfiguration": "disabled",
+    "java.errors.incompleteClasspath.severity": "ignore",
     "java.import.exclusions": [
         "**/node_modules/**",
         "**/.git/**",
-        "**/android/build/**"
+        "**/android/build/**",
+        "**/android/.gradle/**"
     ]
 }

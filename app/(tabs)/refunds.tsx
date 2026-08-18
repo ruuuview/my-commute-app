@@ -47,7 +47,7 @@ import { DEMO_MODE } from '../../config/demoMode'
 import { useRouter } from 'expo-router'
 import { requestPermission, usePermissionOrchestrator } from '../../store/permissionOrchestrator'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
-import { GLASS, PREMIUM_BUTTON } from '../../theme/colors'
+import { GLASS } from '../../theme/colors'
 
 // ── Operational Constants ─────────────────────────────────────────────
 // TFL_CONTACTLESS_PORTAL_URL: Official TfL contactless & Oyster journey history portal
@@ -470,7 +470,7 @@ export default function RefundsScreen() {
     setTflRegistered(true)
     try {
       await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL)
-    } catch (e) {
+    } catch {
       await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL).catch(() => {})
     }
   }, [setTflRegistered])

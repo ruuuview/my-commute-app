@@ -3,5 +3,14 @@
         "android"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "java.gradle.buildServer.enabled": "off",
+    "java.import.gradle.enabled": false,
+    "java.autobuild.enabled": false,
+    "java.configuration.updateBuildConfiguration": "disabled",
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/android/build/**"
+    ]
 }

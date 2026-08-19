@@ -3,6 +3,18 @@ import * as Notifications from 'expo-notifications';
 import { APP_CONFIG } from '../config/app.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestPermission } from '../store/permissionOrchestrator';
+import { fetchWithTimeout, TimeoutError } from '../utils/network';
+
+// ── Operational Constants ─────────────────────────────────────────────
+// PUSH_REGISTRATION_TIMEOUT_MS: 15-second network timeout for device token backend registration
+const PUSH_REGISTRATION_TIMEOUT_MS = 15000;
+// PUSH_REGISTRATION_RETRY_DELAY_MS: 1-second backoff for transient cellular/WiFi handoff drops
+const PUSH_REGISTRATION_RETRY_DELAY_MS = 1000;
+// MAX_REGISTRATION_RETRIES: Maximum 1 retry on network or 5xx failures to prevent battery drain
+const MAX_REGISTRATION_RETRIES = 1;
+
+const STORAGE_KEY_TOKEN = 'registered_push_token';
+const STORAGE_KEY_LINES = 'registered_push_lines';
 
 // Lazy load FCM on Android
 let messaging: any = null;
@@ -12,6 +24,67 @@ if (Platform.OS === 'android') {
     messaging = require('@react-native-firebase/messaging').default;
   } catch {
     console.warn('⚠️ FCM: React Native Firebase not available');
+  }
+}
+
+/**
+ * Internal helper to send push token registration to backend with retry & timeout handling.
+ */
+async function registerDevicePushToken(
+  token: string,
+  selectedLines: string[],
+  retriesRemaining: number = MAX_REGISTRATION_RETRIES
+): Promise<boolean> {
+  const normalizedLines = [...selectedLines].sort();
+  try {
+    console.log(
+      `📱 [PushService] Sending registration request to backend for token ${token.substring(0, 12)}... with lines:`,
+      normalizedLines
+    );
+
+    const response = await fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/devices/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      timeoutMs: PUSH_REGISTRATION_TIMEOUT_MS,
+      body: JSON.stringify({
+        token: token,
+        lines: normalizedLines,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ [PushService] Push Token registered with backend:', data);
+      await AsyncStorage.setItem(STORAGE_KEY_TOKEN, token);
+      await AsyncStorage.setItem(STORAGE_KEY_LINES, JSON.stringify(normalizedLines));
+      return true;
+    }
+
+    const errorText = await response.text();
+    // Retry on 5xx server errors
+    if (response.status >= 500 && retriesRemaining > 0) {
+      console.warn(`⚠️ [PushService] Backend returned HTTP ${response.status}. Retrying in ${PUSH_REGISTRATION_RETRY_DELAY_MS}ms...`);
+      await new Promise(res => setTimeout(res, PUSH_REGISTRATION_RETRY_DELAY_MS));
+      return registerDevicePushToken(token, selectedLines, retriesRemaining - 1);
+    }
+
+    console.error(`❌ [PushService] Failed to register push token (HTTP ${response.status}):`, errorText);
+    return false;
+  } catch (error: any) {
+    if (error instanceof TimeoutError) {
+      console.warn(`⚠️ [PushService] Registration timed out after ${error.timeoutMs}ms.`);
+    } else {
+      console.warn('⚠️ [PushService] Network error during push token registration:', error?.message ?? error);
+    }
+
+    if (retriesRemaining > 0) {
+      console.log(`🔄 [PushService] Retrying registration in ${PUSH_REGISTRATION_RETRY_DELAY_MS}ms (${retriesRemaining} retry left)...`);
+      await new Promise(res => setTimeout(res, PUSH_REGISTRATION_RETRY_DELAY_MS));
+      return registerDevicePushToken(token, selectedLines, retriesRemaining - 1);
+    }
+
+    console.error('❌ [PushService] Push token registration exhausted retries.');
+    return false;
   }
 }
 
@@ -25,7 +98,7 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
         primer: false,
       });
       if (decision !== 'granted') {
-        console.log('⚠️ Push permission not granted. Skipping token registration.');
+        console.log('⚠️ [PushService] Push permission not granted. Skipping token registration.');
         return;
       }
     }
@@ -36,46 +109,42 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
       try {
         const devicePushToken = await Notifications.getDevicePushTokenAsync();
         token = devicePushToken.data;
-        console.log('📱 APNS: Fetched iOS device push token:', token ? `${token.substring(0, 12)}...` : null);
+        console.log('📱 [PushService] APNS: Fetched iOS device push token:', token ? `${token.substring(0, 12)}...` : null);
       } catch (err) {
-        console.warn('⚠️ APNS: Failed to fetch iOS device token (this is expected on simulator):', err);
+        console.warn('⚠️ [PushService] APNS: Failed to fetch iOS device token (this is expected on simulator):', err);
       }
     } else if (Platform.OS === 'android' && messaging) {
       try {
         token = await messaging().getToken();
-        console.log('📱 FCM: Fetched Android device push token:', token ? `${token.substring(0, 12)}...` : null);
+        console.log('📱 [PushService] FCM: Fetched Android device push token:', token ? `${token.substring(0, 12)}...` : null);
       } catch (err) {
-        console.error('❌ FCM token fetch failed:', err);
+        console.error('❌ [PushService] FCM token fetch failed:', err);
       }
     }
 
     if (!token) {
-      console.log('⚠️ No push token retrieved.');
+      console.log('⚠️ [PushService] No push token retrieved.');
       return;
     }
 
-    // Register with Vercel backend
-    console.log(`📱 Sending registration request to backend for token ${token.substring(0, 12)}... with lines:`, selectedLines);
-    const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/devices/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(15000),
-      body: JSON.stringify({
-        token: token,
-        lines: selectedLines,
-      }),
-    });
+    // Payload Deduplication: Check if token & sorted line list are already synced
+    const normalizedLines = [...selectedLines].sort();
+    const [cachedToken, cachedLinesRaw] = await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEY_TOKEN),
+      AsyncStorage.getItem(STORAGE_KEY_LINES),
+    ]);
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Push Token registered with backend:', data);
-      await AsyncStorage.setItem('registered_push_token', token);
-      await AsyncStorage.setItem('registered_push_lines', JSON.stringify(selectedLines));
-    } else {
-      const errorText = await response.text();
-      console.error('❌ Failed to register push token with backend:', errorText);
+    const cachedLinesJson = cachedLinesRaw ? JSON.stringify(JSON.parse(cachedLinesRaw).sort()) : null;
+    const currentLinesJson = JSON.stringify(normalizedLines);
+
+    if (cachedToken === token && cachedLinesJson === currentLinesJson) {
+      console.log('📱 [PushService] Token & line preferences already synced with backend. Skipping redundant network call.');
+      return;
     }
+
+    // Perform registration with retry & timeout protection
+    await registerDevicePushToken(token, normalizedLines);
   } catch (error) {
-    console.error('❌ Error in syncPushTokenWithBackend:', error);
+    console.error('❌ [PushService] Error in syncPushTokenWithBackend:', error);
   }
 }

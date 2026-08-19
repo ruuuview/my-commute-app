@@ -35,6 +35,7 @@ import { APP_CONFIG } from '../config/app.config';
 import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { getSeverityRank } from '../utils/getSeverityColor';
+import { fetchWithTimeout } from '../utils/network';
 
 // ---- Storage: App Group MMKV so Swift Live Activity can READ the same cache ----
 // App Group sharing is configured natively via the `AppGroupIdentifier` key in
@@ -188,22 +189,16 @@ async function runGrab(stationId: string, lineId: string): Promise<void> {
 // ----------------------------------------------------------------------------
 async function grabDisruption(lineId: string): Promise<Tier2Disruption | null> {
   const attempt = async (): Promise<Tier2Disruption | null> => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), DISRUPTION_TIMEOUT_MS);
-    try {
-      const resp = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-      });
-      if (!resp.ok) {
-        throw new Error(`Disruption fetch HTTP ${resp.status}`);
-      }
-      const lines: any[] = await resp.json();
-      return mapLineToDisruption(lines, lineId);
-    } finally {
-      clearTimeout(timeout);
+    const resp = await fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      timeoutMs: DISRUPTION_TIMEOUT_MS,
+    });
+    if (!resp.ok) {
+      throw new Error(`Disruption fetch HTTP ${resp.status}`);
     }
+    const lines: any[] = await resp.json();
+    return mapLineToDisruption(lines, lineId);
   };
 
   try {
@@ -239,17 +234,16 @@ async function grabArrivals(stationId: string): Promise<Tier2PlatformArrival[]> 
 
   let lastError: unknown = null;
   for (let attemptIdx = 0; attemptIdx < ARRIVALS_BACKOFF_MS.length; attemptIdx++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ARRIVALS_TIMEOUT_MS);
     try {
       const responses = await Promise.all(
         resolvedIds.map((id) =>
-          fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: controller.signal })
+          fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, {
+            timeoutMs: ARRIVALS_TIMEOUT_MS,
+          })
             .then((res) => (res.ok ? res.json() : null))
             .catch(() => null)
         )
       );
-      clearTimeout(timeout);
 
       const arrivals = flattenArrivals(responses);
       if (arrivals.length > 0) {
@@ -257,7 +251,6 @@ async function grabArrivals(stationId: string): Promise<Tier2PlatformArrival[]> 
       }
       lastError = new Error(`Arrivals fetch returned no data on attempt ${attemptIdx + 1}`);
     } catch (err) {
-      clearTimeout(timeout);
       lastError = err;
       console.warn(
         `[tier2Cache] Arrivals attempt ${attemptIdx + 1}/${ARRIVALS_BACKOFF_MS.length} failed for ${stationId}:`,

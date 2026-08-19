@@ -8,6 +8,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
 import { SessionManager } from './SessionManager';
 import { getSeverityRank } from '../utils/getSeverityColor';
+import { fetchWithTimeout } from '../utils/network';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
@@ -104,22 +105,17 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     }
 
     // 3. Fetch latest line statuses
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const response = await fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      timeoutMs: 10000,
+    }).catch(err => {
+      console.log('❌ Background Fetch network error:', err);
+      return null;
+    });
 
-    let response;
-    try {
-      response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      console.log(`❌ Background Fetch: HTTP error ${response.status}`);
+    if (!response || !response.ok) {
+      console.log(`❌ Background Fetch: HTTP error ${response?.status ?? 'No Response'}`);
       return BackgroundFetch.BackgroundFetchResult.Failed;
     }
 

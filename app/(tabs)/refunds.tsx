@@ -19,12 +19,14 @@ import {
   ActivityIndicator,
   Switch,
   Linking,
+  Image,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import {
   Broadcast,
   CheckCircle,
@@ -48,6 +50,7 @@ import { useRouter } from 'expo-router'
 import { requestPermission, usePermissionOrchestrator } from '../../store/permissionOrchestrator'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { GLASS } from '../../theme/colors'
+import { OnboardingGradient } from '../../components/OnboardingGradient'
 
 // ── Operational Constants ─────────────────────────────────────────────
 // TFL_CONTACTLESS_PORTAL_URL: Official TfL contactless & Oyster journey history portal
@@ -162,7 +165,7 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
 
   return (
     <View style={styles.cardOuter}>
-      <BlurView intensity={45} tint="dark" style={styles.cardBlur}>
+      <BlurView intensity={30} tint="dark" style={styles.cardBlur}>
         {/* Top row: status badge + amount */}
         <View style={styles.cardHeader}>
           <View style={[styles.statusBadge, { borderColor: cfg.color }]}>
@@ -174,7 +177,7 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
 
         {/* Journey details */}
         <View style={styles.journeyRow}>
-          <Train size={14} color="rgba(255,255,255,0.4)" weight="regular" />
+          <Train size={14} color="rgba(255,255,255,0.45)" weight="regular" />
           <Text style={styles.journeyLine}>
             {claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1)}
           </Text>
@@ -184,7 +187,7 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
           <Text style={styles.stationText} numberOfLines={1}>
             {claim.entryStation ?? 'Unknown'}
           </Text>
-          <ArrowRight size={14} color="rgba(255,255,255,0.3)" weight="bold" />
+          <ArrowRight size={14} color="rgba(255,255,255,0.35)" weight="bold" />
           <Text style={styles.stationText} numberOfLines={1}>
             {claim.exitStation ?? 'Unknown'}
           </Text>
@@ -313,7 +316,7 @@ const TflRadarExplainerCard = React.memo(({
 }) => {
   return (
     <View style={styles.explainerCardOuter}>
-      <BlurView intensity={45} tint="dark" style={styles.explainerCardBlur}>
+      <BlurView intensity={30} tint="dark" style={styles.explainerCardBlur}>
         {/* Accent Bar */}
         <View style={[styles.explainerAccentBar, isRegistered && { backgroundColor: '#34C759' }]} />
 
@@ -343,8 +346,8 @@ const TflRadarExplainerCard = React.memo(({
           <View style={styles.comparisonBox}>
             {/* Registered Row */}
             <View style={styles.compareItem}>
-              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(52, 199, 89, 0.15)' }]}>
-                <LinkIcon size={18} color="#34C759" weight="bold" />
+              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(52, 211, 153, 0.18)' }]}>
+                <LinkIcon size={18} color="#34D399" weight="bold" />
               </View>
               <View style={styles.compareTextCol}>
                 <View style={styles.compareTitleRow}>
@@ -365,11 +368,11 @@ const TflRadarExplainerCard = React.memo(({
 
             {/* Not Registered Row */}
             <View style={styles.compareItem}>
-              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
-                <LinkBreak size={18} color="rgba(255, 255, 255, 0.5)" weight="bold" />
+              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                <LinkBreak size={18} color="rgba(255, 255, 255, 0.6)" weight="bold" />
               </View>
               <View style={styles.compareTextCol}>
-                <Text style={[styles.compareHeading, { color: 'rgba(255,255,255,0.7)' }]}>Not registered</Text>
+                <Text style={[styles.compareHeading, { color: 'rgba(255,255,255,0.75)' }]}>Not registered</Text>
                 <Text style={styles.compareBody}>
                   Just 7 days of history. Most delays fall outside that window, so Refund Radar is nearly useless until you register.
                 </Text>
@@ -609,7 +612,7 @@ export default function RefundsScreen() {
               if (decision !== 'granted') return;
             }
           }}
-          trackColor={{ false: '#374151', true: '#007AFF' }}
+          trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#007AFF' }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -617,7 +620,7 @@ export default function RefundsScreen() {
       {/* Recovered-so-far banner */}
       {recoveredFormatted && (
         <View style={styles.bannerOuter}>
-          <BlurView intensity={45} tint="dark" style={styles.recoveredBanner}>
+          <BlurView intensity={30} tint="dark" style={styles.recoveredBanner}>
             <View>
               <Text style={styles.bannerLabel}>Recovered so far</Text>
               <Text style={styles.recoveredCaption}>{"Money you've told us landed"}</Text>
@@ -630,7 +633,7 @@ export default function RefundsScreen() {
       {/* Pending refunds banner */}
       {data && data.pendingTotal > 0 && (
         <View style={styles.bannerOuter}>
-          <BlurView intensity={45} tint="dark" style={styles.pendingBanner}>
+          <BlurView intensity={30} tint="dark" style={styles.pendingBanner}>
             <Text style={styles.bannerLabel}>Pending refunds</Text>
             <Text style={styles.pendingAmount}>{pendingFormatted}</Text>
           </BlurView>
@@ -662,7 +665,7 @@ export default function RefundsScreen() {
     if (loading) {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="rgba(255,255,255,0.4)" />
+          <ActivityIndicator size="large" color="rgba(255,255,255,0.5)" />
         </View>
       )
     }
@@ -700,25 +703,39 @@ export default function RefundsScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FlatList
-        data={data?.claims ?? []}
-        keyExtractor={item => String(item.id)}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
-        renderItem={({ item }) => (
-          <ClaimCard claim={item} onUpdate={updateClaim} updating={updating[item.id]} />
-        )}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="rgba(255,255,255,0.4)"
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+    <View style={styles.rootContainer}>
+      {/* Background Gradient — Signature Deep TfL Navy/Midnight Blue */}
+      <OnboardingGradient />
+
+      {/* Film Grain Texture Overlay */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+        <Image
+          source={require('../../assets/images/grain.png')}
+          style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
+          resizeMode="repeat"
+        />
+      </View>
+
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <FlatList
+          data={data?.claims ?? []}
+          keyExtractor={item => String(item.id)}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          renderItem={({ item }) => (
+            <ClaimCard claim={item} onUpdate={updateClaim} updating={updating[item.id]} />
+          )}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="rgba(255,255,255,0.6)"
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </View>
   )
 }
@@ -726,9 +743,13 @@ export default function RefundsScreen() {
 // ── Styles ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    backgroundColor: '#07103a',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: 'transparent',
   },
   header: {
     paddingHorizontal: 20,
@@ -744,7 +765,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 15,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.6)',
     marginTop: 2,
   },
 
@@ -755,9 +776,9 @@ const styles = StyleSheet.create({
   },
   explainerCardBlur: {
     borderRadius: 22,
-    backgroundColor: GLASS.background,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.22)',
     overflow: 'hidden',
   },
   explainerAccentBar: {
@@ -777,14 +798,16 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(0,152,212,0.15)',
+    backgroundColor: 'rgba(0,152,212,0.20)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,152,212,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   explainerEyebrow: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.6)',
     letterSpacing: 1.1,
   },
   explainerTitle: {
@@ -799,17 +822,17 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.75)',
     marginBottom: 14,
   },
 
   // Comparison Box
   comparisonBox: {
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0, 16, 56, 0.45)',
     borderRadius: 16,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.16)',
     marginBottom: 14,
   },
   compareItem: {
@@ -840,25 +863,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   activePill: {
-    backgroundColor: 'rgba(52, 199, 89, 0.2)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(52, 211, 153, 0.25)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(52, 211, 153, 0.45)',
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
   activePillText: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 10,
-    color: '#34C759',
+    color: '#34D399',
+    letterSpacing: 0.5,
   },
   compareBody: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 13,
     lineHeight: 18,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.70)',
   },
   comparisonDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     marginVertical: 12,
   },
 
@@ -874,7 +900,7 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12.5,
     lineHeight: 17,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.55)',
   },
 
   // CTAs
@@ -889,6 +915,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     height: 48,
     gap: 8,
+    shadowColor: '#0098D4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
   },
   registerPrimaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -903,7 +934,7 @@ const styles = StyleSheet.create({
   alreadyRegisteredBtnText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.6)',
     textDecorationLine: 'underline',
   },
   registeredControlsRow: {
@@ -915,7 +946,9 @@ const styles = StyleSheet.create({
   reopenPortalBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.25)',
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -929,7 +962,7 @@ const styles = StyleSheet.create({
   disconnectLink: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.5)',
     textDecorationLine: 'underline',
   },
 
@@ -943,9 +976,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.16)',
     gap: 12,
   },
   claimAlertsInfo: {
@@ -960,7 +993,7 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 13,
     lineHeight: 18,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.65)',
     marginTop: 2,
   },
   denialLine: {
@@ -983,9 +1016,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.20)',
     overflow: 'hidden',
   },
   recoveredBanner: {
@@ -995,15 +1028,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(52,199,89,0.10)',
+    backgroundColor: 'rgba(52,211,153,0.14)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(52,199,89,0.35)',
+    borderColor: 'rgba(52,211,153,0.35)',
     overflow: 'hidden',
   },
   bannerLabel: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.75)',
   },
   pendingAmount: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -1014,13 +1047,13 @@ const styles = StyleSheet.create({
   recoveredAmount: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 22,
-    color: '#34C759',
+    color: '#34D399',
     letterSpacing: -0.3,
   },
   recoveredCaption: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
-    color: 'rgba(52,199,89,0.7)',
+    color: 'rgba(52,211,153,0.8)',
     marginTop: 2,
   },
 
@@ -1042,7 +1075,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.65)',
   },
 
   // Section Header
@@ -1063,7 +1096,7 @@ const styles = StyleSheet.create({
   sectionCount: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.5)',
   },
 
   // ── Claim Card ──────────────────────────────────────────────────────
@@ -1074,9 +1107,9 @@ const styles = StyleSheet.create({
   cardBlur: {
     borderRadius: 20,
     padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.20)',
     overflow: 'hidden',
   },
   cardHeader: {
@@ -1093,7 +1126,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   statusLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
@@ -1116,7 +1149,7 @@ const styles = StyleSheet.create({
   journeyLine: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.55)',
     textTransform: 'capitalize',
   },
   stationRow: {
@@ -1128,7 +1161,7 @@ const styles = StyleSheet.create({
   stationText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255,255,255,0.95)',
     flex: 1,
   },
   metaRow: {
@@ -1139,13 +1172,13 @@ const styles = StyleSheet.create({
   metaText: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.45)',
   },
   delayBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,184,0,0.12)',
+    backgroundColor: 'rgba(255,184,0,0.15)',
   },
   delayText: {
     fontFamily: 'SpaceGrotesk_500Medium',
@@ -1162,7 +1195,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1176,16 +1209,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(74,158,255,0.18)',
+    backgroundColor: 'rgba(74,158,255,0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.45)',
+    borderColor: 'rgba(74,158,255,0.5)',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   receivedButton: {
-    backgroundColor: 'rgba(52,199,89,0.15)',
-    borderColor: 'rgba(52,199,89,0.40)',
+    backgroundColor: 'rgba(52,211,153,0.18)',
+    borderColor: 'rgba(52,211,153,0.45)',
   },
   loopButtonText: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
@@ -1198,9 +1231,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,184,0,0.10)',
+    backgroundColor: 'rgba(255,184,0,0.12)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,184,0,0.30)',
+    borderColor: 'rgba(255,184,0,0.35)',
   },
   overdueText: {
     flex: 1,
@@ -1211,7 +1244,7 @@ const styles = StyleSheet.create({
   receivedMeta: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
-    color: 'rgba(52,199,89,0.7)',
+    color: 'rgba(52,211,153,0.85)',
     marginTop: 10,
   },
 
@@ -1226,20 +1259,25 @@ const styles = StyleSheet.create({
     paddingVertical: 36,
   },
   radarPulsingRing: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(0,152,212,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,152,212,0.35)',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0,152,212,0.18)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,152,212,0.50)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    shadowColor: '#0098D4',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 6,
   },
   emptyTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 18,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.85)',
     marginBottom: 6,
     textAlign: 'center',
   },
@@ -1247,16 +1285,16 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
+    borderColor: 'rgba(255,255,255,0.35)',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,

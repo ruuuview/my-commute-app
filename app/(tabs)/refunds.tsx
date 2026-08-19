@@ -1,5 +1,5 @@
 // app/(tabs)/refunds.tsx
-// Refund Radar — delay repay claims history with frosted glassmorphism & adaptive radar interface.
+// Refund Radar — clean delay repay claims history & active radar tracking.
 //
 // The "Did you get it?" loop (v10 spec):
 //   Eligible (app-detected) → Filed (user taps "I filed my claim") →
@@ -40,7 +40,6 @@ import {
   ArrowsClockwise,
   Train,
   Sparkle,
-  CurrencyGbp,
 } from 'phosphor-react-native'
 import { APP_CONFIG } from '../../config/app.config'
 import { launchTflAuth } from '../../services/authSession'
@@ -94,7 +93,7 @@ interface ClaimsResponse {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; Icon: React.ComponentType<{ size?: number; color?: string; weight?: any }> }> = {
   eligible:   { label: 'Eligible — file on TfL', color: '#FFB800', Icon: WarningCircle },
-  filed:      { label: 'Filed — awaiting payment', color: '#4A9EFF', Icon: PaperPlaneRight },
+  filed:      { label: 'Filed — awaiting payment', color: '#0098D4', Icon: PaperPlaneRight },
   received:   { label: 'Received', color: '#34C759', Icon: CheckCircle },
   ineligible: { label: 'Not Eligible', color: 'rgba(255,255,255,0.35)', Icon: WarningCircle },
   expired:    { label: 'Expired', color: 'rgba(255,255,255,0.2)', Icon: Clock },
@@ -304,7 +303,8 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
 })
 ClaimCard.displayName = 'ClaimCard'
 
-// ── Unregistered: Full Explainer & Comparison Pitch Card ──────────────
+// ── UNREGISTERED ONLY: Educational Pitch Card ─────────────────────────
+// Clean Light Blue accents matching 3rd onboarding screen.
 const TflUnregisteredPitchCard = React.memo(({
   onRegister,
   onToggleRegistered,
@@ -334,30 +334,28 @@ const TflUnregisteredPitchCard = React.memo(({
 
           {/* Comparison Container */}
           <View style={styles.comparisonBox}>
-            {/* Registered Row */}
             <View style={styles.compareItem}>
-              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(52, 211, 153, 0.18)' }]}>
-                <LinkIcon size={18} color="#34D399" weight="bold" />
+              <View style={styles.compareIconPill}>
+                <LinkIcon size={18} color="#0098D4" weight="bold" />
               </View>
               <View style={styles.compareTextCol}>
                 <Text style={styles.compareHeading}>Registered with TfL</Text>
                 <Text style={styles.compareBody}>
-                  12 months of claimable journey history. Refund Radar can reach nearly every delay you were owed.
+                  Full 28-day Delay Repay window. Refund Radar reaches every eligible delay within TfL’s 28-day claim policy.
                 </Text>
               </View>
             </View>
 
             <View style={styles.comparisonDivider} />
 
-            {/* Not Registered Row */}
             <View style={styles.compareItem}>
-              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              <View style={[styles.compareIconPill, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
                 <LinkBreak size={18} color="rgba(255, 255, 255, 0.6)" weight="bold" />
               </View>
               <View style={styles.compareTextCol}>
                 <Text style={[styles.compareHeading, { color: 'rgba(255,255,255,0.75)' }]}>Not registered</Text>
                 <Text style={styles.compareBody}>
-                  Just 7 days of history. Most delays fall outside that window, so Refund Radar is nearly useless until you register.
+                  Only 7 days of journey history visible online. Delays from 8–28 days ago are lost and cannot be viewed.
                 </Text>
               </View>
             </View>
@@ -404,87 +402,59 @@ const TflUnregisteredPitchCard = React.memo(({
 })
 TflUnregisteredPitchCard.displayName = 'TflUnregisteredPitchCard'
 
-// ── Registered: Compact Radar Active Header Pill ──────────────────────
-const TflRegisteredStatusHeader = React.memo(({
+// ── REGISTERED ONLY: Clean Minimal Active Status Bar ──────────────────
+// Pure Light Blue indicator matching the design system.
+const TflRegisteredCleanStatusBar = React.memo(({
   monitoredLineCount,
-  onOpenPortal,
-  onToggleRegistered,
 }: {
   monitoredLineCount: number
-  onOpenPortal: () => void
-  onToggleRegistered: (val: boolean) => void
 }) => {
   return (
     <View style={styles.registeredStatusBarOuter}>
       <BlurView intensity={30} tint="dark" style={styles.registeredStatusBarBlur}>
         <View style={styles.registeredStatusLeft}>
-          <View style={styles.pulsingGreenDot}>
-            <View style={styles.pulsingGreenDotInner} />
+          <View style={styles.pulsingBlueDot}>
+            <View style={styles.pulsingBlueDotInner} />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <View style={styles.statusTitleRow}>
-              <Text style={styles.registeredStatusTitle}>12-Month Radar Active</Text>
+              <Text style={styles.registeredStatusTitle}>28-Day Delay Radar Active</Text>
               <View style={styles.connectedPill}>
                 <Text style={styles.connectedPillText}>CONNECTED</Text>
               </View>
             </View>
             <Text style={styles.registeredStatusSubtitle}>
-              Monitoring {monitoredLineCount} saved {monitoredLineCount === 1 ? 'line' : 'lines'} for qualifying delays
+              Monitoring {monitoredLineCount} saved {monitoredLineCount === 1 ? 'line' : 'lines'} for 15+ min qualifying delays
             </Text>
           </View>
-        </View>
-
-        <View style={styles.registeredStatusActions}>
-          <Pressable
-            onPress={onOpenPortal}
-            style={({ pressed }) => [
-              styles.portalLinkBtn,
-              pressed && { opacity: 0.7 },
-            ]}
-            hitSlop={6}
-          >
-            <ArrowSquareOut size={13} color="#0098D4" weight="bold" />
-            <Text style={styles.portalLinkBtnText}>TfL Portal</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => onToggleRegistered(false)}
-            style={({ pressed }) => [
-              styles.changeStatusBtn,
-              pressed && { opacity: 0.6 },
-            ]}
-            hitSlop={6}
-          >
-            <Text style={styles.changeStatusBtnText}>Change</Text>
-          </Pressable>
         </View>
       </BlurView>
     </View>
   )
 })
-TflRegisteredStatusHeader.displayName = 'TflRegisteredStatusHeader'
+TflRegisteredCleanStatusBar.displayName = 'TflRegisteredCleanStatusBar'
 
-// ── Registered Zero-State: Potential Refunds & Live Radar Hub ─────────
-const PotentialRefundsHub = React.memo(({
+// ── REGISTERED ZERO-STATE: Clean Live Radar & Potential Refunds ───────
+// Rendered when user is registered and has 0 active claims.
+const CleanRadarLiveScanner = React.memo(({
   savedLines,
 }: {
   savedLines: string[]
 }) => {
   return (
-    <View style={styles.potentialHubOuter}>
-      {/* Radar Listening Card */}
-      <BlurView intensity={30} tint="dark" style={styles.potentialCardBlur}>
+    <View style={styles.cleanScannerOuter}>
+      <BlurView intensity={30} tint="dark" style={styles.cleanScannerBlur}>
         <View style={styles.radarPulsingRing}>
           <Broadcast size={36} color="#0098D4" weight="bold" />
         </View>
-        <Text style={styles.hubMainTitle}>Radar Active & Scanning</Text>
-        <Text style={styles.hubSubtitle}>
-          We are monitoring real-time track telemetry for delays over 15 minutes across your commute routes.
+        <Text style={styles.cleanScannerTitle}>Radar Active & Scanning</Text>
+        <Text style={styles.cleanScannerSubtitle}>
+          We are monitoring live track telemetry for delays over 15 minutes across your commute routes.
         </Text>
 
         {savedLines.length > 0 && (
           <View style={styles.monitoredLinesContainer}>
-            <Text style={styles.monitoredLinesLabel}>ACTIVE COMMUTE RADAR:</Text>
+            <Text style={styles.monitoredLinesLabel}>ACTIVE COMMUTE RADAR</Text>
             <View style={styles.linePillsWrap}>
               {savedLines.map((lineId) => (
                 <View key={lineId} style={styles.lineTagPill}>
@@ -495,35 +465,18 @@ const PotentialRefundsHub = React.memo(({
             </View>
           </View>
         )}
-      </BlurView>
 
-      {/* How Delay Repay Works Guide Card */}
-      <BlurView intensity={30} tint="dark" style={[styles.potentialCardBlur, { marginTop: 14 }]}>
-        <View style={styles.guideHeaderRow}>
-          <View style={styles.guideIconWrap}>
-            <CurrencyGbp size={18} color="#34D399" weight="bold" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.guideTitle}>How Your Refund Works</Text>
-            <Text style={styles.guideEyebrow}>TFL DELAY REPAY POLICY</Text>
-          </View>
-        </View>
-
-        <Text style={styles.guideBody}>
-          If your train is delayed by <Text style={styles.boldWhite}>15 minutes or more</Text> for reasons within TfL’s control, you are entitled to a <Text style={styles.boldWhite}>full single fare refund</Text>.
-        </Text>
-
-        <View style={styles.guideBenefitRow}>
+        <View style={styles.guideNoticeRow}>
           <Sparkle size={15} color="#0098D4" weight="fill" style={{ marginTop: 2 }} />
-          <Text style={styles.guideBenefitText}>
-            Radar calculates the exact delay time, identifies the train, and pre-populates your claim evidence so you can submit in 1 tap.
+          <Text style={styles.guideNoticeText}>
+            Delays of 15+ minutes qualify for a full single-fare TfL refund. When a delay occurs on your lines, it will appear here automatically ready to claim in 1 tap.
           </Text>
         </View>
       </BlurView>
     </View>
   )
 })
-PotentialRefundsHub.displayName = 'PotentialRefundsHub'
+CleanRadarLiveScanner.displayName = 'CleanRadarLiveScanner'
 
 // ── Main Screen ───────────────────────────────────────────────────────
 
@@ -531,6 +484,7 @@ export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted)
+  const setNotificationsGranted = useUserPreferencesStore(s => s.setNotificationsGranted)
   const tflRegistered = useUserPreferencesStore(s => s.tflRegistered)
   const setTflRegistered = useUserPreferencesStore(s => s.setTflRegistered)
   const selectedLines = useUserPreferencesStore(s => s.selectedLines)
@@ -561,19 +515,22 @@ export default function RefundsScreen() {
     }
   }, [setTflRegistered])
 
-  const handleOpenTflPortal = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    try {
-      await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL)
-    } catch {
-      await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL).catch(() => {})
-    }
-  }, [])
-
   const handleToggleRegistered = useCallback(async (val: boolean) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setTflRegistered(val)
   }, [setTflRegistered])
+
+  const handleToggleNotificationSwitch = useCallback(async (value: boolean) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    if (value) {
+      const decision = await requestPermission('notifications', 'refund_status', { primer: false })
+      if (decision === 'granted') {
+        setNotificationsGranted(true)
+      }
+    } else {
+      setNotificationsGranted(false)
+    }
+  }, [setNotificationsGranted])
 
   const fetchClaims = useCallback(async (isRefresh = false) => {
     try {
@@ -629,7 +586,7 @@ export default function RefundsScreen() {
     fetchClaims(true)
   }, [fetchClaims])
 
-  // Optimistic loop update: PATCH the server, then re-fetch.
+  // Optimistic loop update
   const updateClaim = useCallback(async (id: number, next: 'filed' | 'received') => {
     setUpdating(prev => ({ ...prev, [id]: next }))
     try {
@@ -675,17 +632,15 @@ export default function RefundsScreen() {
         <Text style={styles.subtitle}>Automatic delay detection & claims</Text>
       </View>
 
-      {/* State-Adaptive Header Section */}
+      {/* State-Adaptive Header: Pitch card if NOT registered, clean status bar if REGISTERED */}
       {!tflRegistered ? (
         <TflUnregisteredPitchCard
           onRegister={handleRegisterWithTfl}
           onToggleRegistered={handleToggleRegistered}
         />
       ) : (
-        <TflRegisteredStatusHeader
+        <TflRegisteredCleanStatusBar
           monitoredLineCount={selectedLines.length}
-          onOpenPortal={handleOpenTflPortal}
-          onToggleRegistered={handleToggleRegistered}
         />
       )}
 
@@ -706,13 +661,8 @@ export default function RefundsScreen() {
         </View>
         <Switch
           value={notificationsGranted}
-          onValueChange={async (value) => {
-            if (value) {
-              const decision = await requestPermission('notifications', 'refund_status', { primer: false });
-              if (decision !== 'granted') return;
-            }
-          }}
-          trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#007AFF' }}
+          onValueChange={handleToggleNotificationSwitch}
+          trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#0098D4' }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -789,12 +739,12 @@ export default function RefundsScreen() {
       )
     }
 
-    // When user is registered and has 0 claims: render the high-impact Potential Refunds Hub
+    // Registered with 0 claims: clean live scanning hub
     if (tflRegistered) {
-      return <PotentialRefundsHub savedLines={selectedLines} />
+      return <CleanRadarLiveScanner savedLines={selectedLines} />
     }
 
-    // Default unregistered empty placeholder
+    // Unregistered empty placeholder
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.radarPulsingRing}>
@@ -802,7 +752,7 @@ export default function RefundsScreen() {
         </View>
         <Text style={styles.emptyTitle}>Radar Ready & Listening</Text>
         <Text style={styles.emptySubtitle}>
-          Connect your TfL account above to unlock 12 months of automatic delay detection on your commutes.
+          Connect your TfL account above to unlock 28 days of automatic delay detection on your commutes.
         </Text>
       </View>
     )
@@ -810,7 +760,7 @@ export default function RefundsScreen() {
 
   return (
     <View style={styles.rootContainer}>
-      {/* Background Gradient — Signature Deep TfL Navy/Midnight Blue */}
+      {/* Signature Deep TfL Navy/Midnight Blue Gradient */}
       <OnboardingGradient />
 
       {/* Film Grain Texture Overlay */}
@@ -931,8 +881,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.75)',
     marginBottom: 14,
   },
-
-  // Comparison Box
   comparisonBox: {
     backgroundColor: 'rgba(0, 16, 56, 0.45)',
     borderRadius: 16,
@@ -950,6 +898,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: 'rgba(0, 152, 212, 0.18)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0, 152, 212, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -974,8 +925,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
     marginVertical: 12,
   },
-
-  // Security Note
   securityRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -989,8 +938,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: 'rgba(255,255,255,0.55)',
   },
-
-  // CTAs
   ctaGroup: {
     gap: 10,
   },
@@ -1025,18 +972,18 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  // ── Registered Status Header Bar ────────────────────────────────────
+  // ── Registered Clean Status Bar ─────────────────────────────────────
   registeredStatusBarOuter: {
     paddingHorizontal: 20,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   registeredStatusBarBlur: {
-    borderRadius: 18,
-    backgroundColor: 'rgba(52, 211, 153, 0.08)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 152, 212, 0.08)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(52, 211, 153, 0.35)',
+    borderColor: 'rgba(0, 152, 212, 0.35)',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1045,99 +992,70 @@ const styles = StyleSheet.create({
   registeredStatusLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
   },
-  pulsingGreenDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(52, 211, 153, 0.25)',
+  pulsingBlueDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 152, 212, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulsingGreenDotInner: {
+  pulsingBlueDotInner: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#34D399',
+    backgroundColor: '#0098D4',
   },
   statusTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   registeredStatusTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 14.5,
+    fontSize: 14,
     color: '#FFFFFF',
   },
   connectedPill: {
-    backgroundColor: 'rgba(52, 211, 153, 0.22)',
+    backgroundColor: 'rgba(0, 152, 212, 0.22)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0, 152, 212, 0.45)',
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 5,
   },
   connectedPillText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 9.5,
-    color: '#34D399',
+    fontSize: 9,
+    color: '#0098D4',
     letterSpacing: 0.5,
   },
   registeredStatusSubtitle: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12.5,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.65)',
     marginTop: 1,
   },
-  registeredStatusActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginLeft: 8,
-  },
-  portalLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0, 152, 212, 0.18)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 152, 212, 0.45)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  portalLinkBtnText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 11.5,
-    color: '#0098D4',
-  },
-  changeStatusBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  changeStatusBtnText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 11.5,
-    color: 'rgba(255,255,255,0.45)',
-    textDecorationLine: 'underline',
-  },
 
-  // ── Potential Refunds Hub (Registered Zero-State) ───────────────────
-  potentialHubOuter: {
+  // ── Clean Radar Live Scanner (Zero-State for Registered) ───────────
+  cleanScannerOuter: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
-  potentialCardBlur: {
+  cleanScannerBlur: {
     borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.20)',
-    padding: 20,
+    padding: 22,
     overflow: 'hidden',
     alignItems: 'center',
   },
-  hubMainTitle: {
+  cleanScannerTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 20,
     color: '#FFFFFF',
@@ -1145,7 +1063,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: 'center',
   },
-  hubSubtitle: {
+  cleanScannerSubtitle: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 14,
     lineHeight: 20,
@@ -1160,6 +1078,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 14,
   },
   monitoredLinesLabel: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -1195,58 +1114,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFFFFF',
   },
-
-  // How Delay Repay Works Guide
-  guideHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
-    marginBottom: 10,
-  },
-  guideIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(52, 211, 153, 0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guideTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  guideEyebrow: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10,
-    color: '#34D399',
-    letterSpacing: 0.8,
-  },
-  guideBody: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: 'rgba(255,255,255,0.75)',
-    width: '100%',
-    marginBottom: 12,
-  },
-  boldWhite: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
-  },
-  guideBenefitRow: {
+  guideNoticeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
     backgroundColor: 'rgba(0, 152, 212, 0.12)',
     borderRadius: 12,
-    padding: 10,
+    padding: 11,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0, 152, 212, 0.3)',
     width: '100%',
   },
-  guideBenefitText: {
+  guideNoticeText: {
     flex: 1,
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12.5,
@@ -1316,9 +1195,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(52,211,153,0.14)',
+    backgroundColor: 'rgba(0, 152, 212, 0.12)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(52,211,153,0.35)',
+    borderColor: 'rgba(0, 152, 212, 0.35)',
     overflow: 'hidden',
   },
   bannerLabel: {
@@ -1335,13 +1214,13 @@ const styles = StyleSheet.create({
   recoveredAmount: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 22,
-    color: '#34D399',
+    color: '#0098D4',
     letterSpacing: -0.3,
   },
   recoveredCaption: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
-    color: 'rgba(52,211,153,0.8)',
+    color: 'rgba(0, 152, 212, 0.8)',
     marginTop: 2,
   },
 
@@ -1497,9 +1376,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(74,158,255,0.22)',
+    backgroundColor: 'rgba(0, 152, 212, 0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.5)',
+    borderColor: 'rgba(0, 152, 212, 0.5)',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 8,

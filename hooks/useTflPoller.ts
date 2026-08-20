@@ -1,8 +1,24 @@
+// frontend/hooks/useTflPoller.ts
+// Primary Line Status Poller hook with jittered 45s scheduler.
+//
+// ── Operational Rationale ─────────────────────────────────────────────
+// 1. Base Interval (45,000ms):
+//    - Sample interval chosen to prevent phase slip against the 60s Railway worker
+//      and 30s Vercel/Railway edge cache, guaranteeing fresh data delivery in <=45s.
+// 2. Jitter (+/- 3,000ms -> 42s to 48s range):
+//    - Randomly distributes cold starts and peak-hour request loads.
+// 3. Timeout Budget:
+//    - Frontend Abort: 12s (leaves headroom for network handoffs).
+//    - Backend Upstream: 3.5s (fails over to stale cache on timeouts).
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 export type StaleState = null | 'offline' | 'tfl-error' | 'tfl-delayed';
+
+const BASE_POLL_INTERVAL_MS = 45000;
+const POLL_JITTER_MS = 3000;
 
 export function useTflPoller(
   fetchData: (signal: AbortSignal) => Promise<{ status: number; lastUpdated?: string }>,
@@ -13,7 +29,12 @@ export function useTflPoller(
   const [staleMinutes, setStaleMinutes] = useState(0);
 
   const lastSuccessfulFetch = useRef<number>(Date.now());
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchRef = useRef(fetchData);
+
+  useEffect(() => {
+    fetchRef.current = fetchData;
+  }, [fetchData]);
 
   const forceRefresh = useCallback(async () => {
     setIsLoading(true);
@@ -24,7 +45,7 @@ export function useTflPoller(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      const meta = await fetchData(controller.signal);
+      const meta = await fetchRef.current(controller.signal);
       clearTimeout(timeoutId);
 
       if (meta.status >= 500) {
@@ -71,34 +92,49 @@ export function useTflPoller(
       setStaleState(null);
       setStaleMinutes(0);
     }
-  }, [fetchData, staleState, hasCache]);
+  }, [staleState, hasCache]);
 
   useEffect(() => {
-    forceRefresh();
-
-    const startPolling = () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(() => {
-        forceRefresh();
-      }, 90000);
-    };
+    let isSubscribed = true;
 
     const stopPolling = () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
 
-    startPolling();
+    const scheduleNextPoll = () => {
+      stopPolling();
+      if (!isSubscribed) return;
+
+      const jitter = Math.floor(Math.random() * (POLL_JITTER_MS * 2)) - POLL_JITTER_MS;
+      const nextInterval = BASE_POLL_INTERVAL_MS + jitter;
+
+      timeoutRef.current = setTimeout(async () => {
+        if (!isSubscribed) return;
+        await forceRefresh();
+        scheduleNextPoll();
+      }, nextInterval);
+    };
+
+    // Initial load
+    forceRefresh().then(() => {
+      if (isSubscribed) scheduleNextPoll();
+    });
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        forceRefresh();
-        startPolling();
+        forceRefresh().then(() => {
+          if (isSubscribed) scheduleNextPoll();
+        });
       } else {
         stopPolling();
       }
     });
 
     return () => {
+      isSubscribed = false;
       subscription.remove();
       stopPolling();
     };

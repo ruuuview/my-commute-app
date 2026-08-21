@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -21,6 +22,8 @@ import {
 } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function PermissionPrimerModal() {
   const insets = useSafeAreaInsets();
   const [request, setRequest] = useState<{
@@ -28,22 +31,21 @@ export function PermissionPrimerModal() {
     trigger: string;
     copy?: { title: string; body: string; button: string };
   } | null>(null);
+
+  useEffect(() => {
+    // Initial check
+    setRequest(getPrimerRequest());
+    // Live subscription
+    return subscribePrimer(setRequest);
+  }, []);
+
   const continuePress = usePressAnimation('continue_btn');
   const dismissPress = usePressAnimation('back_btn');
 
-  useEffect(() => {
-    // Hydrate the current request (may exist before this modal mounted).
-    const current = getPrimerRequest();
-    if (current) setRequest({ key: current.key, trigger: current.trigger, copy: current.copy });
-
-    const unsubscribe = subscribePrimer((next) => {
-      setRequest(next ? { key: next.key, trigger: next.trigger, copy: next.copy } : null);
-    });
-    return unsubscribe;
-  }, []);
-
   if (!request) return null;
-  const copy = request.copy ?? PRIMER_COPY[request.key];
+
+  const defaultCopy = PRIMER_COPY[request.key];
+  const copy = request.copy || defaultCopy;
 
   return (
     <Modal
@@ -60,23 +62,25 @@ export function PermissionPrimerModal() {
             <Text style={styles.title}>{copy.title}</Text>
             <Text style={styles.body}>{copy.body}</Text>
 
-            <Pressable
+            <AnimatedPressable
               onPressIn={continuePress.onPressIn}
               onPressOut={continuePress.onPressOut}
               onPress={() => resolvePrimer(true)}
               style={[styles.primaryCta, continuePress.animatedStyle]}
+              accessibilityRole="button"
             >
               <Text style={styles.primaryCtaText}>{copy.button}</Text>
-            </Pressable>
+            </AnimatedPressable>
 
-            <Pressable
+            <AnimatedPressable
               onPressIn={dismissPress.onPressIn}
               onPressOut={dismissPress.onPressOut}
               onPress={() => resolvePrimer(false)}
               style={[styles.dismissCta, dismissPress.animatedStyle]}
+              accessibilityRole="button"
             >
               <Text style={styles.dismissCtaText}>Not now</Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
         </BlurView>
       </View>

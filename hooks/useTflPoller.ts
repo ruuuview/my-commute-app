@@ -31,10 +31,20 @@ export function useTflPoller(
   const lastSuccessfulFetch = useRef<number>(Date.now());
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchRef = useRef(fetchData);
+  const hasCacheRef = useRef(hasCache);
+  const staleStateRef = useRef(staleState);
 
   useEffect(() => {
     fetchRef.current = fetchData;
   }, [fetchData]);
+
+  useEffect(() => {
+    hasCacheRef.current = hasCache;
+  }, [hasCache]);
+
+  useEffect(() => {
+    staleStateRef.current = staleState;
+  }, [staleState]);
 
   const forceRefresh = useCallback(async () => {
     setIsLoading(true);
@@ -81,10 +91,10 @@ export function useTflPoller(
       setStaleMinutes(Math.floor(dataAgeMs / 60000));
     } else if (errorType) {
       const timeSinceSuccess = Date.now() - lastSuccessfulFetch.current;
-      if (!hasCache || timeSinceSuccess > 180000) { // > 3 minutes or no cache
+      if (!hasCacheRef.current || timeSinceSuccess > 180000) { // > 3 minutes or no cache
         setStaleState(errorType);
         setStaleMinutes(Math.floor(timeSinceSuccess / 60000));
-      } else if (staleState !== null) {
+      } else if (staleStateRef.current !== null) {
         setStaleState(errorType);
         setStaleMinutes(Math.floor(timeSinceSuccess / 60000));
       }
@@ -92,7 +102,7 @@ export function useTflPoller(
       setStaleState(null);
       setStaleMinutes(0);
     }
-  }, [staleState, hasCache]);
+  }, []);
 
   useEffect(() => {
     let isSubscribed = true;

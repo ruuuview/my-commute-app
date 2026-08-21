@@ -88,6 +88,8 @@ export function PermissionRow({
       if (neverAsked) {
         const result = await requestPermission(permissionKey, trigger);
         if (result !== 'granted') return; // row stays off
+        await new Promise((r) => setTimeout(r, 150));
+        await refresh();
       }
       onFeatureToggle(true);
     } else {

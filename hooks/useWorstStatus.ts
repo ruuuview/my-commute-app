@@ -54,12 +54,12 @@ export function computeWorstStatus(
   if (!lines.length || !Object.keys(lineStatuses).length) return 'unknown';
 
   let worst: StatusLevel = 'good';
+  let resolvedAny = false;
 
   const checkLevelAndReports = (level: StatusLevel, reports: number) => {
-    let upgradedLevel = level;
-    if (reports >= 3 && upgradedLevel === 'good')  upgradedLevel = 'minor';
-    if (reports >= 5 && upgradedLevel === 'minor') upgradedLevel = 'severe';
-    return upgradedLevel;
+    if (level === 'good' && reports >= 3) return 'minor';
+    if (level === 'minor' && reports >= 5) return 'severe';
+    return level;
   };
 
   const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush', 'overground'];
@@ -68,9 +68,11 @@ export function computeWorstStatus(
     // Handle Overground aggregation
     if (lineId === 'overground') {
       let worstBranchLevel: StatusLevel = 'good';
+      let resolvedBranch = false;
       for (const branchId of OVERGROUND_BRANCH_IDS) {
         const branchData = lineStatuses[branchId];
         if (!branchData) continue;
+        resolvedBranch = true;
         const level = severityToLevel(branchData.status_severity);
         const reports = communityReports[branchId] ?? 0;
         const upgradedLevel = checkLevelAndReports(level, reports);
@@ -79,6 +81,8 @@ export function computeWorstStatus(
           worstBranchLevel = upgradedLevel;
         }
       }
+      if (!resolvedBranch) continue;
+      resolvedAny = true;
       if (SEVERITY[worstBranchLevel] > SEVERITY[worst]) {
         worst = worstBranchLevel;
       }
@@ -87,6 +91,7 @@ export function computeWorstStatus(
 
     const lineData = lineStatuses[lineId];
     if (!lineData) continue; // line not in store — skip
+    resolvedAny = true;
 
     const level = severityToLevel(lineData.status_severity);
     const reports = communityReports[lineId] ?? 0;
@@ -95,7 +100,7 @@ export function computeWorstStatus(
     if (SEVERITY[upgradedLevel] > SEVERITY[worst]) worst = upgradedLevel;
   }
 
-  return worst;
+  return resolvedAny ? worst : 'unknown';
 }
 
 /**

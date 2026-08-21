@@ -29,6 +29,8 @@ import { getSeverityLabel, getSeverityRank } from '../utils/getSeverityColor';
 
 
 
+import { APP_CONFIG } from '../config/app.config';
+
 const MAX_LINES = 5;
 
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
@@ -49,8 +51,6 @@ const TFL_LINES = [
   { id: 'victoria',         name: 'Victoria',           color: LINE_IDENTITY_COLORS.victoria },
   { id: 'waterloo-city',    name: 'Waterloo & City',    color: LINE_IDENTITY_COLORS['waterloo-city'] },
 ];
-
-type StatusType = 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown';
 
 // Fallback label text per canonical severity tier (preserves the previous
 // label output for good/minor/severe; suspended codes collapse into
@@ -97,18 +97,24 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
   useEffect(() => {
     if (!visible) return;
     let active = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     setLoadingStatuses(true);
     const fetchStatuses = async () => {
       try {
-        const res = await fetch('https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line/Status');
-        if (!res.ok) throw new Error('Failed to fetch TfL status');
+        const res = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('Failed to fetch line status');
         const data = await res.json();
         if (!active) return;
 
         const mapped: Record<string, { severity: number; description: string }> = {};
         data.forEach((line: any) => {
-          const sev = line.lineStatuses?.[0]?.statusSeverity ?? 10;
-          const desc = line.lineStatuses?.[0]?.statusSeverityDescription ?? 'Good Service';
+          const sev = line.status_severity ?? line.statusSeverity ?? 10;
+          const desc = line.status ?? line.reason ?? 'Good Service';
           mapped[line.id] = { severity: sev, description: desc };
         });
         setApiStatuses(mapped);
@@ -123,6 +129,8 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
     fetchStatuses();
     return () => {
       active = false;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [visible]);
 
@@ -141,11 +149,14 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
     transform: [{ translateX: maxLinesShakeTranslationX.value }],
   }));
 
-  const resolveLineStatus = (lineId: string): { statusType: StatusType; statusLabel: string } => {
-    let statusType: StatusType = 'loading';
-    let statusLabel = 'Loading status...';
+  const resolveLineStatus = (lineId: string): { statusType: 'good' | 'minor' | 'severe' | 'error' | 'loading'; statusLabel: string } => {
+    if (loadingStatuses) {
+      return { statusType: 'loading', statusLabel: 'Loading status...' };
+    }
+    let statusType: 'good' | 'minor' | 'severe' | 'error' = 'good';
+    let statusLabel = 'Good Service';
 
-    if (!loadingStatuses) {
+    if (apiStatuses && Object.keys(apiStatuses).length > 0) {
       if (lineId === 'overground') {
         let worstSeverity = 10;
         let worstDescription = 'Good Service';
@@ -155,9 +166,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
           if (apiStatuses[branchId]) {
             foundAny = true;
             const statusData = apiStatuses[branchId];
-            // Canonical severity rank — single source of truth (was a local
-            // getRank copy that could silently diverge from utils/getSeverityColor).
-            if (getSeverityRank(statusData.severity, statusData.description) > getSeverityRank(worstSeverity)) {
+            if (getSeverityRank(statusData.severity, statusData.description) > getSeverityRank(worstSeverity, worstDescription)) {
               worstSeverity = statusData.severity;
               worstDescription = statusData.description;
             }
@@ -166,7 +175,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
         if (foundAny) {
           const resolved = getLineStatus(worstSeverity, worstDescription);
-          statusType = resolved.statusType;
+          statusType = resolved.statusType as any;
           statusLabel = resolved.label;
         } else {
           statusType = 'error';

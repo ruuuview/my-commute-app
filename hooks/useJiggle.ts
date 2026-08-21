@@ -62,7 +62,7 @@ export const useJiggle = (
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
-    const rotVal = active ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
+    const rotVal = active || reducedMotion ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
     const rotStr = `${rotVal}deg`;
 
     // Baseline fallbacks matching regular glass theme card values

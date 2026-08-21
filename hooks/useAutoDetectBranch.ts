@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveBranch, ResolvedBranch, AmbiguousBranchResult } from '../utils/resolveBranch';
 import { getPreboardedDirection } from '../services/directionNotification';
+import { APP_CONFIG } from '../config/app.config';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -164,17 +165,19 @@ export function useAutoDetectBranch(
       // ── Step 4 check first: is there a user override? ──
       if (overrideRef.current) {
         try {
-          const branch = resolveBranch(lineId, fromStationId) as ResolvedBranch;
-          setResult({
-            branch,
-            source: 'manual',
-            confidence: 'high',
-            userOverride: true,
-            fromStationName,
-            lineName: lineId,
-          });
-          setIsDetecting(false);
-          return;
+          const branch = resolveBranch(lineId, fromStationId, overrideRef.current);
+          if (branch && !('possibleBranches' in branch)) {
+            setResult({
+              branch: branch as ResolvedBranch,
+              source: 'manual',
+              confidence: 'high',
+              userOverride: true,
+              fromStationName,
+              lineName: lineId,
+            });
+            setIsDetecting(false);
+            return;
+          }
         } catch {
           overrideRef.current = null;
         }
@@ -184,31 +187,39 @@ export function useAutoDetectBranch(
       try {
         const deviceToken = await AsyncStorage.getItem('@mycommute/device_token');
         if (deviceToken) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
           const resp = await fetch(
-            `https://my-commute-brain.vercel.app/api/session/current?device_token=${encodeURIComponent(deviceToken)}`
+            `${APP_CONFIG.BACKEND_URL}/api/session/current?device_token=${encodeURIComponent(deviceToken)}`,
+            { signal: controller.signal }
           );
-          const data = await resp.json();
-          if (data?.state === 'active' && data?.session?.line_id === lineId) {
-            const direction = data.session.direction;
-            const destStationId = data.session.destination_station_id;
-            if (direction && (destStationId || fromStationId)) {
-              try {
-                const branch = resolveBranch(
-                  lineId,
-                  fromStationId,
-                  destStationId || undefined
-                );
-                setResult({
-                  branch: branch as ResolvedBranch,
-                  source: 'session',
-                  confidence: 'high',
-                  userOverride: false,
-                  fromStationName,
-                  lineName: lineId,
-                });
-                setIsDetecting(false);
-                return;
-              } catch {}
+          clearTimeout(timeoutId);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data?.state === 'active' && data?.session?.line_id === lineId) {
+              const direction = data.session.direction;
+              const destStationId = data.session.destination_station_id;
+              if (direction && (destStationId || fromStationId)) {
+                try {
+                  const branch = resolveBranch(
+                    lineId,
+                    fromStationId,
+                    destStationId || undefined
+                  );
+                  if (branch && !('possibleBranches' in branch)) {
+                    setResult({
+                      branch: branch as ResolvedBranch,
+                      source: 'session',
+                      confidence: 'high',
+                      userOverride: false,
+                      fromStationName,
+                      lineName: lineId,
+                    });
+                    setIsDetecting(false);
+                    return;
+                  }
+                } catch {}
+              }
             }
           }
         }
@@ -219,16 +230,18 @@ export function useAutoDetectBranch(
       if (preboardedDest) {
         try {
           const branch = resolveBranch(lineId, fromStationId, preboardedDest);
-          setResult({
-            branch: branch as ResolvedBranch,
-            source: 'notification',
-            confidence: 'high',
-            userOverride: false,
-            fromStationName,
-            lineName: lineId,
-          });
-          setIsDetecting(false);
-          return;
+          if (branch && !('possibleBranches' in branch)) {
+            setResult({
+              branch: branch as ResolvedBranch,
+              source: 'notification',
+              confidence: 'high',
+              userOverride: false,
+              fromStationName,
+              lineName: lineId,
+            });
+            setIsDetecting(false);
+            return;
+          }
         } catch {}
       }
 
@@ -237,19 +250,21 @@ export function useAutoDetectBranch(
       const now = new Date();
       const pattern = findTimeOfDayPattern(history, lineId, now.getHours(), now.getDay());
 
-      if (pattern) {
+      if (pattern && pattern.branch) {
         try {
-          const branch = resolveBranch(lineId, fromStationId) as ResolvedBranch;
-          setResult({
-            branch,
-            source: 'history',
-            confidence: pattern.confidence > 0.7 ? 'high' : 'medium',
-            userOverride: false,
-            fromStationName,
-            lineName: lineId,
-          });
-          setIsDetecting(false);
-          return;
+          const branch = resolveBranch(lineId, fromStationId, pattern.branch);
+          if (branch && !('possibleBranches' in branch)) {
+            setResult({
+              branch: branch as ResolvedBranch,
+              source: 'history',
+              confidence: pattern.confidence > 0.7 ? 'high' : 'medium',
+              userOverride: false,
+              fromStationName,
+              lineName: lineId,
+            });
+            setIsDetecting(false);
+            return;
+          }
         } catch {}
       }
 

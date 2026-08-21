@@ -134,7 +134,17 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
       AsyncStorage.getItem(STORAGE_KEY_LINES),
     ]);
 
-    const cachedLinesJson = cachedLinesRaw ? JSON.stringify(JSON.parse(cachedLinesRaw).sort()) : null;
+    let cachedLinesJson: string | null = null;
+    if (cachedLinesRaw) {
+      try {
+        const cachedLines = JSON.parse(cachedLinesRaw);
+        if (Array.isArray(cachedLines)) {
+          cachedLinesJson = JSON.stringify([...cachedLines].sort());
+        }
+      } catch {
+        await AsyncStorage.removeItem(STORAGE_KEY_LINES);
+      }
+    }
     const currentLinesJson = JSON.stringify(normalizedLines);
 
     if (cachedToken === token && cachedLinesJson === currentLinesJson) {

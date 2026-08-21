@@ -69,6 +69,8 @@ export interface Tier2Cache {
   platforms: Tier2PlatformArrival[];
   grabbedAt: string; // ISO timestamp
   arrivalsLastUpdated: string;
+  lastSuccessfulGrabAt?: string;
+  linePlatforms?: Record<string, Tier2PlatformArrival[]>;
 }
 
 // ---- Listener registry: downstream consumers subscribe here ----
@@ -101,14 +103,22 @@ export function onTier2CachePopulated(listener: Tier2Listener): () => void {
  * Returns null if no cache has been populated yet (or it failed to persist).
  * This is the ONLY read path downstream consumers should use.
  */
-export function getTier2Cache(stationId: string): Tier2Cache | null {
+export function getTier2Cache(stationId: string, lineId?: string): Tier2Cache | null {
   const mem = memoryCache.get(stationId);
-  if (mem) return mem;
+  if (mem) {
+    if (lineId && mem.linePlatforms?.[lineId]) {
+      return { ...mem, lineId, platforms: mem.linePlatforms[lineId] };
+    }
+    return mem;
+  }
   try {
     const raw = tier2Storage.getString(TIER2_KEY_PREFIX + stationId);
     if (raw) {
       const parsed = JSON.parse(raw) as Tier2Cache;
       memoryCache.set(stationId, parsed);
+      if (lineId && parsed.linePlatforms?.[lineId]) {
+        return { ...parsed, lineId, platforms: parsed.linePlatforms[lineId] };
+      }
       return parsed;
     }
   } catch (e) {
@@ -154,6 +164,7 @@ const inFlight = new Set<string>();
 
 async function runGrab(stationId: string, lineId: string): Promise<void> {
   const grabbedAt = new Date().toISOString();
+  const existing = getTier2Cache(stationId);
 
   // Both grabs run concurrently — disruption is cheap, arrivals is time-sensitive.
   const [disruption, arrivalsResult] = await Promise.all([
@@ -163,18 +174,33 @@ async function runGrab(stationId: string, lineId: string): Promise<void> {
       arrivalsLastUpdated: new Date().toISOString(),
     })),
   ]);
-  const { platforms, arrivalsLastUpdated } = arrivalsResult;
 
-  // If arrivals completely failed after all retries, we still persist what we
-  // have but flag the failure loudly. A cache with no arrivals is a degraded
-  // P0 state — log it so it surfaces.
+  let platforms = arrivalsResult.platforms;
+  let arrivalsLastUpdated = arrivalsResult.arrivalsLastUpdated;
+  let lastSuccessfulGrabAt = grabbedAt;
+
+  // Preserve previous platforms on temporary network failure + track staleness
+  if (platforms.length === 0 && existing && existing.platforms.length > 0) {
+    platforms = existing.linePlatforms?.[lineId] || existing.platforms;
+    arrivalsLastUpdated = existing.arrivalsLastUpdated;
+    lastSuccessfulGrabAt = existing.lastSuccessfulGrabAt || existing.grabbedAt;
+    console.log(`[Tier2Cache] Retaining ${platforms.length} cached arrivals for ${stationId}:${lineId} during transient outage`);
+  }
+
+  const linePlatforms: Record<string, Tier2PlatformArrival[]> = {
+    ...(existing?.linePlatforms || {}),
+    [lineId]: platforms,
+  };
+
   const cache: Tier2Cache = {
     stationId,
     lineId,
-    disruption,
+    disruption: disruption || existing?.disruption || null,
     platforms,
+    linePlatforms,
     grabbedAt,
     arrivalsLastUpdated,
+    lastSuccessfulGrabAt,
   };
 
   persistCache(cache);
@@ -354,13 +380,14 @@ function flattenArrivals(responses: any[]): Tier2PlatformArrival[] {
     for (const dep of sData.departures) {
       const expectedArrival =
         dep.expected_arrival || (dep.expectedArrival ? dep.expectedArrival : '');
+      const expectedArrivalMs = Date.parse(expectedArrival);
       const timeToStation =
         typeof dep.time_to_station === 'number'
           ? dep.time_to_station
           : typeof dep.timeToStation === 'number'
           ? dep.timeToStation
-          : expectedArrival
-          ? Math.max(0, Math.round((new Date(expectedArrival).getTime() - Date.now()) / 1000))
+          : Number.isFinite(expectedArrivalMs)
+          ? Math.max(0, Math.round((expectedArrivalMs - Date.now()) / 1000))
           : 0;
 
       out.push({

@@ -193,7 +193,7 @@ export function StationCard({
     const shouldShow = showLedger || mode === 'dashboard';
     if (!shouldShow) return [];
     const hasLive = liveDepartures && liveDepartures.length > 0;
-    const resolved = departures ?? (hasLive ? liveDepartures : null) ?? generateMockDepartures(station.id, station.lines, 3);
+    const resolved = departures ?? (hasLive ? liveDepartures : (mode === 'onboarding' ? generateMockDepartures(station.id, station.lines, 3) : []));
     return resolved.slice(0, 3);
   }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
 

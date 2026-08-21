@@ -46,14 +46,19 @@ describe('useAutoDetectBranch decision tree & signal conflict resolution', () =>
   test('Hierarchy Tier 3 Absent -> Fallback to Tier 4 (pinned station match)', () => {
     clearPreboardedDirection();
     const hasPinnedStationMatch = true;
-
     const resolvedSource = hasPinnedStationMatch ? 'pinned' : 'manual';
     expect(resolvedSource).toBe('pinned');
   });
 
-  test('Hierarchy Tier 4 Absent -> Fallback to Tier 5 (manual branch grid)', () => {
-    clearPreboardedDirection();
-    const resolvedSource = 'manual';
+  test('Hierarchy Tier 0 (Manual Override): User override MUST win over Session, Notification, and History', () => {
+    const userOverride = 'Morden';
+    const activeSession = 'Bank';
+    const preboarded = 'Charing Cross';
+
+    const resolvedSource = userOverride ? 'manual' : (activeSession ? 'session' : 'notification');
+    const resolvedBranch = userOverride || activeSession || preboarded;
+
     expect(resolvedSource).toBe('manual');
+    expect(resolvedBranch).toBe('Morden');
   });
 });

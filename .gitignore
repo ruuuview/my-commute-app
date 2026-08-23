@@ -1,17 +1,20 @@
-
-
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
-# Expo
+# Expo & Build Cache
 .expo/
+.metro-cache/
+.metro-cache
+.metro-health-check*
 dist/
 web-build/
 expo-env.d.ts
+build/
+ios/build/
+ios/Pods/
+ios/DerivedData/
 
-# Native
+# Native Keys & Certs
 .kotlin/
 *.orig.*
 *.jks
@@ -20,10 +23,7 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
-# Metro
-.metro-health-check*
-
-# debug
+# Debug & logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
@@ -32,26 +32,25 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# Local env files
 .env*.local
+.env
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 
 app-example
 android/
+
 # --- BEGIN EAS BUILD OVERRIDE ---
 # Force inclusion of critical files necessary for iOS build despite typical ignores
 !/ios/Podfile
 !/ios/Podfile.properties.json
 # --- END EAS BUILD OVERRIDE ---
+
 .vercel
 .aider*
-.env
-.env
-.env
 
 # Firebase config (contains API keys)
 google-services.json
 GoogleService-Info.plist
-.env

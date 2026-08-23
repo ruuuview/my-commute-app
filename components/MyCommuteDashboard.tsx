@@ -383,22 +383,23 @@ const MyCommuteDashboard: React.FC = () => {
   const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
 
-  // Auto-open reroute drawer when navigated from a disruption notification,
-  // or show a graceful recovery notice if the line returned to Good Service in the meantime.
+  // Auto-open reroute drawer when navigated from a disruption notification
   useEffect(() => {
-    if (searchParams.openRerouteLineId && data.lines.length > 0) {
+    if (searchParams.openRerouteLineId) {
       const targetId = String(searchParams.openRerouteLineId).toLowerCase();
       const matched = data.lines.find(l => l.id.toLowerCase() === targetId);
       if (matched) {
-        if (matched.status_severity === 10) {
-          // Line resolved back to Good Service: show reassuring recovery notice instead of alarming reroute drawer
-          setRecoveryNotice(`${matched.name} has returned to Good Service`);
-          const timer = setTimeout(() => setRecoveryNotice(null), 5000);
-          return () => clearTimeout(timer);
-        } else {
-          // Active disruption: open Reroute Drawer immediately
-          setRerouteLine(matched);
-        }
+        setRerouteLine(matched);
+      } else {
+        const name = targetId.charAt(0).toUpperCase() + targetId.slice(1);
+        setRerouteLine({
+          id: targetId,
+          name: `${name} line`,
+          color: LINE_IDENTITY_COLORS[targetId] || '#0098D4',
+          status: 'Severe Delays',
+          status_severity: 6,
+          reason: 'Disruption reported on line.',
+        });
       }
     }
   }, [searchParams.openRerouteLineId, data.lines]);

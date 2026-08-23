@@ -551,6 +551,70 @@ export function getBranchSuggestedRoute(
         extraTimeMinutes: 5,
       };
     }
+  if (normLine === 'victoria') {
+    if (term === 'Brixton') {
+      return {
+        description: 'Use Southeastern services from London Victoria to Brixton or Northern line to Stockwell.',
+        extraTimeMinutes: 7,
+      };
+    }
+    if (term === 'Walthamstow Central') {
+      return {
+        description: 'Use London Overground (Weaver line) from Liverpool Street directly to Walthamstow Central.',
+        extraTimeMinutes: 6,
+      };
+    }
+  }
+
+  if (normLine === 'jubilee') {
+    if (term === 'Stratford') {
+      return {
+        description: 'Use the Central line or Elizabeth line via Liverpool Street / Holborn to Stratford.',
+        extraTimeMinutes: 6,
+      };
+    }
+    if (term === 'Stanmore') {
+      return {
+        description: 'Use the Metropolitan line to Canons Park / Harrow-on-the-Hill and connect via local bus routes.',
+        extraTimeMinutes: 10,
+      };
+    }
+  }
+
+  if (normLine === 'bakerloo') {
+    if (term.includes('Harrow')) {
+      return {
+        description: 'Use London Overground (Lioness line) from London Euston directly to Harrow & Wealdstone.',
+        extraTimeMinutes: 5,
+      };
+    }
+    if (term.includes('Elephant')) {
+      return {
+        description: 'Use the Northern line or Thameslink services from Blackfriars / London Bridge to Elephant & Castle.',
+        extraTimeMinutes: 5,
+      };
+    }
+  }
+
+  if (normLine === 'metropolitan') {
+    if (term === 'Uxbridge') {
+      return {
+        description: 'Use the Piccadilly line running parallel from Rayners Lane to Uxbridge.',
+        extraTimeMinutes: 5,
+      };
+    }
+    if (term === 'Watford') {
+      return {
+        description: 'Use London Overground (Lioness line) from London Euston directly to Watford Junction.',
+        extraTimeMinutes: 8,
+      };
+    }
+    if (term === 'Amersham') {
+      return {
+        description: 'Use Chiltern Railways services from London Marylebone directly to Amersham.',
+        extraTimeMinutes: 10,
+      };
+    }
   }
 
   return fallbackRoute;

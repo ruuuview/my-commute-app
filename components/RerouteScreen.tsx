@@ -32,7 +32,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Modal,
   Pressable,
@@ -48,6 +48,8 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withSequence,
+  withRepeat,
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -98,7 +100,7 @@ const ACCENT_BAR_HEIGHT = 4;
 // Dimensions at module scope is safe (mirrors LineDetailModal's proven
 // MAX_POPUP_HEIGHT pattern).
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.48; // Rule 32: strictly under 50% screen height
+const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.72; // Generous height to reveal suggested route and CTAs
 // Sum of: 4px handle + 14px handle margin-bottom + 10px sheet paddingTop + 14px header margin-bottom + 6px backButton margin-bottom
 const SHEET_HEADER_OFFSET = 48;
 
@@ -334,11 +336,31 @@ export default function RerouteScreen({
     }
   }, [visible, effectiveMode, citymapperUrl]);
 
-  // ── Scroll affordance — bottom fade + chevron ─────────────────
-  // Visible only while content overflows the sheet AND the user hasn't
-  // scrolled to the end. Evaluated from live scroll metrics (no timers).
+  // ── Scroll affordance — persistent track + animated bouncing chevron ──
+  const scrollRef = useRef<ScrollView>(null);
   const [scrollMetrics, setScrollMetrics] = useState({ content: 0, layout: 0, offset: 0 });
   const fadeOpacity = useSharedValue(0);
+  const arrowBounce = useSharedValue(0);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      arrowBounce.value = 0;
+    } else {
+      arrowBounce.value = withRepeat(
+        withSequence(
+          withTiming(-4, { duration: 600, easing: Easing.inOut(Easing.sin) }),
+          withTiming(4, { duration: 600, easing: Easing.inOut(Easing.sin) })
+        ),
+        -1,
+        true
+      );
+    }
+  }, [reducedMotion, arrowBounce]);
+
+  const arrowAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: arrowBounce.value }],
+  }));
+
   useEffect(() => {
     const { content, layout, offset } = scrollMetrics;
     const canScroll = content > layout + 4;
@@ -579,10 +601,15 @@ export default function RerouteScreen({
     </View>
   );
 
-  // Lines with ≤2 real directions (Jubilee, Lioness, …) skip the grid entirely:
-  // no ambiguity, no reason to confirm the obvious. Resolved branch renders
-  // directly. The header question is part of the grid, so it's skipped too.
-  const hasGrid = Boolean(branches && branches.length > 2);
+  // Render the direction selector whenever there are 2 or more endpoints/branches
+  const hasGrid = Boolean(branches && branches.length >= 2);
+  const hasOverflow = scrollMetrics.content > scrollMetrics.layout + 4;
+  const trackHeight = Math.max(0, scrollMetrics.layout - 56);
+  const rawThumbHeight = scrollMetrics.content > 0 ? (scrollMetrics.layout / scrollMetrics.content) * trackHeight : 0;
+  const thumbHeight = Math.max(28, Math.min(trackHeight, rawThumbHeight));
+  const maxScrollOffset = Math.max(1, scrollMetrics.content - scrollMetrics.layout);
+  const scrollProgress = Math.min(1, Math.max(0, scrollMetrics.offset / maxScrollOffset));
+  const thumbTop = scrollProgress * Math.max(0, trackHeight - thumbHeight);
 
   return (
     <Modal
@@ -609,9 +636,10 @@ export default function RerouteScreen({
           <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} pointerEvents="none" />
 
           <ScrollView
+            ref={scrollRef}
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
-            showsVerticalScrollIndicator
+            showsVerticalScrollIndicator={false}
             scrollEnabled
             nestedScrollEnabled
             onScroll={handleSheetScroll}
@@ -644,14 +672,42 @@ export default function RerouteScreen({
                 : renderEmptyState()}
           </ScrollView>
 
-          {/* Scroll affordance — bottom fade + chevron, visible only while
-              content overflows and the user hasn't reached the end */}
-          <Animated.View pointerEvents="none" style={[s.scrollFade, { opacity: fadeOpacity }]}>
+          {/* Persistent visual scrollbar track & thumb on the right side */}
+          {hasOverflow && (
+            <View pointerEvents="none" style={s.scrollbarTrack}>
+              <View
+                style={[
+                  s.scrollbarThumb,
+                  {
+                    height: thumbHeight,
+                    transform: [{ translateY: thumbTop }],
+                  },
+                ]}
+              />
+            </View>
+          )}
+
+          {/* Scroll affordance — bottom fade + animated bouncing chevron badge */}
+          <Animated.View pointerEvents="box-none" style={[s.scrollFade, { opacity: fadeOpacity }]}>
             <LinearGradient
-              colors={['rgba(12,12,18,0)', 'rgba(12,12,18,0.96)']}
+              colors={['rgba(12,12,18,0)', 'rgba(12,12,18,0.92)']}
               style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
             />
-            <ICON.chevronDown size={16} color="rgba(255,255,255,0.45)" />
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                scrollRef.current?.scrollToEnd({ animated: true });
+              }}
+              style={s.scrollBadge}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Scroll to bottom"
+            >
+              <Animated.View style={arrowAnimStyle}>
+                <ICON.chevronDown size={20} color="#FFFFFF" />
+              </Animated.View>
+            </Pressable>
           </Animated.View>
         </Animated.View>
       </View>
@@ -696,10 +752,43 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 64,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 16,
+  },
+  scrollbarTrack: {
+    position: 'absolute',
+    right: 5,
+    top: 75,
+    bottom: 25,
+    width: 3.5,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  scrollbarThumb: {
+    width: 3.5,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  scrollBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(28, 28, 42, 0.90)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
+    elevation: 6,
   },
   handle: {
     width: 36,

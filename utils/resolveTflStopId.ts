@@ -89,8 +89,8 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   ...MANUAL_HUBS,
  
   // Manual slug aliases for interchanges / common variants
-  'camden-road':      ['910GCMDNRD', '9100CMDNRD0', '9100CMDNRD1'],
-  'camden-road-station': ['910GCMDNRD', '9100CMDNRD0', '9100CMDNRD1'],
+  'camden-road':      ['910GCMDNRD'],
+  'camden-road-station': ['910GCMDNRD'],
   'camden-town':      ['940GZZLUCTN'],
   'canonbury':        ['910GCNNB'],
   'gospel-oak':       ['910GGOSPLOK'],

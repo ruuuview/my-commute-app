@@ -90,4 +90,13 @@ describe('getVisibleArrivals', () => {
     expect(result).toHaveLength(1);
     expect(result[0].lineId).toBe('mildmay');
   });
+
+  it('falls back to all arrivals when none of the station arrivals match the user selected lines', () => {
+    const mildmayArrival = makeArrival('mildmay', 'Mildmay line', 0);
+    // User selected only Victoria line, but pinned Camden Road with Mildmay arrivals
+    const result = getVisibleArrivals([mildmayArrival], ['victoria']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].lineId).toBe('mildmay');
+  });
 });

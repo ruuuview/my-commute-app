@@ -103,7 +103,15 @@ const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
   bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
   circle: ['Hammersmith', 'Edgware Road'],
   'hammersmith-city': ['Hammersmith', 'Barking'],
+  'waterloo-city': ['Waterloo', 'Bank'],
+  dlr: ['Bank', 'Lewisham', 'Beckton', 'Woolwich Arsenal'],
   overground: ['Liberty', 'Lioness', 'Mildmay', 'Suffragette', 'Weaver', 'Windrush'],
+  weaver: ['Liverpool Street', 'Chingford', 'Cheshunt', 'Enfield Town'],
+  mildmay: ['Stratford', 'Richmond', 'Clapham Junction'],
+  windrush: ['Highbury & Islington', 'Crystal Palace', 'West Croydon', 'New Cross'],
+  suffragette: ['Gospel Oak', 'Barking Riverside'],
+  lioness: ['Watford Junction', 'Euston'],
+  liberty: ['Romford', 'Upminster'],
 };
 
 const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinutes: number }> = {
@@ -143,9 +151,25 @@ const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinute
     description: 'Use Central line or National Rail services for parallel travel.',
     extraTimeMinutes: 9,
   },
+  circle: {
+    description: 'Use District, Hammersmith & City, or Metropolitan lines.',
+    extraTimeMinutes: 4,
+  },
+  'hammersmith-city': {
+    description: 'Use Circle, Metropolitan, or District lines.',
+    extraTimeMinutes: 4,
+  },
+  'waterloo-city': {
+    description: 'Use Northern line via Bank / Waterloo or London Buses across the river.',
+    extraTimeMinutes: 5,
+  },
   dlr: {
     description: 'Use Jubilee line or Thames Clippers / London Buses across East London.',
     extraTimeMinutes: 7,
+  },
+  overground: {
+    description: 'Use Underground lines or London Buses connecting your route.',
+    extraTimeMinutes: 8,
   },
 };
 

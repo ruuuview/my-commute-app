@@ -45,9 +45,15 @@ export function getVisibleArrivals<T extends { lineId: string }>(
     })
   );
 
-  return allArrivals.filter((arrival) => {
+  const filtered = allArrivals.filter((arrival) => {
     const clean = normaliseLineId(arrival.lineId).cleanLineId;
     const finalId = OVERGROUND_BRANCHES.has(clean) ? 'overground' : clean;
     return selected.has(finalId);
   });
+
+  // If the station has live departures, but none of its lines match the user's
+  // selected lines (e.g. user pinned Camden Road or a branch station without
+  // selecting that line globally), fallback to all arrivals so the card displays departures.
+  return filtered.length > 0 ? filtered : allArrivals;
 }
+

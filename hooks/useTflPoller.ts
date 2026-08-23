@@ -58,7 +58,7 @@ export function useTflPoller(
       const meta = await fetchRef.current(controller.signal);
       clearTimeout(timeoutId);
 
-      if (meta.status >= 500) {
+      if (meta.status >= 400) {
         errorType = 'tfl-error';
       } else if (meta.lastUpdated) {
         const lastUpdatedTs = new Date(meta.lastUpdated).getTime();

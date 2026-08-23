@@ -270,7 +270,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }),
     {
       name: 'user-preferences',
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as any;
         if (version < 2 && state?.pinnedStations?.length) {
@@ -282,6 +282,10 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
             ...s,
             id: resolveTflStopIdForStore(s.id),
           }));
+        }
+        if (version < 3) {
+          // Version 2 → 3: Reset false optimistic tflRegistered states to honest default (false).
+          state.tflRegistered = false;
         }
         return state;
       },

@@ -27,6 +27,17 @@ import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
 
 SplashScreen.preventAutoHideAsync();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 LogBox.ignoreLogs([
   'ref.measureLayout must be called with a ref to a native component',
 ]);
@@ -56,7 +67,6 @@ export default function RootLayout() {
   const _hasHydrated = useUserPreferencesStore((state) => state._hasHydrated);
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const locationGranted = useUserPreferencesStore(s => s.locationGranted);
-  const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted);
 
   const [fontsLoaded, fontError] = useFonts({
     SpaceGrotesk_400Regular,
@@ -141,14 +151,14 @@ export default function RootLayout() {
     }
   }, [_hasHydrated, selectedLines]);
 
-  // Synchronize push token and lines preferences with Vercel backend
+  // Synchronize push token and lines preferences with Railway backend
   useEffect(() => {
-    if (_hasHydrated && notificationsGranted) {
+    if (_hasHydrated) {
       void syncPushTokenWithBackend(selectedLines).catch(() => {
         console.warn('Failed to synchronize push token');
       });
     }
-  }, [_hasHydrated, notificationsGranted, selectedLines]);
+  }, [_hasHydrated, selectedLines]);
 
   // Track active background-to-foreground transitions to increment sessionCount
   useEffect(() => {
@@ -220,7 +230,15 @@ export default function RootLayout() {
             options: { opensAppToForeground: false },
           },
         ]);
-        console.log('[NotificationCategory] Registered ARRIVED_ALERT with 4h/8h/12h snooze');
+
+        await Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
+          {
+            identifier: 'view_reroute',
+            buttonTitle: 'View Reroute 🚇',
+            options: { opensAppToForeground: true },
+          },
+        ]);
+        console.log('[NotificationCategory] Registered ARRIVED_ALERT & REROUTE_ONLY categories');
       } catch (e) {
         console.warn('Failed to set notification category:', e);
       }
@@ -234,7 +252,14 @@ export default function RootLayout() {
       
       console.log(`[NotificationResponse] Received action: ${actionId} for category: ${categoryId}`);
       
-      if (categoryId === 'ARRIVED_ALERT') {
+      if (categoryId === 'REROUTE_ONLY' || categoryId === 'COMMUTE_DISRUPTION_V2' || categoryId === 'COMMUTE_DISRUPTION' || actionId === 'view_reroute') {
+        const data = response.notification.request.content.data as Record<string, any> | undefined;
+        const lineId = data?.lineId || 'victoria';
+        router.push({
+          pathname: '/(tabs)',
+          params: { openRerouteLineId: String(lineId) },
+        } as never);
+      } else if (categoryId === 'ARRIVED_ALERT') {
         const prefs = useUserPreferencesStore.getState();
         if (actionId === 'snooze4h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 4 * 60 * 60 * 1000);

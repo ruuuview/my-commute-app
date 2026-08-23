@@ -16,7 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
@@ -376,9 +376,33 @@ const MyCommuteDashboard: React.FC = () => {
   const snoozedPress = usePressAnimation('departure_card');
 
   const router = useRouter();
+  const searchParams = useLocalSearchParams<{ openRerouteLineId?: string }>();
   const [modalVisible, setModalVisible] = useState(false);
   const [stationModalVisible, setStationModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData });
+  const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
+
+  // Auto-open reroute drawer when navigated from a disruption notification,
+  // or show a graceful recovery notice if the line returned to Good Service in the meantime.
+  useEffect(() => {
+    if (searchParams.openRerouteLineId && data.lines.length > 0) {
+      const targetId = String(searchParams.openRerouteLineId).toLowerCase();
+      const matched = data.lines.find(l => l.id.toLowerCase() === targetId);
+      if (matched) {
+        if (matched.status_severity === 10) {
+          // Line resolved back to Good Service: show reassuring recovery notice instead of alarming reroute drawer
+          setRecoveryNotice(`${matched.name} has returned to Good Service`);
+          const timer = setTimeout(() => setRecoveryNotice(null), 5000);
+          return () => clearTimeout(timer);
+        } else {
+          // Active disruption: open Reroute Drawer immediately
+          setRerouteLine(matched);
+        }
+      }
+    }
+  }, [searchParams.openRerouteLineId, data.lines]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
@@ -423,8 +447,7 @@ const MyCommuteDashboard: React.FC = () => {
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
 
-  // ── Reroute state ──
-  const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
+  // ── Reroute state ── (declared above)
 
 
 
@@ -753,6 +776,18 @@ const MyCommuteDashboard: React.FC = () => {
                       })}
                     </View>
                   )}
+                </View>
+              )}
+
+              {/* Stale disruption recovery notice */}
+              {recoveryNotice && (
+                <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
+                  <View style={[dash.arrivalBanner, { borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                    <Text style={[dash.arrivalBannerText, { color: '#E5E7EB', fontWeight: '500' }]}>
+                      {recoveryNotice}
+                    </Text>
+                  </View>
                 </View>
               )}
 

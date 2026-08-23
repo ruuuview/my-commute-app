@@ -536,40 +536,40 @@ export default function RerouteScreen({
             )}
           </View>
           <Text style={s.suggestedRouteDesc}>{resolvedSuggestedRoute.description}</Text>
-          <View style={s.extraTimeRow}>
-            <ICON.clock size={13} color="rgba(255,255,255,0.60)" />
-            <Text style={[s.extraTimeText, isLiveResolving && { opacity: 0.4 }]}>
-              {isLiveResolving
-                ? 'Calculating extra time…'
-                : liveExtraTime !== null
-                  ? `Adds ~${liveExtraTime} min vs usual route`
-                  : `Adds ~${resolvedSuggestedRoute.extraTimeMinutes} min vs usual route`}
-            </Text>
-          </View>
         </View>
       )}
 
-      {/* CTAs */}
-      <View style={s.ctaSection}>
-        {/* Primary — solid white, ALWAYS present in affected mode */}
-        <BouncyPressable onPress={handleOpenGoogleMaps} style={s.primaryCta}>
+      {/* CTAs — Side-by-Side if both available, full-width if single */}
+      <View style={[s.ctaSection, citymapperAvailable && s.ctaSectionRow]}>
+        {/* Google Maps CTA */}
+        <BouncyPressable
+          onPress={handleOpenGoogleMaps}
+          style={[s.primaryCta, citymapperAvailable && s.ctaHalfWidth]}
+        >
           <ICON.googleMaps
-            size={18}
+            size={17}
             color="#07103a"
-            style={{ marginRight: 8 }}
+            style={{ marginRight: 6 }}
           />
-          <Text style={s.primaryCtaText}>Open in Google Maps</Text>
+          <Text style={s.primaryCtaText} numberOfLines={1}>
+            {citymapperAvailable ? 'Google Maps' : 'Open in Google Maps'}
+          </Text>
         </BouncyPressable>
 
-        {/* Secondary — outline, canOpenURL gated, ABSENT if not installed */}
+        {/* Citymapper CTA — only if installed */}
         {citymapperAvailable && (
-          <BouncyPressable onPress={handleOpenCitymapper} style={s.secondaryCta}>
+          <BouncyPressable
+            onPress={handleOpenCitymapper}
+            style={[s.secondaryCta, s.ctaHalfWidth]}
+          >
             <ICON.citymapper
-              size={18}
-              color="rgba(255,255,255,0.80)"
-              style={{ marginRight: 8 }}
+              size={17}
+              color="rgba(255,255,255,0.90)"
+              style={{ marginRight: 6 }}
             />
-            <Text style={s.secondaryCtaText}>Open in Citymapper</Text>
+            <Text style={s.secondaryCtaText} numberOfLines={1}>
+              Citymapper
+            </Text>
           </BouncyPressable>
         )}
       </View>
@@ -964,6 +964,16 @@ const s = StyleSheet.create({
   ctaSection: {
     gap: 8,
     marginTop: 0,
+  },
+  ctaSectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  ctaHalfWidth: {
+    flex: 1,
+    paddingHorizontal: 8,
   },
   primaryCta: {
     backgroundColor: '#FFFFFF',

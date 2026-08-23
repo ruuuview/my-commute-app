@@ -551,6 +551,8 @@ export function getBranchSuggestedRoute(
         extraTimeMinutes: 5,
       };
     }
+  }
+
   if (normLine === 'victoria') {
     if (term === 'Brixton') {
       return {

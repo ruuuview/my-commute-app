@@ -43,7 +43,6 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { fetchLiveJourneyPenalty } from '../services/liveJourneyService';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -68,7 +67,7 @@ import type { DetectionSource } from '../hooks/useAutoDetectBranch';
 // the Phosphor package is added, only this alias block changes. Until then it
 // resolves to Ionicons — the closest available glyphs. FLAGGED: swap to real
 // Phosphor once the dependency is installed.
-import { CaretLeft, CaretDown, Warning, Clock, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
+import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { getBranchSuggestedRoute } from './rerouteHelpers';
@@ -77,7 +76,6 @@ const ICON = {
   back: CaretLeft,
   chevronDown: CaretDown,
   signalFail: Warning,
-  clock: Clock,
   googleMaps: MapTrifold,
   citymapper: MapPinLine,
   fine: CheckCircle,
@@ -248,46 +246,6 @@ export default function RerouteScreen({
     prevVisible.current = visible;
   }, [visible]);
 
-  // ── Live TfL Journey Planner Calculation (Dynamic Real-Time Extra Time) ──
-  // Fires for ONE branch only: the pre-highlighted (engine-resolved) tile on
-  // open, then the tapped tile on tap. Never N simultaneous queries for a grid
-  // nobody's going to fully explore.
-  const [liveExtraTime, setLiveExtraTime] = useState<number | null>(null);
-  const [isLiveResolving, setIsLiveResolving] = useState<boolean>(false);
-  const [isLiveFallback, setIsLiveFallback] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!visible || !stationId || !activeTerminus) {
-      setLiveExtraTime(null);
-      setIsLiveResolving(false);
-      setIsLiveFallback(false);
-      return;
-    }
-
-    let active = true;
-    setIsLiveResolving(true);
-    setIsLiveFallback(false);
-
-    fetchLiveJourneyPenalty({
-      originStationId: stationId,
-      destinationTerminus: activeTerminus,
-      lineId,
-    }).then(result => {
-      if (!active) return;
-      setIsLiveResolving(false);
-      if (result && typeof result.extraTimeMinutes === 'number') {
-        setLiveExtraTime(result.extraTimeMinutes);
-        setIsLiveFallback(false);
-      } else {
-        setIsLiveFallback(true);
-      }
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [visible, stationId, activeTerminus, lineId]);
-
   // effectiveMode drives affected/unaffected/empty content below the grid.
   // When a tile is selected its own branchStatus wins; otherwise the
   // dashboard-computed mode (which used the line's default branch).
@@ -401,8 +359,6 @@ export default function RerouteScreen({
   const handleBranchTap = (branch: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setInternalBranch(branch);
-    setLiveExtraTime(null);
-    setIsLiveResolving(true);
   };
 
   // ── Back handler: with the grid inline there's no second step to return

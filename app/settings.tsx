@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   CaretLeft, Bell, Info, WarningCircle, Warning, Clock, CaretRight,
   DeviceMobile, Fingerprint, House, MapTrifold, MapPin, Train, Shield,
-  FileText, ArrowsClockwise 
+  FileText, ArrowsClockwise, Broadcast 
 } from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -79,6 +79,8 @@ export default function SettingsScreen() {
     setArrivalNotificationsEnabled,
     labelsConfirmed,
     completedJourneys,
+    tflRegistered,
+    setTflRegistered,
   } = useUserPreferencesStore();
 
   const [isGranted, setIsGranted] = useState(false);
@@ -625,6 +627,37 @@ export default function SettingsScreen() {
                 return p.status === 'granted';
               }}
             />
+          </View>
+        </View>
+
+        {/* Delay Repay & Refunds Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delay Repay & Refunds</Text>
+          <View style={styles.settingCard}>
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <View style={styles.settingLabelRow}>
+                  <Broadcast size={18} color="#0098D4" style={styles.iconMargin} />
+                  <Text style={styles.settingLabel}>TfL Account Registered</Text>
+                </View>
+                <Text style={styles.settingDescription}>
+                  {tflRegistered
+                    ? '28-day claim window enabled (self-reported)'
+                    : '7-day claim window (unregistered)'}
+                </Text>
+              </View>
+              <Switch
+                value={tflRegistered}
+                onValueChange={(val) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  setTflRegistered(val);
+                }}
+                trackColor={{ false: '#D1D5DB', true: '#0098D4' }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="TfL Account Registered"
+              />
+            </View>
           </View>
         </View>
 

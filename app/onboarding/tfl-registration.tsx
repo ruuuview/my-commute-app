@@ -46,7 +46,7 @@ import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
 // deep-link target with product before launch — it may be a specific
 // "manage journey history" or "register an Oyster card" URL.
 // ─────────────────────────────────────────────────────────────────────────────
-const TFL_REGISTRATION_URL = 'https://contactless.tfl.gov.uk/';
+const TFL_REGISTRATION_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account';
 
 export default function TflRegistrationScreen() {
   const router = useRouter();
@@ -95,10 +95,6 @@ export default function TflRegistrationScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     playSound('select', 0.45);
 
-    // Record the choice immediately — they've committed to registering.
-    // We set true optimistically: they are being routed to TfL to register.
-    setTflRegistered(true);
-
     // Open TfL's registration / journey-history sign-in.
     try {
       const supported = await Linking.canOpenURL(TFL_REGISTRATION_URL);
@@ -112,7 +108,7 @@ export default function TflRegistrationScreen() {
     // Either way, advance onboarding — registration happens in the browser,
     // the app should not block on it.
     finishAndExit();
-  }, [setTflRegistered, finishAndExit]);
+  }, [finishAndExit]);
 
   const handleLater = useCallback(() => {
     // Absent-if-not-applicable pattern: "Do it later" is an outline button,

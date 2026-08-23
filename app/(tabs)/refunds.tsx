@@ -54,7 +54,7 @@ import { OnboardingGradient } from '../../components/OnboardingGradient'
 
 // ── Operational Constants ─────────────────────────────────────────────
 // TFL_CONTACTLESS_PORTAL_URL: Official TfL contactless & Oyster journey history portal
-const TFL_CONTACTLESS_PORTAL_URL = 'https://contactless.tfl.gov.uk/'
+const TFL_CONTACTLESS_PORTAL_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account'
 
 // DUE_CLAIM_WORKING_DAYS: Standard 10 working-day window TfL takes to process delay repay
 const DUE_CLAIM_WORKING_DAYS = 10
@@ -378,10 +378,10 @@ const TflUnregisteredPitchCard = React.memo(({
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Register with TfL"
+              accessibilityLabel="Open TfL Website"
             >
               <ArrowSquareOut size={18} color="#0A0F3C" weight="bold" />
-              <Text style={styles.registerPrimaryCtaText}>Register with TfL</Text>
+              <Text style={styles.registerPrimaryCtaText}>Open TfL Website</Text>
             </Pressable>
 
             <Pressable
@@ -392,8 +392,11 @@ const TflUnregisteredPitchCard = React.memo(({
               ]}
               hitSlop={8}
             >
-              <Text style={styles.alreadyRegisteredBtnText}>I already have a registered TfL account</Text>
+              <Text style={styles.alreadyRegisteredBtnText}>I have a registered TfL account</Text>
             </Pressable>
+            <Text style={styles.honestAttestationMicrocopy}>
+              We cannot verify this with TfL — we trust your confirmation here.
+            </Text>
           </View>
         </View>
       </BlurView>
@@ -403,11 +406,13 @@ const TflUnregisteredPitchCard = React.memo(({
 TflUnregisteredPitchCard.displayName = 'TflUnregisteredPitchCard'
 
 // ── REGISTERED ONLY: Clean Minimal Active Status Bar ──────────────────
-// Pure Light Blue indicator matching the design system.
+// Honest self-reported status bar with direct change/disconnect escape hatch.
 const TflRegisteredCleanStatusBar = React.memo(({
   monitoredLineCount,
+  onDisconnect,
 }: {
   monitoredLineCount: number
+  onDisconnect: () => void
 }) => {
   return (
     <View style={styles.registeredStatusBarOuter}>
@@ -419,12 +424,18 @@ const TflRegisteredCleanStatusBar = React.memo(({
           <View style={{ flex: 1 }}>
             <View style={styles.statusTitleRow}>
               <Text style={styles.registeredStatusTitle}>28-Day Delay Radar Active</Text>
-              <View style={styles.connectedPill}>
-                <Text style={styles.connectedPillText}>CONNECTED</Text>
-              </View>
+              <Pressable
+                onPress={onDisconnect}
+                hitSlop={8}
+                style={styles.selfReportedPill}
+                accessibilityRole="button"
+                accessibilityLabel="Change TfL account status"
+              >
+                <Text style={styles.selfReportedPillText}>SELF-REPORTED • CHANGE</Text>
+              </Pressable>
             </View>
             <Text style={styles.registeredStatusSubtitle}>
-              Monitoring {monitoredLineCount} saved {monitoredLineCount === 1 ? 'line' : 'lines'} for 15+ min qualifying delays
+              You told us you have a registered TfL account. (We cannot verify this with TfL).
             </Text>
           </View>
         </View>
@@ -504,16 +515,15 @@ export default function RefundsScreen() {
     }
   }, [router])
 
-  // Direct registration handler (opens TfL portal in-app web browser and marks registered)
+  // Direct registration handler (opens TfL portal in-app web browser without mutating state)
   const handleRegisterWithTfl = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setTflRegistered(true)
     try {
       await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL)
     } catch {
       await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL).catch(() => {})
     }
-  }, [setTflRegistered])
+  }, [])
 
   const handleToggleRegistered = useCallback(async (val: boolean) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -641,6 +651,7 @@ export default function RefundsScreen() {
       ) : (
         <TflRegisteredCleanStatusBar
           monitoredLineCount={selectedLines.length}
+          onDisconnect={() => handleToggleRegistered(false)}
         />
       )}
 
@@ -752,7 +763,7 @@ export default function RefundsScreen() {
         </View>
         <Text style={styles.emptyTitle}>Radar Ready & Listening</Text>
         <Text style={styles.emptySubtitle}>
-          Connect your TfL account above to unlock 28 days of automatic delay detection on your commutes.
+          Create a TfL online account above to unlock 28 days of automatic delay detection on your commutes.
         </Text>
       </View>
     )
@@ -971,6 +982,14 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     textDecorationLine: 'underline',
   },
+  honestAttestationMicrocopy: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11.5,
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 15,
+  },
 
   // ── Registered Clean Status Bar ─────────────────────────────────────
   registeredStatusBarOuter: {
@@ -1012,32 +1031,34 @@ const styles = StyleSheet.create({
   statusTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 6,
   },
   registeredStatusTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 14,
+    fontSize: 13.5,
     color: '#FFFFFF',
   },
-  connectedPill: {
-    backgroundColor: 'rgba(0, 152, 212, 0.22)',
+  selfReportedPill: {
+    backgroundColor: 'rgba(0, 152, 212, 0.18)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0, 152, 212, 0.45)',
     paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  connectedPillText: {
+  selfReportedPillText: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 9,
     color: '#0098D4',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   registeredStatusSubtitle: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 1,
+    fontSize: 11.5,
+    color: 'rgba(255,255,255,0.60)',
+    marginTop: 2,
+    lineHeight: 16,
   },
 
   // ── Clean Radar Live Scanner (Zero-State for Registered) ───────────

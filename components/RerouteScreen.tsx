@@ -660,15 +660,37 @@ export default function RerouteScreen({
                 "one step not two". */}
             {hasGrid && renderBranchGrid()}
 
-            {/* Non-grid lines (≤2 branches: Jubilee, Victoria, Bakerloo, …):
-                no tappable grid — but the destination must STILL be surfaced.
-                The plan says "render the resolved single branch directly"; this
-                is that render. Shows the active terminus as a destination row. */}
+            {/* Non-grid lines (≤2 branches: Victoria, Bakerloo, Jubilee, …):
+                interactive 2-branch destination selector so user can tap their direction in 1 touch */}
             {!hasGrid && branches && branches.length > 0 && (
-              <View style={s.nonGridEndpoint}>
-                <ICON.clock size={14} color="rgba(255,255,255,0.45)" />
-                <Text style={s.nonGridEndpointLabel}>DIRECTION</Text>
-                <Text style={s.nonGridEndpointValue}>{activeTerminus}</Text>
+              <View style={s.twoBranchRow}>
+                {branches.slice(0, 2).map((b) => {
+                  const isSelected = b === activeTerminus;
+                  return (
+                    <Pressable
+                      key={b}
+                      onPress={() => {
+                        setInternalBranch(b);
+                        Haptics.selectionAsync().catch(() => {});
+                      }}
+                      style={[
+                        s.twoBranchChip,
+                        isSelected && s.twoBranchChipSelected,
+                      ]}
+                    >
+                      <View style={[s.twoBranchDot, isSelected && s.twoBranchDotSelected]} />
+                      <Text
+                        style={[
+                          s.twoBranchText,
+                          isSelected && s.twoBranchTextSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        Towards {b}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
 
@@ -1092,30 +1114,46 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // ── Non-grid endpoint (≤2-branch lines) — the resolved destination row ──
-  nonGridEndpoint: {
+  // ── Two-branch destination selector (≤2-branch lines) ──
+  twoBranchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    marginBottom: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    gap: 8,
+    marginBottom: 14,
   },
-  nonGridEndpointLabel: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  nonGridEndpointValue: {
+  twoBranchChip: {
     flex: 1,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  twoBranchChipSelected: {
+    backgroundColor: 'rgba(16, 185, 129, 0.16)',
+    borderColor: '#10B981',
+  },
+  twoBranchDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  twoBranchDotSelected: {
+    backgroundColor: '#10B981',
+  },
+  twoBranchText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.65)',
+  },
+  twoBranchTextSelected: {
     color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
 });

@@ -527,16 +527,23 @@ export default function RerouteScreen({
           frosted at a fraction of the cost) */}
       {resolvedSuggestedRoute && (
         <View style={s.suggestedRouteCard}>
-          <Text style={s.suggestedRouteTitle}>Suggested route</Text>
+          <View style={s.suggestedRouteHeaderRow}>
+            <Text style={s.suggestedRouteTitle}>Suggested route</Text>
+            {resolvedSuggestedRoute.platform && (
+              <View style={s.platformBadge}>
+                <Text style={s.platformBadgeText}>{resolvedSuggestedRoute.platform}</Text>
+              </View>
+            )}
+          </View>
           <Text style={s.suggestedRouteDesc}>{resolvedSuggestedRoute.description}</Text>
           <View style={s.extraTimeRow}>
-            <ICON.clock size={13} color="rgba(255,255,255,0.45)" />
+            <ICON.clock size={13} color="rgba(255,255,255,0.60)" />
             <Text style={[s.extraTimeText, isLiveResolving && { opacity: 0.4 }]}>
               {isLiveResolving
-                ? '+·· min'
+                ? 'Calculating extra time…'
                 : liveExtraTime !== null
-                  ? `+${liveExtraTime} min`
-                  : `${isLiveFallback ? '~' : '+'}${resolvedSuggestedRoute.extraTimeMinutes} min`}
+                  ? `Adds ~${liveExtraTime} min vs usual route`
+                  : `Adds ~${resolvedSuggestedRoute.extraTimeMinutes} min vs usual route`}
             </Text>
           </View>
         </View>
@@ -855,13 +862,32 @@ const s = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 16,
   },
+  suggestedRouteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   suggestedRouteTitle: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 11,
     color: 'rgba(255,255,255,0.55)',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 6,
+  },
+  platformBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  platformBadgeText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   suggestedRouteDesc: {
     fontFamily: 'SpaceGrotesk_500Medium',

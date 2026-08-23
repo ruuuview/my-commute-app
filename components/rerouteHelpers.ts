@@ -420,6 +420,7 @@ export function isLineWideDisruption(reasonText: string, statusType?: string): b
 export interface SuggestedRouteData {
   description: string;
   extraTimeMinutes: number;
+  platform?: string;
 }
 
 export function getBranchSuggestedRoute(
@@ -435,24 +436,28 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use fast Great Western Railway (GWR) services from London Paddington directly to Reading.',
         extraTimeMinutes: 10,
+        platform: 'Platform 11-14',
       };
     }
     if (term.startsWith('Heathrow')) {
       return {
-        description: 'Take the Piccadilly line or the Heathrow Express from Paddington to reach Heathrow terminals.',
+        description: 'Take the Piccadilly line or Heathrow Express from Paddington to Heathrow terminals.',
         extraTimeMinutes: 15,
+        platform: 'Platform 6-7',
       };
     }
     if (term === 'Shenfield') {
       return {
-        description: 'Use Greater Anglia services from Liverpool Street or the Central line to Stratford for parallel travel.',
+        description: 'Use Greater Anglia services from Liverpool Street or the Central line to Stratford.',
         extraTimeMinutes: 8,
+        platform: 'Platform 1-4',
       };
     }
     if (term === 'Abbey Wood') {
       return {
-        description: 'Use Southeastern services from London Bridge or the Jubilee line + DLR via Canning Town to Woolwich/Abbey Wood.',
+        description: 'Use Southeastern services from London Bridge or the Jubilee line + DLR via Canning Town to Woolwich / Abbey Wood.',
         extraTimeMinutes: 12,
+        platform: 'Platform B',
       };
     }
   }
@@ -460,26 +465,30 @@ export function getBranchSuggestedRoute(
   if (normLine === 'northern') {
     if (term === 'Morden') {
       return {
-        description: 'Use Thameslink services from London Bridge / Elephant & Castle for parallel travel south to Morden.',
+        description: 'Use Thameslink services from London Bridge / Elephant & Castle for parallel travel towards Morden.',
         extraTimeMinutes: 8,
+        platform: 'Platform 4',
       };
     }
     if (term === 'Edgware') {
       return {
         description: 'Use Thameslink services from St Pancras to Mill Hill Broadway, then connect via local buses.',
         extraTimeMinutes: 14,
+        platform: 'Platform A',
       };
     }
     if (term === 'High Barnet') {
       return {
-        description: 'Take Great Northern services from Moorgate to Finsbury Park / Highbury & Islington for northbound travel.',
+        description: 'Take Great Northern services from Moorgate to Finsbury Park / Highbury & Islington towards High Barnet.',
         extraTimeMinutes: 11,
+        platform: 'Platform 9-10',
       };
     }
     if (term.startsWith('Battersea')) {
       return {
         description: 'Use London Buses or Southern rail services from Victoria to Battersea Park / Power Station.',
         extraTimeMinutes: 6,
+        platform: 'Platform 15-19',
       };
     }
   }
@@ -489,24 +498,28 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use the Elizabeth line or Great Western Railway (GWR) from Paddington for faster parallel travel.',
         extraTimeMinutes: 6,
+        platform: 'Platform A',
       };
     }
     if (term === 'West Ruislip') {
       return {
         description: 'Use Chiltern Railways services from London Marylebone directly to West Ruislip.',
         extraTimeMinutes: 12,
+        platform: 'Platform 4-6',
       };
     }
     if (term === 'Epping') {
       return {
-        description: 'Take London Overground to Chingford, then connect via local bus routes (e.g. 97/212/379) to Epping.',
+        description: 'Take London Overground to Chingford, then connect via local bus routes (97/212/379) to Epping.',
         extraTimeMinutes: 15,
+        platform: 'Platform 2',
       };
     }
     if (term.includes('Hainault')) {
       return {
-        description: 'Use London Overground to Walthamstow Central/Leytonstone High Road and parallel buses to Hainault.',
+        description: 'Use London Overground to Walthamstow Central / Leytonstone High Road and parallel buses to Hainault.',
         extraTimeMinutes: 10,
+        platform: 'Platform 1',
       };
     }
   }
@@ -516,12 +529,14 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use the Elizabeth line or Heathrow Express from Paddington to Heathrow terminals.',
         extraTimeMinutes: 10,
+        platform: 'Platform A',
       };
     }
     if (term === 'Uxbridge') {
       return {
         description: 'Use the Metropolitan line running parallel from Rayners Lane to Uxbridge.',
         extraTimeMinutes: 5,
+        platform: 'Platform 2',
       };
     }
   }
@@ -531,24 +546,28 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Take London Overground or South Western Railway (SWR) services from London Waterloo / Richmond.',
         extraTimeMinutes: 8,
+        platform: 'Platform 19-24',
       };
     }
     if (term === 'Wimbledon') {
       return {
         description: 'Take South Western Railway (SWR) services from London Waterloo directly to Wimbledon.',
         extraTimeMinutes: 7,
+        platform: 'Platform 7-10',
       };
     }
     if (term === 'Ealing Broadway') {
       return {
         description: 'Use the Central line or Elizabeth line services from Paddington to Ealing Broadway.',
         extraTimeMinutes: 6,
+        platform: 'Platform A',
       };
     }
     if (term === 'Upminster') {
       return {
         description: 'Use c2c National Rail services from London Fenchurch Street directly to Upminster.',
         extraTimeMinutes: 5,
+        platform: 'Platform 1-4',
       };
     }
   }
@@ -558,12 +577,14 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use Southeastern services from London Victoria to Brixton or Northern line to Stockwell.',
         extraTimeMinutes: 7,
+        platform: 'Platform 5-8',
       };
     }
     if (term === 'Walthamstow Central') {
       return {
         description: 'Use London Overground (Weaver line) from Liverpool Street directly to Walthamstow Central.',
         extraTimeMinutes: 6,
+        platform: 'Platform 2',
       };
     }
   }
@@ -573,12 +594,14 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use the Central line or Elizabeth line via Liverpool Street / Holborn to Stratford.',
         extraTimeMinutes: 6,
+        platform: 'Platform 1',
       };
     }
     if (term === 'Stanmore') {
       return {
         description: 'Use the Metropolitan line to Canons Park / Harrow-on-the-Hill and connect via local bus routes.',
         extraTimeMinutes: 10,
+        platform: 'Platform 2',
       };
     }
   }
@@ -588,12 +611,14 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use London Overground (Lioness line) from London Euston directly to Harrow & Wealdstone.',
         extraTimeMinutes: 5,
+        platform: 'Platform 9',
       };
     }
     if (term.includes('Elephant')) {
       return {
         description: 'Use the Northern line or Thameslink services from Blackfriars / London Bridge to Elephant & Castle.',
         extraTimeMinutes: 5,
+        platform: 'Platform 4',
       };
     }
   }
@@ -603,18 +628,21 @@ export function getBranchSuggestedRoute(
       return {
         description: 'Use the Piccadilly line running parallel from Rayners Lane to Uxbridge.',
         extraTimeMinutes: 5,
+        platform: 'Platform 2',
       };
     }
     if (term === 'Watford') {
       return {
         description: 'Use London Overground (Lioness line) from London Euston directly to Watford Junction.',
         extraTimeMinutes: 8,
+        platform: 'Platform 9-10',
       };
     }
     if (term === 'Amersham') {
       return {
         description: 'Use Chiltern Railways services from London Marylebone directly to Amersham.',
         extraTimeMinutes: 10,
+        platform: 'Platform 5-6',
       };
     }
   }

@@ -38,6 +38,16 @@ Notifications.setNotificationHandler({
   }),
 });
 
+void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
+  {
+    identifier: 'view_reroute',
+    buttonTitle: 'View Reroute 🚇',
+    options: {
+      opensAppToForeground: true,
+    },
+  },
+]).catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
+
 LogBox.ignoreLogs([
   'ref.measureLayout must be called with a ref to a native component',
 ]);

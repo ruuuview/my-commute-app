@@ -1,6 +1,10 @@
 // store/__tests__/migrations.test.ts
 import { runMigrations, STORE_VERSION, MIGRATIONS } from '../migrations';
 
+declare const describe: any;
+declare const it: any;
+declare const expect: any;
+
 describe('Storage Migrations Pipeline', () => {
   it('should sequentially execute v1 -> v3 migrations', () => {
     const v1State = {

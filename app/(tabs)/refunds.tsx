@@ -20,6 +20,7 @@ import {
   Switch,
   Linking,
   Image,
+  Alert,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
@@ -365,7 +366,7 @@ const TflUnregisteredPitchCard = React.memo(({
           <View style={styles.securityRow}>
             <ShieldCheck size={16} color="rgba(255,255,255,0.6)" weight="regular" />
             <Text style={styles.securityText}>
-              Takes about a minute. We send you to TfL to sign in — your card details never touch this app.
+              Sign in once in the in-app browser so your session stays active. Your card details never touch this app.
             </Text>
           </View>
 
@@ -378,10 +379,10 @@ const TflUnregisteredPitchCard = React.memo(({
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Open TfL Website"
+              accessibilityLabel="Sign In or Register on TfL"
             >
               <ArrowSquareOut size={18} color="#0A0F3C" weight="bold" />
-              <Text style={styles.registerPrimaryCtaText}>Open TfL Website</Text>
+              <Text style={styles.registerPrimaryCtaText}>Sign In / Register on TfL</Text>
             </Pressable>
 
             <Pressable
@@ -392,7 +393,7 @@ const TflUnregisteredPitchCard = React.memo(({
               ]}
               hitSlop={8}
             >
-              <Text style={styles.alreadyRegisteredBtnText}>I have a registered TfL account</Text>
+              <Text style={styles.alreadyRegisteredBtnText}>Already signed in? Enable 28-day Radar</Text>
             </Pressable>
             <Text style={styles.honestAttestationMicrocopy}>
               We cannot verify this with TfL — we trust your confirmation here.
@@ -515,15 +516,33 @@ export default function RefundsScreen() {
     }
   }, [router])
 
-  // Direct registration handler (opens TfL portal in-app web browser without mutating state)
+  // Direct registration handler (opens TfL portal in-app web browser and prompts upon completion)
   const handleRegisterWithTfl = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     try {
       await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL)
+      // On return from the browser, confirm whether the user completed sign-in/registration
+      Alert.alert(
+        'TfL Account Setup',
+        'Did you sign in or link your contactless card on TfL?',
+        [
+          {
+            text: 'Not Yet (Keep 7-Day)',
+            style: 'cancel',
+          },
+          {
+            text: 'Yes, Enable 28-Day Radar',
+            onPress: () => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+              setTflRegistered(true)
+            },
+          },
+        ]
+      )
     } catch {
       await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL).catch(() => {})
     }
-  }, [])
+  }, [setTflRegistered])
 
   const handleToggleRegistered = useCallback(async (val: boolean) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)

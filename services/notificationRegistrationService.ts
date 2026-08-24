@@ -13,8 +13,8 @@ const PUSH_REGISTRATION_RETRY_DELAY_MS = 1000;
 // MAX_REGISTRATION_RETRIES: Maximum 1 retry on network or 5xx failures to prevent battery drain
 const MAX_REGISTRATION_RETRIES = 1;
 
-const STORAGE_KEY_TOKEN = 'registered_push_token_railway_v1';
-const STORAGE_KEY_LINES = 'registered_push_lines_railway_v1';
+const STORAGE_KEY_TOKEN = 'registered_push_token_railway_v2';
+const STORAGE_KEY_LINES = 'registered_push_lines_railway_v2';
 
 // Lazy load FCM on Android
 let messaging: any = null;

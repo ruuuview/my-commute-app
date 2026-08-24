@@ -4,6 +4,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
+import { STORE_VERSION, runMigrations } from './migrations';
 
 const storage = createMMKV();
 const backgroundStorage = createMMKV({ id: 'background-storage' });
@@ -270,25 +271,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }),
     {
       name: 'user-preferences',
-      version: 3,
-      migrate: (persisted: unknown, version: number) => {
-        const state = persisted as any;
-        if (version < 2 && state?.pinnedStations?.length) {
-          // Version 1 → 2: Re-resolve pinned station IDs to NaPTANs.
-          // Before v2, resolveTflStopIdForStore passed HUB codes through.
-          // Now it expands them to NaPTANs. Existing users with stored
-          // HUB codes need their IDs re-resolved so the backend can query them.
-          state.pinnedStations = state.pinnedStations.map((s: any) => ({
-            ...s,
-            id: resolveTflStopIdForStore(s.id),
-          }));
-        }
-        if (version < 3) {
-          // Version 2 → 3: Reset false optimistic tflRegistered states to honest default (false).
-          state.tflRegistered = false;
-        }
-        return state;
-      },
+      version: STORE_VERSION,
+      migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
         const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, ...persisted } = state;

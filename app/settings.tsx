@@ -781,6 +781,37 @@ export default function SettingsScreen() {
 
           <View style={styles.aboutCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Pressable
+              style={styles.aboutRow}
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                const { status } = await Notifications.getPermissionsAsync();
+                if (status !== 'granted') {
+                  const { status: newStatus } = await Notifications.requestPermissionsAsync();
+                  if (newStatus !== 'granted') {
+                    Alert.alert('Notifications Disabled', 'Please enable notifications in iOS Settings.');
+                    return;
+                  }
+                }
+                await Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: 'Victoria Line: Minor Delays 🚇',
+                    body: 'Signal failure at Oxford Circus. Tap to view alternatives.',
+                    sound: true,
+                    categoryIdentifier: 'REROUTE_ONLY',
+                    data: { lineId: 'victoria' },
+                  },
+                  trigger: null,
+                });
+              }}
+            >
+              <Broadcast size={24} color="#0098D4" />
+              <View style={styles.aboutInfo}>
+                <Text style={[styles.aboutLabel, { color: '#0098D4', fontWeight: '600' }]}>Trigger Test Notification</Text>
+                <Text style={styles.settingDescription}>Fires an immediate test alert to this phone</Text>
+              </View>
+            </Pressable>
+            <View style={styles.divider} />
             <Animated.View style={resetPressAnim.animatedStyle}>
               <Pressable
                 style={styles.aboutRow}

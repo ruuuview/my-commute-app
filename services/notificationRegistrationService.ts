@@ -119,7 +119,14 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
         token = devicePushToken.data;
         console.log('📱 [PushService] APNS: Fetched iOS device push token:', token ? `${token.substring(0, 12)}...` : null);
       } catch (err) {
-        console.warn('⚠️ [PushService] APNS: Failed to fetch iOS device token (this is expected on simulator):', err);
+        console.warn('⚠️ [PushService] APNS: Failed to fetch iOS device token (expected in Expo Go), attempting Expo push token fallback:', err);
+        try {
+          const expoPushToken = await Notifications.getExpoPushTokenAsync();
+          token = expoPushToken.data;
+          console.log('📱 [PushService] Expo: Fetched Expo push token:', token ? `${token.substring(0, 15)}...` : null);
+        } catch (expoErr) {
+          console.warn('⚠️ [PushService] Failed to fetch Expo push token:', expoErr);
+        }
       }
     } else if (Platform.OS === 'android' && messaging) {
       try {

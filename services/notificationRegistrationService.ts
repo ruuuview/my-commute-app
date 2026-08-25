@@ -27,6 +27,8 @@ if (Platform.OS === 'android') {
   }
 }
 
+import { ensureDeviceIdentity } from './deviceIdentity';
+
 /**
  * Internal helper to send push token registration to backend with retry & timeout handling.
  */
@@ -37,18 +39,24 @@ async function registerDevicePushToken(
 ): Promise<boolean> {
   const normalizedLines = [...selectedLines].sort();
   try {
+    const { userId, apiKey } = await ensureDeviceIdentity().catch(() => ({ userId: undefined, apiKey: undefined }));
     console.log(
-      `📱 [PushService] Sending registration request to backend for token ${token.substring(0, 12)}... with lines:`,
+      `📱 [PushService] Sending registration request to backend for user ${userId || 'anonymous'} token ${token.substring(0, 12)}... with lines:`,
       normalizedLines
     );
 
     const response = await fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/devices/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userId && { 'x-user-id': userId }),
+        ...(apiKey && { 'x-api-key': apiKey }),
+      },
       timeoutMs: PUSH_REGISTRATION_TIMEOUT_MS,
       body: JSON.stringify({
         token: token,
         lines: normalizedLines,
+        userId,
       }),
     });
 

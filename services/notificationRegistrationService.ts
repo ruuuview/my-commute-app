@@ -98,17 +98,10 @@ async function registerDevicePushToken(
 
 export async function syncPushTokenWithBackend(selectedLines: string[]) {
   try {
-    // Check permission first. If it is not granted, route the ask through the
-    // orchestrator so dedupe, cooldown, and analytics apply.
+    // Check permission status directly without triggering permission orchestrator state loops
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') {
-      const decision = await requestPermission('notifications', 'push_token_registration', {
-        primer: false,
-      });
-      if (decision !== 'granted') {
-        console.log('⚠️ [PushService] Push permission not granted. Skipping token registration.');
-        return;
-      }
+      return;
     }
 
     let token: string | null = null;

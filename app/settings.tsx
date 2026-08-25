@@ -37,6 +37,7 @@ import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 import { FixItSheet } from '../components/FixItSheet';
 import { showMessage } from 'react-native-flash-message';
+import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
 
 interface UserPreferences {
   saved_lines: string[];
@@ -813,6 +814,7 @@ export default function SettingsScreen() {
                   duration: 5000,
                   floating: true,
                 });
+                void syncPushTokenWithBackend(userPrefs.saved_lines).catch(() => {});
               }}
             >
               <Broadcast size={24} color="#0098D4" />

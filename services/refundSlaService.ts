@@ -66,3 +66,13 @@ export function isSurveySnoozed(claimId: number): boolean {
 export function snoozeSurvey(claimId: number): void {
   refundsStorage.set(`snoozed_survey_${claimId}`, String(Date.now()));
 }
+
+export function formatRelativeTime(dateIso?: string | null): string {
+  if (!dateIso) return 'Checked just now';
+  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(dateIso).getTime()) / 1000));
+  if (diffSec < 15) return 'Checked just now';
+  if (diffSec < 60) return `Checked ${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  return `Checked ${diffMin}m ago`;
+}
+

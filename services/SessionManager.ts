@@ -49,6 +49,11 @@ export class SessionManager {
     return val ? parseInt(val, 10) : null;
   }
 
+  static getTouchInTime(): number | null {
+    const val = backgroundStorage.getString('touch_in_time');
+    return val ? parseInt(val, 10) : null;
+  }
+
   static async startSession(originId: string, destinationId: string, lineId: string, lineName: string) {
     console.log(`[SessionManager] Starting session. Origin: ${originId}, Dest: ${destinationId}, Line: ${lineId}`);
 
@@ -65,12 +70,14 @@ export class SessionManager {
       console.warn('[SessionManager] Tier1 upgrade trigger failed:', e);
     }
     
+    const nowMs = Date.now();
     backgroundStorage.set('session_state', 'active');
     backgroundStorage.set('alerts_active', true);
     backgroundStorage.set('commute_destination_id', destinationId);
     backgroundStorage.set('commute_origin_id', originId);
     backgroundStorage.set('commute_line_id', lineId);
-    backgroundStorage.set('commute_start_time', String(Date.now()));
+    backgroundStorage.set('commute_start_time', String(nowMs));
+    backgroundStorage.set('touch_in_time', String(nowMs));
     backgroundStorage.remove('dwell_timer_expires');
     backgroundStorage.remove('notified_departed');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
@@ -362,19 +369,21 @@ export class SessionManager {
     // Increment tracked commute count for confirmation-card trigger
     const store = useUserPreferencesStore.getState();
     useUserPreferencesStore.setState({ completedJourneys: (store.completedJourneys || 0) + 1 });
+    const touchInTime = this.getTouchInTime() || startTime;
     backgroundStorage.remove('commute_destination_id');
     backgroundStorage.remove('commute_origin_id');
     backgroundStorage.remove('commute_line_id');
     backgroundStorage.remove('commute_start_time');
+    backgroundStorage.remove('touch_in_time');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
     // Fire-and-forget POST to backend with completed journey data
-    if (originId && lineId && lineId !== 'unknown' && startTime) {
+    if (originId && lineId && lineId !== 'unknown' && (touchInTime || startTime)) {
       this.postSessionToBackend({
         lineId,
         entryStation: originId,
         exitStation: destId || undefined,
-        entryTime: new Date(startTime).toISOString(),
+        entryTime: new Date(touchInTime || startTime!).toISOString(),
         exitTime: new Date(Date.now()).toISOString(),
       }).catch(err => console.error('[SessionManager] Backend session POST failed:', err));
     } else {

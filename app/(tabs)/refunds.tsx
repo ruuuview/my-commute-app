@@ -21,6 +21,7 @@ import {
   Linking,
   Image,
   Alert,
+  Modal,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
@@ -41,9 +42,12 @@ import {
   ArrowsClockwise,
   Train,
   Sparkle,
+  Copy,
+  Info,
 } from 'phosphor-react-native'
 import { APP_CONFIG } from '../../config/app.config'
 import { launchTflAuth } from '../../services/authSession'
+import { createMMKV } from 'react-native-mmkv'
 import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import { STATUS_SEVERITY_COLORS } from '../../utils/getSeverityColor'
 import { DEMO_MODE } from '../../config/demoMode'
@@ -57,8 +61,14 @@ import { OnboardingGradient } from '../../components/OnboardingGradient'
 // TFL_CONTACTLESS_PORTAL_URL: Official TfL contactless & Oyster journey history portal
 const TFL_CONTACTLESS_PORTAL_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account'
 
-// DUE_CLAIM_WORKING_DAYS: Standard 10 working-day window TfL takes to process delay repay
-const DUE_CLAIM_WORKING_DAYS = 10
+import {
+  isOverdue,
+  workingDaysSince,
+  formatPence,
+  isSurveySnoozed,
+  snoozeSurvey,
+  DUE_CLAIM_WORKING_DAYS,
+} from '../../services/refundSlaService'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -81,6 +91,10 @@ interface Claim {
   entryTime: string | null
   exitTime: string | null
   windowCause: string | null
+  journeySpec?: {
+    fareEstimated?: boolean
+    fareCaveat?: string
+  } | null
 }
 
 interface ClaimsResponse {
@@ -96,59 +110,181 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; Icon: React.
   eligible:   { label: 'Eligible — file on TfL', color: '#FFB800', Icon: WarningCircle },
   filed:      { label: 'Filed — awaiting payment', color: '#0098D4', Icon: PaperPlaneRight },
   received:   { label: 'Received', color: '#34C759', Icon: CheckCircle },
+  unverified: { label: 'Unverified Notice', color: 'rgba(255,255,255,0.55)', Icon: Info },
   ineligible: { label: 'Not Eligible', color: 'rgba(255,255,255,0.35)', Icon: WarningCircle },
   expired:    { label: 'Expired', color: 'rgba(255,255,255,0.2)', Icon: Clock },
 }
 
-function loopState(claim: Claim): 'eligible' | 'filed' | 'received' | 'closed' {
+function loopState(claim: Claim): 'eligible' | 'filed' | 'received' | 'unverified' | 'ineligible' | 'closed' {
   if (claim.claimStatus) return claim.claimStatus
   if (claim.status === 'detected' || claim.status === 'notified') return 'eligible'
+  if (claim.status === 'unverified') return 'unverified'
+  if (claim.status === 'ineligible') return 'ineligible'
   return 'closed'
 }
 
-function addWorkingDays(from: Date, days: number): Date {
-  const d = new Date(from)
-  let remaining = days
-  while (remaining > 0) {
-    d.setDate(d.getDate() + 1)
-    const dow = d.getDay()
-    if (dow !== 0 && dow !== 6) remaining--
+// ── Quick Copy Accessory Bar (Safari Assistant) ─────────────────────────
+
+const QuickCopyAccessoryBar = ({
+  claim,
+  dateStr,
+}: {
+  claim: Claim
+  dateStr: string
+}) => {
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const copyField = async (key: string, value: string | null | undefined) => {
+    if (!value) return
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    await Clipboard.setStringAsync(value)
+    setCopiedField(key)
+    setTimeout(() => setCopiedField(null), 1800)
   }
-  return d
+
+  const timeStr = claim.entryTime
+    ? new Date(claim.entryTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : ''
+
+  const lineName = claim.lineId ? claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1) : ''
+
+  return (
+    <View style={styles.copyTrayContainer}>
+      <View style={styles.copyTrayHeader}>
+        <Copy size={12} color="rgba(255,255,255,0.6)" weight="bold" />
+        <Text style={styles.copyTrayLabel}>
+          {copiedField ? `✓ Copied ${copiedField} to clipboard` : 'Tap chip to copy field for TfL portal:'}
+        </Text>
+      </View>
+      <View style={styles.copyChipsRow}>
+        <Pressable
+          onPress={() => copyField('Date', dateStr)}
+          style={[styles.copyChip, copiedField === 'Date' && styles.copyChipActive]}
+        >
+          <Text style={styles.copyChipText}>📅 {dateStr}</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => copyField('Origin', claim.entryStation)}
+          style={[styles.copyChip, copiedField === 'Origin' && styles.copyChipActive]}
+        >
+          <Text style={styles.copyChipText}>🏢 {claim.entryStation || 'Origin'}</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => copyField('Destination', claim.exitStation)}
+          style={[styles.copyChip, copiedField === 'Destination' && styles.copyChipActive]}
+        >
+          <Text style={styles.copyChipText}>🏢 {claim.exitStation || 'Dest'}</Text>
+        </Pressable>
+
+        {timeStr ? (
+          <Pressable
+            onPress={() => copyField('Time', timeStr)}
+            style={[styles.copyChip, copiedField === 'Time' && styles.copyChipActive]}
+          >
+            <Text style={styles.copyChipText}>⏰ {timeStr}</Text>
+          </Pressable>
+        ) : null}
+
+        <Pressable
+          onPress={() => copyField('Line', lineName)}
+          style={[styles.copyChip, copiedField === 'Line' && styles.copyChipActive]}
+        >
+          <Text style={styles.copyChipText}>🚇 {lineName}</Text>
+        </Pressable>
+      </View>
+    </View>
+  )
 }
 
-function isOverdue(claim: Claim): boolean {
-  if (claim.claimStatus !== 'filed' || !claim.filedAt) return false
-  const due = addWorkingDays(new Date(claim.filedAt), DUE_CLAIM_WORKING_DAYS)
-  return new Date() > due
-}
+// ── Day 14 SLA Resolution Survey Modal ─────────────────────────────────
 
-function workingDaysSince(fromIso: string): number {
-  const from = new Date(fromIso)
-  let count = 0
-  const now = new Date()
-  const cursor = new Date(from)
-  while (cursor < now) {
-    cursor.setDate(cursor.getDate() + 1)
-    const dow = cursor.getDay()
-    if (dow !== 0 && dow !== 6) count++
-  }
-  return count
-}
+const SlaSurveyModal = ({
+  visible,
+  claim,
+  onClose,
+  onSubmit,
+}: {
+  visible: boolean
+  claim: Claim | null
+  onClose: () => void
+  onSubmit: (id: number, outcome: 'PAID_FULL' | 'PAID_PARTIAL' | 'REJECTED' | 'STILL_WAITING', settledAmountPence?: number) => void
+}) => {
+  if (!claim) return null
 
-function formatPence(pence: number): string {
-  return (pence / 100).toLocaleString('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    minimumFractionDigits: 2,
-  })
+  const daysSinceFiled = claim.filedAt ? workingDaysSince(claim.filedAt) : 0
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <BlurView intensity={50} tint="dark" style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Clock size={24} color="#0098D4" weight="bold" />
+            <Text style={styles.modalTitle}>TfL Delay Repay SLA Review</Text>
+          </View>
+          <Text style={styles.modalSubtitle}>
+            Filed {daysSinceFiled} working days ago. Did your {formatPence(claim.amountPence)} refund for {claim.entryStation} → {claim.exitStation} land in your account?
+          </Text>
+
+          <View style={styles.surveyButtons}>
+            <Pressable
+              style={[styles.surveyBtn, { backgroundColor: '#34C759' }]}
+              onPress={async () => {
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                onSubmit(claim.id, 'PAID_FULL', claim.amountPence)
+                onClose()
+              }}
+            >
+              <Text style={styles.surveyBtnText}>✅ Paid in Full ({formatPence(claim.amountPence)})</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.surveyBtn, { backgroundColor: 'rgba(255, 184, 0, 0.2)', borderWidth: 1, borderColor: '#FFB800' }]}
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                onSubmit(claim.id, 'PAID_PARTIAL', Math.round(claim.amountPence / 2))
+                onClose()
+              }}
+            >
+              <Text style={[styles.surveyBtnText, { color: '#FFB800' }]}>🟡 Partial Payout</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.surveyBtn, { backgroundColor: 'rgba(255, 69, 58, 0.2)', borderWidth: 1, borderColor: '#FF453A' }]}
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                onSubmit(claim.id, 'REJECTED')
+                onClose()
+              }}
+            >
+              <Text style={[styles.surveyBtnText, { color: '#FF453A' }]}>❌ Rejected by TfL</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.surveyBtn, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                snoozeSurvey(claim.id)
+                onSubmit(claim.id, 'STILL_WAITING')
+                onClose()
+              }}
+            >
+              <Text style={[styles.surveyBtnText, { color: 'rgba(255,255,255,0.7)' }]}>⏳ Still Waiting (Check again in 3 days)</Text>
+            </Pressable>
+          </View>
+        </BlurView>
+      </View>
+    </Modal>
+  )
 }
 
 // ── Claim Card ────────────────────────────────────────────────────────
 
-const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
+const ClaimCard = React.memo(({ claim, onUpdate, onOpenSurvey, updating }: {
   claim: Claim
   onUpdate: (id: number, next: 'filed' | 'received') => void
+  onOpenSurvey: (claim: Claim) => void
   updating?: 'filed' | 'received'
 }) => {
   const state = loopState(claim)
@@ -164,9 +300,21 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
         day: 'numeric', month: 'short',
       })
 
+  const causeText = claim.cause || claim.windowCause || 'TfL Service Disruption'
+
   return (
     <View style={styles.cardOuter}>
       <BlurView intensity={30} tint="dark" style={styles.cardBlur}>
+        {/* Honest Detection Banner for Eligible Claims */}
+        {state === 'eligible' && (
+          <View style={styles.eligibleHeaderBanner}>
+            <Sparkle size={13} color="#FFB800" weight="fill" />
+            <Text style={styles.eligibleHeaderBannerText}>
+              ELIGIBLE FOR ESTIMATED REFUND
+            </Text>
+          </View>
+        )}
+
         {/* Top row: status badge + amount */}
         <View style={styles.cardHeader}>
           <View style={[styles.statusBadge, { borderColor: cfg.color }]}>
@@ -194,15 +342,65 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
           </Text>
         </View>
 
+        {/* Disruption Cause */}
+        <View style={styles.causeRow}>
+          <Info size={13} color="rgba(255,255,255,0.45)" weight="regular" />
+          <Text style={styles.causeText} numberOfLines={2}>
+            {causeText}
+          </Text>
+        </View>
+
         {/* Bottom metadata */}
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>{dateStr}</Text>
           {claim.causeEligible && (
             <View style={styles.delayBadge}>
-              <Text style={styles.delayText}>{claim.delayMinutes}m delay</Text>
+              <Text style={styles.delayText}>+{claim.delayMinutes}m delay</Text>
             </View>
           )}
         </View>
+
+        {/* TfL Capping & Policy Disclaimer */}
+        <View style={styles.cappingDisclaimerBox}>
+          <Text style={styles.cappingDisclaimerText}>
+            TfL determines final payout based on your daily cap or Travelcard status.
+          </Text>
+        </View>
+
+        {/* Estimated Fare Notice */}
+        {claim.journeySpec?.fareEstimated && (
+          <View style={styles.estimatedFareNotice}>
+            <WarningCircle size={13} color="#F59E0B" weight="bold" />
+            <Text style={styles.estimatedFareText}>
+              Estimated baseline fare. Final payout determined by TfL upon claim submission.
+            </Text>
+          </View>
+        )}
+
+        {/* Passive Notice for Unverified Claims */}
+        {state === 'unverified' && (
+          <View style={styles.passiveNoticeContainer}>
+            <Info size={14} color="rgba(255,255,255,0.7)" weight="regular" />
+            <Text style={styles.passiveNoticeText}>
+              TfL reported an unverified disruption notice. Automated claim calculation is unavailable. You can check your TfL online journey history for manual delay repay.
+            </Text>
+          </View>
+        )}
+
+        {/* Passive Notice for Ineligible Claims */}
+        {state === 'ineligible' && (
+          <View style={styles.passiveNoticeContainer}>
+            <WarningCircle size={14} color="rgba(255,255,255,0.55)" weight="regular" />
+            <Text style={styles.passiveNoticeText}>
+              Statutory exclusion: delays caused by weather, medical emergencies, trespass, or strikes do not qualify for automated TfL delay refunds.
+            </Text>
+          </View>
+        )}
+
+        {/* Quick Copy Accessory Bar */}
+        {state === 'eligible' && (
+          <QuickCopyAccessoryBar claim={claim} dateStr={dateStr} />
+        )}
 
         {/* Loop actions */}
         {state === 'eligible' && (
@@ -227,7 +425,7 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
               ]}
             >
               <ArrowSquareOut size={14} color="#FFFFFF" weight="bold" style={{ marginRight: 6 }} />
-              <Text style={styles.fileClaimButtonText}>File Claim on TfL (Copies Details)</Text>
+              <Text style={styles.fileClaimButtonText}>File Claim on TfL</Text>
             </Pressable>
 
             <Pressable
@@ -261,32 +459,20 @@ const ClaimCard = React.memo(({ claim, onUpdate, updating }: {
               <View style={styles.overdueBanner}>
                 <Clock size={14} color="#FFB800" weight="bold" style={{ marginRight: 6 }} />
                 <Text style={styles.overdueText}>
-                  Filed {workingDaysSince(claim.filedAt!)} working days ago. Landed yet?
+                  Filed {workingDaysSince(claim.filedAt!)} working days ago.
                 </Text>
               </View>
             )}
+
             <Pressable
-              onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
-                onUpdate(claim.id, 'received')
-              }}
-              disabled={updating === 'received'}
+              onPress={() => onOpenSurvey(claim)}
               style={({ pressed }) => [
-                styles.loopButton,
-                styles.receivedButton,
+                styles.slaReviewButton,
                 pressed && { opacity: 0.7 },
               ]}
-              accessibilityRole="button"
-              accessibilityLabel="Money received"
             >
-              {updating === 'received' ? (
-                <ActivityIndicator size="small" color="#34C759" />
-              ) : (
-                <>
-                  <CheckCircle size={15} color="#34C759" weight="bold" style={{ marginRight: 6 }} />
-                  <Text style={[styles.loopButtonText, { color: '#34C759' }]}>Money received</Text>
-                </>
-              )}
+              <CheckCircle size={15} color="#34C759" weight="bold" style={{ marginRight: 6 }} />
+              <Text style={styles.slaReviewButtonText}>Review Claim Outcome</Text>
             </Pressable>
           </View>
         )}
@@ -508,6 +694,7 @@ export default function RefundsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState<Record<number, 'filed' | 'received'>>({})
+  const [surveyClaim, setSurveyClaim] = useState<Claim | null>(null)
 
   // Phase 7 #14: demo builds must never surface Refund Radar
   useEffect(() => {
@@ -610,13 +797,29 @@ export default function RefundsScreen() {
     })
   }, [data])
 
+  // Auto-prompt Day 14 SLA Resolution Survey for the first unsnoozed overdue filed claim
+  useEffect(() => {
+    if (!data?.claims || surveyClaim !== null) return
+    const overdueClaim = data.claims.find(
+      (c) => isOverdue(c) && !isSurveySnoozed(c.id)
+    )
+    if (overdueClaim) {
+      setSurveyClaim(overdueClaim)
+    }
+  }, [data, surveyClaim])
+
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     fetchClaims(true)
   }, [fetchClaims])
 
-  // Optimistic loop update
-  const updateClaim = useCallback(async (id: number, next: 'filed' | 'received') => {
+  // Optimistic loop update with SLA outcome recording
+  const updateClaim = useCallback(async (
+    id: number,
+    next: 'filed' | 'received',
+    outcomeStatus?: 'PAID_FULL' | 'PAID_PARTIAL' | 'REJECTED' | 'STILL_WAITING',
+    settledAmountPence?: number,
+  ) => {
     setUpdating(prev => ({ ...prev, [id]: next }))
     try {
       const { userId, apiKey } = await ensureDeviceIdentity()
@@ -627,7 +830,11 @@ export default function RefundsScreen() {
           'x-user-id': userId,
           'x-api-key': apiKey,
         },
-        body: JSON.stringify({ claimStatus: next }),
+        body: JSON.stringify({
+          claimStatus: next,
+          outcomeStatus,
+          settledAmountPence,
+        }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => null)
@@ -809,7 +1016,12 @@ export default function RefundsScreen() {
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           renderItem={({ item }) => (
-            <ClaimCard claim={item} onUpdate={updateClaim} updating={updating[item.id]} />
+            <ClaimCard
+              claim={item}
+              onUpdate={updateClaim}
+              onOpenSurvey={setSurveyClaim}
+              updating={updating[item.id]}
+            />
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -822,6 +1034,16 @@ export default function RefundsScreen() {
           showsVerticalScrollIndicator={false}
         />
       </View>
+
+      <SlaSurveyModal
+        visible={surveyClaim !== null}
+        claim={surveyClaim}
+        onClose={() => setSurveyClaim(null)}
+        onSubmit={(id, outcome, amount) => {
+          const nextStatus = outcome === 'REJECTED' || outcome === 'STILL_WAITING' ? 'filed' : 'received'
+          updateClaim(id, nextStatus, outcome, amount)
+        }}
+      />
     </View>
   )
 }
@@ -1510,6 +1732,207 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 14,
+    color: '#FFFFFF',
+  },
+  estimatedFareNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.30)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 10,
+    marginBottom: 4,
+    gap: 6,
+  },
+  estimatedFareText: {
+    flex: 1,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#FCD34D',
+  },
+
+  // ── Honest Detection Header ──
+  eligibleHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,184,0,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,184,0,0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  eligibleHeaderBannerText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10.5,
+    color: '#FFB800',
+    letterSpacing: 0.8,
+  },
+  causeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  causeText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12.5,
+    color: 'rgba(255,255,255,0.7)',
+    flex: 1,
+    lineHeight: 16,
+  },
+  cappingDisclaimerBox: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  cappingDisclaimerText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 10.5,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 14,
+  },
+
+  // ── Passive Notice Containers ──
+  passiveNoticeContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 10,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  passiveNoticeText: {
+    flex: 1,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+
+  // ── Quick Copy Accessory Bar ──
+  copyTrayContainer: {
+    backgroundColor: 'rgba(0,16,56,0.5)',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginBottom: 10,
+  },
+  copyTrayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  copyTrayLabel: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.65)',
+  },
+  copyChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  copyChip: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  copyChipActive: {
+    backgroundColor: 'rgba(52,199,89,0.25)',
+    borderColor: '#34C759',
+  },
+  copyChipText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11.5,
+    color: '#FFFFFF',
+  },
+
+  // ── SLA Review Button ──
+  slaReviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(52,199,89,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(52,199,89,0.45)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  slaReviewButtonText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13.5,
+    color: '#34C759',
+  },
+
+  // ── SLA Survey Modal ──
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 24,
+    backgroundColor: 'rgba(10,20,50,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    padding: 20,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 18,
+    color: '#FFFFFF',
+  },
+  modalSubtitle: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: 'rgba(255,255,255,0.75)',
+    marginBottom: 16,
+  },
+  surveyButtons: {
+    gap: 10,
+  },
+  surveyBtn: {
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  surveyBtnText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13.5,
     color: '#FFFFFF',
   },
 })

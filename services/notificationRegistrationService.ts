@@ -142,11 +142,12 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
       return;
     }
 
-    // Payload Deduplication: Check if token & sorted line list are already synced
     const normalizedLines = [...selectedLines].sort();
-    const [cachedToken, cachedLinesRaw] = await Promise.all([
+    const { userId } = await ensureDeviceIdentity().catch(() => ({ userId: undefined }));
+    const [cachedToken, cachedLinesRaw, cachedUserId] = await Promise.all([
       AsyncStorage.getItem(STORAGE_KEY_TOKEN),
       AsyncStorage.getItem(STORAGE_KEY_LINES),
+      AsyncStorage.getItem('registered_push_user_id_v2'),
     ]);
 
     let cachedLinesJson: string | null = null;
@@ -162,13 +163,16 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
     }
     const currentLinesJson = JSON.stringify(normalizedLines);
 
-    if (cachedToken === token && cachedLinesJson === currentLinesJson) {
-      console.log('📱 [PushService] Token & line preferences already synced with backend. Skipping redundant network call.');
+    if (cachedToken === token && cachedLinesJson === currentLinesJson && cachedUserId === userId) {
+      console.log('📱 [PushService] Token, userId, and lines already synced with backend. Skipping redundant network call.');
       return;
     }
 
     // Perform registration with retry & timeout protection
-    await registerDevicePushToken(token, normalizedLines);
+    const registered = await registerDevicePushToken(token, normalizedLines);
+    if (registered && userId) {
+      await AsyncStorage.setItem('registered_push_user_id_v2', userId);
+    }
   } catch (error) {
     console.error('❌ [PushService] Error in syncPushTokenWithBackend:', error);
   }

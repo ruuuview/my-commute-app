@@ -137,34 +137,12 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
 
     const normalizedLines = [...selectedLines].sort();
     const { userId } = await ensureDeviceIdentity().catch(() => ({ userId: undefined }));
-    const [cachedToken, cachedLinesRaw, cachedUserId] = await Promise.all([
-      AsyncStorage.getItem(STORAGE_KEY_TOKEN),
-      AsyncStorage.getItem(STORAGE_KEY_LINES),
-      AsyncStorage.getItem('registered_push_user_id_v2'),
-    ]);
-
-    let cachedLinesJson: string | null = null;
-    if (cachedLinesRaw) {
-      try {
-        const cachedLines = JSON.parse(cachedLinesRaw);
-        if (Array.isArray(cachedLines)) {
-          cachedLinesJson = JSON.stringify([...cachedLines].sort());
-        }
-      } catch {
-        await AsyncStorage.removeItem(STORAGE_KEY_LINES);
-      }
-    }
-    const currentLinesJson = JSON.stringify(normalizedLines);
-
-    if (cachedToken === token && cachedLinesJson === currentLinesJson && cachedUserId === userId) {
-      console.log('📱 [PushService] Token, userId, and lines already synced with backend. Skipping redundant network call.');
-      return;
-    }
-
-    // Perform registration with retry & timeout protection
+    // Always perform registration to guarantee backend profile has the live token
     const registered = await registerDevicePushToken(token, normalizedLines);
     if (registered && userId) {
-      await AsyncStorage.setItem('registered_push_user_id_v2', userId);
+      await AsyncStorage.setItem('registered_push_user_id_v3', userId);
+      await AsyncStorage.setItem(STORAGE_KEY_TOKEN, token);
+      await AsyncStorage.setItem(STORAGE_KEY_LINES, JSON.stringify(normalizedLines));
     }
   } catch (error) {
     console.error('❌ [PushService] Error in syncPushTokenWithBackend:', error);

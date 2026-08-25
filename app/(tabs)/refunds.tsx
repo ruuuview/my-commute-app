@@ -4,9 +4,6 @@
 // The "Did you get it?" loop (v10 spec):
 //   Eligible (app-detected) → Filed (user taps "I filed my claim") →
 //   Received (user taps "Money received").
-//   filed/received are self-reported — the app cannot see TfL's side. Two
-//   buttons, not one: a single button would leave "received" permanently
-//   unknown and the loop never closes.
 
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
@@ -17,7 +14,6 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-  Switch,
   Linking,
   Image,
   Alert,
@@ -46,13 +42,9 @@ import {
   Info,
 } from 'phosphor-react-native'
 import { APP_CONFIG } from '../../config/app.config'
-import { launchTflAuth } from '../../services/authSession'
-import { createMMKV } from 'react-native-mmkv'
 import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import { STATUS_SEVERITY_COLORS } from '../../utils/getSeverityColor'
-import { DEMO_MODE } from '../../config/demoMode'
 import { useRouter } from 'expo-router'
-import { requestPermission, usePermissionOrchestrator } from '../../store/permissionOrchestrator'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { tflCapitalise } from '../../utils/tflCapitalise'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
@@ -102,6 +94,7 @@ interface ClaimsResponse {
   pendingTotal: number
   recoveredTotal: number
   count: number
+  evaluatedAt?: string
 }
 
 // ── Status display config ─────────────────────────────────────────────
@@ -121,6 +114,15 @@ function loopState(claim: Claim): 'eligible' | 'filed' | 'received' | 'unverifie
   if (claim.status === 'unverified') return 'unverified'
   if (claim.status === 'ineligible') return 'ineligible'
   return 'closed'
+}
+
+function formatRelativeTime(dateIso?: string | null): string {
+  if (!dateIso) return 'Checked just now'
+  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(dateIso).getTime()) / 1000))
+  if (diffSec < 15) return 'Checked just now'
+  if (diffSec < 60) return `Checked ${diffSec}s ago`
+  const diffMin = Math.floor(diffSec / 60)
+  return `Checked ${diffMin}m ago`
 }
 
 // ── Quick Copy Accessory Bar (Safari Assistant) ─────────────────────────
@@ -149,14 +151,16 @@ const QuickCopyAccessoryBar = ({
   const lineName = claim.lineId ? claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1) : ''
 
   return (
-    <View style={styles.copyTrayContainer}>
-      <View style={styles.copyTrayHeader}>
-        <Copy size={12} color="rgba(255,255,255,0.6)" weight="bold" />
-        <Text style={styles.copyTrayLabel}>
-          {copiedField ? `✓ Copied ${copiedField} to clipboard` : 'Tap chip to copy field for TfL portal:'}
-        </Text>
+    <View style={styles.accessoryBarOuter}>
+      <View style={styles.accessoryBarHeader}>
+        <View style={styles.accessoryBarTitleWrap}>
+          <Copy size={13} color="#0098D4" weight="bold" />
+          <Text style={styles.accessoryBarTitle}>1-TAP COPY FOR TFL PORTAL</Text>
+        </View>
+        <Text style={styles.accessoryBarSubtitle}>Tap a chip to copy straight to clipboard</Text>
       </View>
-      <View style={styles.copyChipsRow}>
+
+      <View style={styles.chipRow}>
         <Pressable
           onPress={() => copyField('Date', dateStr)}
           style={[styles.copyChip, copiedField === 'Date' && styles.copyChipActive]}
@@ -240,37 +244,36 @@ const SlaSurveyModal = ({
             </Pressable>
 
             <Pressable
-              style={[styles.surveyBtn, { backgroundColor: 'rgba(255, 184, 0, 0.2)', borderWidth: 1, borderColor: '#FFB800' }]}
+              style={[styles.surveyBtn, { backgroundColor: '#FFB800' }]}
               onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
                 onSubmit(claim.id, 'PAID_PARTIAL', Math.round(claim.amountPence / 2))
                 onClose()
               }}
             >
-              <Text style={[styles.surveyBtnText, { color: '#FFB800' }]}>🟡 Partial Payout</Text>
+              <Text style={[styles.surveyBtnText, { color: '#0A0F3C' }]}>🟡 Partial Payout</Text>
             </Pressable>
 
             <Pressable
-              style={[styles.surveyBtn, { backgroundColor: 'rgba(255, 69, 58, 0.2)', borderWidth: 1, borderColor: '#FF453A' }]}
+              style={[styles.surveyBtn, { backgroundColor: '#FF3B30' }]}
               onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
                 onSubmit(claim.id, 'REJECTED')
                 onClose()
               }}
             >
-              <Text style={[styles.surveyBtnText, { color: '#FF453A' }]}>❌ Rejected by TfL</Text>
+              <Text style={styles.surveyBtnText}>❌ Rejected by TfL</Text>
             </Pressable>
 
             <Pressable
-              style={[styles.surveyBtn, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}
+              style={[styles.surveyBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
               onPress={async () => {
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                snoozeSurvey(claim.id)
                 onSubmit(claim.id, 'STILL_WAITING')
                 onClose()
               }}
             >
-              <Text style={[styles.surveyBtnText, { color: 'rgba(255,255,255,0.7)' }]}>⏳ Still Waiting (Check again in 3 days)</Text>
+              <Text style={styles.surveyBtnText}>⏳ Still Waiting (Check back in 3 days)</Text>
             </Pressable>
           </View>
         </BlurView>
@@ -279,7 +282,7 @@ const SlaSurveyModal = ({
   )
 }
 
-// ── Claim Card ────────────────────────────────────────────────────────
+// ── Harmonized Claim Card (State C) ───────────────────────────────────
 
 const ClaimCard = React.memo(({ claim, onUpdate, onOpenSurvey, updating }: {
   claim: Claim
@@ -328,7 +331,7 @@ const ClaimCard = React.memo(({ claim, onUpdate, onOpenSurvey, updating }: {
         <View style={styles.journeyRow}>
           <Train size={14} color="rgba(255,255,255,0.45)" weight="regular" />
           <Text style={styles.journeyLine}>
-            {claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1)}
+            {claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1)} Line
           </Text>
         </View>
 
@@ -363,25 +366,15 @@ const ClaimCard = React.memo(({ claim, onUpdate, onOpenSurvey, updating }: {
         {/* TfL Capping & Policy Disclaimer */}
         <View style={styles.cappingDisclaimerBox}>
           <Text style={styles.cappingDisclaimerText}>
-            TfL determines final payout based on your daily cap or Travelcard status.
+            TfL determines final payout based on your daily cap or Travelcard status upon claim submission.
           </Text>
         </View>
 
-        {/* Estimated Fare Notice */}
-        {claim.journeySpec?.fareEstimated && (
-          <View style={styles.estimatedFareNotice}>
-            <WarningCircle size={13} color="#F59E0B" weight="bold" />
-            <Text style={styles.estimatedFareText}>
-              Estimated baseline fare. Final payout determined by TfL upon claim submission.
-            </Text>
-          </View>
-        )}
-
         {/* Passive Notice for Unverified Claims */}
         {state === 'unverified' && (
-          <View style={styles.passiveNoticeContainer}>
-            <Info size={14} color="rgba(255,255,255,0.7)" weight="regular" />
-            <Text style={styles.passiveNoticeText}>
+          <View style={styles.unverifiedNoticeBox}>
+            <Info size={14} color="#0098D4" weight="bold" />
+            <Text style={styles.unverifiedNoticeText}>
               TfL reported an unverified disruption notice. Automated claim calculation is unavailable. You can check your TfL online journey history for manual delay repay.
             </Text>
           </View>
@@ -389,100 +382,74 @@ const ClaimCard = React.memo(({ claim, onUpdate, onOpenSurvey, updating }: {
 
         {/* Passive Notice for Ineligible Claims */}
         {state === 'ineligible' && (
-          <View style={styles.passiveNoticeContainer}>
-            <WarningCircle size={14} color="rgba(255,255,255,0.55)" weight="regular" />
-            <Text style={styles.passiveNoticeText}>
-              Statutory exclusion: delays caused by weather, medical emergencies, trespass, or strikes do not qualify for automated TfL delay refunds.
+          <View style={styles.ineligibleNoticeBox}>
+            <WarningCircle size={14} color="rgba(255,255,255,0.5)" weight="bold" />
+            <Text style={styles.ineligibleNoticeText}>
+              Non-refundable statutory event (e.g. weather, strike, or customer incident). Excluded from TfL Service Delay scheme.
             </Text>
           </View>
         )}
 
-        {/* Quick Copy Accessory Bar */}
+        {/* Actions for Eligible / Active Claims */}
         {state === 'eligible' && (
-          <QuickCopyAccessoryBar claim={claim} dateStr={dateStr} />
-        )}
-
-        {/* Loop actions */}
-        {state === 'eligible' && (
-          <View style={styles.actionButtonContainer}>
-            <Pressable
-              onPress={async () => {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                const evidence = JSON.stringify({
-                  date: dateStr,
-                  line: claim.lineId,
-                  delay: `${claim.delayMinutes}min`,
-                  entry: claim.entryStation,
-                  exit: claim.exitStation,
-                  amount: formatPence(claim.amountPence),
-                }, null, 2)
-                await Clipboard.setStringAsync(evidence)
-                launchTflAuth('refund_radar')
-              }}
-              style={({ pressed }) => [
-                styles.fileClaimButton,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <ArrowSquareOut size={14} color="#FFFFFF" weight="bold" style={{ marginRight: 6 }} />
-              <Text style={styles.fileClaimButtonText}>File Claim on TfL</Text>
-            </Pressable>
-
+          <View style={styles.actionContainer}>
             <Pressable
               onPress={async () => {
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                onUpdate(claim.id, 'filed')
+                await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL)
               }}
+              style={styles.primaryActionButton}
+            >
+              <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
+              <Text style={styles.primaryActionText}>Open TfL Claim Assistant</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => onUpdate(claim.id, 'filed')}
               disabled={updating === 'filed'}
-              style={({ pressed }) => [
-                styles.loopButton,
-                pressed && { opacity: 0.7 },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="I filed my claim"
+              style={styles.secondaryActionButton}
             >
               {updating === 'filed' ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color="#0098D4" />
               ) : (
-                <>
-                  <PaperPlaneRight size={15} color="#FFFFFF" weight="bold" style={{ marginRight: 6 }} />
-                  <Text style={styles.loopButtonText}>I filed my claim</Text>
-                </>
+                <Text style={styles.secondaryActionText}>I Filed This Claim</Text>
               )}
             </Pressable>
+
+            {/* Quick Copy Accessory Bar */}
+            <QuickCopyAccessoryBar claim={claim} dateStr={dateStr} />
           </View>
         )}
 
+        {/* State: Filed (Awaiting payment) */}
         {state === 'filed' && (
-          <View style={styles.actionButtonContainer}>
-            {overdue && (
-              <View style={styles.overdueBanner}>
-                <Clock size={14} color="#FFB800" weight="bold" style={{ marginRight: 6 }} />
-                <Text style={styles.overdueText}>
-                  Filed {workingDaysSince(claim.filedAt!)} working days ago.
-                </Text>
-              </View>
-            )}
+          <View style={styles.actionContainer}>
+            <View style={styles.filedStatusBox}>
+              <Clock size={16} color="#0098D4" weight="bold" />
+              <Text style={styles.filedStatusText}>
+                {overdue
+                  ? `Past ${DUE_CLAIM_WORKING_DAYS} working days — TfL review overdue.`
+                  : 'Awaiting TfL processing (normally within 10 working days).'}
+              </Text>
+            </View>
 
             <Pressable
               onPress={() => onOpenSurvey(claim)}
-              style={({ pressed }) => [
-                styles.slaReviewButton,
-                pressed && { opacity: 0.7 },
-              ]}
+              style={[styles.primaryActionButton, overdue && { backgroundColor: '#FFB800' }]}
             >
-              <CheckCircle size={15} color="#34C759" weight="bold" style={{ marginRight: 6 }} />
-              <Text style={styles.slaReviewButtonText}>Review Claim Outcome</Text>
+              <Text style={[styles.primaryActionText, overdue && { color: '#0A0F3C' }]}>
+                {overdue ? 'Review Claim Outcome' : 'Money Received'}
+              </Text>
             </Pressable>
           </View>
         )}
 
-        {state === 'received' && claim.receivedAt && (
-          <Text style={styles.receivedMeta}>
-            Received {new Date(claim.receivedAt).toLocaleDateString('en-GB', {
-              day: 'numeric', month: 'short',
-            })} — added to your running total
-          </Text>
+        {/* State: Received */}
+        {state === 'received' && (
+          <View style={styles.receivedSuccessBox}>
+            <CheckCircle size={16} color="#34C759" weight="fill" />
+            <Text style={styles.receivedSuccessText}>Refund logged as received.</Text>
+          </View>
         )}
       </BlurView>
     </View>
@@ -490,8 +457,8 @@ const ClaimCard = React.memo(({ claim, onUpdate, onOpenSurvey, updating }: {
 })
 ClaimCard.displayName = 'ClaimCard'
 
-// ── UNREGISTERED ONLY: Educational Pitch Card ─────────────────────────
-// Clean Light Blue accents matching 3rd onboarding screen.
+// ── UNREGISTERED STATE: Single High-Conversion Pitch Card (State A) ───
+
 const TflUnregisteredPitchCard = React.memo(({
   onRegister,
   onToggleRegistered,
@@ -502,8 +469,6 @@ const TflUnregisteredPitchCard = React.memo(({
   return (
     <View style={styles.explainerCardOuter}>
       <BlurView intensity={30} tint="dark" style={styles.explainerCardBlur}>
-        <View style={styles.explainerAccentBar} />
-
         <View style={styles.explainerInner}>
           <View style={styles.explainerHeaderRow}>
             <View style={styles.explainerIconWrap}>
@@ -519,7 +484,7 @@ const TflUnregisteredPitchCard = React.memo(({
             Refund Radar claims your delay money back from TfL. But it can only reach the journeys TfL lets it see.
           </Text>
 
-          {/* Comparison Container */}
+          {/* Loss-Aversion Comparison Container */}
           <View style={styles.comparisonBox}>
             <View style={styles.compareItem}>
               <View style={styles.compareIconPill}>
@@ -556,7 +521,7 @@ const TflUnregisteredPitchCard = React.memo(({
             </Text>
           </View>
 
-          {/* CTAs */}
+          {/* Single Focused CTA Block */}
           <View style={styles.ctaGroup}>
             <Pressable
               onPress={onRegister}
@@ -592,67 +557,49 @@ const TflUnregisteredPitchCard = React.memo(({
 })
 TflUnregisteredPitchCard.displayName = 'TflUnregisteredPitchCard'
 
-// ── REGISTERED ONLY: Clean Minimal Active Status Bar ──────────────────
-// Honest self-reported status bar with direct change/disconnect escape hatch.
-const TflRegisteredCleanStatusBar = React.memo(({
-  monitoredLineCount,
-  onDisconnect,
-}: {
-  monitoredLineCount: number
-  onDisconnect: () => void
-}) => {
-  return (
-    <View style={styles.registeredStatusBarOuter}>
-      <BlurView intensity={30} tint="dark" style={styles.registeredStatusBarBlur}>
-        <View style={styles.registeredStatusLeft}>
-          <View style={styles.pulsingBlueDot}>
-            <View style={styles.pulsingBlueDotInner} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.statusTitleRow}>
-              <Text style={styles.registeredStatusTitle}>28-Day Delay Radar Active</Text>
-              <Pressable
-                onPress={onDisconnect}
-                hitSlop={8}
-                style={styles.selfReportedPill}
-                accessibilityRole="button"
-                accessibilityLabel="Change TfL account status"
-              >
-                <Text style={styles.selfReportedPillText}>SELF-REPORTED • CHANGE</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.registeredStatusSubtitle}>
-              You told us you have a registered TfL account. (We cannot verify this with TfL).
-            </Text>
-          </View>
-        </View>
-      </BlurView>
-    </View>
-  )
-})
-TflRegisteredCleanStatusBar.displayName = 'TflRegisteredCleanStatusBar'
+// ── REGISTERED ZERO-STATE: Single Honest Status Hero Card (State B) ───
 
-// ── REGISTERED ZERO-STATE: Clean Live Radar & Potential Refunds ───────
-// Rendered when user is registered and has 0 active claims.
 const CleanRadarLiveScanner = React.memo(({
   savedLines,
+  evaluatedAt,
 }: {
   savedLines: string[]
+  evaluatedAt?: string | null
 }) => {
+  const [relativeTime, setRelativeTime] = useState(() => formatRelativeTime(evaluatedAt))
+
+  useEffect(() => {
+    setRelativeTime(formatRelativeTime(evaluatedAt))
+    const interval = setInterval(() => {
+      setRelativeTime(formatRelativeTime(evaluatedAt))
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [evaluatedAt])
+
   return (
     <View style={styles.cleanScannerOuter}>
       <BlurView intensity={30} tint="dark" style={styles.cleanScannerBlur}>
-        <View style={styles.radarPulsingRing}>
-          <Broadcast size={36} color="#0098D4" weight="bold" />
+        {/* Radar Signal + Live Relative Ticker */}
+        <View style={styles.scannerTopRow}>
+          <View style={styles.radarPulsingRing}>
+            <Broadcast size={24} color="#0098D4" weight="bold" />
+          </View>
+          <View style={styles.tickerBadge}>
+            <View style={styles.tickerDot} />
+            <Text style={styles.tickerText}>{relativeTime}</Text>
+          </View>
         </View>
-        <Text style={styles.cleanScannerTitle}>Radar Active & Scanning</Text>
+
+        {/* Hero Answer */}
+        <Text style={styles.heroAmountFact}>£0.00 Waiting · All Clear</Text>
         <Text style={styles.cleanScannerSubtitle}>
-          We are monitoring live track telemetry for delays over 15 minutes across your commute routes.
+          No qualifying delays over 15 minutes detected today on your commute routes.
         </Text>
 
+        {/* Active Lines Chip Row */}
         {savedLines.length > 0 && (
           <View style={styles.monitoredLinesContainer}>
-            <Text style={styles.monitoredLinesLabel}>ACTIVE COMMUTE RADAR</Text>
+            <Text style={styles.monitoredLinesLabel}>SCANNING CORRIDORS</Text>
             <View style={styles.linePillsWrap}>
               {savedLines.map((lineId) => (
                 <View key={lineId} style={styles.lineTagPill}>
@@ -664,30 +611,59 @@ const CleanRadarLiveScanner = React.memo(({
           </View>
         )}
 
-        <View style={styles.guideNoticeRow}>
-          <Sparkle size={15} color="#0098D4" weight="fill" style={{ marginTop: 2 }} />
-          <Text style={styles.guideNoticeText}>
-            Delays of 15+ minutes qualify for a full single-fare TfL refund. When a delay occurs on your lines, it will appear here automatically ready to claim in 1 tap.
-          </Text>
-        </View>
+        {/* Quiet Reassurance */}
+        <Text style={styles.passiveReassuranceText}>
+          We monitor TfL service disruptions 24/7. When an eligible delay hits your lines, your refund claim will appear here automatically ready to claim in 1 tap.
+        </Text>
       </BlurView>
     </View>
   )
 })
 CleanRadarLiveScanner.displayName = 'CleanRadarLiveScanner'
 
+// ── Dedicated Zero-Liability Statutory Disclosure Card ────────────────
+
+const StatutoryDisclosureBox = React.memo(({
+  onDisconnect,
+}: {
+  onDisconnect: () => void
+}) => {
+  return (
+    <View style={styles.statutoryCardOuter}>
+      <BlurView intensity={25} tint="dark" style={styles.statutoryCardBlur}>
+        <ShieldCheck size={18} color="#0098D4" weight="bold" style={{ marginTop: 2 }} />
+        <View style={{ flex: 1 }}>
+          <View style={styles.statutoryTitleRow}>
+            <Text style={styles.statutoryTitle}>28-Day Delay Radar Active</Text>
+            <Pressable
+              onPress={onDisconnect}
+              hitSlop={8}
+              style={styles.changePill}
+              accessibilityRole="button"
+              accessibilityLabel="Change TfL account status"
+            >
+              <Text style={styles.changePillText}>CHANGE</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.statutoryBody}>
+            Self-reported. We cannot verify your account status directly with TfL.
+          </Text>
+        </View>
+      </BlurView>
+    </View>
+  )
+})
+StatutoryDisclosureBox.displayName = 'StatutoryDisclosureBox'
+
 // ── Main Screen ───────────────────────────────────────────────────────
 
 export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const notificationsGranted = useUserPreferencesStore(s => s.notificationsGranted)
-  const setNotificationsGranted = useUserPreferencesStore(s => s.setNotificationsGranted)
-  const tflRegistered = useUserPreferencesStore(s => s.tflRegistered)
-  const setTflRegistered = useUserPreferencesStore(s => s.setTflRegistered)
-  const selectedLines = useUserPreferencesStore(s => s.selectedLines)
-  const notifDenied = usePermissionOrchestrator(s => s.permissions.notifications?.decision === 'denied')
-  const openAppSettings = useCallback(() => { Linking.openSettings().catch(() => {}) }, [])
+
+  const selectedLines = useUserPreferencesStore((s) => s.selectedLines)
+  const tflRegistered = useUserPreferencesStore((s) => s.tflRegistered)
+  const setTflRegistered = useUserPreferencesStore((s) => s.setTflRegistered)
 
   const [data, setData] = useState<ClaimsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -695,30 +671,24 @@ export default function RefundsScreen() {
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState<Record<number, 'filed' | 'received'>>({})
   const [surveyClaim, setSurveyClaim] = useState<Claim | null>(null)
+  const [lastEvaluatedAt, setLastEvaluatedAt] = useState<string | null>(null)
 
-  // Phase 7 #14: demo builds must never surface Refund Radar
-  useEffect(() => {
-    if (DEMO_MODE) {
-      router.replace('/(tabs)')
-    }
-  }, [router])
-
-  // Direct registration handler (opens TfL portal in-app web browser and prompts upon completion)
+  // In-app browser auth & neutral confirmation alert
   const handleRegisterWithTfl = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL)
-      // On return from the browser, confirm whether the user completed sign-in/registration
+      // Neutral, non-pressuring attestation dialog
       Alert.alert(
-        'TfL Account Setup',
-        'Did you sign in or link your contactless card on TfL?',
+        'TfL Account Status',
+        'Did you sign in or create an account on TfL?',
         [
           {
-            text: 'Not Yet (Keep 7-Day)',
+            text: 'Not yet',
             style: 'cancel',
           },
           {
-            text: 'Yes, Enable 28-Day Radar',
+            text: 'Yes, signed in',
             onPress: () => {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
               setTflRegistered(true)
@@ -736,18 +706,6 @@ export default function RefundsScreen() {
     setTflRegistered(val)
   }, [setTflRegistered])
 
-  const handleToggleNotificationSwitch = useCallback(async (value: boolean) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    if (value) {
-      const decision = await requestPermission('notifications', 'refund_status', { primer: false })
-      if (decision === 'granted') {
-        setNotificationsGranted(true)
-      }
-    } else {
-      setNotificationsGranted(false)
-    }
-  }, [setNotificationsGranted])
-
   const fetchClaims = useCallback(async (isRefresh = false) => {
     try {
       setError(null)
@@ -758,6 +716,8 @@ export default function RefundsScreen() {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: ClaimsResponse = await res.json()
+      setLastEvaluatedAt(json.evaluatedAt || new Date().toISOString())
+
       // Overdue-filed claims surface to the top; the rest newest-first.
       const sorted = [...json.claims].sort((a, b) => {
         const aOver = isOverdue(a) ? 1 : 0
@@ -768,61 +728,45 @@ export default function RefundsScreen() {
       setData({ ...json, claims: sorted })
     } catch (e) {
       console.warn('[Refunds] fetch error:', e)
-      setError('Could not load claims. Pull down to retry.')
+      setError('Could not load claims. Pull down to refresh.')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }, [])
 
-  useEffect(() => { fetchClaims() }, [fetchClaims])
-
-  // Permission 4 — the Always-location money ask. Fires ONCE, the first time
-  // an eligible (app-detected, not yet filed) claim is on screen.
-  const alwaysAskFiredRef = useRef(false)
   useEffect(() => {
-    if (alwaysAskFiredRef.current) return
-    const eligible = (data?.claims ?? []).find(
-      c => c.status === 'detected' || c.status === 'notified'
-    )
-    if (!eligible) return
-    alwaysAskFiredRef.current = true
-    const amount = formatPence(eligible.amountPence)
-    void requestPermission('locationAlways', 'first_eligible_claim', {
-      copy: {
-        title: 'YOU MISSED A DELAY. WE DIDN\u2019T.',
-        body: `${amount} might be sitting there because of that delay. Let us track your Home–Work route in the background and we\u2019ll flag every one like this — no more digging through old journeys yourself.`,
-        button: 'Never Miss One',
-      },
-    })
-  }, [data])
-
-  // Auto-prompt Day 14 SLA Resolution Survey for the first unsnoozed overdue filed claim
-  useEffect(() => {
-    if (!data?.claims || surveyClaim !== null) return
-    const overdueClaim = data.claims.find(
-      (c) => isOverdue(c) && !isSurveySnoozed(c.id)
-    )
-    if (overdueClaim) {
-      setSurveyClaim(overdueClaim)
-    }
-  }, [data, surveyClaim])
+    fetchClaims()
+  }, [fetchClaims])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     fetchClaims(true)
   }, [fetchClaims])
 
-  // Optimistic loop update with SLA outcome recording
-  const updateClaim = useCallback(async (
+  // FE-04: Day 14 Survey Prompt
+  useEffect(() => {
+    if (!data || data.claims.length === 0) return
+    const overdueClaim = data.claims.find(c => isOverdue(c) && !isSurveySnoozed(c.id))
+    if (overdueClaim && !surveyClaim) {
+      setSurveyClaim(overdueClaim)
+    }
+  }, [data, surveyClaim])
+
+  const handleSlaSurveySubmit = useCallback(async (
     id: number,
-    next: 'filed' | 'received',
-    outcomeStatus?: 'PAID_FULL' | 'PAID_PARTIAL' | 'REJECTED' | 'STILL_WAITING',
-    settledAmountPence?: number,
+    outcome: 'PAID_FULL' | 'PAID_PARTIAL' | 'REJECTED' | 'STILL_WAITING',
+    settledAmountPence?: number
   ) => {
-    setUpdating(prev => ({ ...prev, [id]: next }))
+    if (outcome === 'STILL_WAITING') {
+      snoozeSurvey(id)
+      setSurveyClaim(null)
+      return
+    }
+
     try {
       const { userId, apiKey } = await ensureDeviceIdentity()
+      const nextClaimStatus = outcome === 'REJECTED' ? 'filed' : 'received'
       const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims/${id}`, {
         method: 'PATCH',
         headers: {
@@ -831,11 +775,35 @@ export default function RefundsScreen() {
           'x-api-key': apiKey,
         },
         body: JSON.stringify({
-          claimStatus: next,
-          outcomeStatus,
-          settledAmountPence,
+          claimStatus: nextClaimStatus,
+          outcomeStatus: outcome,
+          settledAmountPence: settledAmountPence ?? 0,
         }),
       })
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      await fetchClaims(true)
+    } catch (e) {
+      console.warn('[Refunds] SLA survey submit error:', e)
+      Alert.alert('Error', 'Could not save feedback. Please try again.')
+    }
+  }, [fetchClaims])
+
+  const handleUpdateClaim = useCallback(async (id: number, nextStatus: 'filed' | 'received') => {
+    try {
+      setUpdating(prev => ({ ...prev, [id]: nextStatus }))
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      const { userId, apiKey } = await ensureDeviceIdentity()
+      const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({ claimStatus: nextStatus }),
+      })
+
       if (!res.ok) {
         const body = await res.json().catch(() => null)
         throw new Error(body?.error ?? `HTTP ${res.status}`)
@@ -868,57 +836,28 @@ export default function RefundsScreen() {
         <Text style={styles.subtitle}>Automatic delay detection & claims</Text>
       </View>
 
-      {/* State-Adaptive Header: Pitch card if NOT registered, clean status bar if REGISTERED */}
-      {!tflRegistered ? (
+      {/* State A: High-Conversion Pitch Card if Unregistered */}
+      {!tflRegistered && (
         <TflUnregisteredPitchCard
           onRegister={handleRegisterWithTfl}
           onToggleRegistered={handleToggleRegistered}
         />
-      ) : (
-        <TflRegisteredCleanStatusBar
-          monitoredLineCount={selectedLines.length}
-          onDisconnect={() => handleToggleRegistered(false)}
-        />
       )}
 
-      {/* Claim alerts permission toggle */}
-      <View style={styles.claimAlertsRow}>
-        <View style={styles.claimAlertsInfo}>
-          <Text style={styles.claimAlertsTitle}>Claim status alerts</Text>
-          <Text style={styles.claimAlertsBody}>
-            {"Money doesn't announce itself. We will, the second it moves."}
-          </Text>
-          {notifDenied && (
-            <Pressable onPress={openAppSettings} hitSlop={8}>
-              <Text style={styles.denialLine}>
-                Notifications are off for My Commute — tap to fix in Settings
-              </Text>
-            </Pressable>
-          )}
-        </View>
-        <Switch
-          value={notificationsGranted}
-          onValueChange={handleToggleNotificationSwitch}
-          trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#0098D4' }}
-          thumbColor="#FFFFFF"
-        />
-      </View>
-
-      {/* Recovered-so-far banner */}
-      {recoveredFormatted && (
+      {/* State C Only: Recovered / Pending Metric Banners */}
+      {tflRegistered && hasClaims && recoveredFormatted && (
         <View style={styles.bannerOuter}>
           <BlurView intensity={30} tint="dark" style={styles.recoveredBanner}>
             <View>
               <Text style={styles.bannerLabel}>Recovered so far</Text>
-              <Text style={styles.recoveredCaption}>{"Money you've told us landed"}</Text>
+              <Text style={styles.recoveredCaption}>{"Money confirmed in your account"}</Text>
             </View>
             <Text style={styles.recoveredAmount}>{recoveredFormatted}</Text>
           </BlurView>
         </View>
       )}
 
-      {/* Pending refunds banner */}
-      {data && data.pendingTotal > 0 && (
+      {tflRegistered && hasClaims && data && data.pendingTotal > 0 && (
         <View style={styles.bannerOuter}>
           <BlurView intensity={30} tint="dark" style={styles.pendingBanner}>
             <Text style={styles.bannerLabel}>Pending refunds</Text>
@@ -928,7 +867,7 @@ export default function RefundsScreen() {
       )}
 
       {/* Overdue badge */}
-      {badgeCount > 0 && (
+      {tflRegistered && hasClaims && badgeCount > 0 && (
         <View style={styles.badgeRow}>
           <View style={styles.badgeDot} />
           <Text style={styles.badgeText}>
@@ -937,8 +876,8 @@ export default function RefundsScreen() {
         </View>
       )}
 
-      {/* Claims List Header Label (Only if claims exist) */}
-      {hasClaims && (
+      {/* Claims List Header Label */}
+      {tflRegistered && hasClaims && (
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Detected Claims</Text>
           <Text style={styles.sectionCount}>{data!.claims.length} total</Text>
@@ -976,28 +915,39 @@ export default function RefundsScreen() {
       )
     }
 
-    // Registered with 0 claims: clean live scanning hub
+    // State B: Registered with 0 claims -> Single Honest Status Hero + Statutory Disclosure
     if (tflRegistered) {
-      return <CleanRadarLiveScanner savedLines={selectedLines} />
+      return (
+        <View>
+          <CleanRadarLiveScanner
+            savedLines={selectedLines}
+            evaluatedAt={lastEvaluatedAt}
+          />
+          <StatutoryDisclosureBox
+            onDisconnect={() => handleToggleRegistered(false)}
+          />
+        </View>
+      )
     }
 
-    // Unregistered empty placeholder
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.radarPulsingRing}>
-          <Broadcast size={36} color="#0098D4" weight="bold" />
-        </View>
-        <Text style={styles.emptyTitle}>Radar Ready & Listening</Text>
-        <Text style={styles.emptySubtitle}>
-          Create a TfL online account above to unlock 28 days of automatic delay detection on your commutes.
-        </Text>
-      </View>
-    )
+    // State A: Unregistered -> Pitch card is already in header, return null for clean single-card view
+    return null
+  }
+
+  // Footer component
+  const renderFooter = () => {
+    if (tflRegistered && hasClaims) {
+      return (
+        <StatutoryDisclosureBox
+          onDisconnect={() => handleToggleRegistered(false)}
+        />
+      )
+    }
+    return <View style={{ height: 40 }} />
   }
 
   return (
     <View style={styles.rootContainer}>
-      {/* Signature Deep TfL Navy/Midnight Blue Gradient */}
       <OnboardingGradient />
 
       {/* Film Grain Texture Overlay */}
@@ -1009,137 +959,129 @@ export default function RefundsScreen() {
         />
       </View>
 
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <FlatList
-          data={data?.claims ?? []}
-          keyExtractor={item => String(item.id)}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmpty}
-          renderItem={({ item }) => (
-            <ClaimCard
-              claim={item}
-              onUpdate={updateClaim}
-              onOpenSurvey={setSurveyClaim}
-              updating={updating[item.id]}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="rgba(255,255,255,0.6)"
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
+      <FlatList
+        data={tflRegistered && data ? data.claims : []}
+        keyExtractor={item => String(item.id)}
+        renderItem={({ item }) => (
+          <ClaimCard
+            claim={item}
+            onUpdate={handleUpdateClaim}
+            onOpenSurvey={(claim) => setSurveyClaim(claim)}
+            updating={updating[item.id]}
+          />
+        )}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingTop: Math.max(insets.top + 16, 24),
+            paddingBottom: Math.max(insets.bottom + 80, 100),
+          },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#0098D4"
+            colors={['#0098D4']}
+          />
+        }
+      />
 
+      {/* Day 14 SLA Resolution Survey Modal */}
       <SlaSurveyModal
-        visible={surveyClaim !== null}
+        visible={Boolean(surveyClaim)}
         claim={surveyClaim}
         onClose={() => setSurveyClaim(null)}
-        onSubmit={(id, outcome, amount) => {
-          const nextStatus = outcome === 'REJECTED' || outcome === 'STILL_WAITING' ? 'filed' : 'received'
-          updateClaim(id, nextStatus, outcome, amount)
-        }}
+        onSubmit={handleSlaSurveySubmit}
       />
     </View>
   )
 }
 
-// ── Styles ────────────────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#07103a',
+    backgroundColor: '#0A0F3C',
   },
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
+  listContent: {
+    paddingHorizontal: 20,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    marginBottom: 20,
   },
   title: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 34,
+    fontSize: 32,
+    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 15,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginTop: 4,
+    fontWeight: '400',
   },
 
-  // ── Unregistered Pitch Card ─────────────────────────────────────────
+  // ── Unregistered Pitch Card (State A) ───
   explainerCardOuter: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.35)',
   },
   explainerCardBlur: {
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.22)',
-    overflow: 'hidden',
-  },
-  explainerAccentBar: {
-    height: 4,
-    backgroundColor: '#0098D4',
+    padding: 20,
+    backgroundColor: 'rgba(10, 15, 60, 0.75)',
   },
   explainerInner: {
-    padding: 18,
+    gap: 16,
   },
   explainerHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 10,
   },
   explainerIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(0,152,212,0.20)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,152,212,0.45)',
-    alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.3)',
   },
   explainerEyebrow: {
-    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 1.1,
+    fontWeight: '700',
+    color: '#0098D4',
+    letterSpacing: 0.8,
   },
   explainerTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: -0.4,
-    lineHeight: 24,
     marginTop: 2,
+    lineHeight: 24,
   },
   explainerBody: {
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.75)',
     lineHeight: 20,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 14,
   },
   comparisonBox: {
-    backgroundColor: 'rgba(0, 16, 56, 0.45)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 14,
     padding: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
-    marginBottom: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   compareItem: {
     flexDirection: 'row',
@@ -1150,220 +1092,169 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 152, 212, 0.18)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 152, 212, 0.45)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 2,
   },
   compareTextCol: {
     flex: 1,
   },
   compareHeading: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 2,
   },
   compareBody: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.70)',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginTop: 3,
+    lineHeight: 17,
   },
   comparisonDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    marginVertical: 12,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   securityRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
   },
   securityText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
     flex: 1,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: 'rgba(255,255,255,0.55)',
+    lineHeight: 16,
   },
   ctaGroup: {
     gap: 10,
+    marginTop: 4,
   },
   registerPrimaryCta: {
+    backgroundColor: '#0098D4',
+    paddingVertical: 14,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    height: 48,
     gap: 8,
-    shadowColor: '#0098D4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4,
   },
   registerPrimaryCtaText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
     color: '#0A0F3C',
+    fontSize: 15,
+    fontWeight: '700',
   },
   alreadyRegisteredBtn: {
+    paddingVertical: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
   },
   alreadyRegisteredBtnText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
+    color: '#0098D4',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   honestAttestationMicrocopy: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11.5,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.45)',
     textAlign: 'center',
-    marginTop: 4,
     lineHeight: 15,
   },
 
-  // ── Registered Clean Status Bar ─────────────────────────────────────
-  registeredStatusBarOuter: {
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  registeredStatusBarBlur: {
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 152, 212, 0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 152, 212, 0.35)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  registeredStatusLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  pulsingBlueDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 152, 212, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulsingBlueDotInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#0098D4',
-  },
-  statusTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  registeredStatusTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13.5,
-    color: '#FFFFFF',
-  },
-  selfReportedPill: {
-    backgroundColor: 'rgba(0, 152, 212, 0.18)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 152, 212, 0.45)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  selfReportedPillText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 9,
-    color: '#0098D4',
-    letterSpacing: 0.4,
-  },
-  registeredStatusSubtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11.5,
-    color: 'rgba(255,255,255,0.60)',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-
-  // ── Clean Radar Live Scanner (Zero-State for Registered) ───────────
+  // ── Single Honest Status Hero (State B) ───
   cleanScannerOuter: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.25)',
+    marginBottom: 16,
   },
   cleanScannerBlur: {
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.20)',
-    padding: 22,
-    overflow: 'hidden',
+    padding: 24,
+    backgroundColor: 'rgba(10, 15, 60, 0.65)',
     alignItems: 'center',
+    textAlign: 'center',
+    gap: 14,
   },
-  cleanScannerTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 20,
+  scannerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  radarPulsingRing: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.3)',
+  },
+  tickerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  tickerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34C759',
+  },
+  tickerText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontWeight: '500',
+  },
+  heroAmountFact: {
+    fontSize: 26,
+    fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.4,
-    marginBottom: 6,
     textAlign: 'center',
   },
   cleanScannerSubtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 14,
-    lineHeight: 20,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginBottom: 16,
+    lineHeight: 20,
+    paddingHorizontal: 8,
   },
   monitoredLinesContainer: {
     width: '100%',
-    backgroundColor: 'rgba(0, 16, 56, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     borderRadius: 14,
     padding: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-    marginBottom: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   monitoredLinesLabel: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10.5,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
-    marginBottom: 8,
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.45)',
+    letterSpacing: 0.8,
   },
   linePillsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   lineTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    gap: 6,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.3)',
   },
   lineTagDot: {
     width: 6,
@@ -1372,180 +1263,179 @@ const styles = StyleSheet.create({
     backgroundColor: '#0098D4',
   },
   lineTagText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 12,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
-  guideNoticeRow: {
+  passiveReassuranceText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+
+  // ── Statutory Disclosure Box ───
+  statutoryCardOuter: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 20,
+  },
+  statutoryCardBlur: {
+    padding: 14,
+    backgroundColor: 'rgba(10, 15, 60, 0.5)',
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: 'rgba(0, 152, 212, 0.12)',
-    borderRadius: 12,
-    padding: 11,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 152, 212, 0.3)',
-    width: '100%',
+    gap: 10,
   },
-  guideNoticeText: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: 'rgba(255,255,255,0.85)',
-  },
-
-  // ── Alerts Toggle ───────────────────────────────────────────────────
-  claimAlertsRow: {
+  statutoryTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
-    gap: 12,
+    marginBottom: 2,
   },
-  claimAlertsInfo: {
-    flex: 1,
-  },
-  claimAlertsTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+  statutoryTitle: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
-  claimAlertsBody: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 2,
+  statutoryBody: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.55)',
+    lineHeight: 15,
   },
-  denialLine: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 12,
-    color: STATUS_SEVERITY_COLORS.minor,
-    marginTop: 4,
-    textDecorationLine: 'underline',
+  changePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+  },
+  changePillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0098D4',
+    letterSpacing: 0.5,
   },
 
-  // ── Banners ─────────────────────────────────────────────────────────
+  // ── Banners & Overdue Badge ───
   bannerOuter: {
-    paddingHorizontal: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
     marginBottom: 12,
   },
-  pendingBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.20)',
-    overflow: 'hidden',
-  },
   recoveredBanner: {
+    padding: 16,
+    backgroundColor: 'rgba(52, 199, 89, 0.15)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 152, 212, 0.12)',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.35)',
+  },
+  pendingBanner: {
+    padding: 16,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
     borderColor: 'rgba(0, 152, 212, 0.35)',
-    overflow: 'hidden',
   },
   bannerLabel: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.75)',
-  },
-  pendingAmount: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 22,
-    color: '#FFB800',
-    letterSpacing: -0.3,
-  },
-  recoveredAmount: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 22,
-    color: '#0098D4',
-    letterSpacing: -0.3,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
   },
   recoveredCaption: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(0, 152, 212, 0.8)',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.5)',
     marginTop: 2,
   },
-
-  // Overdue badge
+  recoveredAmount: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#34C759',
+  },
+  pendingAmount: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0098D4',
+  },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
     gap: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.35)',
   },
   badgeDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FFB800',
+    backgroundColor: '#FF3B30',
   },
   badgeText: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    flex: 1,
   },
 
-  // Section Header
+  // ── Claims List ───
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  sectionTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 18,
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  sectionCount: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-  },
-
-  // ── Claim Card ──────────────────────────────────────────────────────
-  cardOuter: {
-    paddingHorizontal: 20,
     marginBottom: 12,
   },
-  cardBlur: {
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  sectionCount: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+  cardOuter: {
+    marginBottom: 16,
     borderRadius: 20,
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.20)',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  cardBlur: {
+    padding: 20,
+    backgroundColor: 'rgba(10, 15, 60, 0.75)',
+    gap: 12,
+  },
+  eligibleHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  eligibleHeaderBannerText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFB800',
+    letterSpacing: 0.6,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1553,386 +1443,295 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   statusLabel: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: '700',
   },
   amountText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.3,
   },
   journeyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
   },
   journeyLine: {
-    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
-    textTransform: 'capitalize',
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '600',
   },
   stationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
   },
   stationText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.95)',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flexShrink: 1,
+  },
+  causeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  causeText: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.65)',
+    lineHeight: 18,
     flex: 1,
   },
   metaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   metaText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(255, 255, 255, 0.45)',
   },
   delayBadge: {
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,184,0,0.15)',
+    borderRadius: 6,
   },
   delayText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12,
-    color: '#FFB800',
-  },
-  actionButtonContainer: {
-    marginTop: 10,
-    gap: 8,
-  },
-  fileClaimButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  fileClaimButtonText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: '#FFFFFF',
-  },
-  loopButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 152, 212, 0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 152, 212, 0.5)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  receivedButton: {
-    backgroundColor: 'rgba(52,211,153,0.18)',
-    borderColor: 'rgba(52,211,153,0.45)',
-  },
-  loopButtonText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: '#FFFFFF',
-  },
-  overdueBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,184,0,0.12)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,184,0,0.35)',
-  },
-  overdueText: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12,
-    color: '#FFB800',
-  },
-  receivedMeta: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(52,211,153,0.85)',
-    marginTop: 10,
-  },
-
-  // ── Empty / Loading ─────────────────────────────────────────────────
-  listContent: {
-    paddingBottom: 120,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 36,
-  },
-  radarPulsingRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(0,152,212,0.18)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0,152,212,0.50)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#0098D4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  emptyTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 14,
-    lineHeight: 20,
-    color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center',
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginTop: 16,
-  },
-  retryButtonText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-  estimatedFareNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(245,158,11,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.30)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 10,
-    marginBottom: 4,
-    gap: 6,
-  },
-  estimatedFareText: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
-    lineHeight: 15,
-    color: '#FCD34D',
-  },
-
-  // ── Honest Detection Header ──
-  eligibleHeaderBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,184,0,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,184,0,0.35)',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginBottom: 10,
-  },
-  eligibleHeaderBannerText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10.5,
-    color: '#FFB800',
-    letterSpacing: 0.8,
-  },
-  causeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  causeText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12.5,
-    color: 'rgba(255,255,255,0.7)',
-    flex: 1,
-    lineHeight: 16,
+    color: '#FF3B30',
+    fontWeight: '700',
   },
   cappingDisclaimerBox: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    padding: 8,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    marginTop: 6,
-    marginBottom: 8,
   },
   cappingDisclaimerText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 10.5,
-    color: 'rgba(255,255,255,0.45)',
-    lineHeight: 14,
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.45)',
+    lineHeight: 15,
   },
-
-  // ── Passive Notice Containers ──
-  passiveNoticeContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  unverifiedNoticeBox: {
+    backgroundColor: 'rgba(0, 152, 212, 0.1)',
+    padding: 10,
     borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 10,
-    marginTop: 4,
-    marginBottom: 8,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
   },
-  passiveNoticeText: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11.5,
+  unverifiedNoticeText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
     lineHeight: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
+    flex: 1,
+  },
+  ineligibleNoticeBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  ineligibleNoticeText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    lineHeight: 16,
+    flex: 1,
   },
 
-  // ── Quick Copy Accessory Bar ──
-  copyTrayContainer: {
-    backgroundColor: 'rgba(0,16,56,0.5)',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.15)',
-    marginBottom: 10,
+  // Actions
+  actionContainer: {
+    gap: 10,
+    marginTop: 4,
   },
-  copyTrayHeader: {
+  primaryActionButton: {
+    backgroundColor: '#0098D4',
+    paddingVertical: 12,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  primaryActionText: {
+    color: '#0A0F3C',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  secondaryActionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filedStatusBox: {
+    backgroundColor: 'rgba(0, 152, 212, 0.1)',
+    padding: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filedStatusText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    flex: 1,
+    lineHeight: 16,
+  },
+  receivedSuccessBox: {
+    backgroundColor: 'rgba(52, 199, 89, 0.15)',
+    padding: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  receivedSuccessText: {
+    fontSize: 13,
+    color: '#34C759',
+    fontWeight: '600',
+  },
+
+  // ── Quick Copy Accessory Bar ───
+  accessoryBarOuter: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    marginTop: 4,
+  },
+  accessoryBarHeader: {
+    gap: 2,
+  },
+  accessoryBarTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
   },
-  copyTrayLabel: {
-    fontFamily: 'SpaceGrotesk_500Medium',
+  accessoryBarTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0098D4',
+    letterSpacing: 0.6,
+  },
+  accessoryBarSubtitle: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255, 255, 255, 0.5)',
   },
-  copyChipsRow: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
   copyChip: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   copyChipActive: {
-    backgroundColor: 'rgba(52,199,89,0.25)',
+    backgroundColor: 'rgba(52, 199, 89, 0.25)',
     borderColor: '#34C759',
   },
   copyChipText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#FFFFFF',
+    fontWeight: '600',
   },
 
-  // ── SLA Review Button ──
-  slaReviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(52,199,89,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(52,199,89,0.45)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  slaReviewButtonText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13.5,
-    color: '#34C759',
-  },
-
-  // ── SLA Survey Modal ──
+  // ── SLA Survey Modal ───
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: 20,
   },
   modalContainer: {
     width: '100%',
     maxWidth: 380,
+    backgroundColor: 'rgba(10, 15, 60, 0.95)',
     borderRadius: 24,
-    backgroundColor: 'rgba(10,20,50,0.92)',
+    padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    padding: 20,
-    overflow: 'hidden',
+    borderColor: 'rgba(0, 152, 212, 0.3)',
+    gap: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
   },
   modalTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 18,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
   modalSubtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 16,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 20,
   },
   surveyButtons: {
     gap: 10,
   },
   surveyBtn: {
+    paddingVertical: 14,
     borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   surveyBtnText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13.5,
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  // ── Empty / Error State ───
+  emptyContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    lineHeight: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0098D4',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
 })

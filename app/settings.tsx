@@ -36,6 +36,7 @@ import { playSound } from '../utils/sound';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 import { FixItSheet } from '../components/FixItSheet';
+import { showMessage } from 'react-native-flash-message';
 
 interface UserPreferences {
   saved_lines: string[];
@@ -802,6 +803,15 @@ export default function SettingsScreen() {
                     data: { lineId: 'victoria' },
                   },
                   trigger: null,
+                });
+                showMessage({
+                  message: 'Victoria Line: Minor Delays 🚇',
+                  description: 'Signal failure at Oxford Circus. Tap to view reroute alternatives.',
+                  type: 'warning',
+                  backgroundColor: '#D97706',
+                  color: '#FFFFFF',
+                  duration: 5000,
+                  floating: true,
                 });
               }}
             >

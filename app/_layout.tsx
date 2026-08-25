@@ -25,6 +25,7 @@ import { installDirectionNotification } from '../services/directionNotification'
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
+import FlashMessage from 'react-native-flash-message';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -378,6 +379,7 @@ export default function RootLayout() {
         ) : null}
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
         <PermissionPrimerModal />
+        <FlashMessage position="top" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

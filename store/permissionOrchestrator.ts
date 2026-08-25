@@ -133,16 +133,21 @@ export const usePermissionOrchestrator = create<PermissionOrchestratorState>()(
             prefs.setCalendarGranted(granted);
           }
         }
-        set((state) => ({
-          permissions: {
-            ...state.permissions,
-            [key]: {
-              decision,
-              lastAskedAt: decision === 'granted' || decision === 'denied' ? Date.now() : state.permissions[key]?.lastAskedAt ?? null,
-              askCount: (state.permissions[key]?.askCount ?? 0) + 1,
+        set((state) => {
+          if (state.permissions[key]?.decision === decision) {
+            return state;
+          }
+          return {
+            permissions: {
+              ...state.permissions,
+              [key]: {
+                decision,
+                lastAskedAt: decision === 'granted' || decision === 'denied' ? Date.now() : state.permissions[key]?.lastAskedAt ?? null,
+                askCount: state.permissions[key]?.askCount ?? 0,
+              },
             },
-          },
-        }));
+          };
+        });
       },
 
       recordTier1Hit: () => {

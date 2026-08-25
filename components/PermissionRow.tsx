@@ -58,11 +58,10 @@ export function PermissionRow({
     try {
       const granted = await checkOsStatus();
       setOsGranted(granted);
-      // Sync the orchestrator's copy of truth to the real OS state so the
-      // 3-state UI never lies after the user changes it in iOS Settings.
-      if (granted) {
+      // Sync the orchestrator's copy of truth to the real OS state only if changed
+      if (granted && decision !== 'granted') {
         recordDecision(permissionKey, 'granted');
-      } else if (decision === 'granted') {
+      } else if (!granted && decision === 'granted') {
         recordDecision(permissionKey, 'denied');
       }
     } catch (e) {
@@ -72,12 +71,12 @@ export function PermissionRow({
   }, [checkOsStatus, decision, permissionKey, recordDecision]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refresh();
+      if (state === 'active') void refresh();
     });
     return () => sub.remove();
-  }, [refresh]);
+  }, []);
 
   const denied = !osGranted && decision === 'denied';
   const neverAsked = !osGranted && decision !== 'denied';

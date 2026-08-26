@@ -23,8 +23,10 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  AppState,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
+import * as Notifications from 'expo-notifications'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
   useSharedValue,
@@ -40,7 +42,7 @@ import {
   CaretRight,
   ShieldCheck,
 } from 'phosphor-react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { APP_CONFIG } from '../../config/app.config'
 import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import {
@@ -232,8 +234,28 @@ export default function RefundsScreen() {
     }
   }, [])
 
+  // Auto-fetch on mount, on tab focus, and on an active 15s foreground polling cadence
+  useFocusEffect(
+    useCallback(() => {
+      void fetchClaims(true)
+      const interval = setInterval(() => {
+        if (AppState.currentState === 'active') {
+          void fetchClaims(true)
+        }
+      }, 15000)
+      return () => clearInterval(interval)
+    }, [fetchClaims])
+  )
+
+  // Listen for incoming claim push notifications in foreground
   useEffect(() => {
-    void fetchClaims()
+    const sub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data
+      if (data && (data.url === '/refunds' || data.claimId)) {
+        void fetchClaims(true)
+      }
+    })
+    return () => sub.remove()
   }, [fetchClaims])
 
   // Auto-present the connect decision sheet exactly once for undecided users.

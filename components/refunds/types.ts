@@ -27,6 +27,13 @@ export interface RadarClaim {
     fareEstimated?: boolean
     fareCaveat?: string
   } | null
+  /** Latest Day-14 survey outcome, enriched by GET /api/claims (may be null). */
+  latestOutcome?: {
+    claimId: number
+    outcomeStatus: string // APPROVED_FULL | APPROVED_PARTIAL | REJECTED | DID_NOT_FILE | STILL_WAITING
+    settledAmountPence: number | null
+    feedbackRecordedAt: string | Date | null
+  } | null
 }
 
 export interface ClaimsResponse {
@@ -64,4 +71,9 @@ export function daysLeftUntil(iso: string, nowMs: number = Date.now()): number {
   const utcMidnight = (ms: number) => Math.floor(ms / MS_PER_DAY) * MS_PER_DAY
   const diff = utcMidnight(new Date(iso).getTime()) - utcMidnight(nowMs)
   return Math.max(0, Math.round(diff / MS_PER_DAY))
+}
+
+/** Earned UI progressive-disclosure gate (State C mounts only when settled > 0). */
+export function shouldMountEarnedUI(settledCount: number): boolean {
+  return settledCount > 0
 }

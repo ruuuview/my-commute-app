@@ -70,3 +70,15 @@ This document captures the immutable constraints and structural design decisions
 * **No-Seam Header compositing:** Navigation headers overlaying status gradients must be transparent plain `Views` with safe area top padding only (no `BlurView`), allowing full-bleed background gradients to span behind the notch seamlessly.
 * **Graduated Severity Backgrounds:** Active status backgrounds must use translucent opacity layers (e.g. 15% amber for minor, 55% red for severe) over the deep black base to maintain a unified, premium look across all alert levels.
 * **Platform label WCAG compliance:** Gray platform metadata labels must keep a minimum opacity of `rgba(255,255,255,0.38)` to satisfy readability and contrast constraints on severity-tinted backdrops.
+
+---
+
+## 9. Radar v2 — Refund Radar Terminal (locked 2026-08-26)
+
+* **Scrollable glass architecture (CRITICAL):** Sheets/modals use a plain View for ALL layout (`maxHeight`, radius, `overflow:'hidden'`); `BlurView` is an absoluteFillObject BACKGROUND only, content renders as an in-flow sibling above it. BlurView-as-layout-container ignores `maxHeight` on iOS (`UIVisualEffectView`) and grows past the screen. Applies to `TfLConnectSheet.tsx`, `SafariClaimAssistant.tsx`.
+* **Token layering:** Frosted-glass mechanics stay owned by `theme/colors.ts` (`GLASS`, `PREMIUM_BUTTON`). `theme/radarTheme.ts` adds ONLY radar-specific tokens (Obsidian/glassFill/signal colors/statutory copy constants). TfL line brand colors pass through from `constants/lineColors.ts` — never duplicated.
+* **Statutory thresholds are display-copy only:** 15/30-min + 28-day enforcement lives in `backend/lib/eligibility.ts`. Frontend must never branch claim eligibility on `STATUTORY_THRESHOLDS`.
+* **Signal Lock gate:** MMKV `last_animated_claim_id` in the `refunds-storage` instance; gate READ is render-pure, WRITE is effect-deferred. Choreography requires exactly ONE active claim; multi-claim stacks page statically.
+* **Optimistic claim mirrors:** `submittedClaims`/`dismissedClaims` persist offline actions; `pruneLocalClaimRecords(idsToForget)` FORGETS ids after server confirmation or claim purge — never call it with merely-hidden ids (dismissed claims must not resurrect).
+* **Backend contract:** GET `/api/claims` enriches rows with `latestOutcome` (Day-14 SLA survey telemetry) for the receipts screen's Rejected/Partial filters.
+

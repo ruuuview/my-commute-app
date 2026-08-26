@@ -270,6 +270,9 @@ export default function RootLayout() {
           pathname: '/(tabs)',
           params: { openRerouteLineId: String(lineId) },
         } as never);
+      } else if (categoryId === 'CLAIM_REMINDER') {
+        // Radar v2 Test D: claim push → open the Refund Radar terminal directly.
+        router.push('/(tabs)/refunds');
       } else if (categoryId === 'ARRIVED_ALERT') {
         const prefs = useUserPreferencesStore.getState();
         if (actionId === 'snooze4h') {

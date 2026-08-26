@@ -113,6 +113,7 @@
     "jest": "^29.7.0",
     "jest-expo": "~54.0.0",
     "ruflo": "latest",
+    "test-renderer": "^1.0.0",
     "typescript": "~5.9.2"
   },
   "private": true,

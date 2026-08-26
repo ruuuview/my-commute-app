@@ -86,7 +86,8 @@ export interface UserPreferencesState {
   setTflAccountStatus: (status: 'REGISTERED_28_DAY' | 'UNREGISTERED_7_DAY' | 'NOT_SET') => void;
   markClaimSubmittedLocally: (claimId: number | string, filedAtMs?: number) => void;
   dismissClaimLocally: (claimId: number | string) => void;
-  pruneLocalClaimRecords: (confirmedServerIds: (number | string)[]) => void;
+  /** FORGETS the given ids from optimistic mirrors (server confirmed or claim gone). */
+  pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
 }
 
 const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords'> = {
@@ -310,15 +311,21 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           return { dismissedClaims: [...(state.dismissedClaims || []), key] };
         });
       },
-      pruneLocalClaimRecords: (confirmedServerIds) => {
+      // FORGET the given claim ids from the optimistic local mirrors.
+      // Called after each server sync with (a) ids whose claims the server now
+      // reports as filed/received (local mirror obsolete) and (b) ids that
+      // vanished from the server (expired/purged). Never called with ids that
+      // are merely hidden — dismissedClaims persist until the claim itself is
+      // gone or resolved, so a dismissed claim cannot silently resurrect.
+      pruneLocalClaimRecords: (idsToForget) => {
         set((state) => {
-          const live = new Set(confirmedServerIds.map(String));
+          const forget = new Set(idsToForget.map(String));
           const submittedEntries = Object.entries(state.submittedClaims || {});
           const dismissedBefore = (state.dismissedClaims || []).length;
           const submitted = Object.fromEntries(
-            submittedEntries.filter(([id]) => !live.has(id))
+            submittedEntries.filter(([id]) => !forget.has(id))
           );
-          const dismissed = (state.dismissedClaims || []).filter((id) => !live.has(id));
+          const dismissed = (state.dismissedClaims || []).filter((id) => !forget.has(id));
           if (
             Object.keys(submitted).length === submittedEntries.length &&
             dismissed.length === dismissedBefore

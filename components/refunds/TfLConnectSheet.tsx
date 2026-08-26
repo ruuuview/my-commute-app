@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import {
   CreditCard,
+  DeviceMobile,
   LinkBreak,
   ArrowSquareOut,
 } from 'phosphor-react-native';
@@ -104,9 +105,9 @@ export default function TfLConnectSheet({
                 <CreditCard size={26} color="#0098D4" weight="bold" />
               </View>
               <Text style={styles.eyebrow}>TFL DELAY REPAY PROTECTION</Text>
-              <Text style={styles.title}>Link Your Travel Card</Text>
+              <Text style={styles.title}>Link Your Travel Card or Phone</Text>
               <Text style={styles.subhead}>
-                TfL requires your Contactless or Oyster card to be linked to an online account to protect claims for the full 28 days.
+                TfL requires your Contactless card, Apple Pay, Google Pay, or Oyster card to be linked to an online account to protect claims for the full 28 days.
               </Text>
             </View>
 
@@ -117,9 +118,9 @@ export default function TfLConnectSheet({
                   <CreditCard size={18} color="#0098D4" weight="bold" />
                 </View>
                 <View style={styles.pillText}>
-                  <Text style={styles.pillHeading}>Card Registered on TfL</Text>
+                  <Text style={styles.pillHeading}>Card or Phone Registered on TfL</Text>
                   <Text style={styles.pillDesc}>
-                    {"Full 28-day claim window. Every eligible delay on your card is protected and claimable."}
+                    {"Full 28-day claim window. Every eligible delay on your physical card, iPhone, Apple Watch, or Google Pay is protected and claimable."}
                   </Text>
                 </View>
               </View>
@@ -139,6 +140,17 @@ export default function TfLConnectSheet({
               </View>
             </View>
 
+            {/* Apple Pay & Google Pay Explainer Callout */}
+            <View style={styles.applePayTipBox}>
+              <View style={styles.applePayIconWrap}>
+                <DeviceMobile size={18} color="#0098D4" weight="bold" />
+              </View>
+              <Text style={styles.applePayTipText}>
+                <Text style={styles.applePayTipBold}>Using Apple Pay or Google Pay? </Text>
+                Simply enter the bank card details linked to your phone wallet on TfL. TfL automatically detects and links your device taps.
+              </Text>
+            </View>
+
             {/* Block 3: Primary Action */}
             <View style={styles.actionBlock}>
               <Pressable
@@ -149,7 +161,7 @@ export default function TfLConnectSheet({
               >
                 <ArrowSquareOut size={18} color="#0A0F3C" weight="bold" />
                 <Text style={styles.primaryCtaText}>
-                  Sign In / Link Card on TfL
+                  Sign In / Link Card or Phone on TfL
                 </Text>
               </Pressable>
               <Text style={styles.microcopy}>
@@ -319,6 +331,36 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.65)',
     marginTop: 2,
     lineHeight: 16,
+  },
+  applePayTipBox: {
+    backgroundColor: 'rgba(0, 152, 212, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.25)',
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  applePayIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  applePayTipText: {
+    flex: 1,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 17,
+  },
+  applePayTipBold: {
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   actionBlock: {
     gap: 8,

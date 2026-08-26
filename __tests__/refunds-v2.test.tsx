@@ -190,16 +190,17 @@ describe('Radar v2 — 5. TfLConnectSheet 4-block decision sheet', () => {
 
   it('renders all four decision blocks', async () => {
     const { getByText } = await setup();
-    expect(getByText('Link Your Travel Card')).toBeTruthy(); // Block 1
-    expect(getByText('Card Registered on TfL')).toBeTruthy(); // Block 2 row A
+    expect(getByText('Link Your Travel Card or Phone')).toBeTruthy(); // Block 1
+    expect(getByText('Card or Phone Registered on TfL')).toBeTruthy(); // Block 2 row A
     expect(getByText(/Only 7 days of journey history/)).toBeTruthy(); // Block 2 row B
-    expect(getByText('Sign In / Link Card on TfL')).toBeTruthy(); // Block 3 CTA
+    expect(getByText(/Using Apple Pay or Google Pay\?/)).toBeTruthy(); // Explainer callout
+    expect(getByText('Sign In / Link Card or Phone on TfL')).toBeTruthy(); // Block 3 CTA
     expect(getByText(/Continue with 7-Day Window/)).toBeTruthy(); // Block 4 pill
   });
 
   it('switches modes: register → onRegistered, 7-day pill → onUnregistered', async () => {
     const { getByText, onRegistered, onUnregistered } = await setup();
-    fireEvent.press(getByText('Sign In / Link Card on TfL'));
+    fireEvent.press(getByText('Sign In / Link Card or Phone on TfL'));
     await waitFor(() => expect(onRegistered).toHaveBeenCalledTimes(1));
     fireEvent.press(getByText(/Continue with 7-Day Window/));
     await waitFor(() => expect(onUnregistered).toHaveBeenCalledTimes(1));

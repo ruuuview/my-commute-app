@@ -21,12 +21,9 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-  Linking,
   Image,
   Alert,
 } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
-import * as WebBrowser from 'expo-web-browser'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
@@ -73,13 +70,6 @@ import {
   type ClaimsResponse,
   type RadarClaim,
 } from '../../components/refunds/types'
-
-const TFL_CONTACTLESS_PORTAL_URL =
-  'https://tfl.gov.uk/fares/contactless-and-oyster-account'
-
-// Safari hand-off delay: the assistant modal must fully unmount BEFORE the
-// OS browser presentation begins (Test C: "modal closes completely").
-const SAFARI_HANDOFF_DELAY_MS = 380
 
 // ── Rolling odometer (JS rAF, easeOutExpo over 450ms) ──────────────────────
 

@@ -171,6 +171,7 @@ export default function RefundsScreen() {
   const [assistantClaim, setAssistantClaim] = useState<RadarClaim | null>(null)
   const [surveyClaim, setSurveyClaim] = useState<RadarClaim | null>(null)
   const [filingIds, setFilingIds] = useState<Record<number, boolean>>({})
+  const [activeClaimIndex, setActiveClaimIndex] = useState(0)
   // Tracks which arrival id has finished its Signal Lock choreography so a
   // SECOND new claim later in the same session still gets its own animation.
   const [shownArrivalId, setShownArrivalId] = useState<string | number | null>(null)
@@ -553,18 +554,24 @@ export default function RefundsScreen() {
 
       <FlatList
         data={
-          tflAccountStatus === 'NOT_SET' || signalLockClaim
+          tflAccountStatus === 'NOT_SET' || signalLockClaim || activeClaims.length === 0
             ? []
-            : activeClaims
+            : [activeClaims[Math.min(activeClaimIndex, activeClaims.length - 1)]]
         }
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <ActiveClaimHeroCard
             claim={item}
-            index={index}
+            index={Math.min(activeClaimIndex, activeClaims.length - 1)}
             total={activeClaims.length}
-            onPrev={() => undefined}
-            onNext={() => undefined}
+            onPrev={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              setActiveClaimIndex((i) => Math.max(0, i - 1))
+            }}
+            onNext={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              setActiveClaimIndex((i) => Math.min(activeClaims.length - 1, i + 1))
+            }}
             onFile={handleFile}
             onDismiss={handleDismiss}
             onOpenPortal={() => setAssistantClaim(item)}

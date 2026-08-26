@@ -83,6 +83,8 @@ export default function SettingsScreen() {
     completedJourneys,
     tflRegistered,
     setTflRegistered,
+    tflAccountStatus,
+    setTflAccountStatus,
   } = useUserPreferencesStore();
 
   const [isGranted, setIsGranted] = useState(false);
@@ -783,6 +785,64 @@ export default function SettingsScreen() {
 
           <View style={styles.aboutCard}>
             <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Pressable
+              style={styles.aboutRow}
+              onPress={() => {
+                const current =
+                  tflAccountStatus === 'REGISTERED_28_DAY'
+                    ? '28-Day Protected (Registered)'
+                    : tflAccountStatus === 'UNREGISTERED_7_DAY'
+                      ? '7-Day Window (Unregistered)'
+                      : 'Not Configured';
+
+                Alert.alert(
+                  'TfL Radar Registration',
+                  `Current Status: ${current}\n\nChoose an action:`,
+                  [
+                    {
+                      text: 'Set to 28-Day Registered',
+                      onPress: () => {
+                        setTflAccountStatus('REGISTERED_28_DAY');
+                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      },
+                    },
+                    {
+                      text: 'Set to 7-Day Unregistered',
+                      onPress: () => {
+                        setTflAccountStatus('UNREGISTERED_7_DAY');
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      },
+                    },
+                    {
+                      text: 'Reset to Setup Sheet',
+                      style: 'destructive',
+                      onPress: () => {
+                        setTflAccountStatus('NOT_SET');
+                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        Alert.alert('Reset Complete', 'Refund Radar will present the setup sheet next time you open the tab.');
+                      },
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                  ]
+                );
+              }}
+            >
+              <Shield size={24} color="#0098D4" />
+              <View style={styles.aboutInfo}>
+                <Text style={[styles.aboutLabel, { color: '#0098D4', fontWeight: '600' }]}>TfL Radar Registration</Text>
+                <Text style={styles.settingDescription}>
+                  {tflAccountStatus === 'REGISTERED_28_DAY'
+                    ? '28-Day Protected · Tap to change'
+                    : tflAccountStatus === 'UNREGISTERED_7_DAY'
+                      ? '7-Day Window · Tap to upgrade'
+                      : 'Not Configured · Tap to setup'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+            </Pressable>
+            
+            <View style={styles.divider} />
+
             <Animated.View style={resetPressAnim.animatedStyle}>
               <Pressable
                 style={styles.aboutRow}

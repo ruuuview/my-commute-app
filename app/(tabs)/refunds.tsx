@@ -41,6 +41,7 @@ import {
   WarningCircle,
   ArrowsClockwise,
   CaretRight,
+  ShieldCheck,
 } from 'phosphor-react-native'
 import { useRouter } from 'expo-router'
 import { APP_CONFIG } from '../../config/app.config'
@@ -399,8 +400,28 @@ export default function RefundsScreen() {
   // ── Render helpers ───────────────────────────────────────────────────────
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.title}>Refund Radar</Text>
-      <Text style={styles.subtitle}>Automatic delay detection & claims</Text>
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={styles.title}>Refund Radar</Text>
+          <Text style={styles.subtitle}>Automatic delay detection & claims</Text>
+        </View>
+        {tflAccountStatus !== 'NOT_SET' && (
+          <Pressable
+            style={styles.statusHeaderPill}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              setConnectSheetVisible(true)
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Change TfL registration"
+          >
+            <ShieldCheck size={14} color="#0098D4" weight="fill" />
+            <Text style={styles.statusHeaderPillText}>
+              {tflAccountStatus === 'REGISTERED_28_DAY' ? '28-Day' : '7-Day'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
 
       {/* Corridor chips — always visible once Radar is configured */}
       {tflAccountStatus !== 'NOT_SET' && (
@@ -644,6 +665,27 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 18,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusHeaderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.35)',
+  },
+  statusHeaderPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0098D4',
   },
   title: {
     fontSize: 32,

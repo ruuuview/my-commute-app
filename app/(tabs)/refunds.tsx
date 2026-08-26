@@ -345,6 +345,16 @@ export default function RefundsScreen() {
     }, SAFARI_HANDOFF_DELAY_MS)
   }, [])
 
+  const handleConnectRegistered = useCallback(() => {
+    setTflAccountStatus('REGISTERED_28_DAY')
+    setConnectSheetVisible(false)
+    setTimeout(() => {
+      void WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL).catch(() => {
+        void Linking.openURL(TFL_CONTACTLESS_PORTAL_URL).catch(() => {})
+      })
+    }, SAFARI_HANDOFF_DELAY_MS)
+  }, [setTflAccountStatus])
+
   const handleSurveySubmit = useCallback(
     async (
       id: number,
@@ -599,10 +609,7 @@ export default function RefundsScreen() {
       <TfLConnectSheet
         visible={connectSheetVisible}
         onClose={() => setConnectSheetVisible(false)}
-        onRegistered={() => {
-          setTflAccountStatus('REGISTERED_28_DAY')
-          setConnectSheetVisible(false)
-        }}
+        onRegistered={handleConnectRegistered}
         onUnregistered={() => {
           setTflAccountStatus('UNREGISTERED_7_DAY')
           setConnectSheetVisible(false)

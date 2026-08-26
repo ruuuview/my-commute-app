@@ -154,7 +154,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
                 </Text>
               </View>
               <Text style={styles.timestampText}>
-                {dateFormatted} · {timeFormatted} touch-in
+                {dateFormatted} · {timeFormatted}
               </Text>
             </View>
 

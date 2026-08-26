@@ -40,7 +40,7 @@ export interface ActiveClaimHeroCardProps {
   locallyFiledAtMs?: number | null;
 }
 
-export const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
+const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
   claim,
   onDismiss,
   onOpenPortal,

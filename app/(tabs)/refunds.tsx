@@ -171,7 +171,6 @@ export default function RefundsScreen() {
   const [assistantClaim, setAssistantClaim] = useState<RadarClaim | null>(null)
   const [surveyClaim, setSurveyClaim] = useState<RadarClaim | null>(null)
   const [filingIds, setFilingIds] = useState<Record<number, boolean>>({})
-  const [activeClaimIndex, setActiveClaimIndex] = useState(0)
   // Tracks which arrival id has finished its Signal Lock choreography so a
   // SECOND new claim later in the same session still gets its own animation.
   const [shownArrivalId, setShownArrivalId] = useState<string | number | null>(null)

@@ -11,7 +11,12 @@ import {
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ArrowSquareOut, Link as LinkIcon, LinkBreak, ShieldCheck } from 'phosphor-react-native';
+import {
+  CreditCard,
+  LinkBreak,
+  ShieldCheck,
+  ArrowSquareOut,
+} from 'phosphor-react-native';
 
 export interface TfLConnectSheetProps {
   visible: boolean;
@@ -66,12 +71,12 @@ export default function TfLConnectSheet({
             {/* Block 1: Icon + Eyebrow + Title & Subhead */}
             <View style={styles.headerBlock}>
               <View style={styles.iconAccent}>
-                <ShieldCheck size={26} color="#0098D4" weight="fill" />
+                <CreditCard size={26} color="#0098D4" weight="bold" />
               </View>
-              <Text style={styles.eyebrow}>TFL DELAY REPAY ENGINE</Text>
-              <Text style={styles.title}>Connect your account</Text>
+              <Text style={styles.eyebrow}>TFL DELAY REPAY PROTECTION</Text>
+              <Text style={styles.title}>Link Your Travel Card</Text>
               <Text style={styles.subhead}>
-                Link your contactless card on TfL to protect all 28 days of statutory claim history.
+                TfL requires your Contactless or Oyster card to be linked to an online account to protect claims for the full 28 days.
               </Text>
             </View>
 
@@ -79,12 +84,12 @@ export default function TfLConnectSheet({
             <View style={styles.block2}>
               <View style={styles.comparisonRow}>
                 <View style={styles.pillIcon}>
-                  <LinkIcon size={18} color="#0098D4" weight="bold" />
+                  <CreditCard size={18} color="#0098D4" weight="bold" />
                 </View>
                 <View style={styles.pillText}>
-                  <Text style={styles.pillHeading}>Registered with TfL</Text>
+                  <Text style={styles.pillHeading}>Card Registered on TfL</Text>
                   <Text style={styles.pillDesc}>
-                    {"Full 28-day Delay Repay window. Refund Radar reaches every eligible delay within TfL's 28-day claim policy."}
+                    {"Full 28-day claim window. Every eligible delay on your card is protected and claimable."}
                   </Text>
                 </View>
               </View>
@@ -96,10 +101,9 @@ export default function TfLConnectSheet({
                   <LinkBreak size={18} color="rgba(255,255,255,0.6)" weight="bold" />
                 </View>
                 <View style={styles.linkText}>
-                  <Text style={styles.linkHeading}>Not registered</Text>
+                  <Text style={styles.linkHeading}>Unregistered Card / Phone Tap Only</Text>
                   <Text style={styles.linkDesc}>
-                    Only 7 days of journey history visible online. Delays from 8–28 days
-                    ago are lost and cannot be viewed.
+                    Only 7 days of journey history kept by TfL. Delays older than 7 days are erased and non-refundable.
                   </Text>
                 </View>
               </View>
@@ -114,15 +118,15 @@ export default function TfLConnectSheet({
                   onRegistered();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Sign In or Register on TfL"
+                accessibilityLabel="Sign In or Link Card on TfL"
               >
                 <ArrowSquareOut size={18} color="#0A0F3C" weight="bold" />
                 <Text style={styles.primaryCtaText}>
-                  Sign In / Register on TfL
+                  Sign In / Link Card on TfL
                 </Text>
               </Pressable>
               <Text style={styles.microcopy}>
-                🔒 Opens official TfL portal. No login or card details are ever stored by MyCommute.
+                🔒 Opens official TfL portal. No card details or passwords are ever stored by MyCommute.
               </Text>
             </View>
 
@@ -135,15 +139,15 @@ export default function TfLConnectSheet({
                   onUnregistered();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Continue with 7-day Radar"
+                accessibilityLabel="Continue with 7-Day Window"
               >
                 <Text style={styles.secondaryPillText}>
-                  Continue with 7-day Radar
+                  Continue with 7-Day Window (Unregistered)
                 </Text>
               </Pressable>
               
               <Text style={styles.caption}>
-                Delays older than 7 days stay invisible to Refund Radar.
+                Delays on unregistered cards older than 7 days stay invisible to Refund Radar.
               </Text>
 
               <Pressable

@@ -76,7 +76,7 @@ export function PermissionRow({
       if (state === 'active') void refresh();
     });
     return () => sub.remove();
-  }, []);
+  }, [refresh]);
 
   const denied = !osGranted && decision === 'denied';
   const neverAsked = !osGranted && decision !== 'denied';

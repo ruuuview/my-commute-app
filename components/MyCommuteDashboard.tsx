@@ -779,18 +779,6 @@ const MyCommuteDashboard: React.FC = () => {
                 </View>
               )}
 
-              {/* Stale disruption recovery notice */}
-              {recoveryNotice && (
-                <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
-                  <View style={[dash.arrivalBanner, { borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-                    <Text style={[dash.arrivalBannerText, { color: '#E5E7EB', fontWeight: '500' }]}>
-                      {recoveryNotice}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
               {sortedLines.length > 0 && selectedStations.length > 0 && (
                 <>
                   {/* Confirmation card — after first tracked commute, before confirmed */}

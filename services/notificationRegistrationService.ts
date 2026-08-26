@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { APP_CONFIG } from '../config/app.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { requestPermission } from '../store/permissionOrchestrator';
 import { fetchWithTimeout, TimeoutError } from '../utils/network';
+import { ensureDeviceIdentity } from './deviceIdentity';
 
 // ── Operational Constants ─────────────────────────────────────────────
 // PUSH_REGISTRATION_TIMEOUT_MS: 15-second network timeout for device token backend registration
@@ -26,8 +26,6 @@ if (Platform.OS === 'android') {
     console.warn('⚠️ FCM: React Native Firebase not available');
   }
 }
-
-import { ensureDeviceIdentity } from './deviceIdentity';
 
 /**
  * Internal helper to send push token registration to backend with retry & timeout handling.

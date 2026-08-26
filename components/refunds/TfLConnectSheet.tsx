@@ -6,10 +6,12 @@ import {
   StyleSheet,
   Dimensions,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ArrowSquareOut, Link as LinkIcon, LinkBreak } from 'phosphor-react-native';
+import { ArrowSquareOut, Link as LinkIcon, LinkBreak, ShieldCheck } from 'phosphor-react-native';
 
 export interface TfLConnectSheetProps {
   visible: boolean;
@@ -24,6 +26,16 @@ export default function TfLConnectSheet({
   onRegistered,
   onUnregistered,
 }: TfLConnectSheetProps) {
+  let bottomPadding = 34;
+  try {
+    const insets = useSafeAreaInsets();
+    if (insets && typeof insets.bottom === 'number') {
+      bottomPadding = Math.max(insets.bottom + 16, 34);
+    }
+  } catch {
+    bottomPadding = 34;
+  }
+
   return (
     <Modal
       visible={visible}
@@ -32,26 +44,40 @@ export default function TfLConnectSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        {/* Plain View owns ALL layout; BlurView is background-only (iOS bug:
-            UIVisualEffectView ignores maxHeight/layout caps when it is the
-            layout container). Content renders as a sibling above the blur. */}
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        
+        {/* Plain View owns layout; BlurView is background-only */}
         <View style={styles.sheet}>
-          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFillObject} />
           <View style={[StyleSheet.absoluteFillObject, styles.sheetTint]} />
-          <View style={styles.content}>
-            {/* Drag handle */}
-            <View style={styles.dragHandle} />
+          
+          {/* Drag Handle */}
+          <View style={styles.dragHandle} />
 
-            {/* Block 1: eyebrow + title */}
-            <View>
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: bottomPadding },
+            ]}
+          >
+            {/* Block 1: Icon + Eyebrow + Title & Subhead */}
+            <View style={styles.headerBlock}>
+              <View style={styles.iconAccent}>
+                <ShieldCheck size={26} color="#0098D4" weight="fill" />
+              </View>
               <Text style={styles.eyebrow}>TFL DELAY REPAY ENGINE</Text>
               <Text style={styles.title}>Connect your account</Text>
+              <Text style={styles.subhead}>
+                Link your contactless card on TfL to protect all 28 days of statutory claim history.
+              </Text>
             </View>
 
-            {/* Block 2: loss-aversion box */}
+            {/* Block 2: High-Contrast Comparison Table */}
             <View style={styles.block2}>
-              <View style={styles.rowA}>
+              <View style={styles.comparisonRow}>
                 <View style={styles.pillIcon}>
                   <LinkIcon size={18} color="#0098D4" weight="bold" />
                 </View>
@@ -63,8 +89,10 @@ export default function TfLConnectSheet({
                   </Text>
                 </View>
               </View>
+
               <View style={styles.divider} />
-              <View style={styles.rowA}>
+
+              <View style={styles.comparisonRow}>
                 <View style={styles.linkIconB}>
                   <LinkBreak size={18} color="rgba(255,255,255,0.6)" weight="bold" />
                 </View>
@@ -78,13 +106,13 @@ export default function TfLConnectSheet({
               </View>
             </View>
 
-            {/* Block 3: PRIMARY CTA */}
-            <View>
+            {/* Block 3: Primary Action */}
+            <View style={styles.actionBlock}>
               <Pressable
                 style={styles.primaryCta}
                 onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  onRegistered()
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  onRegistered();
                 }}
                 accessibilityRole="button"
                 accessibilityLabel="Sign In or Register on TfL"
@@ -95,17 +123,17 @@ export default function TfLConnectSheet({
                 </Text>
               </Pressable>
               <Text style={styles.microcopy}>
-                We cannot verify this with TfL — we trust your confirmation here.
+                🔒 Opens official TfL portal. No login or card details are ever stored by MyCommute.
               </Text>
             </View>
 
-            {/* Block 4: SECONDARY pill + honest caption */}
-            <View>
+            {/* Block 4: Secondary Action & Dismiss */}
+            <View style={styles.secondaryBlock}>
               <Pressable
                 style={styles.secondaryPill}
                 onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                  onUnregistered()
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onUnregistered();
                 }}
                 accessibilityRole="button"
                 accessibilityLabel="Continue with 7-day Radar"
@@ -114,21 +142,24 @@ export default function TfLConnectSheet({
                   Continue with 7-day Radar
                 </Text>
               </Pressable>
+              
               <Text style={styles.caption}>
                 Delays older than 7 days stay invisible to Refund Radar.
               </Text>
+
               <Pressable
                 onPress={onClose}
-                hitSlop={8}
+                hitSlop={12}
+                style={styles.dismissButton}
                 accessibilityRole="button"
                 accessibilityLabel="Not now"
               >
                 <Text style={styles.tiny}>Not now</Text>
               </Pressable>
             </View>
-          </View>
+          </ScrollView>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -139,30 +170,44 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
-  // Plain View owns ALL layout (maxHeight/radius/overflow) — never BlurView.
   sheet: {
     alignSelf: 'stretch',
-    maxHeight: Math.round(Dimensions.get('window').height * 0.48),
+    maxHeight: Math.round(Dimensions.get('window').height * 0.88),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    backgroundColor: 'rgba(18, 26, 43, 0.92)',
+    backgroundColor: 'rgba(18, 26, 43, 0.96)',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   sheetTint: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  content: {
-    padding: 20,
-    gap: 14,
-    paddingBottom: 34,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   dragHandle: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     alignSelf: 'center',
     marginTop: 10,
+    marginBottom: 6,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    gap: 16,
+  },
+  headerBlock: {
+    gap: 4,
+  },
+  iconAccent: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   eyebrow: {
     fontSize: 10,
@@ -171,20 +216,26 @@ const styles = StyleSheet.create({
     color: '#0098D4',
   },
   title: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
     color: '#FFFFFF',
+    lineHeight: 26,
+  },
+  subhead: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
+    lineHeight: 18,
     marginTop: 2,
   },
   block2: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    borderRadius: 16,
     padding: 14,
     gap: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  rowA: {
+  comparisonRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
@@ -193,7 +244,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    backgroundColor: 'rgba(0, 152, 212, 0.18)',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -203,13 +254,14 @@ const styles = StyleSheet.create({
   },
   pillHeading: {
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   pillDesc: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.65)',
-    marginTop: 3,
+    marginTop: 2,
+    lineHeight: 16,
   },
   divider: {
     height: 1,
@@ -229,16 +281,17 @@ const styles = StyleSheet.create({
   },
   linkHeading: {
     fontSize: 14,
-    fontWeight: 700,
-    color: 'rgba(255, 255, 255, 0.75)',
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   linkDesc: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.65)',
-    marginTop: 3,
+    marginTop: 2,
+    lineHeight: 16,
   },
-  block3: {
-    marginBottom: 16,
+  actionBlock: {
+    gap: 8,
   },
   primaryCta: {
     backgroundColor: '#0098D4',
@@ -252,38 +305,47 @@ const styles = StyleSheet.create({
   primaryCtaText: {
     color: '#0A0F3C',
     fontSize: 15,
-    fontWeight: 700,
+    fontWeight: '700',
   },
   microcopy: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.45)',
+    color: 'rgba(255, 255, 255, 0.55)',
     textAlign: 'center',
-    marginTop: 6,
+    lineHeight: 15,
+    paddingHorizontal: 8,
+  },
+  secondaryBlock: {
+    gap: 10,
+    alignItems: 'center',
   },
   secondaryPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 14,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryPillText: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 14,
     fontWeight: '700',
+  },
+  dismissButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 16,
   },
   caption: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   tiny: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.4)',
-    marginTop: 8,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.45)',
     textAlign: 'center',
   },
 });

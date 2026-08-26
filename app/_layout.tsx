@@ -297,7 +297,7 @@ export default function RootLayout() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [router]);
   
   const whiteOverlayOpacity = useSharedValue(0);
   

@@ -381,7 +381,6 @@ const MyCommuteDashboard: React.FC = () => {
   const [stationModalVisible, setStationModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData });
   const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
-  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
 
   // Auto-open reroute drawer when navigated from a disruption notification
   useEffect(() => {

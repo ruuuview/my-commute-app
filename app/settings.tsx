@@ -36,8 +36,6 @@ import { playSound } from '../utils/sound';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
 import { FixItSheet } from '../components/FixItSheet';
-import { showMessage } from 'react-native-flash-message';
-import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
 
 interface UserPreferences {
   saved_lines: string[];

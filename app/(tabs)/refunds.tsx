@@ -292,6 +292,11 @@ export default function RefundsScreen() {
     [claims, dismissedClaims]
   )
 
+  const totalEstimatedPence = useMemo(
+    () => activeClaims.reduce((sum, c) => sum + (c.amountPence ?? 280), 0),
+    [activeClaims]
+  )
+
   const settledCount = useMemo(
     () => claims.filter((c) => loopStateOf(c) === 'received').length,
     [claims]
@@ -435,6 +440,18 @@ export default function RefundsScreen() {
           <MonitoredCorridorsRow lineIds={selectedLines} />
         </View>
       )}
+
+      {/* Active claims statutory summary header */}
+      {tflAccountStatus !== 'NOT_SET' && activeClaims.length > 0 && (
+        <View style={styles.feedSummaryBanner}>
+          <Text style={styles.feedSummaryTitle}>
+            {activeClaims.length} Eligible Delay{activeClaims.length > 1 ? 's' : ''} Detected · ~{formatPence(totalEstimatedPence)} Estimated Baseline
+          </Text>
+          <Text style={styles.feedSummarySubtext}>
+            TfL verifies your journey & settles payout against daily fare caps upon submission
+          </Text>
+        </View>
+      )}
     </View>
   )
 
@@ -554,24 +571,14 @@ export default function RefundsScreen() {
 
       <FlatList
         data={
-          tflAccountStatus === 'NOT_SET' || signalLockClaim || activeClaims.length === 0
+          tflAccountStatus === 'NOT_SET' || signalLockClaim
             ? []
-            : [activeClaims[Math.min(activeClaimIndex, activeClaims.length - 1)]]
+            : activeClaims
         }
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <ActiveClaimHeroCard
             claim={item}
-            index={Math.min(activeClaimIndex, activeClaims.length - 1)}
-            total={activeClaims.length}
-            onPrev={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              setActiveClaimIndex((i) => Math.max(0, i - 1))
-            }}
-            onNext={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              setActiveClaimIndex((i) => Math.min(activeClaims.length - 1, i + 1))
-            }}
             onFile={handleFile}
             onDismiss={handleDismiss}
             onOpenPortal={() => setAssistantClaim(item)}
@@ -707,6 +714,23 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.65)',
     marginTop: 4,
     fontWeight: '400',
+  },
+  feedSummaryBanner: {
+    marginTop: 16,
+    marginBottom: 4,
+    paddingHorizontal: 2,
+    gap: 3,
+  },
+  feedSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  feedSummarySubtext: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.55)',
+    lineHeight: 15,
   },
 
   // ── Empty / Error ───

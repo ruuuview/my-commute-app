@@ -6,14 +6,15 @@ import {
   StyleSheet,
   Dimensions,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import {
   CalendarBlank,
   Clock,
-  Signpost,
   MapPin,
   Train,
   X,
@@ -28,6 +29,7 @@ export interface SafariClaimAssistantProps {
   claim: RadarClaim;
   onClose: () => void;
   onLaunch: (claim: RadarClaim) => void;
+  onDismiss?: () => void;
 }
 
 export default function SafariClaimAssistant({
@@ -35,8 +37,13 @@ export default function SafariClaimAssistant({
   claim,
   onClose,
   onLaunch,
+  onDismiss,
 }: SafariClaimAssistantProps) {
-  if (!visible) return null;
+  const insets = useSafeAreaInsets();
+  let bottomPadding = 34;
+  if (insets && typeof insets.bottom === 'number') {
+    bottomPadding = Math.max(insets.bottom + 16, 34);
+  }
 
   const [copiedStates, setCopiedStates] = React.useState<
     Record<string, boolean>
@@ -106,13 +113,20 @@ export default function SafariClaimAssistant({
       presentationStyle="overFullScreen"
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={onDismiss}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         {/* Plain View owns ALL layout; BlurView is background-only */}
         <View style={styles.sheet}>
           <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
           <View style={[StyleSheet.absoluteFillObject, styles.sheetTint]} />
-          <View style={styles.content}>
+          
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
+          >
             {/* Header row: Copy icon + title + close X */}
             <View style={styles.headerRow}>
               <View style={styles.copyIcon}>
@@ -164,8 +178,8 @@ export default function SafariClaimAssistant({
                 accessibilityRole="button"
                 accessibilityLabel="Open TfL Portal"
                 onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  onLaunch(claim)
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  onLaunch(claim);
                 }}
               >
                 <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
@@ -173,13 +187,15 @@ export default function SafariClaimAssistant({
                   Open TfL Portal
                 </Text>
               </Pressable>
-              <Text style={styles.secondaryFooterText} onPress={onClose}>
-                Cancel
-              </Text>
+              <Pressable onPress={onClose} hitSlop={10} style={{ paddingVertical: 6 }}>
+                <Text style={styles.secondaryFooterText}>
+                  Cancel
+                </Text>
+              </Pressable>
             </View>
-          </View>
+          </ScrollView>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -193,11 +209,13 @@ const styles = StyleSheet.create({
   // Plain View owns ALL layout (maxHeight/radius/overflow) — never BlurView.
   sheet: {
     alignSelf: 'stretch',
-    maxHeight: Math.round(Dimensions.get('window').height * 0.5),
+    maxHeight: Math.round(Dimensions.get('window').height * 0.88),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    backgroundColor: 'rgba(10, 15, 60, 0.92)',
+    backgroundColor: 'rgba(10, 15, 60, 0.96)',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   sheetTint: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',

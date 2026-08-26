@@ -22,6 +22,7 @@ export interface TfLConnectSheetProps {
   onClose: () => void;
   onRegistered: () => void;
   onUnregistered: () => void;
+  onDismiss?: () => void;
 }
 
 export default function TfLConnectSheet({
@@ -29,6 +30,7 @@ export default function TfLConnectSheet({
   onClose,
   onRegistered,
   onUnregistered,
+  onDismiss,
 }: TfLConnectSheetProps) {
   let bottomPadding = 34;
   try {
@@ -47,6 +49,7 @@ export default function TfLConnectSheet({
       presentationStyle="overFullScreen"
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={onDismiss}
     >
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />

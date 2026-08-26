@@ -45,6 +45,14 @@ export interface UserPreferencesState {
   arrivalNotificationsEnabled: boolean;
   arrivalSnoozeExpiry: number | null; // UTC epoch
   lastPreboardedDirection: string | null; // Priority 1 pre-board (NOT confirmed) — set by directionNotification
+  // Radar v2 tri-state account status. Source of truth for Refund Radar UI;
+  // legacy `tflRegistered` boolean is kept in lockstep (see setTflAccountStatus).
+  tflAccountStatus: 'REGISTERED_28_DAY' | 'UNREGISTERED_7_DAY' | 'NOT_SET';
+  // Optimistic local mirror: claimId(string) -> locally-marked-filed epoch ms.
+  // Written instantly on "file" tap (offline-safe); pruned once server confirms.
+  submittedClaims: Record<string, number>;
+  // Claim IDs hidden via optimistic offline dismissal (MMKV-persisted).
+  dismissedClaims: string[];
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
   setNotificationsGranted: (granted: boolean) => void;
@@ -75,9 +83,13 @@ export interface UserPreferencesState {
   setStationRole: (stationId: string, role: 'home' | 'work' | 'other') => void;
   setArrivalNotificationsEnabled: (enabled: boolean) => void;
   setArrivalSnoozeExpiry: (expiry: number | null) => void;
+  setTflAccountStatus: (status: 'REGISTERED_28_DAY' | 'UNREGISTERED_7_DAY' | 'NOT_SET') => void;
+  markClaimSubmittedLocally: (claimId: number | string, filedAtMs?: number) => void;
+  dismissClaimLocally: (claimId: number | string) => void;
+  pruneLocalClaimRecords: (confirmedServerIds: (number | string)[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -100,6 +112,9 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   arrivalNotificationsEnabled: true,
   arrivalSnoozeExpiry: null,
   lastPreboardedDirection: null,
+  tflAccountStatus: 'NOT_SET',
+  submittedClaims: {},
+  dismissedClaims: [],
   recentSearches: [],
   stationFilterToggles: {},
   hapticsEnabled: true,
@@ -166,7 +181,14 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         // doesn't vanish too" variant instead. The notification copy logic (not built here)
         // reads this flag from the store before selecting the template. Do not show urgency
         // to unregistered users.
-        set({ tflRegistered: registered });
+        set((state) => ({
+          tflRegistered: registered,
+          tflAccountStatus: registered
+            ? ('REGISTERED_28_DAY' as const)
+            : state.tflAccountStatus === 'REGISTERED_28_DAY'
+              ? ('UNREGISTERED_7_DAY' as const)
+              : state.tflAccountStatus,
+        }));
       },
       completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 3 }),
       resetOnboarding: () => set({ hasCompletedOnboarding: false, onboardingStep: 0, selectedLines: [], pinnedStations: [] }),
@@ -268,6 +290,44 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       },
       setArrivalNotificationsEnabled: (enabled) => set({ arrivalNotificationsEnabled: enabled }),
       setArrivalSnoozeExpiry: (expiry) => set({ arrivalSnoozeExpiry: expiry }),
+      setTflAccountStatus: (status) => {
+        // Single writer for the Radar v2 tri-state; the legacy boolean stays
+        // in lockstep so every existing boolean consumer keeps working.
+        set({ tflAccountStatus: status, tflRegistered: status === 'REGISTERED_28_DAY' });
+      },
+      markClaimSubmittedLocally: (claimId, filedAtMs) => {
+        set((state) => ({
+          submittedClaims: {
+            ...(state.submittedClaims || {}),
+            [String(claimId)]: filedAtMs ?? Date.now(),
+          },
+        }));
+      },
+      dismissClaimLocally: (claimId) => {
+        set((state) => {
+          const key = String(claimId);
+          if ((state.dismissedClaims || []).includes(key)) return state;
+          return { dismissedClaims: [...(state.dismissedClaims || []), key] };
+        });
+      },
+      pruneLocalClaimRecords: (confirmedServerIds) => {
+        set((state) => {
+          const live = new Set(confirmedServerIds.map(String));
+          const submittedEntries = Object.entries(state.submittedClaims || {});
+          const dismissedBefore = (state.dismissedClaims || []).length;
+          const submitted = Object.fromEntries(
+            submittedEntries.filter(([id]) => !live.has(id))
+          );
+          const dismissed = (state.dismissedClaims || []).filter((id) => !live.has(id));
+          if (
+            Object.keys(submitted).length === submittedEntries.length &&
+            dismissed.length === dismissedBefore
+          ) {
+            return state;
+          }
+          return { submittedClaims: submitted, dismissedClaims: dismissed };
+        });
+      },
     }),
     {
       name: 'user-preferences',
@@ -275,7 +335,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {
@@ -285,6 +345,13 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
             if (hasChanged) {
               setTimeout(() => {
                 useUserPreferencesStore.setState({ pinnedStations: state.pinnedStations });
+              }, 0);
+            }
+            // Radar v2 backfill: legacy installs persist only the boolean.
+            // Derive the tri-state once so the new UI branches correctly.
+            if (state.tflAccountStatus === 'NOT_SET' && state.tflRegistered) {
+              setTimeout(() => {
+                useUserPreferencesStore.setState({ tflAccountStatus: 'REGISTERED_28_DAY' });
               }, 0);
             }
           }

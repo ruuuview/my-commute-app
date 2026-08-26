@@ -60,6 +60,7 @@ import {
   isSurveySnoozed,
   snoozeSurvey,
   DUE_CLAIM_WORKING_DAYS,
+  formatRelativeTime,
 } from '../../services/refundSlaService'
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -114,15 +115,6 @@ function loopState(claim: Claim): 'eligible' | 'filed' | 'received' | 'unverifie
   if (claim.status === 'unverified') return 'unverified'
   if (claim.status === 'ineligible') return 'ineligible'
   return 'closed'
-}
-
-function formatRelativeTime(dateIso?: string | null): string {
-  if (!dateIso) return 'Checked just now'
-  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(dateIso).getTime()) / 1000))
-  if (diffSec < 15) return 'Checked just now'
-  if (diffSec < 60) return `Checked ${diffSec}s ago`
-  const diffMin = Math.floor(diffSec / 60)
-  return `Checked ${diffMin}m ago`
 }
 
 // ── Quick Copy Accessory Bar (Safari Assistant) ─────────────────────────

@@ -26,8 +26,8 @@ import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
 import { LINE_NAMES } from '../../constants/lineColors';
 
-const TFL_CONTACTLESS_PORTAL_URL =
-  'https://tfl.gov.uk/fares/contactless-and-oyster-account';
+const TFL_CLAIM_URL =
+  'https://tfl.gov.uk/fares/refunds-and-replacements/service-delay-refunds';
 
 export interface SafariClaimAssistantProps {
   visible: boolean;
@@ -116,7 +116,7 @@ export default function SafariClaimAssistant({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
+      await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
         toolbarColor: '#0A0F3C',
         controlsColor: '#0098D4',
       });
@@ -192,17 +192,31 @@ export default function SafariClaimAssistant({
               ))}
             </View>
 
+            {/* How to claim step guidance */}
+            <View style={styles.guidanceBox}>
+              <Text style={styles.guidanceTitle}>How to claim on TfL:</Text>
+              <Text style={styles.guidanceText}>
+                1. Tap any chip above to copy your journey details.
+              </Text>
+              <Text style={styles.guidanceText}>
+                2. Tap the button below to open TfL's Service Delay Refund page.
+              </Text>
+              <Text style={styles.guidanceText}>
+                3. On TfL, sign in to your card history or select your delayed journey to claim.
+              </Text>
+            </View>
+
             {/* Footer */}
             <View style={styles.footer}>
               <Pressable
                 style={styles.primaryFooter}
                 accessibilityRole="button"
-                accessibilityLabel="Open TfL Portal"
+                accessibilityLabel="Open TfL Service Delay Refunds"
                 onPress={handleOpenTflPortal}
               >
                 <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
                 <Text style={styles.primaryFooterText}>
-                  Open TfL Portal
+                  Open TfL Service Delay Refunds ↗
                 </Text>
               </Pressable>
               <Pressable onPress={onClose} hitSlop={10} style={{ paddingVertical: 6 }}>
@@ -298,6 +312,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFFFFF',
     textAlign: 'center',
+  },
+  guidanceBox: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 4,
+  },
+  guidanceTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  guidanceText: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.7)',
+    lineHeight: 16,
   },
   footer: {
     padding: 16,

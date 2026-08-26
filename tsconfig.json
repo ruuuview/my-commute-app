@@ -3,6 +3,10 @@
   "compilerOptions": {
     "strict": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "types": [
+      "jest"
+    ],
     "paths": {
       "@/*": [
         "./*"
@@ -17,8 +21,7 @@
   ],
   "exclude": [
     "node_modules",
-    "gstack-temp",
-    "**/*.test.ts",
-    "**/*.test.tsx"
+    "gstack-temp"
   ]
 }
+

@@ -199,7 +199,7 @@ export default function SafariClaimAssistant({
                 1. Tap any chip above to copy your journey details.
               </Text>
               <Text style={styles.guidanceText}>
-                2. Tap the button below to open TfL's Service Delay Refund page.
+                {"2. Tap the button below to open TfL's Service Delay Refund page."}
               </Text>
               <Text style={styles.guidanceText}>
                 3. On TfL, sign in to your card history or select your delayed journey to claim.

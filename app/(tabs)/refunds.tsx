@@ -159,6 +159,27 @@ function SignalLockHero({
   )
 }
 
+// Robust browser launcher: uses WebBrowser page sheet and falls back to Linking
+async function openTflBrowser(url: string) {
+  try {
+    const res = await WebBrowser.openBrowserAsync(url, {
+      toolbarColor: '#0A0F3C',
+      controlsColor: '#0098D4',
+    })
+    if (res && (res.type === 'cancel' || res.type === 'opened' || res.type === 'dismiss')) {
+      return
+    }
+  } catch (err) {
+    console.warn('[WebBrowser] Failed to open in-app browser, falling back to Linking:', err)
+  }
+
+  try {
+    await Linking.openURL(url)
+  } catch (linkErr) {
+    console.error('[Linking] Failed to open external URL:', linkErr)
+  }
+}
+
 // ── Main Screen ────────────────────────────────────────────────────────────
 
 export default function RefundsScreen() {
@@ -319,24 +340,6 @@ export default function RefundsScreen() {
       })
     }
   }, [fetchClaims])
-
-// Robust browser launcher: uses WebBrowser page sheet and falls back to Linking
-async function openTflBrowser(url: string) {
-  try {
-    await WebBrowser.openBrowserAsync(url, {
-      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-      toolbarColor: '#0A0F3C',
-      controlsColor: '#0098D4',
-    })
-  } catch (err) {
-    console.warn('[WebBrowser] Failed to open in-app browser, falling back to Linking:', err)
-    try {
-      await Linking.openURL(url)
-    } catch (linkErr) {
-      console.error('[Linking] Failed to open external URL:', linkErr)
-    }
-  }
-}
 
   const pendingBrowserUrlRef = useRef<string | null>(null)
 

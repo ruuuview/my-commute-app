@@ -7,15 +7,20 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import {
   CreditCard,
   LinkBreak,
   ArrowSquareOut,
 } from 'phosphor-react-native';
+
+const TFL_CONTACTLESS_PORTAL_URL =
+  'https://tfl.gov.uk/fares/contactless-and-oyster-account';
 
 export interface TfLConnectSheetProps {
   visible: boolean;
@@ -41,6 +46,29 @@ export default function TfLConnectSheet({
   } catch {
     bottomPadding = 34;
   }
+
+  const handleOpenTflPortal = async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onRegistered();
+
+    try {
+      const res = await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
+        toolbarColor: '#0A0F3C',
+        controlsColor: '#0098D4',
+      });
+      if (res && (res.type === 'cancel' || res.type === 'opened' || res.type === 'dismiss')) {
+        return;
+      }
+    } catch (err) {
+      console.warn('[TfLConnectSheet] openBrowserAsync failed, falling back to Linking:', err);
+    }
+
+    try {
+      await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL);
+    } catch (linkErr) {
+      console.error('[TfLConnectSheet] Linking.openURL failed:', linkErr);
+    }
+  };
 
   return (
     <Modal
@@ -115,10 +143,7 @@ export default function TfLConnectSheet({
             <View style={styles.actionBlock}>
               <Pressable
                 style={styles.primaryCta}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  onRegistered();
-                }}
+                onPress={handleOpenTflPortal}
                 accessibilityRole="button"
                 accessibilityLabel="Sign In or Link Card on TfL"
               >

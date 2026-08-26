@@ -7,11 +7,13 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import {
   CalendarBlank,
   Clock,
@@ -23,6 +25,9 @@ import {
 } from 'phosphor-react-native';
 import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
+
+const TFL_CONTACTLESS_PORTAL_URL =
+  'https://tfl.gov.uk/fares/contactless-and-oyster-account';
 
 export interface SafariClaimAssistantProps {
   visible: boolean;
@@ -106,6 +111,29 @@ export default function SafariClaimAssistant({
     { key: 'line', label: 'Line', icon: Train, value: chipValues.line },
   ];
 
+  const handleOpenTflPortal = async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onLaunch(claim);
+
+    try {
+      const res = await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
+        toolbarColor: '#0A0F3C',
+        controlsColor: '#0098D4',
+      });
+      if (res && (res.type === 'cancel' || res.type === 'opened' || res.type === 'dismiss')) {
+        return;
+      }
+    } catch (err) {
+      console.warn('[SafariClaimAssistant] openBrowserAsync failed, falling back to Linking:', err);
+    }
+
+    try {
+      await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL);
+    } catch (linkErr) {
+      console.error('[SafariClaimAssistant] Linking.openURL failed:', linkErr);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -177,10 +205,7 @@ export default function SafariClaimAssistant({
                 style={styles.primaryFooter}
                 accessibilityRole="button"
                 accessibilityLabel="Open TfL Portal"
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  onLaunch(claim);
-                }}
+                onPress={handleOpenTflPortal}
               >
                 <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
                 <Text style={styles.primaryFooterText}>

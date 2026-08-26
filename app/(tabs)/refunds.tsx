@@ -159,27 +159,6 @@ function SignalLockHero({
   )
 }
 
-// Robust browser launcher: uses WebBrowser page sheet and falls back to Linking
-async function openTflBrowser(url: string) {
-  try {
-    const res = await WebBrowser.openBrowserAsync(url, {
-      toolbarColor: '#0A0F3C',
-      controlsColor: '#0098D4',
-    })
-    if (res && (res.type === 'cancel' || res.type === 'opened' || res.type === 'dismiss')) {
-      return
-    }
-  } catch (err) {
-    console.warn('[WebBrowser] Failed to open in-app browser, falling back to Linking:', err)
-  }
-
-  try {
-    await Linking.openURL(url)
-  } catch (linkErr) {
-    console.error('[Linking] Failed to open external URL:', linkErr)
-  }
-}
-
 // ── Main Screen ────────────────────────────────────────────────────────────
 
 export default function RefundsScreen() {
@@ -341,67 +320,19 @@ export default function RefundsScreen() {
     }
   }, [fetchClaims])
 
-  const pendingBrowserUrlRef = useRef<string | null>(null)
-
   const handleDismiss = useCallback((id: number) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     useUserPreferencesStore.getState().dismissClaimLocally(id)
   }, [])
 
-  const handleLaunchPortal = useCallback(async (claim: RadarClaim) => {
-    const parts = [
-      claim.entryTime
-        ? new Date(claim.entryTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '',
-      claim.entryTime
-        ? new Date(claim.entryTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-        : '',
-      claim.entryStation ?? '',
-      claim.exitStation ?? '',
-    ].filter(Boolean)
-    await Clipboard.setStringAsync(parts.join(' · ')).catch(() => {})
-
-    pendingBrowserUrlRef.current = TFL_CONTACTLESS_PORTAL_URL
+  const handleLaunchPortal = useCallback((claim: RadarClaim) => {
     setAssistantClaim(null)
-
-    setTimeout(() => {
-      if (pendingBrowserUrlRef.current) {
-        const url = pendingBrowserUrlRef.current
-        pendingBrowserUrlRef.current = null
-        void openTflBrowser(url)
-      }
-    }, 450)
-  }, [])
-
-  const handleAssistantDismiss = useCallback(() => {
-    if (pendingBrowserUrlRef.current) {
-      const url = pendingBrowserUrlRef.current
-      pendingBrowserUrlRef.current = null
-      void openTflBrowser(url)
-    }
   }, [])
 
   const handleConnectRegistered = useCallback(() => {
     setTflAccountStatus('REGISTERED_28_DAY')
-    pendingBrowserUrlRef.current = TFL_CONTACTLESS_PORTAL_URL
     setConnectSheetVisible(false)
-
-    setTimeout(() => {
-      if (pendingBrowserUrlRef.current) {
-        const url = pendingBrowserUrlRef.current
-        pendingBrowserUrlRef.current = null
-        void openTflBrowser(url)
-      }
-    }, 450)
   }, [setTflAccountStatus])
-
-  const handleConnectSheetDismiss = useCallback(() => {
-    if (pendingBrowserUrlRef.current) {
-      const url = pendingBrowserUrlRef.current
-      pendingBrowserUrlRef.current = null
-      void openTflBrowser(url)
-    }
-  }, [])
 
   const handleSurveySubmit = useCallback(
     async (
@@ -662,7 +593,6 @@ export default function RefundsScreen() {
           setTflAccountStatus('UNREGISTERED_7_DAY')
           setConnectSheetVisible(false)
         }}
-        onDismiss={handleConnectSheetDismiss}
       />
 
       {/* Safari claim assistant (copy chips → portal hand-off) */}
@@ -672,7 +602,6 @@ export default function RefundsScreen() {
           claim={assistantClaim}
           onClose={() => setAssistantClaim(null)}
           onLaunch={(claim) => void handleLaunchPortal(claim)}
-          onDismiss={handleAssistantDismiss}
         />
       ) : null}
 

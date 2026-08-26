@@ -113,24 +113,16 @@ export default function SafariClaimAssistant({
 
   const handleOpenTflPortal = async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onLaunch(claim);
 
     try {
-      const res = await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
+      await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
         toolbarColor: '#0A0F3C',
         controlsColor: '#0098D4',
       });
-      if (res && (res.type === 'cancel' || res.type === 'opened' || res.type === 'dismiss')) {
-        return;
-      }
     } catch (err) {
-      console.warn('[SafariClaimAssistant] openBrowserAsync failed, falling back to Linking:', err);
-    }
-
-    try {
-      await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL);
-    } catch (linkErr) {
-      console.error('[SafariClaimAssistant] Linking.openURL failed:', linkErr);
+      console.warn('[SafariClaimAssistant] openBrowserAsync failed:', err);
+    } finally {
+      onLaunch(claim);
     }
   };
 

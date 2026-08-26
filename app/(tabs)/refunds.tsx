@@ -23,7 +23,6 @@ import {
   ActivityIndicator,
   Image,
   Alert,
-  AppState,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import * as Notifications from 'expo-notifications'
@@ -190,6 +189,7 @@ export default function RefundsScreen() {
       const json: ClaimsResponse = await res.json()
       setLastEvaluatedAt(json.evaluatedAt || new Date().toISOString())
       setData(json)
+      lastFetchTimeRef.current = Date.now()
 
       // Offline-queue flush: any locally-marked-filed claim the server still
       // reports as eligible gets its PATCH retried silently.
@@ -234,24 +234,28 @@ export default function RefundsScreen() {
     }
   }, [])
 
-  // Auto-fetch on mount, on tab focus, and on an active 15s foreground polling cadence
+  const lastFetchTimeRef = useRef<number>(0)
+
+  // Smart Event-Driven Fetch:
+  // 1. On tab focus: Only refresh if > 60s elapsed since last fetch (saves battery/data).
+  // 2. Initial mount: Always fetches.
+  // 3. Pull-to-refresh: Always forces immediate fresh fetch.
   useFocusEffect(
     useCallback(() => {
-      void fetchClaims(true)
-      const interval = setInterval(() => {
-        if (AppState.currentState === 'active') {
-          void fetchClaims(true)
-        }
-      }, 15000)
-      return () => clearInterval(interval)
+      const now = Date.now()
+      if (now - lastFetchTimeRef.current > 60000) {
+        lastFetchTimeRef.current = now
+        void fetchClaims(true)
+      }
     }, [fetchClaims])
   )
 
-  // Listen for incoming claim push notifications in foreground
+  // Listen for incoming claim push notifications in foreground -> immediate sync
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener((notification) => {
       const data = notification.request.content.data
       if (data && (data.url === '/refunds' || data.claimId)) {
+        lastFetchTimeRef.current = Date.now()
         void fetchClaims(true)
       }
     })

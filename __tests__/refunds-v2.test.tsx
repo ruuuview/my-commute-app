@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Radar v2 Automated Verification Suite (refunds-v2.test.tsx)
  *
@@ -15,20 +16,6 @@
 
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-
-// ── Lightweight reanimated stub (hook under test only uses these symbols) ──
-jest.mock('react-native-reanimated', () => ({
-  useSharedValue: (init: number) => ({ value: init }),
-  withTiming: (target: number) => target,
-  Easing: {
-    out: (fn: (x: number) => number) => fn,
-    expo: (x: number) => (x === 1 ? 1 : 1 - Math.pow(2, -10 * x)),
-  },
-  useReducedMotion: () => false,
-  useAnimatedReaction: () => undefined,
-  runOnJS: (fn: unknown) => fn,
-}));
-
 import {
   useClaimArrivalAnimation,
   formatOdometer,
@@ -47,6 +34,19 @@ import {
   isSurveySnoozed,
   snoozeSurvey,
 } from '../services/refundSlaService';
+
+// ── Lightweight reanimated stub (hook under test only uses these symbols) ──
+jest.mock('react-native-reanimated', () => ({
+  useSharedValue: (init: number) => ({ value: init }),
+  withTiming: (target: number) => target,
+  Easing: {
+    out: (fn: (x: number) => number) => fn,
+    expo: (x: number) => (x === 1 ? 1 : 1 - Math.pow(2, -10 * x)),
+  },
+  useReducedMotion: () => false,
+  useAnimatedReaction: () => undefined,
+  runOnJS: (fn: unknown) => fn,
+}));
 
 const baseClaim = (overrides: Partial<RadarClaim> = {}): RadarClaim => ({
   id: 501,

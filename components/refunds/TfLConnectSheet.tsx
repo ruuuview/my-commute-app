@@ -14,7 +14,6 @@ import * as Haptics from 'expo-haptics';
 import {
   CreditCard,
   LinkBreak,
-  ShieldCheck,
   ArrowSquareOut,
 } from 'phosphor-react-native';
 

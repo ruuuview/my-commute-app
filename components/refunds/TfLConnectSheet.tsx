@@ -215,11 +215,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  rowBStyles: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   linkIconB: {
     width: 32,
     height: 32,
@@ -264,13 +259,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.45)',
     textAlign: 'center',
     marginTop: 6,
-  },
-  block4: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    paddingVertical: 12,
   },
   secondaryPill: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',

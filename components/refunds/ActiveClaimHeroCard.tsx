@@ -235,7 +235,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             {/* TERTIARY: optimistic dismissal */}
             <Pressable
               style={styles.tertiaryButton}
-              hitSlop={8}
+              hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Not now, dismiss this claim"
               onPress={() => onDismiss(claim.id)}

@@ -32,6 +32,7 @@ import {
   formatPence,
   isOverdue,
   isSurveySnoozed,
+  snoozeSurvey,
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
@@ -198,7 +199,10 @@ export default function RefundsHistoryScreen() {
         | 'STILL_WAITING',
       settledAmountPence?: number
     ) => {
-      if (outcome === 'STILL_WAITING') return
+      if (outcome === 'STILL_WAITING') {
+        snoozeSurvey(id)
+        return
+      }
       try {
         const { userId, apiKey } = await ensureDeviceIdentity()
         const nextClaimStatus = outcome === 'REJECTED' ? 'filed' : 'received'

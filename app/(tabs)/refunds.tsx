@@ -48,6 +48,7 @@ import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import {
   isOverdue,
   formatPence,
+  snoozeSurvey,
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
@@ -350,6 +351,9 @@ export default function RefundsScreen() {
       settledAmountPence?: number
     ) => {
       if (outcome === 'STILL_WAITING') {
+        // FE-04: persist the 3-day quiet period or the auto-prompt
+        // effect re-opens this survey instantly (infinite loop).
+        snoozeSurvey(id)
         setSurveyClaim(null)
         return
       }

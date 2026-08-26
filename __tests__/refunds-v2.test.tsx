@@ -42,6 +42,11 @@ import {
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import LifetimeMetricsCard from '../components/refunds/LifetimeMetricsCard';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
+import { SlaSurveyModal } from '../components/refunds/SlaSurveyModal';
+import {
+  isSurveySnoozed,
+  snoozeSurvey,
+} from '../services/refundSlaService';
 
 const baseClaim = (overrides: Partial<RadarClaim> = {}): RadarClaim => ({
   id: 501,
@@ -198,6 +203,28 @@ describe('Radar v2 — 5. TfLConnectSheet 4-block decision sheet', () => {
     await waitFor(() => expect(onRegistered).toHaveBeenCalledTimes(1));
     fireEvent.press(getByText('Continue with 7-day Radar'));
     await waitFor(() => expect(onUnregistered).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('Radar v2 — 6. Day-14 survey snooze (regression: /review catch)', () => {
+  it('STILL_WAITING persists the 3-day quiet period via MMKV', async () => {
+    expect(isSurveySnoozed(4242)).toBe(false);
+    let submittedId: number | null = null;
+    const screen = await render(
+      <SlaSurveyModal
+        visible={true}
+        claim={baseClaim({ id: 4242, claimStatus: 'filed', filedAt: new Date(Date.now() - 15 * 86400000).toISOString() })}
+        onClose={() => {}}
+        onSubmit={(id) => {
+          // Mirrors both screens' handlers: persist quiet period on STILL_WAITING.
+          submittedId = id;
+          snoozeSurvey(id);
+        }}
+      />
+    );
+    fireEvent.press(screen.getByText(/Still Waiting/));
+    await waitFor(() => expect(submittedId).toBe(4242));
+    expect(isSurveySnoozed(4242)).toBe(true);
   });
 });
 

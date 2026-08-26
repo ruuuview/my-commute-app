@@ -801,6 +801,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    boxShadow: '0px 0px 8px #F59E0B',
   },
   signalLockEyebrow: {
     fontSize: 10,

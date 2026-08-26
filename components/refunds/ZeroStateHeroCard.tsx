@@ -15,6 +15,7 @@ import Animated, {
   withTiming,
   useReducedMotion,
 } from 'react-native-reanimated';
+import LivingDot from '../LivingDot';
 import { formatRelativeTime } from '../../services/refundSlaService';
 
 export default function ZeroStateHeroCard({
@@ -64,9 +65,9 @@ export default function ZeroStateHeroCard({
             <Text style={styles.eyebrow}>LIVE{'\n'}SURVEILLANCE</Text>
           </View>
 
-          {/* RIGHT: capsule badge with dot + relative time */}
+          {/* RIGHT: capsule badge with LivingDot + relative time */}
           <View style={styles.tickerBadge}>
-            <View style={styles.tickerDot} />
+            <LivingDot color="#10B981" size={7} />
             <Text style={styles.tickerText}>{relativeTime}</Text>
           </View>
         </View>

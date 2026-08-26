@@ -24,6 +24,7 @@ import {
 } from 'phosphor-react-native';
 import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
+import { LINE_NAMES } from '../../constants/lineColors';
 
 const TFL_CONTACTLESS_PORTAL_URL =
   'https://tfl.gov.uk/fares/contactless-and-oyster-account';
@@ -67,7 +68,8 @@ export default function SafariClaimAssistant({
   const entryTime = claim.entryTime ? new Date(claim.entryTime) : null;
   const entryStation = claim.entryStation ?? 'Origin';
   const exitStation = claim.exitStation ?? 'Destination';
-  const lineId = claim.lineId ?? '';
+  const lineKey = (claim.lineId ?? '').toLowerCase().trim();
+  const lineDisplayName = LINE_NAMES[lineKey] ?? (claim.lineId ? claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1) : '');
   const amount = claim.amountPence ?? 0;
 
   const chipValues = {
@@ -86,7 +88,7 @@ export default function SafariClaimAssistant({
       : '',
     origin: entryStation,
     destination: exitStation,
-    line: lineId.charAt(0).toUpperCase() + lineId.slice(1),
+    line: lineDisplayName,
   };
 
   const handleCopy = async (key: string, value: string) => {

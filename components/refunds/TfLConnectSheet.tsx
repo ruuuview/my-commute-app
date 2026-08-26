@@ -84,8 +84,7 @@ export default function TfLConnectSheet({
                 <View style={styles.pillText}>
                   <Text style={styles.pillHeading}>Registered with TfL</Text>
                   <Text style={styles.pillDesc}>
-                    Full 28-day Delay Repay window. Refund Radar reaches every eligible
-                    delay within TfL's 28-day claim policy.
+                    {"Full 28-day Delay Repay window. Refund Radar reaches every eligible delay within TfL's 28-day claim policy."}
                   </Text>
                 </View>
               </View>

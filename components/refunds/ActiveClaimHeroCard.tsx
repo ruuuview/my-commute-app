@@ -16,7 +16,7 @@ import {
   Clock,
   ArrowRight,
   X,
-  ClipboardText,
+  ArrowSquareOut,
   Info,
   CheckCircle,
 } from 'phosphor-react-native';
@@ -192,11 +192,11 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
               style={styles.primaryCtaButton}
               onPress={handlePrimaryPress}
               accessibilityRole="button"
-              accessibilityLabel="Open TfL Claim Assistant"
+              accessibilityLabel="File a claim on TfL"
             >
-              <ClipboardText size={16} color="#0A0F3C" weight="bold" />
+              <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
               <Text style={styles.primaryCtaText}>
-                Open TfL Claim Assistant ↗
+                File a Claim ↗
               </Text>
             </Pressable>
           )}

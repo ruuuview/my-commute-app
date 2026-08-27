@@ -23,9 +23,11 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Linking,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import * as Notifications from 'expo-notifications'
+import * as WebBrowser from 'expo-web-browser'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
   useSharedValue,
@@ -48,6 +50,7 @@ import {
   isOverdue,
   formatPence,
   snoozeSurvey,
+  isSurveySnoozed,
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
@@ -61,7 +64,6 @@ import {
 import ZeroStateHeroCard from '../../components/refunds/ZeroStateHeroCard'
 import ActiveClaimHeroCard from '../../components/refunds/ActiveClaimHeroCard'
 import TfLConnectSheet from '../../components/refunds/TfLConnectSheet'
-import SafariClaimAssistant from '../../components/refunds/SafariClaimAssistant'
 import MonitoredCorridorsRow from '../../components/refunds/MonitoredCorridorsRow'
 import LifetimeMetricsCard from '../../components/refunds/LifetimeMetricsCard'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
@@ -168,7 +170,6 @@ export default function RefundsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connectSheetVisible, setConnectSheetVisible] = useState(false)
-  const [assistantClaim, setAssistantClaim] = useState<RadarClaim | null>(null)
   const [surveyClaim, setSurveyClaim] = useState<RadarClaim | null>(null)
   const [filingIds, setFilingIds] = useState<Record<number, boolean>>({})
   // Tracks which arrival id has finished its Signal Lock choreography so a
@@ -346,9 +347,32 @@ export default function RefundsScreen() {
     useUserPreferencesStore.getState().dismissClaimLocally(id)
   }, [])
 
-  const handleLaunchPortal = useCallback((claim: RadarClaim) => {
-    setAssistantClaim(null)
-  }, [])
+  const handleClaimPress = useCallback(
+    async (claim: RadarClaim) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      const TFL_CLAIM_URL =
+        'https://tfl.gov.uk/fares/refunds-and-replacements/service-delay-refunds'
+
+      // 1. Immediately launch native system Safari to TfL Service Delay Refunds
+      try {
+        const supported = await Linking.canOpenURL(TFL_CLAIM_URL)
+        if (supported) {
+          await Linking.openURL(TFL_CLAIM_URL)
+        } else {
+          await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
+            toolbarColor: '#0A0F3C',
+            controlsColor: '#0098D4',
+          })
+        }
+      } catch (e) {
+        console.warn('[RefundRadar] Failed to launch Safari:', e)
+      }
+
+      // 2. Mark locally filed so the card immediately switches to [ ✓ Filed — Awaiting TfL review ]
+      void handleFile(claim.id)
+    },
+    [handleFile]
+  )
 
   const handleConnectRegistered = useCallback(() => {
     setTflAccountStatus('REGISTERED_28_DAY')
@@ -381,26 +405,30 @@ export default function RefundsScreen() {
           body: JSON.stringify({
             claimStatus: nextClaimStatus,
             outcomeStatus: outcome,
-            settledAmountPence: settledAmountPence ?? 0,
+            settledAmountPence:
+              outcome === 'PAID_FULL'
+                ? surveyClaim?.amountPence
+                : settledAmountPence ?? surveyClaim?.amountPence,
           }),
         })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) throw new Error('Survey PATCH failed')
         await fetchClaims(true)
       } catch (e) {
-        console.warn('[Refunds] SLA survey submit error:', e)
-        Alert.alert('Error', 'Could not save feedback. Please try again.')
+        console.warn('[RefundRadar] Survey submission failed:', e)
+      } finally {
+        setSurveyClaim(null)
       }
     },
-    [fetchClaims]
+    [fetchClaims, surveyClaim]
   )
 
-  // Day-14 survey auto-prompt for overdue filed claims.
+  // ── Auto-prompt Day-14 Resolution Survey ─────────────────────────────────
   useEffect(() => {
-    if (!data || data.claims.length === 0) return
-    const overdue = claims.find(
+    if (!data) return
+    const overdue = data.claims.find(
       (c) =>
-        loopStateOf(c) === 'filed' &&
         isOverdue(c) &&
+        !isSurveySnoozed(c.id) &&
         surveyClaim == null
     )
     if (overdue) setSurveyClaim(overdue)
@@ -580,7 +608,7 @@ export default function RefundsScreen() {
             claim={item}
             onFile={handleFile}
             onDismiss={handleDismiss}
-            onOpenPortal={() => setAssistantClaim(item)}
+            onOpenPortal={() => void handleClaimPress(item)}
             filing={Boolean(filingIds[item.id])}
             locallyFiledAtMs={submittedClaims[String(item.id)] ?? null}
           />
@@ -623,16 +651,6 @@ export default function RefundsScreen() {
           setConnectSheetVisible(false)
         }}
       />
-
-      {/* Safari claim assistant (copy chips → portal hand-off) */}
-      {assistantClaim ? (
-        <SafariClaimAssistant
-          visible
-          claim={assistantClaim}
-          onClose={() => setAssistantClaim(null)}
-          onLaunch={(claim) => void handleLaunchPortal(claim)}
-        />
-      ) : null}
 
       {/* Day 14 SLA Resolution Survey */}
       <SlaSurveyModal

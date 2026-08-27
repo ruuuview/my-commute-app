@@ -458,7 +458,7 @@ export default function RefundsScreen() {
 
   // ── Render helpers ───────────────────────────────────────────────────────
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 24) }]}>
       <View style={styles.titleRow}>
         <View>
           <Text style={styles.title}>Refund Radar</Text>
@@ -643,7 +643,6 @@ export default function RefundsScreen() {
         contentContainerStyle={[
           styles.listContent,
           {
-            paddingTop: Math.max(insets.top + 16, 24),
             paddingBottom: Math.max(insets.bottom + 80, 100),
           },
         ]}
@@ -656,10 +655,7 @@ export default function RefundsScreen() {
               void fetchClaims(true)
             }}
             tintColor="#0098D4"
-            title="Checking TfL disruption data..."
-            titleColor="rgba(255, 255, 255, 0.6)"
             colors={['#0098D4']}
-            progressViewOffset={insets.top}
           />
         }
       />

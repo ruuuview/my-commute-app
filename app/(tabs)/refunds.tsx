@@ -637,6 +637,9 @@ export default function RefundsScreen() {
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
+        bounces={true}
+        alwaysBounceVertical={true}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.listContent,
           {
@@ -648,11 +651,15 @@ export default function RefundsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
               setRefreshing(true)
               void fetchClaims(true)
             }}
             tintColor="#0098D4"
+            title="Checking TfL disruption data..."
+            titleColor="rgba(255, 255, 255, 0.6)"
             colors={['#0098D4']}
+            progressViewOffset={insets.top}
           />
         }
       />

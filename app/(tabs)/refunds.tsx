@@ -17,7 +17,7 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   Pressable,
   RefreshControl,
   ActivityIndicator,
@@ -631,8 +631,31 @@ export default function RefundsScreen() {
       </View>
 
       <View style={{ flex: 1, paddingTop: insets.top }}>
-        <ScrollView
+        <FlatList<{ type: 'CLAIM'; item: RadarClaim } | { type: 'EMPTY' }>
           style={styles.list}
+          data={activeClaims.length === 0
+            ? [{ type: 'EMPTY' as const }]
+            : activeClaims.map((item) => ({ type: 'CLAIM' as const, item }))}
+          keyExtractor={(entry) =>
+            entry.type === 'CLAIM' ? String(entry.item.id) : 'empty'
+          }
+          renderItem={({ item }) =>
+            item.type === 'CLAIM' ? (
+              <ActiveClaimHeroCard
+                key={item.item.id}
+                claim={item.item}
+                onFile={handleFile}
+                onDismiss={handleDismiss}
+                onOpenPortal={() => void handleClaimPress(item.item)}
+                filing={Boolean(filingIds[item.item.id])}
+                locallyFiledAtMs={submittedClaims[String(item.item.id)] ?? null}
+              />
+            ) : (
+              renderEmpty()
+            )
+          }
+          ListHeaderComponent={renderHeader}
+          ListFooterComponent={renderFooter}
           contentContainerStyle={[
             styles.listContent,
             {
@@ -650,27 +673,7 @@ export default function RefundsScreen() {
               tintColor="rgba(255, 255, 255, 0.6)"
             />
           }
-        >
-          {renderHeader()}
-
-          {activeClaims.length === 0 ? (
-            renderEmpty()
-          ) : (
-            activeClaims.map((item) => (
-              <ActiveClaimHeroCard
-                key={item.id}
-                claim={item}
-                onFile={handleFile}
-                onDismiss={handleDismiss}
-                onOpenPortal={() => void handleClaimPress(item)}
-                filing={Boolean(filingIds[item.id])}
-                locallyFiledAtMs={submittedClaims[String(item.id)] ?? null}
-              />
-            ))
-          )}
-
-          {renderFooter()}
-        </ScrollView>
+        />
       </View>
 
       {/* Signal Lock arrival choreography overlay */}

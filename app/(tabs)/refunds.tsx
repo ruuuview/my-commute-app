@@ -235,6 +235,20 @@ export default function RefundsScreen() {
     }
   }, [])
 
+  const handlePullToRefresh = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    setRefreshing(true)
+    try {
+      await Promise.all([
+        fetchClaims(true),
+        new Promise((resolve) => setTimeout(resolve, 650)),
+      ])
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [fetchClaims])
+
   const lastFetchTimeRef = useRef<number>(0)
 
   // Smart Event-Driven Fetch:
@@ -633,11 +647,7 @@ export default function RefundsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              setRefreshing(true)
-              void fetchClaims(true)
-            }}
+            onRefresh={handlePullToRefresh}
             tintColor="#0098D4"
             colors={['#0098D4']}
           />

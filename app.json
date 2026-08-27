@@ -25,7 +25,9 @@
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "LSApplicationQueriesSchemes": ["citymapper", "tfl-go"]
+        "LSApplicationQueriesSchemes": ["citymapper", "tfl-go"],
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
       },
       "entitlements": {
         "com.apple.security.application-groups": [

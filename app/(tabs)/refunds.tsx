@@ -618,6 +618,7 @@ export default function RefundsScreen() {
       </View>
 
       <FlatList
+        style={styles.list}
         data={
           tflAccountStatus === 'NOT_SET' || signalLockClaim
             ? []
@@ -640,6 +641,7 @@ export default function RefundsScreen() {
         bounces={true}
         alwaysBounceVertical={true}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           styles.listContent,
           {
@@ -717,7 +719,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0F3C',
   },
+  list: {
+    flex: 1,
+  },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
   },
   header: {

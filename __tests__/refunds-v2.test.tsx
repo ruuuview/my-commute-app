@@ -15,6 +15,7 @@
  */
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
   useClaimArrivalAnimation,
@@ -199,11 +200,16 @@ describe('Radar v2 — 5. TfLConnectSheet 4-block decision sheet', () => {
   });
 
   it('switches modes: register → onRegistered, 7-day pill → onUnregistered', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
+      // Simulate user clicking 'Yes, signed in'
+      buttons?.find((b) => b.text === 'Yes, signed in')?.onPress?.();
+    });
     const { getByText, onRegistered, onUnregistered } = await setup();
     fireEvent.press(getByText('Sign In / Link Card or Phone on TfL'));
     await waitFor(() => expect(onRegistered).toHaveBeenCalledTimes(1));
     fireEvent.press(getByText(/Continue with 7-Day Window/));
     await waitFor(() => expect(onUnregistered).toHaveBeenCalledTimes(1));
+    alertSpy.mockRestore();
   });
 });
 

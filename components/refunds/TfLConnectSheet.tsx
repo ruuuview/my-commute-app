@@ -7,6 +7,8 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
+  Alert,
+  Linking,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,16 +52,46 @@ export default function TfLConnectSheet({
   const handleOpenTflPortal = async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    // Close the sheet first so the alert is clean upon return
+    onClose();
+
     try {
-      await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
-        toolbarColor: '#0A0F3C',
-        controlsColor: '#0098D4',
-      });
+      const supported = await Linking.canOpenURL(TFL_CONTACTLESS_PORTAL_URL);
+      if (supported) {
+        await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL);
+      } else {
+        await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
+          toolbarColor: '#0A0F3C',
+          controlsColor: '#0098D4',
+        });
+      }
     } catch (err) {
-      console.warn('[TfLConnectSheet] openBrowserAsync failed:', err);
-    } finally {
-      onRegistered();
+      console.warn('[TfLConnectSheet] open URL failed:', err);
     }
+
+    // Prompt user for verified status rather than blindly marking as registered
+    setTimeout(() => {
+      Alert.alert(
+        'TfL Account Status',
+        'Did you sign in and link your card or phone on TfL?',
+        [
+          {
+            text: 'Not yet',
+            style: 'cancel',
+            onPress: () => {
+              onUnregistered();
+            },
+          },
+          {
+            text: 'Yes, signed in',
+            style: 'default',
+            onPress: () => {
+              onRegistered();
+            },
+          },
+        ]
+      );
+    }, 600);
   };
 
   return (

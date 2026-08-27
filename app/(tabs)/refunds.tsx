@@ -368,8 +368,29 @@ export default function RefundsScreen() {
         console.warn('[RefundRadar] Failed to launch Safari:', e)
       }
 
-      // 2. Mark locally filed so the card immediately switches to [ ✓ Filed — Awaiting TfL review ]
-      void handleFile(claim.id)
+      // 2. Prompt user for verified submission status rather than blindly marking as filed
+      setTimeout(() => {
+        Alert.alert(
+          'Did you submit this claim on TfL?',
+          'If you completed the claim on TfL, we will track the 10-day refund review for you.',
+          [
+            {
+              text: 'Not yet / Incomplete',
+              style: 'cancel',
+              onPress: () => {
+                // Keep card active with "File a Claim ↗"
+              },
+            },
+            {
+              text: 'Yes, Claim Submitted',
+              style: 'default',
+              onPress: () => {
+                void handleFile(claim.id)
+              },
+            },
+          ]
+        )
+      }, 600)
     },
     [handleFile]
   )

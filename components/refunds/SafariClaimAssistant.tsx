@@ -7,6 +7,7 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -116,12 +117,26 @@ export default function SafariClaimAssistant({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
-        toolbarColor: '#0A0F3C',
-        controlsColor: '#0098D4',
-      });
+      // Open in system Safari so user login sessions, FaceID autofill, and cookie preferences are permanently preserved
+      const supported = await Linking.canOpenURL(TFL_CLAIM_URL);
+      if (supported) {
+        await Linking.openURL(TFL_CLAIM_URL);
+      } else {
+        await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
+          toolbarColor: '#0A0F3C',
+          controlsColor: '#0098D4',
+        });
+      }
     } catch (err) {
-      console.warn('[SafariClaimAssistant] openBrowserAsync failed:', err);
+      console.warn('[SafariClaimAssistant] Failed to launch Safari:', err);
+      try {
+        await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
+          toolbarColor: '#0A0F3C',
+          controlsColor: '#0098D4',
+        });
+      } catch (browserErr) {
+        console.warn('[SafariClaimAssistant] WebBrowser fallback failed:', browserErr);
+      }
     } finally {
       onLaunch(claim);
     }
@@ -194,15 +209,15 @@ export default function SafariClaimAssistant({
 
             {/* How to claim step guidance */}
             <View style={styles.guidanceBox}>
-              <Text style={styles.guidanceTitle}>How to claim on TfL:</Text>
+              <Text style={styles.guidanceTitle}>How TfL delay refunds work:</Text>
               <Text style={styles.guidanceText}>
-                1. Tap any chip above to copy your journey details.
+                1. Tap the button below to open TfL in Safari.
               </Text>
               <Text style={styles.guidanceText}>
-                {"2. Tap the button below to open TfL's Service Delay Refund page."}
+                2. Sign in to your TfL account & tap your Contactless / Oyster card.
               </Text>
               <Text style={styles.guidanceText}>
-                3. On TfL, sign in to your card history or select your delayed journey to claim.
+                {"3. Under 'Journey history', tap this delayed journey & select 'Service delay refund'."}
               </Text>
             </View>
 
@@ -211,12 +226,12 @@ export default function SafariClaimAssistant({
               <Pressable
                 style={styles.primaryFooter}
                 accessibilityRole="button"
-                accessibilityLabel="Open TfL Service Delay Refunds"
+                accessibilityLabel="Open TfL in Safari"
                 onPress={handleOpenTflPortal}
               >
                 <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
                 <Text style={styles.primaryFooterText}>
-                  Open TfL Service Delay Refunds ↗
+                  Open TfL in Safari ↗
                 </Text>
               </Pressable>
               <Pressable onPress={onClose} hitSlop={10} style={{ paddingVertical: 6 }}>

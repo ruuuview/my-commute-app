@@ -28,6 +28,7 @@ import {
 import * as Haptics from 'expo-haptics'
 import * as Notifications from 'expo-notifications'
 import * as WebBrowser from 'expo-web-browser'
+import * as Clipboard from 'expo-clipboard'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
   useSharedValue,
@@ -359,9 +360,22 @@ export default function RefundsScreen() {
   const handleClaimPress = useCallback(
     async (claim: RadarClaim) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds/'
+      const TFL_CLAIM_URL =
+        'https://tfl.gov.uk/fares/refunds/service-delay-refunds'
 
-      // 1. Immediately launch native system Safari to TfL Service Delay Refunds
+      // 1. Auto-copy journey summary to clipboard for instant pasting on TfL form
+      try {
+        const entryFormatted = claim.entryTime
+          ? new Date(claim.entryTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          : 'Unknown'
+        const lineCap = (claim.lineId || 'Tube').charAt(0).toUpperCase() + (claim.lineId || 'Tube').slice(1)
+        const summary = `${lineCap} line | ${claim.entryStation || 'Origin'} → ${claim.exitStation || 'Destination'} | Touch-in: ${entryFormatted} | ${claim.delayMinutes}m delay`
+        await Clipboard.setStringAsync(summary)
+      } catch (err) {
+        console.warn('[RefundRadar] Clipboard copy error:', err)
+      }
+
+      // 2. Immediately launch native system Safari (where persistent TfL login + Keychain Face ID are active)
       try {
         const supported = await Linking.canOpenURL(TFL_CLAIM_URL)
         if (supported) {
@@ -376,7 +390,7 @@ export default function RefundsScreen() {
         console.warn('[RefundRadar] Failed to launch Safari:', e)
       }
 
-      // 2. Prompt user for verified submission status rather than blindly marking as filed
+      // 3. Prompt user for verified submission status rather than blindly marking as filed
       setTimeout(() => {
         Alert.alert(
           'Did you submit this claim on TfL?',

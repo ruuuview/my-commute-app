@@ -222,11 +222,7 @@ private struct CompactIslandView: View {
   private var hero: Arrival? { context.state.arrivals.first }
 
   var body: some View {
-    if context.state.signalState == "meltdown" {
-      Text("TfL")
-        .font(.mcHeadline)
-        .foregroundColor(.white.opacity(0.6))
-    } else if let hero = hero {
+    if let hero = hero {
       let (minutes, _) = displayText(for: hero, isHero: true)
       HStack(spacing: 3) {
         AccentBar(lineId: context.attributes.lineId)
@@ -240,8 +236,12 @@ private struct CompactIslandView: View {
         }
       }
     } else {
-      // No arrivals cached — honest void handled upstream (activity not started).
-      EmptyView()
+      HStack(spacing: 3) {
+        AccentBar(lineId: context.attributes.lineId)
+        Text(lineName(for: context.attributes.lineId))
+          .font(.mcHeadline)
+          .foregroundColor(.white)
+      }
     }
   }
 
@@ -270,29 +270,12 @@ private struct ExpandedIslandView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
   var body: some View {
-    if context.state.signalState == "meltdown" {
-      VStack(alignment: .leading, spacing: 4) {
-        Text("TfL's systems are down — not us.")
-          .font(.mcHeadline)
-          .foregroundColor(.white)
-        Text("Trust the platform boards for now. We're watching.")
-          .font(.mcBody)
-          .foregroundColor(.white.opacity(0.65))
+    VStack(alignment: .leading, spacing: 6) {
+      ForEach(Array(context.state.arrivals.prefix(3).enumerated()), id: \.offset) { _, arrival in
+        ArrivalRow(arrival: arrival, branchKnown: context.state.branchKnown, lineId: context.attributes.lineId)
       }
-      .padding(.horizontal, 8)
-    } else if context.state.signalState == "no-signal" {
-      Text("Signal's patchy here — still trying. Check the platform board for now.")
-        .font(.mcBody)
-        .foregroundColor(.white.opacity(0.8))
-        .padding(.horizontal, 8)
-    } else {
-      VStack(alignment: .leading, spacing: 6) {
-        ForEach(Array(context.state.arrivals.prefix(3).enumerated()), id: \.offset) { _, arrival in
-          ArrivalRow(arrival: arrival, branchKnown: context.state.branchKnown, lineId: context.attributes.lineId)
-        }
-      }
-      .padding(.horizontal, 8)
     }
+    .padding(.horizontal, 8)
   }
 }
 
@@ -302,47 +285,29 @@ private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
   var body: some View {
-    if context.state.signalState == "meltdown" {
-      // Low-opacity glass warning panel. Shown while TfL is down.
-      // Recovery is the return to the normal (else) branch once signalState
-      // flips back to "ok" — that re-render IS the "TfL's back" moment.
-      VStack(alignment: .leading, spacing: 6) {
-        Text("TfL's systems are down — not us.")
+    VStack(alignment: .leading, spacing: 10) {
+      // Header: "Northern line · Bank branch"
+      HStack(spacing: 6) {
+        AccentBar(lineId: context.attributes.lineId)
+        Text(headerText)
           .font(.mcHeadline)
           .foregroundColor(.white)
-        Text("Trust the platform boards for now. We're watching.")
-          .font(.mcBody)
-          .foregroundColor(.white.opacity(0.65))
       }
-      .padding(16)
-      .background(.ultraThinMaterial.opacity(0.6))
-      .cornerRadius(16)
-      .padding(12)
-    } else {
-      VStack(alignment: .leading, spacing: 10) {
-        // Header: "Northern line · Bank branch"
-        HStack(spacing: 6) {
-          AccentBar(lineId: context.attributes.lineId)
-          Text(headerText)
-            .font(.mcHeadline)
-            .foregroundColor(.white)
-        }
 
-        // Hero train with progress fill = LINE_COLORS.
-        if let hero = context.state.arrivals.first {
-          TrainProgressView(arrival: hero, lineId: context.attributes.lineId)
-        }
-
-        // Status from cached disruption data.
-        Text(statusText)
-          .font(.mcBody)
-          .foregroundColor(context.state.isDisrupted ? .red : .white.opacity(0.8))
+      // Hero train with progress fill = LINE_COLORS.
+      if let hero = context.state.arrivals.first {
+        TrainProgressView(arrival: hero, lineId: context.attributes.lineId)
       }
-      .padding(16)
-      .background(.ultraThinMaterial)
-      .cornerRadius(16)
-      .padding(12)
+
+      // Status from cached disruption data.
+      Text(statusText)
+        .font(.mcBody)
+        .foregroundColor(context.state.isDisrupted ? .red : .white.opacity(0.8))
     }
+    .padding(16)
+    .background(.ultraThinMaterial)
+    .cornerRadius(16)
+    .padding(12)
   }
 
   private var headerText: String {
@@ -355,10 +320,7 @@ private struct LockScreenView: View {
   }
 
   private var statusText: String {
-    if context.state.signalState == "no-signal" {
-      return "Signal's patchy here — still trying."
-    }
-    return context.state.statusText.isEmpty ? "On time" : context.state.statusText
+    return context.state.statusText.isEmpty ? "Good Service" : context.state.statusText
   }
 }
 

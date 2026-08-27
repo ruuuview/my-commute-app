@@ -17,7 +17,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   Pressable,
   RefreshControl,
   ActivityIndicator,
@@ -458,7 +458,7 @@ export default function RefundsScreen() {
 
   // ── Render helpers ───────────────────────────────────────────────────────
   const renderHeader = () => (
-    <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 24) }]}>
+    <View style={styles.header}>
       <View style={styles.titleRow}>
         <View>
           <Text style={styles.title}>Refund Radar</Text>
@@ -617,37 +617,19 @@ export default function RefundsScreen() {
         />
       </View>
 
-      <FlatList
+      <ScrollView
         style={styles.list}
-        data={
-          tflAccountStatus === 'NOT_SET' || signalLockClaim
-            ? []
-            : activeClaims
-        }
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <ActiveClaimHeroCard
-            claim={item}
-            onFile={handleFile}
-            onDismiss={handleDismiss}
-            onOpenPortal={() => void handleClaimPress(item)}
-            filing={Boolean(filingIds[item.id])}
-            locallyFiledAtMs={submittedClaims[String(item.id)] ?? null}
-          />
-        )}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingTop: Math.max(insets.top + 16, 24),
+            paddingBottom: Math.max(insets.bottom + 80, 100),
+          },
+        ]}
         bounces={true}
         alwaysBounceVertical={true}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        contentContainerStyle={[
-          styles.listContent,
-          {
-            paddingBottom: Math.max(insets.bottom + 80, 100),
-          },
-        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -660,7 +642,27 @@ export default function RefundsScreen() {
             colors={['#0098D4']}
           />
         }
-      />
+      >
+        {renderHeader()}
+
+        {tflAccountStatus === 'NOT_SET' || signalLockClaim || activeClaims.length === 0 ? (
+          renderEmpty()
+        ) : (
+          activeClaims.map((item) => (
+            <ActiveClaimHeroCard
+              key={item.id}
+              claim={item}
+              onFile={handleFile}
+              onDismiss={handleDismiss}
+              onOpenPortal={() => void handleClaimPress(item)}
+              filing={Boolean(filingIds[item.id])}
+              locallyFiledAtMs={submittedClaims[String(item.id)] ?? null}
+            />
+          ))
+        )}
+
+        {renderFooter()}
+      </ScrollView>
 
       {/* Signal Lock arrival choreography overlay */}
       {signalLockClaim ? (

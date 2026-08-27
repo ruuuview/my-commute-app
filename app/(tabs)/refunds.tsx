@@ -653,7 +653,7 @@ export default function RefundsScreen() {
         >
           {renderHeader()}
 
-          {tflAccountStatus === 'NOT_SET' || signalLockClaim || activeClaims.length === 0 ? (
+          {activeClaims.length === 0 ? (
             renderEmpty()
           ) : (
             activeClaims.map((item) => (

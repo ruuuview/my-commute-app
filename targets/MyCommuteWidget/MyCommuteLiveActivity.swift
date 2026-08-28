@@ -286,6 +286,7 @@ private struct LockScreenView: View {
 
   private var hero: Arrival? { context.state.arrivals.first }
   private var signalDegraded: Bool { context.state.signalState != "ok" }
+  private var hasArrival: Bool { hero != nil }
 
   private var minutesAway: Int {
     guard let hero = hero else { return 0 }
@@ -295,6 +296,9 @@ private struct LockScreenView: View {
   private var mainHeadline: String {
     if signalDegraded {
       return context.state.statusText.isEmpty ? "Live data reconnecting" : context.state.statusText
+    }
+    if !hasArrival {
+      return "No trains scheduled"
     }
     if minutesAway == 0 {
       return "Train arriving at platform"
@@ -370,7 +374,7 @@ private struct LockScreenView: View {
           Text("Reconnecting to live transit feed...")
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(.white.opacity(0.65))
-        } else {
+        } else if hasArrival {
           HStack(spacing: 4) {
             Text(context.state.isDisrupted ? "Disrupted" : "On time")
               .font(.system(size: 13, weight: .semibold))
@@ -381,16 +385,22 @@ private struct LockScreenView: View {
               .font(.system(size: 13, weight: .medium))
               .foregroundColor(.white.opacity(0.85))
           }
+        } else {
+          Text("No departures currently reported")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.white.opacity(0.65))
         }
       }
 
       // 3. Horizontal Delivery-Style Track (Origin -> Moving Train -> Destination)
-      DeliveryTrackView(
-        minutesAway: minutesAway,
-        lineId: context.attributes.lineId,
-        lineName: lineDisplayName,
-        destinationName: destinationText
-      )
+      if hasArrival {
+        DeliveryTrackView(
+          minutesAway: minutesAway,
+          lineId: context.attributes.lineId,
+          lineName: lineDisplayName,
+          destinationName: destinationText
+        )
+      }
 
       // 4. Future Brand Perk / Sponsor Slot
       HStack(spacing: 6) {

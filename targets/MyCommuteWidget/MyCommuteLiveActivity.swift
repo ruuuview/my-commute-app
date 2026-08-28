@@ -279,91 +279,221 @@ private struct ExpandedIslandView: View {
   }
 }
 
-// MARK: - Lock Screen / Standby
+// MARK: - Lock Screen / Standby (Delivery-Style Transit Card)
 
 private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
+  private var hero: Arrival? { context.state.arrivals.first }
+  private var signalDegraded: Bool { context.state.signalState != "ok" }
+
+  private var minutesAway: Int {
+    guard let hero = hero else { return 0 }
+    return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+  }
+
+  private var mainHeadline: String {
+    if signalDegraded {
+      return context.state.statusText.isEmpty ? "Live data reconnecting" : context.state.statusText
+    }
+    if minutesAway == 0 {
+      return "Train arriving at platform"
+    } else if minutesAway <= 1 {
+      return "Train approaching shortly"
+    } else {
+      return "\(lineDisplayName) train is on the way"
+    }
+  }
+
+  private var lineDisplayName: String {
+    let map: [String: String] = [
+      "bakerloo": "Bakerloo", "central": "Central", "circle": "Circle",
+      "district": "District", "elizabeth": "Elizabeth", "hammersmith": "Hammersmith",
+      "jubilee": "Jubilee", "metropolitan": "Metropolitan", "northern": "Northern",
+      "piccadilly": "Piccadilly", "victoria": "Victoria", "waterlooandcity": "Waterloo",
+      "overground": "Overground"
+    ]
+    return map[context.attributes.lineId.lowercased()] ?? context.attributes.lineName
+  }
+
+  private var destinationText: String {
+    if context.state.branchKnown, let hero = hero, !hero.destinationName.isEmpty {
+      return hero.destinationName
+    }
+    return lineDisplayName
+  }
+
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      // Header: "Northern line · Bank branch"
+    VStack(alignment: .leading, spacing: 12) {
+      // 1. Sub-Header: "Victoria Line · Live Commute"
       HStack(spacing: 6) {
-        AccentBar(lineId: context.attributes.lineId)
-        Text(headerText)
-          .font(.mcHeadline)
+        Circle()
+          .fill(LineColor.color(for: context.attributes.lineId))
+          .frame(width: 8, height: 8)
+        Text("\(lineDisplayName) Line · Live Commute")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundColor(.white.opacity(0.7))
+        Spacer()
+        if signalDegraded {
+          Text("Awaiting Signal")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white.opacity(0.7))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.white.opacity(0.12))
+            .cornerRadius(4)
+        } else if context.state.isDisrupted {
+          Text("Delayed")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.yellow)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.yellow.opacity(0.15))
+            .cornerRadius(4)
+        } else {
+          Text("On time")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(Color(red: 0.3, green: 0.85, blue: 0.4))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.green.opacity(0.15))
+            .cornerRadius(4)
+        }
+      }
+
+      // 2. Large Headline & Minutes
+      VStack(alignment: .leading, spacing: 2) {
+        Text(mainHeadline)
+          .font(.system(size: 18, weight: .bold))
           .foregroundColor(.white)
+        if signalDegraded {
+          Text("Reconnecting to live transit feed...")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.white.opacity(0.65))
+        } else {
+          HStack(spacing: 4) {
+            Text(context.state.isDisrupted ? "Disrupted" : "On time")
+              .font(.system(size: 13, weight: .semibold))
+              .foregroundColor(context.state.isDisrupted ? .yellow : Color(red: 0.3, green: 0.85, blue: 0.4))
+            Text("·")
+              .foregroundColor(.white.opacity(0.4))
+            Text(minutesAway == 0 ? "Due now" : "\(minutesAway) mins away")
+              .font(.system(size: 13, weight: .medium))
+              .foregroundColor(.white.opacity(0.85))
+          }
+        }
       }
 
-      // Hero train with progress fill = LINE_COLORS.
-      if let hero = context.state.arrivals.first {
-        TrainProgressView(arrival: hero, lineId: context.attributes.lineId)
-      }
+      // 3. Horizontal Delivery-Style Track (Origin -> Moving Train -> Destination)
+      DeliveryTrackView(
+        minutesAway: minutesAway,
+        lineId: context.attributes.lineId,
+        lineName: lineDisplayName,
+        destinationName: destinationText
+      )
 
-      // Status from cached disruption data.
-      Text(statusText)
-        .font(.mcBody)
-        .foregroundColor(context.state.isDisrupted ? .red : .white.opacity(0.8))
+      // 4. Future Brand Perk / Sponsor Slot
+      HStack(spacing: 6) {
+        Image(systemName: "sparkles")
+          .font(.system(size: 11))
+          .foregroundColor(.yellow)
+        Text("Perk ready on arrival at \(destinationText)")
+          .font(.system(size: 11, weight: .medium))
+          .foregroundColor(.white.opacity(0.65))
+      }
+      .padding(.top, 2)
     }
     .padding(16)
     .background(.ultraThinMaterial)
-    .cornerRadius(16)
-    .padding(12)
-  }
-
-  private var headerText: String {
-    let base = context.attributes.lineName
-    if context.state.branchKnown, let hero = context.state.arrivals.first {
-      let dest = hero.destinationName.isEmpty ? "" : " · \(hero.destinationName)"
-      return "\(base)\(dest)"
-    }
-    return base // branch unknown: just the line name
-  }
-
-  private var statusText: String {
-    return context.state.statusText.isEmpty ? "Good Service" : context.state.statusText
+    .cornerRadius(20)
+    .padding(10)
   }
 }
 
-/// Train icon moves left-to-right as timeToStation decreases.
-/// Progress fill = LINE_COLORS token. Seeded from timeToStationSeconds.
-private struct TrainProgressView: View {
-  let arrival: Arrival
-  let lineId: String
+// MARK: - Delivery Track Component
 
-  // We don't know the full journey duration from the cache, so we treat the
-  // bar as a relative "freshness" of the soonest train: more time = train
-  // further left, less time = train further right. Clamp to a 20-min window.
+private struct DeliveryTrackView: View {
+  let minutesAway: Int
+  let lineId: String
+  let lineName: String
+  let destinationName: String
+
+  // 20-minute window for progress calculation
   private var progress: Double {
-    let minutes = Double(arrival.timeToStationSeconds) / 60.0
-    let clamped = min(max(minutes, 0), 20)
-    return 1.0 - (clamped / 20.0) // 0 min -> 1.0 (right), 20 min -> 0.0 (left)
+    let clamped = min(max(Double(minutesAway), 0), 20)
+    return 1.0 - (clamped / 20.0) // 0 mins -> 1.0 (at destination), 20 mins -> 0.0
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
+    VStack(spacing: 6) {
       GeometryReader { geo in
+        let trackInset: CGFloat = 20
+        let trackWidth = geo.size.width - (trackInset * 2)
+        let trainX = trackInset + (trackWidth * CGFloat(progress))
+
         ZStack(alignment: .leading) {
-          // Track
+          // Track line
           Capsule()
-            .fill(Color.white.opacity(0.15))
-            .frame(height: 6)
-          // Progress fill
+            .fill(Color.white.opacity(0.18))
+            .frame(height: 5)
+            .padding(.horizontal, trackInset)
+
+          // Completed progress fill
           Capsule()
             .fill(LineColor.color(for: lineId))
-            .frame(width: geo.size.width * CGFloat(progress), height: 6)
-          // Train marker (SF Symbol, no emoji)
-          Image(systemName: "tram.fill")
-            .font(.system(size: 14))
-            .foregroundColor(.white)
-            .offset(x: geo.size.width * CGFloat(progress) - 7)
+            .frame(width: max(8, trainX - trackInset), height: 5)
+            .padding(.leading, trackInset)
+
+          // Origin Station Pin (Left)
+          Circle()
+            .fill(Color.white.opacity(0.9))
+            .frame(width: 14, height: 14)
+            .overlay(
+              Circle()
+                .stroke(Color.black.opacity(0.4), lineWidth: 2)
+            )
+            .offset(x: trackInset - 7)
+
+          // Destination Station Pin (Right)
+          Circle()
+            .fill(LineColor.color(for: lineId))
+            .frame(width: 16, height: 16)
+            .overlay(
+              Image(systemName: "flag.fill")
+                .font(.system(size: 8))
+                .foregroundColor(.white)
+            )
+            .offset(x: geo.size.width - trackInset - 8)
+
+          // Moving Train Capsule Marker
+          HStack(spacing: 3) {
+            Image(systemName: "tram.fill")
+              .font(.system(size: 10))
+              .foregroundColor(.white)
+            Text(lineName)
+              .font(.system(size: 9, weight: .bold))
+              .foregroundColor(.white)
+          }
+          .padding(.horizontal, 6)
+          .padding(.vertical, 3)
+          .background(LineColor.color(for: lineId))
+          .cornerRadius(10)
+          .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
+          .offset(x: max(trackInset, min(trainX - 24, geo.size.width - trackInset - 55)))
         }
       }
-      .frame(height: 16)
+      .frame(height: 24)
 
-      let (minutes, _) = displayText(for: arrival, isHero: true)
-      Text("\(minutes) min")
-        .font(.mcBody)
-        .foregroundColor(.white)
+      // Station Labels below track
+      HStack {
+        Text("Origin")
+          .font(.system(size: 10))
+          .foregroundColor(.white.opacity(0.5))
+        Spacer()
+        Text(destinationName)
+          .font(.system(size: 10, weight: .medium))
+          .foregroundColor(.white.opacity(0.85))
+      }
     }
   }
 }

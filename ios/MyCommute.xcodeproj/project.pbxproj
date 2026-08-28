@@ -569,14 +569,14 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = MyCommuteWidget/MyCommuteWidget.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/../targets/MyCommuteWidget/MyCommuteWidget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 724;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = PM83YLJ8T9;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = MyCommuteWidget/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/../targets/MyCommuteWidget/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "My Commute Live";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
@@ -610,7 +610,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_ENTITLEMENTS = MyCommuteWidget/MyCommuteWidget.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/../targets/MyCommuteWidget/MyCommuteWidget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 724;
@@ -618,7 +618,7 @@
 				DEVELOPMENT_TEAM = PM83YLJ8T9;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = MyCommuteWidget/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/../targets/MyCommuteWidget/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "My Commute Live";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;

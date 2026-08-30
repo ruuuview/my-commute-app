@@ -16,7 +16,6 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSequence,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
@@ -70,7 +69,6 @@ export default function StationsScreen() {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [maxPinsToast, setMaxPinsToast] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const inputRef = useRef<TextInput>(null);

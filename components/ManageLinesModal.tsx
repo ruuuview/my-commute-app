@@ -9,14 +9,6 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSequence,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
-
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';

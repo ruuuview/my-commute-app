@@ -13,11 +13,6 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSequence,
-  withTiming,
-  Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';

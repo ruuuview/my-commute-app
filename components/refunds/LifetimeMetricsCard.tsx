@@ -3,6 +3,7 @@ import { View, StyleSheet, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { formatPence } from '../../services/refundSlaService';
 import { RADAR } from '../../theme/radarTheme';
+import { GLASS } from '../../theme/colors';
 
 interface LifetimeMetricsCardProps {
   recoveredTotalPence: number;
@@ -45,7 +46,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
   },
   blurFill: StyleSheet.absoluteFillObject,
   glassFill: {

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -261,6 +262,14 @@ export function StationCard({
           style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
         />
 
+        <LinearGradient
+          colors={[GLASS.specularStart, GLASS.specularEnd]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
+          style={styles.specularTopSheen}
+        />
+
         <View style={styles.cardContent}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
@@ -331,8 +340,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
     minHeight: 74,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
   },
   blurBackground: {
     backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : GLASS.background,

@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { FixItSheet } from './FixItSheet';
+import { GLASS } from '../theme/colors';
 
 interface Props {
   onDismiss?: () => void;
@@ -154,7 +155,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
   },
   question: {
     fontFamily: 'SpaceGrotesk_700Bold',

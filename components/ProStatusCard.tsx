@@ -76,7 +76,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
   },
   card: {
     padding: 16,

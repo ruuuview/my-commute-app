@@ -250,10 +250,10 @@ export const LineCard = memo(function LineCard({
 
         <LinearGradient
           colors={[GLASS.specularStart, GLASS.specularEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.45, y: 0.45 }}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
           pointerEvents="none"
-          style={StyleSheet.absoluteFillObject}
+          style={styles.specularTopSheen}
         />
 
         {mode === 'select' && selected && (
@@ -495,5 +495,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginTop: -2,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
   },
 });

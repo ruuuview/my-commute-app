@@ -220,62 +220,120 @@ private struct CompactIslandView: View {
   let trailing: Bool
 
   private var hero: Arrival? { context.state.arrivals.first }
+  private var signalDegraded: Bool { context.state.signalState != "ok" }
+  private var minutesAway: Int {
+    guard let hero = hero else { return 0 }
+    return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+  }
 
   var body: some View {
-    if let hero = hero {
-      let (minutes, _) = displayText(for: hero, isHero: true)
-      HStack(spacing: 3) {
-        AccentBar(lineId: context.attributes.lineId)
-        Text(destinationLabel)
+    if trailing {
+      if signalDegraded {
+        Text("...")
+          .font(.mcHeadline)
+          .foregroundColor(.white.opacity(0.7))
+      } else if context.state.isDisrupted {
+        Text("🟡 \(minutesAway)m")
+          .font(.mcHeadline)
+          .foregroundColor(Color(hex: 0xFFB000))
+      } else {
+        Text("\(minutesAway == 0 ? "Due" : "\(minutesAway)m")")
           .font(.mcHeadline)
           .foregroundColor(.white)
-        if !trailing {
-          Text("· \(minutes) min")
-            .font(.mcHeadline)
-            .foregroundColor(.white)
-        }
       }
     } else {
       HStack(spacing: 3) {
         AccentBar(lineId: context.attributes.lineId)
-        Text(lineName(for: context.attributes.lineId))
+        Text(lineShortCode)
           .font(.mcHeadline)
           .foregroundColor(.white)
       }
     }
   }
 
-  private var destinationLabel: String {
-    if !context.state.branchKnown {
-      return lineName(for: context.attributes.lineId)
-    }
-    return hero?.destinationName.isEmpty == false ? (hero?.destinationName ?? "") : lineName(for: context.attributes.lineId)
-  }
-
-  private func lineName(for id: String) -> String {
+  private var lineShortCode: String {
     let map: [String: String] = [
-      "bakerloo": "Bakerloo", "central": "Central", "circle": "Circle",
-      "district": "District", "elizabeth": "Elizabeth", "hammersmith": "Hammersmith",
-      "jubilee": "Jubilee", "metropolitan": "Metropolitan", "northern": "Northern",
-      "piccadilly": "Piccadilly", "victoria": "Victoria", "waterlooandcity": "Waterloo",
-      "overground": "Overground"
+      "bakerloo": "Bak", "central": "Cen", "circle": "Cir",
+      "district": "Dis", "elizabeth": "Eliz", "hammersmith": "H&C",
+      "jubilee": "Jub", "metropolitan": "Met", "northern": "Nor",
+      "piccadilly": "Picc", "victoria": "Vic", "waterlooandcity": "W&C",
+      "overground": "Over"
     ]
-    return map[id.lowercased()] ?? id.capitalized
+    return map[context.attributes.lineId.lowercased()] ?? context.attributes.lineName.prefix(4).capitalized
   }
 }
 
-// MARK: - Expanded Island
+// MARK: - Expanded Island (Dynamic Island Expanded on Long Press)
 
 private struct ExpandedIslandView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
+  private var hero: Arrival? { context.state.arrivals.first }
+  private var signalDegraded: Bool { context.state.signalState != "ok" }
+  private var hasArrival: Bool { hero != nil }
+  private var minutesAway: Int {
+    guard let hero = hero else { return 0 }
+    return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+  }
+
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      ForEach(Array(context.state.arrivals.prefix(3).enumerated()), id: \.offset) { _, arrival in
-        ArrivalRow(arrival: arrival, branchKnown: context.state.branchKnown, lineId: context.attributes.lineId)
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(spacing: 6) {
+        Circle()
+          .fill(LineColor.color(for: context.attributes.lineId))
+          .frame(width: 8, height: 8)
+        Text(context.attributes.lineName)
+          .font(.system(size: 13, weight: .bold))
+          .foregroundColor(.white)
+        Spacer()
+        if signalDegraded {
+          Text("Reconnecting")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white.opacity(0.7))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.white.opacity(0.12))
+            .cornerRadius(4)
+        } else if context.state.isDisrupted {
+          Text("Minor Delays")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(Color(hex: 0xFFB000))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color(hex: 0xFFB000).opacity(0.18))
+            .cornerRadius(4)
+        } else {
+          Text("Good Service")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(Color(hex: 0x30D158))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color(hex: 0x30D158).opacity(0.18))
+            .cornerRadius(4)
+        }
+      }
+
+      if hasArrival {
+        DeliveryTrackView(
+          minutesAway: minutesAway,
+          lineId: context.attributes.lineId,
+          lineName: context.attributes.lineName,
+          destinationName: destinationText
+        )
+      } else {
+        Text("No trains currently scheduled")
+          .font(.system(size: 12, weight: .medium))
+          .foregroundColor(.white.opacity(0.65))
       }
     }
-    .padding(.horizontal, 8)
+    .padding(10)
+  }
+
+  private var destinationText: String {
+    if context.state.branchKnown, let hero = hero, !hero.destinationName.isEmpty {
+      return hero.destinationName
+    }
+    return context.attributes.lineName
   }
 }
 
@@ -293,12 +351,20 @@ private struct LockScreenView: View {
     return max(0, Int((hero.timeToStationSeconds + 30) / 60))
   }
 
+  private var isSevere: Bool {
+    let text = context.state.statusText.lowercased()
+    return text.contains("severe") || text.contains("suspended") || text.contains("closure")
+  }
+
   private var mainHeadline: String {
     if signalDegraded {
-      return context.state.statusText.isEmpty ? "Live data reconnecting" : context.state.statusText
+      return context.state.statusText.isEmpty ? "Holding in tunnel · Awaiting signal" : context.state.statusText
     }
     if !hasArrival {
-      return "No trains scheduled"
+      return "No trains currently scheduled"
+    }
+    if context.state.isDisrupted {
+      return "\(lineDisplayName) train delayed (+4m)"
     }
     if minutesAway == 0 {
       return "Train arriving at platform"
@@ -329,7 +395,7 @@ private struct LockScreenView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      // 1. Sub-Header: "Victoria Line · Live Commute"
+      // 1. Sub-Header: "Victoria Line · Live Commute" + Canonical TfL Badge
       HStack(spacing: 6) {
         Circle()
           .fill(LineColor.color(for: context.attributes.lineId))
@@ -339,28 +405,36 @@ private struct LockScreenView: View {
           .foregroundColor(.white.opacity(0.7))
         Spacer()
         if signalDegraded {
-          Text("Awaiting Signal")
+          Text("Reconnecting")
             .font(.system(size: 10, weight: .bold))
             .foregroundColor(.white.opacity(0.7))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Color.white.opacity(0.12))
             .cornerRadius(4)
-        } else if context.state.isDisrupted {
-          Text("Delayed")
+        } else if !hasArrival {
+          Text("Closed")
             .font(.system(size: 10, weight: .bold))
-            .foregroundColor(.yellow)
+            .foregroundColor(.white.opacity(0.6))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.yellow.opacity(0.15))
+            .background(Color.white.opacity(0.1))
+            .cornerRadius(4)
+        } else if context.state.isDisrupted {
+          Text(isSevere ? "Severe Delays" : "Minor Delays")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background((isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)).opacity(0.18))
             .cornerRadius(4)
         } else {
-          Text("On time")
+          Text("Good Service")
             .font(.system(size: 10, weight: .bold))
-            .foregroundColor(Color(red: 0.3, green: 0.85, blue: 0.4))
+            .foregroundColor(Color(hex: 0x30D158))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.green.opacity(0.15))
+            .background(Color(hex: 0x30D158).opacity(0.18))
             .cornerRadius(4)
         }
       }
@@ -374,21 +448,32 @@ private struct LockScreenView: View {
           Text("Reconnecting to live transit feed...")
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(.white.opacity(0.65))
-        } else if hasArrival {
+        } else if !hasArrival {
+          Text("First morning train departs at 05:28 AM")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.white.opacity(0.65))
+        } else if context.state.isDisrupted {
           HStack(spacing: 4) {
-            Text(context.state.isDisrupted ? "Disrupted" : "On time")
+            Text(isSevere ? "Severe Delays" : "Minor Delays")
               .font(.system(size: 13, weight: .semibold))
-              .foregroundColor(context.state.isDisrupted ? .yellow : Color(red: 0.3, green: 0.85, blue: 0.4))
+              .foregroundColor(isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000))
+            Text("·")
+              .foregroundColor(.white.opacity(0.4))
+            Text("\(minutesAway) mins away")
+              .font(.system(size: 13, weight: .medium))
+              .foregroundColor(.white.opacity(0.85))
+          }
+        } else {
+          HStack(spacing: 4) {
+            Text("On time")
+              .font(.system(size: 13, weight: .semibold))
+              .foregroundColor(Color(hex: 0x30D158))
             Text("·")
               .foregroundColor(.white.opacity(0.4))
             Text(minutesAway == 0 ? "Due now" : "\(minutesAway) mins away")
               .font(.system(size: 13, weight: .medium))
               .foregroundColor(.white.opacity(0.85))
           }
-        } else {
-          Text("No departures currently reported")
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(.white.opacity(0.65))
         }
       }
 
@@ -402,14 +487,23 @@ private struct LockScreenView: View {
         )
       }
 
-      // 4. Future Brand Perk / Sponsor Slot
+      // 4. Dynamic Utility Slot (Delay Repay Tracking when Disrupted / Perk when Normal)
       HStack(spacing: 6) {
-        Image(systemName: "sparkles")
-          .font(.system(size: 11))
-          .foregroundColor(.yellow)
-        Text("Perk ready on arrival at \(destinationText)")
-          .font(.system(size: 11, weight: .medium))
-          .foregroundColor(.white.opacity(0.65))
+        if context.state.isDisrupted {
+          Image(systemName: "sterlingsign.circle.fill")
+            .font(.system(size: 12))
+            .foregroundColor(Color(hex: 0x30D158))
+          Text("£3.60 Delay Repay claim tracking active")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.9))
+        } else {
+          Image(systemName: "sparkles")
+            .font(.system(size: 11))
+            .foregroundColor(.yellow)
+          Text("Perk ready on arrival at \(destinationText)")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(.white.opacity(0.65))
+        }
       }
       .padding(.top, 2)
     }

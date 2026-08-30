@@ -91,10 +91,19 @@ export class LiveActivityService {
     }
 
     const disruption = cache.disruption;
-    const isDisrupted = disruption?.isDisrupted ?? false;
+    const rawIsDisrupted = disruption?.isDisrupted ?? false;
+
+    if (rawIsDisrupted) {
+      LiveActivityService.lastDisruptedAt = Date.now();
+    }
+
+    // 120s Anti-Flap Debounce: do not revert to 'Good Service' until 120s of continuous clean data
+    const isWithinDebounce = Date.now() - LiveActivityService.lastDisruptedAt < 120 * 1000;
+    const isDisrupted = rawIsDisrupted || (LiveActivityService.lastDisruptedAt > 0 && isWithinDebounce);
+
     const statusText = isDisrupted
-      ? `${disruption?.description || 'Disrupted'}${disruption?.reason ? ` — ${disruption.reason}` : ''}`
-      : 'On time';
+      ? `${disruption?.description || 'Minor Delays'}${disruption?.reason ? ` — ${disruption.reason}` : ''}`
+      : 'Good Service';
 
     // Branch known when the session has resolved a destination (Priority 1-3).
     const branchKnown = !!backgroundStorage.getString('commute_destination_id');
@@ -114,6 +123,8 @@ export class LiveActivityService {
       signalState,
     };
   }
+
+  private static lastDisruptedAt = 0;
 
   private static readSignalState(): LiveActivitySignalState {
     const meltdown = backgroundStorage.getBoolean('tfl_global_outage') ?? false;

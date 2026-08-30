@@ -65,21 +65,24 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
 
 enum LineColor {
   static func color(for lineId: String) -> Color {
-    switch lineId.lowercased() {
-    case "bakerloo":        return Color(hex: 0xB36305)
-    case "central":         return Color(hex: 0xE32017)
-    case "circle":          return Color(hex: 0xFFD329)
-    case "district":        return Color(hex: 0x00782A)
-    case "elizabeth":       return Color(hex: 0x6950A1)
-    case "hammersmith":     return Color(hex: 0xF3A9BB)
-    case "jubilee":         return Color(hex: 0xA1A5A9)
-    case "metropolitan":    return Color(hex: 0x9B0056)
-    case "northern":        return Color(hex: 0x000000)
-    case "piccadilly":      return Color(hex: 0x0019A8)
-    case "victoria":        return Color(hex: 0x0098D4)
-    case "waterlooandcity": return Color(hex: 0x95CDBA)
-    case "overground":      return Color(hex: 0xEE7C0E)
-    default:                return Color(hex: 0x888888)
+    switch lineId.lowercased().replacingOccurrences(of: "-", with: "") {
+    case "bakerloo":                        return Color(hex: 0xB36305)
+    case "central":                         return Color(hex: 0xE32017)
+    case "circle":                          return Color(hex: 0xFFD300)
+    case "district":                        return Color(hex: 0x00782A)
+    case "dlr":                             return Color(hex: 0x00AFAD)
+    case "elizabeth":                       return Color(hex: 0x6950A1)
+    case "hammersmith", "hammersmithcity":  return Color(hex: 0xF3A9BB)
+    case "jubilee":                         return Color(hex: 0x868F98)
+    case "metropolitan":                    return Color(hex: 0x9B0056)
+    case "northern":                        return Color(hex: 0x000000)
+    case "piccadilly":                      return Color(hex: 0x003688)
+    case "victoria":                        return Color(hex: 0x0098D4)
+    case "waterlooandcity", "waterloocity": return Color(hex: 0x95CDBA)
+    case "overground", "weaver", "mildmay",
+         "windrush", "suffragette",
+         "lioness", "liberty":              return Color(hex: 0xEE7C0E)
+    default:                                return Color(hex: 0x888888)
     }
   }
 }

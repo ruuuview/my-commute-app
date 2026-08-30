@@ -72,7 +72,7 @@ enum SeverityLevel {
         case .good:
             return Color(red: 48.0/255.0, green: 209.0/255.0, blue: 88.0/255.0) // #30D158
         case .minor:
-            return Color(red: 255.0/255.0, green: 159.0/255.0, blue: 10.0/255.0) // #FF9F0A
+            return Color(red: 255.0/255.0, green: 176.0/255.0, blue: 0.0/255.0) // #FFB000
         case .severe:
             return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0) // #FF3B30
         case .suspended:

@@ -115,11 +115,27 @@ export async function fetchNormalizedStationArrivals(
   if (allRaw.length === 0) {
     try {
       const directResponses = await Promise.all(
-        resolvedIds.map(id =>
-          fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(id)}/Arrivals`, { signal: effectiveSignal })
-            .then(res => (res.ok ? res.json() : null))
-            .catch(() => null)
-        )
+        resolvedIds.map(async id => {
+          try {
+            const res = await fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(id)}/Arrivals`, { signal: effectiveSignal });
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data) && data.length > 0) return data;
+            }
+          } catch {}
+
+          // Rail stations fallback for Overground / Elizabeth / National Rail StopPoints
+          if (id.startsWith('910G')) {
+            try {
+              const railRes = await fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(id)}/ArrivalDepartures`, { signal: effectiveSignal });
+              if (railRes.ok) {
+                const railData = await railRes.json();
+                if (Array.isArray(railData)) return railData;
+              }
+            } catch {}
+          }
+          return null;
+        })
       );
       directResponses.forEach(data => {
         if (Array.isArray(data)) {

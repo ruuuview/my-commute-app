@@ -46,15 +46,21 @@ const TabsLayout = () => {
     tabBarTranslateY.value = withDelay(60, withSpring(0, { damping: 20, stiffness: 180 }));
   }, [reducedMotion, tabBarTranslateY]);
 
-  // Tab content opacity crossfades on switch
+  const isInitialMount = React.useRef(true);
+
+  // Tab content opacity crossfades on switch (skips initial mount to prevent blank flash)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (reducedMotion) {
       contentOpacity.value = 1;
       return;
     }
-    contentOpacity.value = withTiming(0, { duration: 160 }, (finished) => {
+    contentOpacity.value = withTiming(0, { duration: 120 }, (finished) => {
       if (finished) {
-        contentOpacity.value = withDelay(40, withTiming(1, { duration: 200 }));
+        contentOpacity.value = withDelay(20, withTiming(1, { duration: 160 }));
       }
     });
   }, [pathname, contentOpacity, reducedMotion]);

@@ -36,9 +36,30 @@ import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useShallow } from 'zustand/react/shallow';
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
+
+function cleanDestinationName(dest: string | null | undefined): string {
+  if (!dest) return 'Unknown';
+  return dest
+    .replace(
+      /\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i,
+      ''
+    )
+    .trim();
+}
+
+function cleanPlatform(platform: string | null | undefined): string {
+  if (!platform) return '';
+  return String(platform)
+    .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
+    .replace(/Platform\s*/i, 'P')
+    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
+    .replace(/\s*-\s*$/g, '')
+    .trim();
+}
 
 export interface DepartureCardProps {
   stationId: string;
@@ -52,17 +73,6 @@ export interface DepartureCardProps {
   index?: number;
   isActive?: boolean;
   globalJiggle?: SharedValue<number>;
-}
-
-// ─── Helper: clean platform text ─────────────────────────────────
-function cleanPlatform(platform: string): string {
-  if (!platform) return '';
-  return String(platform)
-    .replace(/\b(Northbound|Southbound|Eastbound|Westbound)\b\s*[-–—]?\s*/gi, '')
-    .replace(/Platform\s*/i, 'P')
-    .replace(/\s*via\s+[a-z0-9'\s]+/gi, '')
-    .replace(/\s*-\s*$/g, '')
-    .trim();
 }
 
 // ─── Main component ──────────────────────────────────────────────
@@ -83,14 +93,16 @@ const DepartureCard = memo(function DepartureCard({
   const [arrivals, setArrivals] = useState<NormalizedDeparture[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const selectedLines = useUserPreferencesStore(s => s.selectedLines);
+  const selectedLines = useUserPreferencesStore(useShallow(s => s.selectedLines || []));
 
   const pressAnim = usePressAnimation('departure_card');
-  const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
+  const defaultJiggleStyle = useAnimatedStyle(() => ({ transform: [{ rotate: '0deg' }] }));
+  const activeJiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
     baselineShadowOpacity: GLASS.shadowOpacity,
     baselineShadowRadius: GLASS.shadowRadius,
     baselineElevation: 0,
   });
+  const jiggleStyle = (isEditing || isActive) ? activeJiggleStyle : defaultJiggleStyle;
 
   // ── Fetch live arrivals ───────────────────────────────────────
   const fetchArrivals = useCallback(
@@ -113,13 +125,17 @@ const DepartureCard = memo(function DepartureCard({
 
   useEffect(() => {
     const active = { current: true };
-    fetchArrivals(active);
+    const delayMs = Math.min(index * 30, 300);
+    const startTimer = setTimeout(() => {
+      fetchArrivals(active);
+    }, delayMs);
     const interval = setInterval(() => fetchArrivals(active), 30_000);
     return () => {
       active.current = false;
+      clearTimeout(startTimer);
       clearInterval(interval);
     };
-  }, [fetchArrivals]);
+  }, [fetchArrivals, index]);
 
   // ── Derived values ───────────────────────────────────────────
   const cleanName = String(stationName ?? '')

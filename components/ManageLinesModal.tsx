@@ -31,8 +31,6 @@ import { getSeverityLabel, getSeverityRank } from '../utils/getSeverityColor';
 
 import { APP_CONFIG } from '../config/app.config';
 
-const MAX_LINES = 5;
-
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
 const TFL_LINES = [
@@ -82,9 +80,6 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
 
   const [apiStatuses, setApiStatuses] = useState<Record<string, { severity: number; description: string }>>({});
   const [loadingStatuses, setLoadingStatuses] = useState(true);
-  const [maxLinesToast, setMaxLinesToast] = useState(false);
-
-  const maxLinesShakeTranslationX = useSharedValue(0);
 
   // No fixed height on the sheet — it sizes to content up to maxHeight
   // (85% cap, safe-area aware) so the inner list scrolls instead of clipping.
@@ -134,21 +129,6 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
     };
   }, [visible]);
 
-  // Ported from app/onboarding/lines.tsx
-  const triggerMaxLinesShake = useCallback(() => {
-    maxLinesShakeTranslationX.value = withSequence(
-      withTiming(-8, { duration: 60, easing: Easing.linear }),
-      withTiming(8, { duration: 60, easing: Easing.linear }),
-      withTiming(-6, { duration: 60, easing: Easing.linear }),
-      withTiming(6, { duration: 60, easing: Easing.linear }),
-      withTiming(0, { duration: 60, easing: Easing.linear })
-    );
-  }, [maxLinesShakeTranslationX]);
-
-  const maxLinesShakeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: maxLinesShakeTranslationX.value }],
-  }));
-
   const resolveLineStatus = (lineId: string): { statusType: 'good' | 'minor' | 'severe' | 'error' | 'loading'; statusLabel: string } => {
     if (loadingStatuses) {
       return { statusType: 'loading', statusLabel: 'Loading status...' };
@@ -197,13 +177,6 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
   const handleToggleLine = useCallback(
     async (id: string) => {
       const isSelected = selectedLines.includes(id);
-      if (!isSelected && selectedLines.length >= MAX_LINES) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        triggerMaxLinesShake();
-        setMaxLinesToast(true);
-        setTimeout(() => setMaxLinesToast(false), 1500);
-        return;
-      }
       
       if (isSelected) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -216,7 +189,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
       // Saves immediately — store persists via MMKV
       toggleLine(id);
     },
-    [selectedLines, toggleLine, triggerMaxLinesShake]
+    [selectedLines, toggleLine]
   );
 
   const renderItem = ({ item }: { item: typeof TFL_LINES[0] }) => {
@@ -269,7 +242,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
               Manage lines
               {selectedLines.length > 0 && (
-                <Text style={styles.counterInline}> · {selectedLines.length} of {MAX_LINES}</Text>
+                <Text style={styles.counterInline}> · {selectedLines.length} selected</Text>
               )}
             </Text>
             <Pressable
@@ -282,13 +255,6 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
               <Text style={styles.doneText}>Done</Text>
             </Pressable>
           </View>
-
-          {/* Max lines toast */}
-          {maxLinesToast && (
-            <Animated.View style={[styles.maxLinesToast, maxLinesShakeStyle]}>
-              <Text style={styles.maxLinesToastText}>Maximum 5 lines</Text>
-            </Animated.View>
-          )}
 
           {/* 2-column line grid */}
           <FlatList

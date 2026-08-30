@@ -39,8 +39,6 @@ import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
 
-const MAX_PINS = 5;
-
 export default function StationsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -97,21 +95,6 @@ export default function StationsScreen() {
   const canContinue = pinnedStations.length > 0;
   const backAnim = usePressAnimation('back_btn');
   const ctaBtnAnim = usePressAnimation('continue_btn', !canContinue);
-
-  const maxPinsShakeX = useSharedValue(0);
-  const maxPinsShakeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: maxPinsShakeX.value }],
-  }));
-
-  const triggerMaxPinsShake = useCallback(() => {
-    maxPinsShakeX.value = withSequence(
-      withTiming(-8, { duration: 60, easing: Easing.linear }),
-      withTiming(8, { duration: 60, easing: Easing.linear }),
-      withTiming(-6, { duration: 60, easing: Easing.linear }),
-      withTiming(6, { duration: 60, easing: Easing.linear }),
-      withTiming(0, { duration: 60, easing: Easing.linear })
-    );
-  }, [maxPinsShakeX]);
 
   const ctaOpacity = useSharedValue(canContinue ? 1 : 0.35);
 
@@ -194,13 +177,6 @@ export default function StationsScreen() {
           useOnboardingStore.getState().removeStation(station.id);
         }
       } else {
-        if (pinnedStations.length >= MAX_PINS) {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          triggerMaxPinsShake();
-          setMaxPinsToast(true);
-          setTimeout(() => setMaxPinsToast(false), 1500);
-          return;
-        }
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         playSound('select', 0.45);
 
@@ -234,7 +210,7 @@ export default function StationsScreen() {
         }
       }
     },
-    [pinnedIds, pinnedStations, hasCompletedOnboarding, triggerMaxPinsShake]
+    [pinnedIds, hasCompletedOnboarding]
   );
 
   const handleBack = () => {
@@ -546,12 +522,6 @@ export default function StationsScreen() {
           <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
           >
-            {maxPinsToast && (
-              <Animated.View style={[styles.maxPinsToast, maxPinsShakeStyle]}>
-                <Text style={styles.maxPinsToastText}>Maximum {MAX_PINS} stations</Text>
-              </Animated.View>
-            )}
-
             <Pressable
               onPress={handleCTAPress}
               onPressIn={ctaBtnAnim.onPressIn}

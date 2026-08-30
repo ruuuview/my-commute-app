@@ -39,8 +39,6 @@ import Fuse from 'fuse.js';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const MAX_PINS = 5;
-
 interface ManageStationsModalProps {
   visible: boolean;
   onClose: () => void;
@@ -49,11 +47,10 @@ interface ManageStationsModalProps {
 interface CompactStationCardProps {
   station: TfLStation;
   selected: boolean;
-  isAtLimit?: boolean;
   onPress: () => void;
 }
 
-function CompactStationCard({ station, selected, isAtLimit, onPress }: CompactStationCardProps) {
+function CompactStationCard({ station, selected, onPress }: CompactStationCardProps) {
   const reducedMotion = useReducedMotion();
   const pressAnim = usePressAnimation('station_row', false);
   const cleanName = tflCapitalise(cleanDisplayStationName(station.name));
@@ -72,7 +69,6 @@ function CompactStationCard({ station, selected, isAtLimit, onPress }: CompactSt
       style={({ pressed }) => [
         styles.compactCard,
         pressed && { opacity: 0.65 },
-        !selected && isAtLimit && { opacity: 0.75 },
       ]}
     >
       <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
@@ -94,8 +90,8 @@ function CompactStationCard({ station, selected, isAtLimit, onPress }: CompactSt
                   <Ionicons name="checkmark" size={14} color="#30D158" />
                 </View>
               ) : (
-                <View style={[styles.compactAddBtn, isAtLimit && styles.compactAddBtnDisabled]}>
-                  <Ionicons name="add" size={14} color={isAtLimit ? 'rgba(255, 255, 255, 0.4)' : '#FFFFFF'} />
+                <View style={styles.compactAddBtn}>
+                  <Ionicons name="add" size={14} color="#FFFFFF" />
                 </View>
               )}
             </View>
@@ -152,22 +148,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [maxPinsToast, setMaxPinsToast] = useState(false);
-
-  const maxPinsShakeX = useSharedValue(0);
-  const maxPinsShakeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: maxPinsShakeX.value }],
-  }));
-
-  const triggerMaxPinsShake = useCallback(() => {
-    maxPinsShakeX.value = withSequence(
-      withTiming(-8, { duration: 60, easing: Easing.linear }),
-      withTiming(8, { duration: 60, easing: Easing.linear }),
-      withTiming(-6, { duration: 60, easing: Easing.linear }),
-      withTiming(6, { duration: 60, easing: Easing.linear }),
-      withTiming(0, { duration: 60, easing: Easing.linear })
-    );
-  }, [maxPinsShakeX]);
 
   // Clean full stations mapping for search logic (deduplication)
   const cleanFullStations = useMemo(() => {
@@ -217,8 +197,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
-  const isAtLimit = pinnedStations.length >= MAX_PINS;
-
   const listData = useMemo(() => {
     if (query.trim() !== '') {
       return results;
@@ -242,13 +220,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         return;
       }
 
-      if (pinnedStations.length >= MAX_PINS) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        triggerMaxPinsShake();
-        setMaxPinsToast(true);
-        setTimeout(() => setMaxPinsToast(false), 2000);
-        return;
-      }
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Immediate clean dismiss
@@ -279,7 +250,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         }, 100);
       }
     },
-    [pinnedIds, pinnedStations, pinStation, unpinStation, triggerMaxPinsShake]
+    [pinnedIds, pinnedStations, pinStation, unpinStation]
   );
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
@@ -288,11 +259,10 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
       <CompactStationCard
         station={item}
         selected={isSelected}
-        isAtLimit={isAtLimit}
         onPress={() => handleToggleStation(item)}
       />
     );
-  }, [handleToggleStation, pinnedIds, isAtLimit]);
+  }, [handleToggleStation, pinnedIds]);
 
   const searchFocusedStyle = isFocused
     ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' }
@@ -347,7 +317,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
               <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
                 Manage stations
                 {pinnedStations.length > 0 && (
-                  <Text style={styles.counterInline}> · {pinnedStations.length} of {MAX_PINS}</Text>
+                  <Text style={styles.counterInline}> · {pinnedStations.length} saved</Text>
                 )}
               </Text>
               <AnimatedPressable
@@ -362,13 +332,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 <Text style={styles.doneText}>Done</Text>
               </AnimatedPressable>
             </View>
-
-            {/* Max pins toast */}
-            {maxPinsToast && (
-              <Animated.View style={[styles.maxPinsToast, maxPinsShakeStyle]}>
-                <Text style={styles.maxPinsToastText}>Maximum {MAX_PINS} stations · Tap a pinned station to remove</Text>
-              </Animated.View>
-            )}
 
             {/* Search Bar */}
             <View style={[styles.searchBarContainer, searchFocusedStyle]}>

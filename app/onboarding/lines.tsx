@@ -132,9 +132,6 @@ export default function LinesScreen() {
   const counterScale = useSharedValue(1);
   const prevCountRef = React.useRef(selectedLines.length);
 
-  const [maxLinesToast, setMaxLinesToast] = useState(false);
-  const maxLinesShakeTranslationX = useSharedValue(0);
-
   // CTA button state transition opacity (200ms opacity animation on crossing zero)
   const ctaOpacity = useSharedValue(canContinue ? 1 : 0.35);
 
@@ -147,20 +144,6 @@ export default function LinesScreen() {
 
   const ctaAnimatedStyle = useAnimatedStyle(() => ({
     opacity: ctaOpacity.value,
-  }));
-
-  const triggerMaxLinesShake = useCallback(() => {
-    maxLinesShakeTranslationX.value = withSequence(
-      withTiming(-8, { duration: 60, easing: Easing.linear }),
-      withTiming(8, { duration: 60, easing: Easing.linear }),
-      withTiming(-6, { duration: 60, easing: Easing.linear }),
-      withTiming(6, { duration: 60, easing: Easing.linear }),
-      withTiming(0, { duration: 60, easing: Easing.linear })
-    );
-  }, [maxLinesShakeTranslationX]);
-
-  const maxLinesShakeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: maxLinesShakeTranslationX.value }],
   }));
 
   const triggerCounterShake = () => {
@@ -200,19 +183,12 @@ export default function LinesScreen() {
         playSound('deselect', 0.35);
         toggleLine(id);
       } else {
-        if (selectedLines.length >= 5) {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          triggerMaxLinesShake();
-          setMaxLinesToast(true);
-          setTimeout(() => setMaxLinesToast(false), 1500);
-          return;
-        }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         playSound('select', 0.45);
         toggleLine(id);
       }
     },
-    [selectedLines, toggleLine, triggerMaxLinesShake]
+    [selectedLines, toggleLine]
   );
 
   const handleCTAPress = async () => {
@@ -369,13 +345,6 @@ export default function LinesScreen() {
 
       {/* Main Content Area */}
       <View style={styles.listArea}>
-        {/* Max lines toast */}
-        {maxLinesToast && (
-          <Animated.View style={[styles.maxLinesToast, maxLinesShakeStyle]}>
-            <Text style={styles.maxLinesToastText}>Maximum 5 lines</Text>
-          </Animated.View>
-        )}
-
         <FlatList
           data={TFL_LINES}
           renderItem={renderItem}

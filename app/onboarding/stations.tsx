@@ -27,7 +27,8 @@ import { Stack, useRouter, useLocalSearchParams, useNavigation } from 'expo-rout
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { ensureDeviceIdentity } from '../../services/deviceIdentity';
-import { TfLStation, FULL_STATIONS, cleanDisplayStationName } from '../../data/tflStations';
+import { resolveTflStopIdForStore } from '../../utils/resolveTflStopId';
+import { TfLStation, FULL_STATIONS, cleanDisplayStationName, sanitiseStationName } from '../../data/tflStations';
 import { tflCapitalise } from '../../utils/tflCapitalise';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
@@ -154,7 +155,17 @@ export default function StationsScreen() {
 
 
 
-  const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
+  const isStationPinned = useCallback((station: TfLStation | { id: string; name: string }) => {
+    const stationResolved = resolveTflStopIdForStore(station.id);
+    const stationCleanName = sanitiseStationName(station.name);
+    return pinnedStations.some(p => {
+      return (
+        p.id === station.id ||
+        resolveTflStopIdForStore(p.id) === stationResolved ||
+        sanitiseStationName(p.name) === stationCleanName
+      );
+    });
+  }, [pinnedStations]);
 
   const recentStations = useMemo(() => {
     const searchIds = recentSearchIds || [];
@@ -165,7 +176,7 @@ export default function StationsScreen() {
 
   const handleToggleStation = useCallback(
     async (station: TfLStation) => {
-      const isPinned = pinnedIds.has(station.id);
+      const isPinned = isStationPinned(station);
       if (isPinned) {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         playSound('deselect', 0.35);
@@ -208,7 +219,7 @@ export default function StationsScreen() {
         }
       }
     },
-    [pinnedIds, hasCompletedOnboarding]
+    [isStationPinned, hasCompletedOnboarding]
   );
 
   const handleBack = () => {
@@ -315,7 +326,7 @@ export default function StationsScreen() {
       : `Continue with ${pinnedStations.length} stations`;
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
-    const isPinned = pinnedIds.has(item.id);
+    const isPinned = isStationPinned(item);
 
     const rightElement = isPinned ? (
       <View style={styles.addedCircle}>
@@ -345,7 +356,7 @@ export default function StationsScreen() {
         showLedger={true}
       />
     );
-  }, [pinnedIds, handleToggleStation]);
+  }, [isStationPinned, handleToggleStation]);
 
   const searchFocusedStyle = isFocused
     ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: GLASS.background }

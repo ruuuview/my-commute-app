@@ -4,6 +4,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { StatusLevel } from '../hooks/useWorstStatus';
 import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
+import { sanitiseStationName } from '../data/tflStations';
 import { STORE_VERSION, runMigrations } from './migrations';
 
 const storage = createMMKV();
@@ -209,8 +210,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set(state => {
           const stations = [...state.pinnedStations];
           const resolvedId = resolveTflStopIdForStore(station.id);
+          const cleanName = sanitiseStationName(station.name);
           console.log('[pinStore] id:', station.id, '→ resolved:', resolvedId, '| name:', station.name);
-          if (stations.find(s => s.id === resolvedId)) return state;
+          if (stations.some(s => s.id === resolvedId || resolveTflStopIdForStore(s.id) === resolvedId || sanitiseStationName(s.name) === cleanName)) {
+            return state;
+          }
           stations.push({ ...station, id: resolvedId, role });
           return { pinnedStations: stations };
         });
@@ -218,7 +222,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       unpinStation: (id: string) => {
         set(state => {
           const stations = [...state.pinnedStations];
-          const index = stations.findIndex(s => s.id === id);
+          const resolvedId = resolveTflStopIdForStore(id);
+          const index = stations.findIndex(s => s.id === id || resolveTflStopIdForStore(s.id) === resolvedId);
           if (index !== -1) {
             stations.splice(index, 1);
             return { pinnedStations: stations };

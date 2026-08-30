@@ -22,7 +22,8 @@ import { GLASS } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission } from '../store/permissionOrchestrator';
-import { TfLStation, FULL_STATIONS, POPULAR_STATIONS, cleanDisplayStationName } from '../data/tflStations';
+import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
+import { TfLStation, FULL_STATIONS, POPULAR_STATIONS, cleanDisplayStationName, sanitiseStationName } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
@@ -190,7 +191,17 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     return combined;
   }, [query, fuse, cleanFullStations]);
 
-  const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
+  const isStationPinned = useCallback((station: TfLStation | { id: string; name: string }) => {
+    const stationResolved = resolveTflStopIdForStore(station.id);
+    const stationCleanName = sanitiseStationName(station.name);
+    return pinnedStations.some(p => {
+      return (
+        p.id === station.id ||
+        resolveTflStopIdForStore(p.id) === stationResolved ||
+        sanitiseStationName(p.name) === stationCleanName
+      );
+    });
+  }, [pinnedStations]);
 
   const listData = useMemo(() => {
     if (query.trim() !== '') {
@@ -202,13 +213,13 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
       lines: p.lines,
       zone: p.zone,
     }));
-    const popularUnpinned = POPULAR_STATIONS.filter(s => !pinnedIds.has(s.id));
+    const popularUnpinned = POPULAR_STATIONS.filter(s => !isStationPinned(s));
     return [...pinnedList, ...popularUnpinned];
-  }, [query, results, pinnedStations, pinnedIds]);
+  }, [query, results, pinnedStations, isStationPinned]);
 
   const handleToggleStation = useCallback(
     async (station: TfLStation) => {
-      const isAlreadyPinned = pinnedIds.has(station.id);
+      const isAlreadyPinned = isStationPinned(station);
       if (isAlreadyPinned) {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         unpinStation(station.id);
@@ -245,11 +256,11 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         }, 100);
       }
     },
-    [pinnedIds, pinnedStations, pinStation, unpinStation]
+    [isStationPinned, pinnedStations, pinStation, unpinStation]
   );
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
-    const isSelected = pinnedIds.has(item.id);
+    const isSelected = isStationPinned(item);
     return (
       <CompactStationCard
         station={item}
@@ -257,7 +268,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         onPress={() => handleToggleStation(item)}
       />
     );
-  }, [handleToggleStation, pinnedIds]);
+  }, [handleToggleStation, isStationPinned]);
 
   const searchFocusedStyle = isFocused
     ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' }

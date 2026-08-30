@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 
 import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
+import { sanitiseStationName } from '../data/tflStations';
 
 const storage = createMMKV({ id: 'onboarding' });
 
@@ -57,14 +58,20 @@ export const useOnboardingStore = create<OnboardingStore>()(
       addStation: (station) =>
         set((s) => {
           const resolvedId = resolveTflStopIdForStore(station.id);
-          if (s.pinnedStations.find((p) => p.id === resolvedId)) return s;
+          const cleanName = sanitiseStationName(station.name);
+          if (s.pinnedStations.some((p) => p.id === resolvedId || resolveTflStopIdForStore(p.id) === resolvedId || sanitiseStationName(p.name) === cleanName)) {
+            return s;
+          }
           return { pinnedStations: [...s.pinnedStations, { ...station, id: resolvedId }] };
         }),
 
       removeStation: (stationId) =>
-        set((s) => ({
-          pinnedStations: s.pinnedStations.filter((p) => p.id !== stationId),
-        })),
+        set((s) => {
+          const resolvedId = resolveTflStopIdForStore(stationId);
+          return {
+            pinnedStations: s.pinnedStations.filter((p) => p.id !== stationId && resolveTflStopIdForStore(p.id) !== resolvedId),
+          };
+        }),
 
       setNavigationDirection: (dir) => set({ navigationDirection: dir }),
 

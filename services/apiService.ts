@@ -110,6 +110,39 @@ export async function fetchNormalizedStationArrivals(
     }
   });
 
+  // Client-side Direct TfL Fallback: if the backend is cold, rate-limited, or returns 0 rows,
+  // query TfL StopPoint API directly from the client so departures always load immediately.
+  if (allRaw.length === 0) {
+    try {
+      const directResponses = await Promise.all(
+        resolvedIds.map(id =>
+          fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(id)}/Arrivals`, { signal: effectiveSignal })
+            .then(res => (res.ok ? res.json() : null))
+            .catch(() => null)
+        )
+      );
+      directResponses.forEach(data => {
+        if (Array.isArray(data)) {
+          data.forEach(arr => {
+            allRaw.push({
+              line: arr.lineName || arr.lineId || 'Unknown',
+              line_id: arr.lineId || '',
+              lineId: arr.lineId || '',
+              platform: arr.platformName || '',
+              destination: arr.towards || arr.destinationName || '',
+              expected_arrival: arr.expectedArrival || '',
+              minutes_away: arr.timeToStation !== undefined ? Math.max(0, Math.floor(arr.timeToStation / 60)) : undefined,
+              time_to_station: arr.timeToStation,
+              mode: arr.modeName || '',
+            });
+          });
+        }
+      });
+    } catch {
+      // Ignore network errors in fallback
+    }
+  }
+
   const processed = allRaw.map((dep: any) => {
     const mins = dep.minutes_away !== undefined
       ? dep.minutes_away

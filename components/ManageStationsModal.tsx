@@ -228,10 +228,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Immediate clean dismiss
-      Keyboard.dismiss();
-      setQuery('');
-
       const role = pinnedStations.length === 0
         ? 'home'
         : pinnedStations.length === 1

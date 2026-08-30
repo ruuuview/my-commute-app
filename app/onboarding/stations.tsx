@@ -192,11 +192,6 @@ export default function StationsScreen() {
         // Deduplicate and reinsert recent search at index 0 first
         useUserPreferencesStore.getState().addRecentSearch(station.id);
 
-        // Immediate clean dismiss
-        Keyboard.dismiss();
-        setQuery('');
-        setIsSearching(false);
-
         if (hasCompletedOnboarding) {
           const role = useUserPreferencesStore.getState().pinnedStations.length === 0
             ? 'home'

@@ -280,9 +280,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     onClose();
   };
 
-  // No fixed height on the sheet — it sizes to content up to maxHeight
-  // (85% cap, safe-area aware) so the inner list scrolls instead of clipping.
-  const sheetMaxHeight = Math.min(
+  const sheetHeight = Math.min(
     screenHeight * 0.85,
     Math.max(screenHeight - insets.top - insets.bottom, screenHeight * 0.5)
   );
@@ -304,8 +302,8 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
           accessibilityLabel="Dismiss manage stations"
         />
 
-        {/* Bottom sheet — sizes to content, capped at 85% of screen height */}
-        <View style={[styles.sheet, { maxHeight: sheetMaxHeight }]}>
+        {/* Bottom sheet with explicit bounded height so FlatList scrolls */}
+        <View style={[styles.sheet, { height: sheetHeight }]}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
 
           {/* Drag handle */}
@@ -384,6 +382,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
                 keyExtractor={(item) => item.id}
                 initialNumToRender={12}
                 windowSize={5}
+                scrollEnabled={true}
                 contentContainerStyle={[
                   styles.listContainer,
                   { flexGrow: 1, paddingBottom: insets.bottom + 24 }

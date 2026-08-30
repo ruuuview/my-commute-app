@@ -197,10 +197,6 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set(state => {
           const lines = [...state.selectedLines];
           const includes = lines.includes(id);
-          if (!includes && lines.length >= 5) {
-            // Cap at 5! Block selection additions.
-            return state;
-          }
           if (includes) {
             lines.splice(lines.indexOf(id), 1);
           } else {
@@ -212,14 +208,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       pinStation: (station: { id: string; name: string; lines: string[]; zone: number }, role: 'home' | 'work' | 'other') => {
         set(state => {
           const stations = [...state.pinnedStations];
-          if (stations.length < 5) {
-            const resolvedId = resolveTflStopIdForStore(station.id);
-            console.log('[pinStore] id:', station.id, '→ resolved:', resolvedId, '| name:', station.name);
-            if (stations.find(s => s.id === resolvedId)) return state;
-            stations.push({ ...station, id: resolvedId, role });
-            return { pinnedStations: stations };
-          }
-          return state;
+          const resolvedId = resolveTflStopIdForStore(station.id);
+          console.log('[pinStore] id:', station.id, '→ resolved:', resolvedId, '| name:', station.name);
+          if (stations.find(s => s.id === resolvedId)) return state;
+          stations.push({ ...station, id: resolvedId, role });
+          return { pinnedStations: stations };
         });
       },
       unpinStation: (id: string) => {

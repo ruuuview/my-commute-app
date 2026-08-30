@@ -47,9 +47,6 @@ export const useOnboardingStore = create<OnboardingStore>()(
       toggleLine: (lineId) =>
         set((s) => {
           const includes = s.selectedLines.includes(lineId);
-          if (!includes && s.selectedLines.length >= 5) {
-            return s;
-          }
           return {
             selectedLines: includes
                ? s.selectedLines.filter((id) => id !== lineId)
@@ -61,7 +58,6 @@ export const useOnboardingStore = create<OnboardingStore>()(
         set((s) => {
           const resolvedId = resolveTflStopIdForStore(station.id);
           if (s.pinnedStations.find((p) => p.id === resolvedId)) return s;
-          if (s.pinnedStations.length >= 5) return s;
           return { pinnedStations: [...s.pinnedStations, { ...station, id: resolvedId }] };
         }),
 

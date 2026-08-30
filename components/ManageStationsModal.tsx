@@ -49,10 +49,11 @@ interface ManageStationsModalProps {
 interface CompactStationCardProps {
   station: TfLStation;
   selected: boolean;
+  isAtLimit?: boolean;
   onPress: () => void;
 }
 
-function CompactStationCard({ station, selected, onPress }: CompactStationCardProps) {
+function CompactStationCard({ station, selected, isAtLimit, onPress }: CompactStationCardProps) {
   const reducedMotion = useReducedMotion();
   const pressAnim = usePressAnimation('station_row', false);
   const cleanName = tflCapitalise(cleanDisplayStationName(station.name));
@@ -66,11 +67,12 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
       onPressIn={pressAnim.onPressIn}
       onPressOut={pressAnim.onPressOut}
       accessibilityRole="button"
-      accessibilityLabel={`${cleanName}, ${selected ? 'selected' : 'unselected'}`}
+      accessibilityLabel={`${cleanName}, ${selected ? 'pinned, tap to remove' : 'unpinned, tap to add'}`}
       accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.compactCard,
         pressed && { opacity: 0.65 },
+        !selected && isAtLimit && { opacity: 0.75 },
       ]}
     >
       <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
@@ -80,52 +82,52 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.compactCardContent}>
-        <View style={styles.compactMainRow}>
-          <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
-            {cleanName}
-          </Text>
-          
-          {/* Fix 4: Add Button / Checkmark on the far right */}
-          <View style={styles.compactAddBtnContainer}>
-            {selected ? (
-              <View style={styles.compactCheckmarkBadge}>
-                <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-              </View>
-            ) : (
-              <View style={styles.compactAddBtn}>
-                <Ionicons name="add" size={14} color="#FFFFFF" />
+          <View style={styles.compactMainRow}>
+            <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
+              {cleanName}
+            </Text>
+            
+            {/* Add Button / Checkmark on the far right */}
+            <View style={styles.compactAddBtnContainer}>
+              {selected ? (
+                <View style={styles.compactCheckmarkBadge}>
+                  <Ionicons name="checkmark" size={14} color="#30D158" />
+                </View>
+              ) : (
+                <View style={[styles.compactAddBtn, isAtLimit && styles.compactAddBtnDisabled]}>
+                  <Ionicons name="add" size={14} color={isAtLimit ? 'rgba(255, 255, 255, 0.4)' : '#FFFFFF'} />
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.compactPillsContainer}>
+            {visibleLines.map((lineId) => {
+              const shortName = LINE_SHORT_NAMES[lineId] || lineId;
+              const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
+              const colors = getPillColors(lineId, brandColor);
+
+              return (
+                <View
+                  key={lineId}
+                  style={[styles.compactPillItem, { borderColor: colors.borderColor }]}
+                >
+                  <View style={[styles.compactPillColorLayer, { backgroundColor: colors.backgroundColor }]} />
+                  <View style={[styles.compactPillBar, { backgroundColor: colors.dotColor }]} />
+                  <Text style={[styles.compactPillText, { color: colors.textColor }]}>{shortName}</Text>
+                </View>
+              );
+            })}
+            {overflowCount > 0 && (
+              <View style={styles.compactOverflowBadge}>
+                <Text style={styles.compactOverflowText}>+{overflowCount}</Text>
               </View>
             )}
           </View>
         </View>
-
-        <View style={styles.compactPillsContainer}>
-          {visibleLines.map((lineId) => {
-            const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-            const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
-            const colors = getPillColors(lineId, brandColor);
-
-            return (
-              <View
-                key={lineId}
-                style={[styles.compactPillItem, { borderColor: colors.borderColor }]}
-              >
-                <View style={[styles.compactPillColorLayer, { backgroundColor: colors.backgroundColor }]} />
-                <View style={[styles.compactPillBar, { backgroundColor: colors.dotColor }]} />
-                <Text style={[styles.compactPillText, { color: colors.textColor }]}>{shortName}</Text>
-              </View>
-            );
-          })}
-          {overflowCount > 0 && (
-            <View style={styles.compactOverflowBadge}>
-              <Text style={styles.compactOverflowText}>+{overflowCount}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </Animated.View>
-  </Pressable>
-);
+      </Animated.View>
+    </Pressable>
+  );
 }
 
 export function ManageStationsModal({ visible, onClose }: ManageStationsModalProps) {
@@ -135,6 +137,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const pinStation = useUserPreferencesStore(s => s.pinStation);
+  const unpinStation = useUserPreferencesStore(s => s.unpinStation);
   const donePress = usePressAnimation('back_btn');
   const clearPress = usePressAnimation('skip_btn');
 
@@ -150,7 +153,6 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [maxPinsToast, setMaxPinsToast] = useState(false);
-
 
   const maxPinsShakeX = useSharedValue(0);
   const maxPinsShakeStyle = useAnimatedStyle(() => ({
@@ -215,21 +217,36 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
   const pinnedIds = useMemo(() => new Set(pinnedStations.map(p => p.id)), [pinnedStations]);
 
-  const unpinnedResults = useMemo(() => {
-    return results.filter(s => !pinnedIds.has(s.id));
-  }, [results, pinnedIds]);
+  const isAtLimit = pinnedStations.length >= MAX_PINS;
 
-
-
-
+  const listData = useMemo(() => {
+    if (query.trim() !== '') {
+      return results;
+    }
+    const pinnedList: TfLStation[] = pinnedStations.map(p => ({
+      id: p.id,
+      name: p.name,
+      lines: p.lines,
+      zone: p.zone,
+    }));
+    const popularUnpinned = POPULAR_STATIONS.filter(s => !pinnedIds.has(s.id));
+    return [...pinnedList, ...popularUnpinned];
+  }, [query, results, pinnedStations, pinnedIds]);
 
   const handleToggleStation = useCallback(
     async (station: TfLStation) => {
+      const isAlreadyPinned = pinnedIds.has(station.id);
+      if (isAlreadyPinned) {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        unpinStation(station.id);
+        return;
+      }
+
       if (pinnedStations.length >= MAX_PINS) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         triggerMaxPinsShake();
         setMaxPinsToast(true);
-        setTimeout(() => setMaxPinsToast(false), 1500);
+        setTimeout(() => setMaxPinsToast(false), 2000);
         return;
       }
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -262,18 +279,20 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         }, 100);
       }
     },
-    [pinnedStations, pinStation, triggerMaxPinsShake]
+    [pinnedIds, pinnedStations, pinStation, unpinStation, triggerMaxPinsShake]
   );
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
+    const isSelected = pinnedIds.has(item.id);
     return (
       <CompactStationCard
         station={item}
-        selected={pinnedIds.has(item.id)}
+        selected={isSelected}
+        isAtLimit={isAtLimit}
         onPress={() => handleToggleStation(item)}
       />
     );
-  }, [handleToggleStation, pinnedIds]);
+  }, [handleToggleStation, pinnedIds, isAtLimit]);
 
   const searchFocusedStyle = isFocused
     ? { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)', backgroundColor: 'rgba(255, 255, 255, 0.09)' }
@@ -347,7 +366,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
             {/* Max pins toast */}
             {maxPinsToast && (
               <Animated.View style={[styles.maxPinsToast, maxPinsShakeStyle]}>
-                <Text style={styles.maxPinsToastText}>Maximum {MAX_PINS} stations</Text>
+                <Text style={styles.maxPinsToastText}>Maximum {MAX_PINS} stations · Tap a pinned station to remove</Text>
               </Animated.View>
             )}
 
@@ -391,7 +410,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
             {/* Main List Area */}
             <View style={styles.listArea}>
               <FlatList
-                data={query.trim() === '' ? POPULAR_STATIONS.filter(s => !pinnedIds.has(s.id)) : unpinnedResults}
+                data={listData}
                 renderItem={renderStationItem}
                 keyExtractor={(item) => item.id}
                 initialNumToRender={12}
@@ -648,14 +667,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
+  compactAddBtnDisabled: {
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
   compactCheckmarkBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderColor: 'rgba(48, 209, 88, 0.40)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(48, 209, 88, 0.15)',
   },
 });

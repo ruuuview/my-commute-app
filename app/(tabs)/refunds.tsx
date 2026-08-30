@@ -303,7 +303,7 @@ export default function RefundsScreen() {
   )
 
   const totalEstimatedPence = useMemo(
-    () => activeClaims.reduce((sum, c) => sum + (c.amountPence ?? 280), 0),
+    () => activeClaims.reduce((sum, c) => sum + (c.amountPence ?? 310), 0),
     [activeClaims]
   )
 

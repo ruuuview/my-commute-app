@@ -161,7 +161,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             {/* Estimated Value */}
             <View style={styles.valueCol}>
               <Text style={styles.amountText}>
-                ~{formatPence(claim.amountPence ?? 280)}
+                ~{formatPence(claim.amountPence ?? 310)}
               </Text>
               <Text style={styles.estRefundBadge}>EST. REFUND</Text>
             </View>

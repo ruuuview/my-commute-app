@@ -361,7 +361,7 @@ export default function RefundsScreen() {
     async (claim: RadarClaim) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       const TFL_CLAIM_URL =
-        'https://tfl.gov.uk/fares/refunds/service-delay-refunds'
+        'https://tfl.gov.uk/fares/refunds-and-replacements'
 
       // 1. Auto-copy journey summary to clipboard for instant pasting on TfL form
       try {

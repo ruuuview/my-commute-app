@@ -17,7 +17,7 @@ const OAUTH_AUTH_URL = process.env.EXPO_PUBLIC_TFL_OAUTH_AUTH_URL;
 const OAUTH_CLIENT_ID = process.env.EXPO_PUBLIC_TFL_OAUTH_CLIENT_ID;
 
 export const TFL_REFUND_URL =
-  'https://tfl.gov.uk/fares/refunds/apply-for-a-service-delay-refund';
+  'https://tfl.gov.uk/fares/refunds-and-replacements';
 
 export function isOAuthConfigured(): boolean {
   return Boolean(OAUTH_AUTH_URL && OAUTH_CLIENT_ID);

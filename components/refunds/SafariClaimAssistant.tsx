@@ -27,7 +27,7 @@ import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
 import { LINE_NAMES } from '../../constants/lineColors';
 
-const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds/';
+const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds-and-replacements';
 
 export interface SafariClaimAssistantProps {
   visible: boolean;

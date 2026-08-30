@@ -173,7 +173,7 @@ describe('Radar v2 — 4. Optimistic offline dismissal & queueing', () => {
   });
 });
 
-describe('Radar v2 — 5. TfLConnectSheet 4-block decision sheet', () => {
+describe('Radar v2 — 5. TfLConnectSheet streamlined 6-element decision sheet', () => {
   const setup = async () => {
     const onRegistered = jest.fn();
     const onUnregistered = jest.fn();
@@ -189,26 +189,30 @@ describe('Radar v2 — 5. TfLConnectSheet 4-block decision sheet', () => {
     return { onRegistered, onUnregistered, onClose, ...utils };
   };
 
-  it('renders all four decision blocks', async () => {
-    const { getByText } = await setup();
-    expect(getByText('Link Your Travel Card or Phone')).toBeTruthy(); // Block 1
-    expect(getByText('Card or Phone Registered on TfL')).toBeTruthy(); // Block 2 row A
-    expect(getByText(/Only 7 days of journey history/)).toBeTruthy(); // Block 2 row B
-    expect(getByText(/Using Apple Pay or Google Pay\?/)).toBeTruthy(); // Explainer callout
-    expect(getByText('Sign In / Link Card or Phone on TfL')).toBeTruthy(); // Block 3 CTA
-    expect(getByText(/Continue with 7-Day Window/)).toBeTruthy(); // Block 4 pill
+  it('renders all 6 streamlined elements with folded Apple Pay guidance', async () => {
+    const { getByText, getByLabelText } = await setup();
+    expect(getByText('Link your card so Refund Radar can see your delays')).toBeTruthy(); // 1. Headline
+    expect(getByLabelText('Close sheet')).toBeTruthy(); // 2. Top-right close X
+    expect(getByText('Card or Phone Registered on TfL')).toBeTruthy(); // 3. Comparison row 1
+    expect(getByText(/Using Apple Pay or Google Pay\? Link the underlying card/)).toBeTruthy(); // Folded note
+    expect(getByText(/Only 7 days of journey history/)).toBeTruthy(); // Comparison row 2
+    expect(getByText(/Opens official TfL portal/)).toBeTruthy(); // 4. Security trust note
+    expect(getByText('Sign In / Link Card or Phone on TfL')).toBeTruthy(); // 5. Primary CTA
+    expect(getByText('Continue with 7-Day Window (Unregistered)')).toBeTruthy(); // 6. Secondary CTA
   });
 
-  it('switches modes: register → onRegistered, 7-day pill → onUnregistered', async () => {
+  it('switches modes: register → onRegistered, 7-day pill → onUnregistered, X → onClose', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
       // Simulate user clicking 'Yes, signed in'
       buttons?.find((b) => b.text === 'Yes, signed in')?.onPress?.();
     });
-    const { getByText, onRegistered, onUnregistered } = await setup();
+    const { getByText, getByLabelText, onRegistered, onUnregistered, onClose } = await setup();
     fireEvent.press(getByText('Sign In / Link Card or Phone on TfL'));
     await waitFor(() => expect(onRegistered).toHaveBeenCalledTimes(1));
-    fireEvent.press(getByText(/Continue with 7-Day Window/));
+    fireEvent.press(getByText('Continue with 7-Day Window (Unregistered)'));
     await waitFor(() => expect(onUnregistered).toHaveBeenCalledTimes(1));
+    fireEvent.press(getByLabelText('Close sheet'));
+    expect(onClose).toHaveBeenCalledTimes(2);
     alertSpy.mockRestore();
   });
 });

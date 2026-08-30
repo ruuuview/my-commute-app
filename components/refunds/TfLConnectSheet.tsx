@@ -16,9 +16,9 @@ import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import {
   CreditCard,
-  DeviceMobile,
   LinkBreak,
   ArrowSquareOut,
+  X,
 } from 'phosphor-react-native';
 
 const TFL_CONTACTLESS_PORTAL_URL =
@@ -104,7 +104,12 @@ export default function TfLConnectSheet({
       onDismiss={onDismiss}
     >
       <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable
+          style={StyleSheet.absoluteFillObject}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss sheet"
+        />
         
         {/* Plain View owns layout; BlurView is background-only */}
         <View style={styles.sheet}>
@@ -122,20 +127,28 @@ export default function TfLConnectSheet({
               { paddingBottom: bottomPadding },
             ]}
           >
-            {/* Block 1: Icon + Eyebrow + Title & Subhead */}
-            <View style={styles.headerBlock}>
-              <View style={styles.iconAccent}>
-                <CreditCard size={26} color="#0098D4" weight="bold" />
-              </View>
-              <Text style={styles.eyebrow}>TFL DELAY REPAY PROTECTION</Text>
-              <Text style={styles.title}>Link Your Travel Card or Phone</Text>
-              <Text style={styles.subhead}>
-                TfL requires your Contactless card, Apple Pay, Google Pay, or Oyster card to be linked to an online account to protect claims for the full 28 days.
+            {/* Header: Headline + Top-Right Close Button */}
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>
+                Link your card so Refund Radar can see your delays
               </Text>
+              <Pressable
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onClose();
+                }}
+                hitSlop={12}
+                style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Close sheet"
+              >
+                <X size={18} color="rgba(255, 255, 255, 0.7)" weight="bold" />
+              </Pressable>
             </View>
 
-            {/* Block 2: High-Contrast Comparison Table */}
-            <View style={styles.block2}>
+            {/* Comparison Box with Folded Apple Pay Note */}
+            <View style={styles.comparisonBox}>
+              {/* Row 1: Registered (28-day) */}
               <View style={styles.comparisonRow}>
                 <View style={styles.pillIcon}>
                   <CreditCard size={18} color="#0098D4" weight="bold" />
@@ -143,13 +156,17 @@ export default function TfLConnectSheet({
                 <View style={styles.pillText}>
                   <Text style={styles.pillHeading}>Card or Phone Registered on TfL</Text>
                   <Text style={styles.pillDesc}>
-                    {"Full 28-day claim window. Every eligible delay on your physical card, iPhone, Apple Watch, or Google Pay is protected and claimable."}
+                    Full 28-day claim window. Every eligible delay on your physical card, iPhone, Apple Watch, or Google Pay is protected and claimable.
+                  </Text>
+                  <Text style={styles.applePayFoldedNote}>
+                    Using Apple Pay or Google Pay? Link the underlying card on TfL to auto-protect phone taps.
                   </Text>
                 </View>
               </View>
 
               <View style={styles.divider} />
 
+              {/* Row 2: Unregistered (7-day) */}
               <View style={styles.comparisonRow}>
                 <View style={styles.linkIconB}>
                   <LinkBreak size={18} color="rgba(255,255,255,0.6)" weight="bold" />
@@ -163,21 +180,14 @@ export default function TfLConnectSheet({
               </View>
             </View>
 
-            {/* Apple Pay & Google Pay Explainer Callout */}
-            <View style={styles.applePayTipBox}>
-              <View style={styles.applePayIconWrap}>
-                <DeviceMobile size={18} color="#0098D4" weight="bold" />
-              </View>
-              <Text style={styles.applePayTipText}>
-                <Text style={styles.applePayTipBold}>Using Apple Pay or Google Pay? </Text>
-                Simply enter the bank card details linked to your phone wallet on TfL. TfL automatically detects and links your device taps.
-              </Text>
-            </View>
-
-            {/* Block 3: Primary Action */}
+            {/* Actions: Security Trust Note → Primary CTA → Secondary CTA */}
             <View style={styles.actionBlock}>
+              <Text style={styles.microcopy}>
+                🔒 Opens official TfL portal. No card details or passwords stored by MyCommute.
+              </Text>
+
               <Pressable
-                style={styles.primaryCta}
+                style={({ pressed }) => [styles.primaryCta, pressed && { opacity: 0.85 }]}
                 onPress={handleOpenTflPortal}
                 accessibilityRole="button"
                 accessibilityLabel="Sign In or Link Card on TfL"
@@ -187,39 +197,19 @@ export default function TfLConnectSheet({
                   Sign In / Link Card or Phone on TfL
                 </Text>
               </Pressable>
-              <Text style={styles.microcopy}>
-                🔒 Opens official TfL portal. No card details or passwords are ever stored by MyCommute.
-              </Text>
-            </View>
 
-            {/* Block 4: Secondary Action & Dismiss */}
-            <View style={styles.secondaryBlock}>
               <Pressable
-                style={styles.secondaryPill}
+                style={({ pressed }) => [styles.secondaryPill, pressed && { opacity: 0.7 }]}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onUnregistered();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Continue with 7-Day Window"
+                accessibilityLabel="Continue with 7-Day Window (Unregistered)"
               >
                 <Text style={styles.secondaryPillText}>
                   Continue with 7-Day Window (Unregistered)
                 </Text>
-              </Pressable>
-              
-              <Text style={styles.caption}>
-                Delays on unregistered cards older than 7 days stay invisible to Refund Radar.
-              </Text>
-
-              <Pressable
-                onPress={onClose}
-                hitSlop={12}
-                style={styles.dismissButton}
-                accessibilityRole="button"
-                accessibilityLabel="Not now"
-              >
-                <Text style={styles.tiny}>Not now</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -259,40 +249,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 8,
     gap: 16,
   },
-  headerBlock: {
-    gap: 4,
-  },
-  iconAccent: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 152, 212, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  eyebrow: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: '#0098D4',
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   title: {
-    fontSize: 21,
+    flex: 1,
+    fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
     lineHeight: 26,
+    letterSpacing: -0.4,
   },
-  subhead: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.7)',
-    lineHeight: 18,
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
-  block2: {
+  comparisonBox: {
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderRadius: 16,
     padding: 14,
@@ -328,6 +311,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
+  applePayFoldedNote: {
+    fontSize: 11,
+    color: 'rgba(0, 152, 212, 0.95)',
+    fontStyle: 'italic',
+    marginTop: 6,
+    lineHeight: 15,
+  },
   divider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -355,43 +345,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  applePayTipBox: {
-    backgroundColor: 'rgba(0, 152, 212, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 152, 212, 0.25)',
-    borderRadius: 14,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  actionBlock: {
     gap: 10,
   },
-  applePayIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0, 152, 212, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 1,
-    flexShrink: 0,
-  },
-  applePayTipText: {
-    flex: 1,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.75)',
-    lineHeight: 17,
-  },
-  applePayTipBold: {
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  actionBlock: {
-    gap: 8,
+  microcopy: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.55)',
+    textAlign: 'center',
+    lineHeight: 15,
+    paddingHorizontal: 8,
+    marginBottom: 2,
   },
   primaryCta: {
     backgroundColor: '#0098D4',
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -402,45 +370,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  microcopy: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.55)',
-    textAlign: 'center',
-    lineHeight: 15,
-    paddingHorizontal: 8,
-  },
-  secondaryBlock: {
-    gap: 10,
-    alignItems: 'center',
-  },
   secondaryPill: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryPillText: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 14,
-    fontWeight: '700',
-  },
-  dismissButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 16,
-  },
-  caption: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.5)',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  tiny: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.45)',
-    textAlign: 'center',
+    fontWeight: '600',
   },
 });

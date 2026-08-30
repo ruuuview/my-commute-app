@@ -188,7 +188,6 @@ const DepartureCard = memo(function DepartureCard({
       testID={`departure-card-${stationId}`}
     >
       <Animated.View style={[{ flex: 1 }, pressAnim.animatedStyle]}>
-        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
         <Pressable
           onPress={handlePress}
@@ -276,9 +275,9 @@ export default DepartureCard;
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(18, 20, 29, 0.78)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 14,
     marginBottom: 12,
     overflow: 'hidden',

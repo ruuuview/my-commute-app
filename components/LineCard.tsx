@@ -222,21 +222,16 @@ export const LineCard = memo(function LineCard({
           styles.cardInner,
           {
             borderRadius: cardRadius,
-            backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
+            backgroundColor: 'rgba(18, 20, 29, 0.78)',
             overflow: 'hidden',
             borderWidth: mode === 'select' && selected ? 1.5 : StyleSheet.hairlineWidth,
             borderColor: mode === 'select' && selected
               ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : withAlpha(line.color, 'B3'))
-              : 'rgba(255, 255, 255, 0.18)',
+              : 'rgba(255, 255, 255, 0.14)',
           },
           combinedStyle,
         ]}
       >
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
 
         {mode === 'select' && selected && (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: withAlpha(line.color, '1A') }]} />

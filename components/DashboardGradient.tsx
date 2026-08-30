@@ -27,11 +27,12 @@ interface Props {
 
 export function DashboardGradient({ severity, children }: Props) {
   const reducedMotion = useReducedMotion();
-  const prevSeverityRef = useRef<Severity>('unknown');
+  const initialSeverity: Severity = STATUS_GRADIENTS[severity] ? severity : 'good';
+  const prevSeverityRef = useRef<Severity>(initialSeverity);
   const crossfadeOpacity = useSharedValue(0);
 
   // [bottom layer (outgoing), top layer (incoming)]
-  const [layers, setLayers] = useState<[Severity, Severity]>(['unknown', 'unknown']);
+  const [layers, setLayers] = useState<[Severity, Severity]>([initialSeverity, initialSeverity]);
 
   const onTransitionComplete = React.useCallback((resolved: Severity) => {
     setLayers([resolved, resolved]);
@@ -41,23 +42,24 @@ export function DashboardGradient({ severity, children }: Props) {
 
   useEffect(() => {
     // Normalise and handle fallback
-    const resolvedSeverity: Severity = STATUS_GRADIENTS[severity] ? severity : 'unknown';
+    const resolvedSeverity: Severity = STATUS_GRADIENTS[severity] ? severity : 'good';
     
     if (resolvedSeverity === prevSeverityRef.current) return;
 
-    const newLayers: [Severity, Severity] = [prevSeverityRef.current, resolvedSeverity];
-    setLayers(newLayers);
-    if (reducedMotion) {
+    if (prevSeverityRef.current === 'unknown' || reducedMotion) {
       setLayers([resolvedSeverity, resolvedSeverity]);
       prevSeverityRef.current = resolvedSeverity;
-    } else {
-      crossfadeOpacity.value = 0;
-      crossfadeOpacity.value = withTiming(1, { duration: 800 }, (finished) => {
-        if (finished) {
-          runOnJS(onTransitionComplete)(resolvedSeverity);
-        }
-      });
+      return;
     }
+
+    const newLayers: [Severity, Severity] = [prevSeverityRef.current, resolvedSeverity];
+    setLayers(newLayers);
+    crossfadeOpacity.value = 0;
+    crossfadeOpacity.value = withTiming(1, { duration: 500 }, (finished) => {
+      if (finished) {
+        runOnJS(onTransitionComplete)(resolvedSeverity);
+      }
+    });
   }, [severity, reducedMotion, crossfadeOpacity, onTransitionComplete]);
 
   const topLayerStyle = useAnimatedStyle(() => ({

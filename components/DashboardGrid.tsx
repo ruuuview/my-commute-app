@@ -136,18 +136,17 @@ export default function DashboardGrid({
     return (
       <View style={styles.container} testID="dashboard-grid">
         {stations.map((item, index) => (
-          <StaggeredEntranceWrapper key={item.id} index={index} skipEntrance={skipEntrance}>
-            <DepartureCard
-              stationId={item.id}
-              stationName={item.name}
-              isEditing={false}
-              onDelete={onDelete}
-              onLongPress={onLongPressCard}
-              onCardTap={handleCardTap}
-              index={index}
-              globalJiggle={globalJiggle}
-            />
-          </StaggeredEntranceWrapper>
+          <DepartureCard
+            key={item.id}
+            stationId={item.id}
+            stationName={item.name}
+            isEditing={false}
+            onDelete={onDelete}
+            onLongPress={onLongPressCard}
+            onCardTap={handleCardTap}
+            index={index}
+            globalJiggle={globalJiggle}
+          />
         ))}
       </View>
     );

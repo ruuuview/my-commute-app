@@ -331,27 +331,7 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<any>(null);
-
-  // Premium scale-up center reveal for dashboard transition
-  const revealScale = useSharedValue(0.88);
-  const revealOpacity = useSharedValue(0);
   const reducedMotion = useReducedMotion();
-
-
-  useEffect(() => {
-    if (reducedMotion) {
-      revealScale.value = 1;
-      revealOpacity.value = 1;
-      return;
-    }
-    revealScale.value = withSpring(1, { damping: 14, stiffness: 110 });
-    revealOpacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) });
-  }, [reducedMotion, revealScale, revealOpacity]);
-
-  const revealStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: revealScale.value }],
-    opacity: revealOpacity.value,
-  }));
 
   const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, completedJourneys, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
@@ -639,7 +619,7 @@ const MyCommuteDashboard: React.FC = () => {
   return (
     <View style={dash.root}>
       <DashboardGradient severity={networkSeverity} />
-      <Animated.View style={[{ flex: 1, paddingTop: insets.top }, revealStyle]}>
+      <View style={{ flex: 1, paddingTop: insets.top }}>
         {/* ── Content ── */}
         <NestableScrollContainer
           ref={scrollRef}
@@ -955,7 +935,7 @@ const MyCommuteDashboard: React.FC = () => {
             onClose={() => setRerouteLine(null)}
           />
         )}
-      </Animated.View>
+      </View>
     </View>
   );
 };

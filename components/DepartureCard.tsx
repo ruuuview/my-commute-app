@@ -21,6 +21,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -190,6 +191,14 @@ const DepartureCard = memo(function DepartureCard({
       <Animated.View style={[{ flex: 1 }, pressAnim.animatedStyle]}>
         <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
+        <LinearGradient
+          colors={[GLASS.specularStart, GLASS.specularEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.45, y: 0.45 }}
+          pointerEvents="none"
+          style={StyleSheet.absoluteFillObject}
+        />
+
         <Pressable
           onPress={handlePress}
           onLongPress={onLongPress}
@@ -276,9 +285,12 @@ export default DepartureCard;
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
     borderRadius: 14,
     marginBottom: 12,
     overflow: 'hidden',

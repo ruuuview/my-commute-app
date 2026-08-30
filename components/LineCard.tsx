@@ -20,6 +20,7 @@ import { STATUS_SHORT } from '../constants/statusLabels';
 import { getSeverityColor } from '../utils/getSeverityColor';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBezel } from './StatusBezel';
 import { GLASS } from '../theme/colors';
 
@@ -222,12 +223,21 @@ export const LineCard = memo(function LineCard({
           styles.cardInner,
           {
             borderRadius: cardRadius,
-            backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.07)',
+            backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
             overflow: 'hidden',
             borderWidth: mode === 'select' && selected ? 1.5 : StyleSheet.hairlineWidth,
-            borderColor: mode === 'select' && selected
+            borderTopColor: mode === 'select' && selected
+              ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.70)' : withAlpha(line.color, 'E6'))
+              : GLASS.borderTop,
+            borderBottomColor: mode === 'select' && selected
+              ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.35)' : withAlpha(line.color, '80'))
+              : GLASS.borderBottom,
+            borderLeftColor: mode === 'select' && selected
               ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : withAlpha(line.color, 'B3'))
-              : 'rgba(255, 255, 255, 0.18)',
+              : GLASS.borderSides,
+            borderRightColor: mode === 'select' && selected
+              ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : withAlpha(line.color, 'B3'))
+              : GLASS.borderSides,
           },
           combinedStyle,
         ]}
@@ -235,6 +245,14 @@ export const LineCard = memo(function LineCard({
         <BlurView
           intensity={GLASS.blurIntensity}
           tint="dark"
+          style={StyleSheet.absoluteFillObject}
+        />
+
+        <LinearGradient
+          colors={[GLASS.specularStart, GLASS.specularEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.45, y: 0.45 }}
+          pointerEvents="none"
           style={StyleSheet.absoluteFillObject}
         />
 

@@ -910,6 +910,24 @@ export default function SettingsScreen() {
 
             <View style={styles.divider} />
 
+            <Pressable
+              style={styles.aboutRow}
+              onPress={() => {
+                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                useUserPreferencesStore.getState().setSimulatedClaimActive(false);
+                Alert.alert('Test Claim Cleared', 'Refund Radar has returned to the zero-state clear screen.');
+              }}
+            >
+              <ArrowsClockwise size={24} color="rgba(255,255,255,0.7)" />
+              <View style={styles.aboutInfo}>
+                <Text style={styles.aboutLabel}>Clear Test Claims</Text>
+                <Text style={styles.settingDescription}>Removes simulated claim · Restores clear Radar</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+            </Pressable>
+
+            <View style={styles.divider} />
+
             <Animated.View style={resetPressAnim.animatedStyle}>
               <Pressable
                 style={styles.aboutRow}

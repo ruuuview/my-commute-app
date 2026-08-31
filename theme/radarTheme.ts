@@ -62,9 +62,8 @@ export const RADAR_LINE_BRAND = LINE_IDENTITY_COLORS;
 export const RADAR_LINE_NAMES = LINE_NAMES;
 
 /**
- * Northern line runs pure black (#000000) — invisible on dark glass.
- * Chips call this for their outline color; every other line is transparent.
+ * Returns transparent border for line chips. No artificial selection rings.
  */
 export function lineChipBorderColor(lineId: string): string {
-  return lineId === 'northern' ? 'rgba(255,255,255,0.45)' : 'transparent';
+  return 'transparent';
 }

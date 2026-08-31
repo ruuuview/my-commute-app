@@ -58,29 +58,33 @@ export default function ZeroStateHeroCard({
       <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
       <View style={styles.fill}>
         <View style={styles.topRow}>
-          {/* LEFT: pulsing ring + LIVE SURVEILLANCE eyebrow */}
+          {/* LEFT: pulsing ring + RADAR SENTINEL eyebrow */}
           <View style={styles.leftGroup}>
             <Animated.View style={[styles.pulsingRingContainer, ringStyle]}>
-              <Broadcast size={24} color="#0098D4" weight="bold" />
+              <Broadcast size={20} color="#0098D4" weight="bold" />
             </Animated.View>
-            <Text style={styles.eyebrow}>LIVE{'\n'}SURVEILLANCE</Text>
+            <View>
+              <Text style={styles.eyebrow}>RADAR SENTINEL</Text>
+              <Text style={styles.statusSub}>Continuous 24/7</Text>
+            </View>
           </View>
 
-          {/* RIGHT: capsule badge with LivingDot + relative time */}
-          <View style={styles.tickerBadge}>
-            <LivingDot color="#10B981" size={7} />
-            <Text style={styles.tickerText}>{relativeTime}</Text>
-          </View>
+          {/* RIGHT: understated sync timestamp without duplicate dot */}
+          <Text style={styles.syncText}>{relativeTime ? `Synced ${relativeTime.toLowerCase()}` : 'Live surveillance'}</Text>
         </View>
 
-        {/* Hero answer */}
-        <Text style={styles.hero}>£0.00 Active Delays</Text>
+        {/* Hero status headline & amount */}
+        <View style={styles.heroBlock}>
+          <Text style={styles.heroTag}>ALL CORRIDORS CLEAR</Text>
+          <Text style={styles.hero}>£0.00</Text>
+          <Text style={styles.heroSub}>No Claimable Delays Today</Text>
+        </View>
+
         <Text style={styles.subtitle}>
-          No qualifying delays over 15 minutes detected today on your corridors.
+          No qualifying delays over 15 minutes detected on your routes.
         </Text>
         <Text style={styles.caption}>
-          We watch TfL around the clock. The moment an eligible delay hits, your
-          claim lands here.
+          We monitor TfL 24/7. The moment an eligible delay hits, your claim lands here automatically.
         </Text>
       </View>
     </View>
@@ -119,9 +123,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pulsingRingContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(0, 152, 212, 0.18)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -129,40 +133,43 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 152, 212, 0.45)',
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
-    color: 'rgba(255, 255, 255, 0.5)',
-    lineHeight: 13,
+    color: '#FFFFFF',
   },
-  tickerBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: GLASS.borderColor,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  tickerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  tickerText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.75)',
+  statusSub: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.45)',
     fontWeight: '500',
   },
+  syncText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontWeight: '500',
+  },
+  heroBlock: {
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  heroTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: '#34C759',
+    marginBottom: 4,
+  },
   hero: {
-    fontSize: 26,
+    fontSize: 34,
     fontWeight: '800',
     color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
+  },
+  heroSub: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 2,
   },
   subtitle: {
     fontSize: 13,

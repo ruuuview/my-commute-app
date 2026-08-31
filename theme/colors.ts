@@ -45,20 +45,20 @@ export const GLASS = {
   // Card base frosted tint (creates distinct glass body substance against vibrant/dark backgrounds)
   background: 'rgba(255, 255, 255, 0.10)',
   // Hardware-accelerated uniform perimeter rim (CoreAnimation GPU native)
-  borderColor: 'rgba(255, 255, 255, 0.38)',
+  borderColor: 'rgba(255, 255, 255, 0.48)',
   borderWidth: 1.25,
   // Directional fallbacks
-  borderTop: 'rgba(255, 255, 255, 0.55)',
-  borderSides: 'rgba(255, 255, 255, 0.38)',
-  borderSide: 'rgba(255, 255, 255, 0.38)',
-  borderBottom: 'rgba(255, 255, 255, 0.22)',
+  borderTop: 'rgba(255, 255, 255, 0.60)',
+  borderSides: 'rgba(255, 255, 255, 0.48)',
+  borderSide: 'rgba(255, 255, 255, 0.48)',
+  borderBottom: 'rgba(255, 255, 255, 0.28)',
   // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
   specularStart: 'rgba(255, 255, 255, 0.28)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
   // Deep ambient elevation drop shadow
   shadowColor: '#000000',
   shadowOffset: { width: 0, height: 6 } as const,
-  shadowOpacity: 0.60,
+  shadowOpacity: 0.65,
   shadowRadius: 18,
   elevation: 8,
 };

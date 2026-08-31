@@ -43,6 +43,7 @@ import {
   ArrowsClockwise,
   CaretRight,
   ShieldCheck,
+  Receipt,
 } from 'phosphor-react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { APP_CONFIG } from '../../config/app.config'
@@ -66,8 +67,8 @@ import {
 import ZeroStateHeroCard from '../../components/refunds/ZeroStateHeroCard'
 import ActiveClaimHeroCard from '../../components/refunds/ActiveClaimHeroCard'
 import TfLConnectSheet from '../../components/refunds/TfLConnectSheet'
-import MonitoredCorridorsRow from '../../components/refunds/MonitoredCorridorsRow'
 import LifetimeMetricsCard from '../../components/refunds/LifetimeMetricsCard'
+import { ClaimHistoryDrawer } from '../../components/refunds/ClaimHistoryDrawer'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
 import {
   loopStateOf,
@@ -172,6 +173,7 @@ export default function RefundsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connectSheetVisible, setConnectSheetVisible] = useState(false)
+  const [historyDrawerVisible, setHistoryDrawerVisible] = useState(false)
   const [surveyClaim, setSurveyClaim] = useState<RadarClaim | null>(null)
   const [filingIds, setFilingIds] = useState<Record<number, boolean>>({})
   // Tracks which arrival id has finished its Signal Lock choreography so a
@@ -505,13 +507,6 @@ export default function RefundsScreen() {
         )}
       </View>
 
-      {/* Corridor chips — always visible once Radar is configured */}
-      {tflAccountStatus !== 'NOT_SET' && (
-        <View style={{ marginTop: 14 }}>
-          <MonitoredCorridorsRow lineIds={selectedLines} />
-        </View>
-      )}
-
       {/* Active claims statutory summary header */}
       {tflAccountStatus !== 'NOT_SET' && activeClaims.length > 0 && (
         <View style={styles.feedSummaryBanner}>
@@ -592,6 +587,31 @@ export default function RefundsScreen() {
             </Text>
           </View>
         )}
+
+        {/* In-place Claim History & Receipts trigger card */}
+        <Pressable
+          onPress={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+            setHistoryDrawerVisible(true)
+          }}
+          style={styles.historyRow}
+          accessibilityRole="button"
+          accessibilityLabel="View receipts and claim history"
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Receipt size={16} color="#0098D4" weight="bold" />
+            <Text style={styles.historyRowText}>Claim history & receipts</Text>
+          </View>
+          <CaretRight size={16} color="rgba(255,255,255,0.45)" weight="bold" />
+        </Pressable>
+
+        {/* Compact 28-day statutory trust line */}
+        <View style={styles.microTrustRow}>
+          <ShieldCheck size={13} color="#34C759" weight="fill" />
+          <Text style={styles.microTrustText}>
+            TfL 28-Day Guarantee · Claims reconciled against registered Oyster/Card
+          </Text>
+        </View>
       </View>
     )
   }
@@ -699,6 +719,13 @@ export default function RefundsScreen() {
         claim={surveyClaim}
         onClose={() => setSurveyClaim(null)}
         onSubmit={handleSurveySubmit}
+      />
+
+      {/* In-Place Claim History & Receipts Drawer */}
+      <ClaimHistoryDrawer
+        visible={historyDrawerVisible}
+        claims={data?.claims ?? []}
+        onClose={() => setHistoryDrawerVisible(false)}
       />
     </View>
   )
@@ -953,5 +980,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
+  },
+  microTrustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 18,
+    paddingVertical: 4,
+  },
+  microTrustText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.40)',
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
 })

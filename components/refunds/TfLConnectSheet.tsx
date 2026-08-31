@@ -20,6 +20,7 @@ import {
   ArrowSquareOut,
   X,
 } from 'phosphor-react-native';
+import { GLASS } from '../../theme/colors';
 
 const TFL_CONTACTLESS_PORTAL_URL =
   'https://tfl.gov.uk/fares/contactless-and-oyster-account';
@@ -232,8 +233,15 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
     backgroundColor: 'rgba(18, 26, 43, 0.96)',
-    borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopWidth: 1.25,
+    borderLeftWidth: 1.25,
+    borderRightWidth: 1.25,
+    borderColor: GLASS.borderColor,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.55,
+    shadowRadius: 20,
+    elevation: 16,
   },
   sheetTint: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -270,18 +278,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: GLASS.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   comparisonBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    backgroundColor: 'rgba(10, 15, 60, 0.65)',
     borderRadius: 16,
     padding: 14,
     gap: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
   comparisonRow: {
     flexDirection: 'row',
@@ -372,9 +387,9 @@ const styles = StyleSheet.create({
   },
   secondaryPill: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',

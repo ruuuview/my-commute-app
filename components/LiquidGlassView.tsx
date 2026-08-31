@@ -33,8 +33,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
   intensity = GLASS.blurIntensity,
   tint = 'dark',
   specular = true,
-  borderTopColor = GLASS.borderTop,
-  borderColor = GLASS.borderSides,
+  borderColor = GLASS.borderColor,
   testID,
 }: LiquidGlassViewProps) {
   return (
@@ -45,10 +44,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           {
             borderRadius,
             backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-            borderTopColor,
-            borderBottomColor: GLASS.borderBottom,
-            borderLeftColor: borderColor,
-            borderRightColor: borderColor,
+            borderColor,
           },
           contentStyle,
         ]}
@@ -90,12 +86,11 @@ const styles = StyleSheet.create({
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
     shadowRadius: GLASS.shadowRadius,
-    elevation: 6,
+    elevation: GLASS.elevation,
   },
   innerGlassBody: {
     overflow: 'hidden',
-    borderWidth: 1,
-    borderTopWidth: 1.25,
+    borderWidth: 1.25,
   },
   specularTopSheen: {
     position: 'absolute',

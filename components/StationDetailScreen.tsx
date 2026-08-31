@@ -485,8 +485,8 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 16,
     padding: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
   },
   segmentTab: {
     flex: 1,
@@ -496,9 +496,9 @@ const s = StyleSheet.create({
     borderRadius: 14,
   },
   segmentTabActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderColor: 'rgba(255, 255, 255, 0.40)',
   },
   segmentTabText: {
     fontFamily: 'SpaceGrotesk_500Medium',
@@ -535,7 +535,7 @@ const s = StyleSheet.create({
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
     shadowRadius: GLASS.shadowRadius,
-    elevation: 6,
+    elevation: GLASS.elevation,
   },
   lineCardInner: {
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
@@ -544,12 +544,8 @@ const s = StyleSheet.create({
     paddingBottom: 10,
     borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderTopWidth: 1.25,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
-    borderLeftColor: GLASS.borderSides,
-    borderRightColor: GLASS.borderSides,
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
   },
   specularTopSheen: {
     position: 'absolute',

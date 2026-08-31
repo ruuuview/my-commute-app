@@ -56,6 +56,7 @@ import {
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
+import { GLASS } from '../../theme/colors'
 import {
   COLOR_EMERALD,
   COLOR_AMBER,
@@ -753,12 +754,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 152, 212, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 152, 212, 0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 152, 212, 0.18)',
+    borderWidth: 1.25,
+    borderColor: 'rgba(0, 152, 212, 0.45)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.30,
+    shadowRadius: 4,
   },
   statusHeaderPillText: {
     fontSize: 12,
@@ -838,11 +843,16 @@ const styles = StyleSheet.create({
   // ── 7-day disclosure ───
   sevenDayBox: {
     borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1.25,
     borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(18,26,43,0.75)',
+    backgroundColor: 'rgba(10, 15, 60, 0.65)',
     padding: 14,
     marginTop: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.40,
+    shadowRadius: 12,
+    elevation: 6,
   },
   sevenDayTitleRow: {
     flexDirection: 'row',
@@ -881,10 +891,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
+    backgroundColor: GLASS.background,
     marginTop: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.40,
+    shadowRadius: 10,
+    elevation: 4,
   },
   historyRowText: {
     fontSize: 14,

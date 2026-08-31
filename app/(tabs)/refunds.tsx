@@ -166,6 +166,8 @@ export default function RefundsScreen() {
   const setTflAccountStatus = useUserPreferencesStore((s) => s.setTflAccountStatus)
   const submittedClaims = useUserPreferencesStore((s) => s.submittedClaims)
   const dismissedClaims = useUserPreferencesStore((s) => s.dismissedClaims)
+  const simulatedClaimActive = useUserPreferencesStore((s) => s.simulatedClaimActive)
+  const setSimulatedClaimActive = useUserPreferencesStore((s) => s.setSimulatedClaimActive)
   const storeRef = useRef(useUserPreferencesStore)
 
   const [data, setData] = useState<ClaimsResponse | null>(null)
@@ -286,15 +288,38 @@ export default function RefundsScreen() {
 
   // ── Derived views ────────────────────────────────────────────────────────
   const claims = useMemo(() => {
-    if (!data) return []
-    const sorted = [...data.claims].sort((a, b) => {
+    const rawList = data ? [...data.claims] : []
+    if (simulatedClaimActive) {
+      const SIMULATED_TEST_CLAIM: RadarClaim = {
+        id: 99999,
+        status: 'detected',
+        claimStatus: 'eligible',
+        filedAt: null,
+        receivedAt: null,
+        lineId: 'victoria',
+        operator: 'tfl',
+        entryStation: 'Victoria',
+        exitStation: 'Finsbury Park',
+        amountPence: 360,
+        cause: 'Signal failure at Oxford Circus',
+        causeEligible: true,
+        delayMinutes: 22,
+        windowCause: 'Signal Failure',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 27 * 86400000).toISOString(),
+        entryTime: new Date(Date.now() - 3600000).toISOString(),
+        exitTime: new Date(Date.now() - 2280000).toISOString(),
+      }
+      rawList.unshift(SIMULATED_TEST_CLAIM)
+    }
+    const sorted = rawList.sort((a, b) => {
       const aOver = isOverdue(a) ? 1 : 0
       const bOver = isOverdue(b) ? 1 : 0
       if (aOver !== bOver) return bOver - aOver
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
     return sorted
-  }, [data])
+  }, [data, simulatedClaimActive])
 
   const activeClaims = useMemo(
     () =>
@@ -329,36 +354,47 @@ export default function RefundsScreen() {
     [shouldAnimate, animatedClaimId, activeClaims, shownArrivalId]
   )
 
-  // ── Mutations ────────────────────────────────────────────────────────────
-  const handleFile = useCallback(async (id: number) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    // Optimistic local record FIRST (offline-safe queue per master plan §5).
-    useUserPreferencesStore.getState().markClaimSubmittedLocally(id)
-    setFilingIds((prev) => ({ ...prev, [id]: true }))
-    try {
-      const ok = await patchClaim(id, { claimStatus: 'filed' })
-      if (!ok) throw new Error('PATCH failed')
-      await useUserPreferencesStore.getState().pruneLocalClaimRecords([id])
-      await fetchClaims(true)
-    } catch {
-      // Kept in the MMKV mirror — the next successful sync flushes it.
-      Alert.alert(
-        'Saved on this device',
-        'No connection right now. Your claim is marked as filed locally and will sync automatically.'
-      )
-    } finally {
-      setFilingIds((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-    }
-  }, [fetchClaims])
+  // ── Mutators ─────────────────────────────────────────────────────────────
+  const handleFile = useCallback(
+    async (id: number) => {
+      if (id === 99999) {
+        setSimulatedClaimActive(false)
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      useUserPreferencesStore.getState().markClaimSubmittedLocally(id)
+      setFilingIds((prev) => ({ ...prev, [id]: true }))
+      try {
+        const ok = await patchClaim(id, { claimStatus: 'filed' })
+        if (!ok && id !== 99999) throw new Error('PATCH failed')
+        await useUserPreferencesStore.getState().pruneLocalClaimRecords([id])
+        await fetchClaims(true)
+      } catch {
+        // Kept in the MMKV mirror — the next successful sync flushes it.
+        Alert.alert(
+          'Saved on this device',
+          'No connection right now. Your claim is marked as filed locally and will sync automatically.'
+        )
+      } finally {
+        setFilingIds((prev) => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+      }
+    },
+    [fetchClaims, setSimulatedClaimActive]
+  )
 
-  const handleDismiss = useCallback((id: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    useUserPreferencesStore.getState().dismissClaimLocally(id)
-  }, [])
+  const handleDismiss = useCallback(
+    (id: number) => {
+      if (id === 99999) {
+        setSimulatedClaimActive(false)
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      useUserPreferencesStore.getState().dismissClaimLocally(id)
+    },
+    [setSimulatedClaimActive]
+  )
 
   const handleClaimPress = useCallback(
     async (claim: RadarClaim) => {

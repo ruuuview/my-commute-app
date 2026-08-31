@@ -87,11 +87,13 @@ export interface UserPreferencesState {
   setTflAccountStatus: (status: 'REGISTERED_28_DAY' | 'UNREGISTERED_7_DAY' | 'NOT_SET') => void;
   markClaimSubmittedLocally: (claimId: number | string, filedAtMs?: number) => void;
   dismissClaimLocally: (claimId: number | string) => void;
+  simulatedClaimActive: boolean;
+  setSimulatedClaimActive: (active: boolean) => void;
   /** FORGETS the given ids from optimistic mirrors (server confirmed or claim gone). */
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -117,6 +119,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   tflAccountStatus: 'NOT_SET',
   submittedClaims: {},
   dismissedClaims: [],
+  simulatedClaimActive: false,
   recentSearches: [],
   stationFilterToggles: {},
   hapticsEnabled: true,
@@ -333,6 +336,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           return { submittedClaims: submitted, dismissedClaims: dismissed };
         });
       },
+      setSimulatedClaimActive: (active) => set({ simulatedClaimActive: active }),
     }),
     {
       name: 'user-preferences',

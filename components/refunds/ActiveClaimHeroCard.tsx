@@ -1,5 +1,5 @@
 // components/refunds/ActiveClaimHeroCard.tsx
-// Radar v3 Gold Standard — Actionable Claim Feed Card with pristine Apple Liquid Glass.
+// Radar v3 Gold Standard — Actionable Claim Feed Card with 100% full Apple Liquid Glass.
 
 import React from 'react';
 import {
@@ -109,7 +109,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
       <View style={styles.cardBody}>
         {/* Top Header Row: Line Badge + Countdown + Ghost Dismiss */}
         <View style={styles.topHeaderRow}>
-          {/* High-contrast Line Badge */}
+          {/* High-contrast Frosted Line Badge */}
           <View style={styles.lineBadge}>
             <View
               style={[
@@ -121,7 +121,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             <Text style={styles.lineBadgeText}>{lineDisplayName} Line</Text>
           </View>
 
-          {/* Right: Countdown Capsule + Ghost Dismiss (44x44 hit target) */}
+          {/* Right: Frosted Countdown Capsule + Ghost Dismiss */}
           <View style={styles.topRightActions}>
             <View style={styles.countdownBadge}>
               <Clock size={11} color="rgba(255, 255, 255, 0.75)" weight="bold" />
@@ -135,7 +135,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Dismiss this claim"
             >
-              <X size={15} color="rgba(255, 255, 255, 0.45)" weight="bold" />
+              <X size={14} color="rgba(255, 255, 255, 0.55)" weight="bold" />
             </Pressable>
           </View>
         </View>
@@ -167,7 +167,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
           </View>
         </View>
 
-        {/* Integrated Proof Capsule (100% visible, zero accordions) */}
+        {/* Integrated Proof Capsule */}
         <View style={styles.proofCapsule}>
           <Info size={13} color="#0098D4" weight="fill" style={styles.proofIcon} />
           <Text style={styles.proofText} numberOfLines={2}>
@@ -179,9 +179,10 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
           </Text>
         </View>
 
-        {/* Action Area: Optimistic Filed State vs 48pt Primary Assistant CTA */}
+        {/* Action Area: Frosted Filed State vs Full Apple Liquid Glass CTA */}
         {locallyFiledAtMs != null ? (
           <View style={styles.filedStatusBanner}>
+            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFillObject} />
             <CheckCircle size={15} color="#10B981" weight="fill" />
             <Text style={styles.filedStatusText}>
               Filed — Awaiting TfL 10-day review
@@ -194,7 +195,15 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             accessibilityRole="button"
             accessibilityLabel="File a claim on TfL"
           >
-            <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
+            <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.30)', 'rgba(255, 255, 255, 0.00)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+              style={styles.buttonSpecularSheen}
+            />
+            <ArrowSquareOut size={16} color="#FFFFFF" weight="bold" />
             <Text style={styles.primaryCtaText}>
               File a Claim ↗
             </Text>
@@ -222,7 +231,8 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 18,
+    height: 20,
+    zIndex: 2,
   },
   cardBody: {
     padding: 16,
@@ -240,6 +250,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     gap: 6,
   },
   lineDot: {
@@ -269,6 +281,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     gap: 4,
   },
   countdownText: {
@@ -281,6 +295,8 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -360,30 +376,43 @@ const styles = StyleSheet.create({
   primaryCtaButton: {
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#0098D4',
+    overflow: 'hidden',
+    backgroundColor: '#007AFF',
+    borderWidth: 1.25,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     marginTop: 4,
+    position: 'relative',
+  },
+  buttonSpecularSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
   },
   primaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 14,
-    color: '#0A0F3C',
-    letterSpacing: 0.1,
+    fontSize: 14.5,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
   filedStatusBanner: {
     height: 42,
     borderRadius: 12,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     marginTop: 2,
+    position: 'relative',
   },
   filedStatusText: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

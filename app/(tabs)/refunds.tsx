@@ -626,31 +626,6 @@ export default function RefundsScreen() {
             </Text>
           </View>
         )}
-
-        {/* In-place Claim History & Receipts trigger card */}
-        <Pressable
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            setHistoryDrawerVisible(true)
-          }}
-          style={styles.historyRow}
-          accessibilityRole="button"
-          accessibilityLabel="View receipts and claim history"
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Receipt size={16} color="#0098D4" weight="bold" />
-            <Text style={styles.historyRowText}>Claim history & receipts</Text>
-          </View>
-          <CaretRight size={16} color="rgba(255,255,255,0.45)" weight="bold" />
-        </Pressable>
-
-        {/* Compact 28-day statutory trust line */}
-        <View style={styles.microTrustRow}>
-          <ShieldCheck size={13} color="#34C759" weight="fill" />
-          <Text style={styles.microTrustText}>
-            TfL 28-Day Guarantee · Claims reconciled against registered Oyster/Card
-          </Text>
-        </View>
       </View>
     )
   }

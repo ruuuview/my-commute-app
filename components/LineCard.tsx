@@ -390,12 +390,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     position: 'relative',
-    overflow: 'visible',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: 6,
   },
   cardInner: {
     flex: 1,

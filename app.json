@@ -76,7 +76,14 @@
       "expo-web-browser",
       "./plugins/withFmtCpp17",
       "@bacons/apple-targets",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0098D4"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

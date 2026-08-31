@@ -853,10 +853,27 @@ export default function SettingsScreen() {
                 try {
                   const settings = await Notifications.getPermissionsAsync();
                   if (!settings.granted && settings.status !== 'granted') {
-                    await Notifications.requestPermissionsAsync();
+                    const req = await Notifications.requestPermissionsAsync({
+                      ios: {
+                        allowAlert: true,
+                        allowBadge: true,
+                        allowSound: true,
+                      },
+                    });
+                    if (!req.granted && req.status !== 'granted') {
+                      Alert.alert(
+                        'Notifications Disabled in iOS Settings',
+                        'To receive real iOS lockscreen banners, please turn on Notifications for My Commute in iPhone Settings.',
+                        [
+                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                          { text: 'Cancel', style: 'cancel' },
+                        ]
+                      );
+                      return;
+                    }
                   }
 
-                  // 3. Fire native notification
+                  // 3. Schedule native iOS lockscreen notification 5s from now
                   await Notifications.scheduleNotificationAsync({
                     content: {
                       title: '🚇 £3.60 Delay Refund Detected',
@@ -865,54 +882,27 @@ export default function SettingsScreen() {
                       categoryIdentifier: 'CLAIM_REMINDER',
                       sound: 'default',
                     },
-                    trigger: null,
+                    trigger: {
+                      seconds: 5,
+                    } as any,
                   });
+
+                  // 4. Alert with explicit instructions
+                  Alert.alert(
+                    '🔒 Lock Screen Now (5s)',
+                    'Press your iPhone side button to lock your phone right now. In 5 seconds, iOS will light up your lock screen with the notification banner!',
+                    [{ text: 'OK, Locking Phone' }]
+                  );
                 } catch (err) {
                   console.warn('[SimulateClaim] Native push schedule error:', err);
+                  Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
                 }
-
-                // 4. Guaranteed Top Notification Dropdown Banner
-                showMessage({
-                  message: '🚇 £3.60 Delay Refund Detected',
-                  description: 'Victoria line delay detected during your commute. Tap here to claim your refund.',
-                  type: 'success',
-                  backgroundColor: '#0A0F3C',
-                  color: '#FFFFFF',
-                  duration: 8000,
-                  floating: true,
-                  icon: 'auto',
-                  style: {
-                    borderWidth: 1.25,
-                    borderColor: '#0098D4',
-                    borderRadius: 16,
-                    marginTop: 8,
-                    shadowColor: '#000000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.5,
-                    shadowRadius: 10,
-                    elevation: 8,
-                  },
-                  titleStyle: {
-                    fontFamily: 'SpaceGrotesk_700Bold',
-                    fontSize: 15,
-                    color: '#FFFFFF',
-                  },
-                  textStyle: {
-                    fontFamily: 'SpaceGrotesk_400Regular',
-                    fontSize: 13,
-                    color: 'rgba(255, 255, 255, 0.75)',
-                  },
-                  onPress: () => {
-                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/(tabs)/refunds');
-                  },
-                });
               }}
             >
               <Broadcast size={24} color="#34C759" />
               <View style={styles.aboutInfo}>
-                <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate Push Notification</Text>
-                <Text style={styles.settingDescription}>Fires in 4s · Lock phone & tap banner to test</Text>
+                <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate iOS Lockscreen Push</Text>
+                <Text style={styles.settingDescription}>Fires in 5s · Lock phone & tap lockscreen banner</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
             </Pressable>

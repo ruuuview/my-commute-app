@@ -37,6 +37,7 @@ import {
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
+import { GLASS } from '../../theme/colors'
 import {
   loopStateOf,
   daysLeftUntil,
@@ -423,8 +424,17 @@ const styles = StyleSheet.create({
   cardOuter: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   cardFill: {
     padding: 14,

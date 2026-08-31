@@ -557,24 +557,6 @@ export default function RefundsScreen() {
           </Pressable>
         )}
       </View>
-
-      {/* Active claims statutory summary header */}
-      {tflAccountStatus !== 'NOT_SET' && activeClaims.length > 0 && (
-        <View style={styles.feedSummaryCard}>
-          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={styles.feedSummaryCardContent}>
-            <View style={styles.feedSummaryDot} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.feedSummaryTitle}>
-                {activeClaims.length} Eligible Delay{activeClaims.length > 1 ? 's' : ''} Detected · ~{formatPence(totalEstimatedPence)} Estimated Baseline
-              </Text>
-              <Text style={styles.feedSummarySubtext}>
-                TfL verifies your journey & settles payout against daily fare caps upon submission
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   )
 

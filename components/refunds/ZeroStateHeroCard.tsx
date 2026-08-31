@@ -1,12 +1,10 @@
 // components/refunds/ZeroStateHeroCard.tsx
-// Radar v2 State A' hero — live surveillance radar card.
-// ((•)) LIVE SURVEILLANCE + emerald "Checked Xm ago" capsule share one
-// horizontal axis; £0.00 Active Delays headline below. Ring pulses on a slow
-// loop (disabled under Reduce Motion).
+// Radar v2 State A' hero — live surveillance radar card with pristine Apple Liquid Glass.
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Broadcast } from 'phosphor-react-native';
 import Animated, {
   useSharedValue,
@@ -15,10 +13,8 @@ import Animated, {
   withTiming,
   useReducedMotion,
 } from 'react-native-reanimated';
-import LivingDot from '../LivingDot';
 import { formatRelativeTime } from '../../services/refundSlaService';
 import { GLASS } from '../../theme/colors';
-
 import { SolariCurrencyRow } from './SolariCurrencyRow';
 
 export default function ZeroStateHeroCard({
@@ -57,13 +53,22 @@ export default function ZeroStateHeroCard({
 
   return (
     <View style={styles.outer}>
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+
+      <LinearGradient
+        colors={[GLASS.specularStart, GLASS.specularEnd]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+        style={styles.specularTopSheen}
+      />
+
       <View style={styles.fill}>
         <View style={styles.topRow}>
           {/* LEFT: pulsing ring + RADAR SENTINEL eyebrow */}
           <View style={styles.leftGroup}>
             <Animated.View style={[styles.pulsingRingContainer, ringStyle]}>
-              <Broadcast size={20} color="#0098D4" weight="bold" />
+              <Broadcast size={18} color="#0098D4" weight="bold" />
             </Animated.View>
             <View>
               <Text style={styles.eyebrow}>RADAR SENTINEL</Text>
@@ -101,15 +106,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
+    backgroundColor: GLASS.background,
     marginBottom: 16,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
+    position: 'relative',
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 20,
   },
   fill: {
-    backgroundColor: 'rgba(10, 15, 60, 0.65)',
     padding: 22,
     gap: 14,
   },
@@ -125,64 +133,60 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pulsingRingContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 152, 212, 0.18)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.25,
-    borderColor: 'rgba(0, 152, 212, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 152, 212, 0.35)',
   },
   eyebrow: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
-    fontWeight: '700',
     letterSpacing: 0.8,
     color: '#FFFFFF',
   },
   statusSub: {
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.45)',
-    fontWeight: '500',
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 10.5,
+    color: 'rgba(255, 255, 255, 0.50)',
   },
   syncText: {
-    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11.5,
     color: 'rgba(255, 255, 255, 0.55)',
-    fontWeight: '500',
   },
   heroBlock: {
     alignItems: 'center',
     paddingVertical: 6,
   },
   heroTag: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
-    fontWeight: '700',
     letterSpacing: 1.2,
     color: '#34C759',
     marginBottom: 4,
   },
-  hero: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
   heroSub: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 13,
-    fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.75)',
     marginTop: 2,
   },
   subtitle: {
+    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.70)',
     textAlign: 'center',
     lineHeight: 19,
     marginHorizontal: 8,
   },
   caption: {
+    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(255, 255, 255, 0.45)',
     textAlign: 'center',
     lineHeight: 16,
   },

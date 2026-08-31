@@ -31,6 +31,8 @@ import * as Haptics from 'expo-haptics'
 import * as Notifications from 'expo-notifications'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
+import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
   useSharedValue,
@@ -547,6 +549,7 @@ export default function RefundsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Change TfL registration"
           >
+            <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFillObject} />
             <ShieldCheck size={14} color="#0098D4" weight="fill" />
             <Text style={styles.statusHeaderPillText}>
               {tflAccountStatus === 'REGISTERED_28_DAY' ? '28-Day' : '7-Day'}
@@ -557,13 +560,19 @@ export default function RefundsScreen() {
 
       {/* Active claims statutory summary header */}
       {tflAccountStatus !== 'NOT_SET' && activeClaims.length > 0 && (
-        <View style={styles.feedSummaryBanner}>
-          <Text style={styles.feedSummaryTitle}>
-            {activeClaims.length} Eligible Delay{activeClaims.length > 1 ? 's' : ''} Detected · ~{formatPence(totalEstimatedPence)} Estimated Baseline
-          </Text>
-          <Text style={styles.feedSummarySubtext}>
-            TfL verifies your journey & settles payout against daily fare caps upon submission
-          </Text>
+        <View style={styles.feedSummaryCard}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View style={styles.feedSummaryCardContent}>
+            <View style={styles.feedSummaryDot} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.feedSummaryTitle}>
+                {activeClaims.length} Eligible Delay{activeClaims.length > 1 ? 's' : ''} Detected · ~{formatPence(totalEstimatedPence)} Estimated Baseline
+              </Text>
+              <Text style={styles.feedSummarySubtext}>
+                TfL verifies your journey & settles payout against daily fare caps upon submission
+              </Text>
+            </View>
+          </View>
         </View>
       )}
     </View>
@@ -677,16 +686,26 @@ export default function RefundsScreen() {
           accessibilityRole="button"
           accessibilityLabel="View claim history and receipts"
         >
-          <View style={styles.historyCardLeft}>
-            <View style={styles.historyIconCircle}>
-              <Receipt size={18} color="#0098D4" weight="bold" />
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={styles.historySpecularSheen}
+          />
+          <View style={styles.historyCardContent}>
+            <View style={styles.historyCardLeft}>
+              <View style={styles.historyIconCircle}>
+                <Receipt size={18} color="#0098D4" weight="bold" />
+              </View>
+              <View>
+                <Text style={styles.historyCardTitle}>Claim History & Receipts</Text>
+                <Text style={styles.historyCardSubtitle}>View filed and settled TfL refunds</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.historyCardTitle}>Claim History & Receipts</Text>
-              <Text style={styles.historyCardSubtitle}>View filed and settled TfL refunds</Text>
-            </View>
+            <CaretRight size={16} color="rgba(255,255,255,0.40)" weight="bold" />
           </View>
-          <CaretRight size={16} color="rgba(255,255,255,0.40)" weight="bold" />
         </Pressable>
 
         {/* Reassuring statutory guarantee note */}
@@ -839,17 +858,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 152, 212, 0.18)',
+    overflow: 'hidden',
     borderWidth: 1.25,
-    borderColor: 'rgba(0, 152, 212, 0.45)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.30,
-    shadowRadius: 4,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   statusHeaderPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 12,
-    fontWeight: '700',
     color: '#0098D4',
   },
   title: {
@@ -865,21 +881,37 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.65)',
     marginTop: 2,
   },
-  feedSummaryBanner: {
-    marginTop: 16,
-    marginBottom: 4,
-    paddingHorizontal: 2,
-    gap: 3,
+  feedSummaryCard: {
+    marginTop: 14,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1.25,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  feedSummaryCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  feedSummaryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0098D4',
   },
   feedSummaryTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13.5,
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
   feedSummarySubtext: {
-    fontSize: 11.5,
-    color: 'rgba(255, 255, 255, 0.55)',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.60)',
     lineHeight: 15,
   },
 
@@ -990,15 +1022,26 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   historyCard: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
+    backgroundColor: GLASS.background,
+    position: 'relative',
+  },
+  historySpecularSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
+  },
+  historyCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   historyCardLeft: {
     flexDirection: 'row',

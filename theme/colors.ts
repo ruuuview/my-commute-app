@@ -40,18 +40,18 @@ export const IMMINENT_BLUE = '#60A5FA';
 
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
-  background: 'rgba(255, 255, 255, 0.05)',
-  borderTop: 'rgba(255, 255, 255, 0.28)',
-  borderSides: 'rgba(255, 255, 255, 0.10)',
-  borderSide: 'rgba(255, 255, 255, 0.10)',
-  borderBottom: 'rgba(255, 255, 255, 0.05)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  borderTop: 'rgba(255, 255, 255, 0.50)',
+  borderSides: 'rgba(255, 255, 255, 0.20)',
+  borderSide: 'rgba(255, 255, 255, 0.20)',
+  borderBottom: 'rgba(255, 255, 255, 0.10)',
   blurIntensity: 22,
-  specularStart: 'rgba(255, 255, 255, 0.10)',
+  specularStart: 'rgba(255, 255, 255, 0.20)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
   shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 6 } as const,
-  shadowOpacity: 0.20,
-  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 8 } as const,
+  shadowOpacity: 0.45,
+  shadowRadius: 18,
 };
 
 export const PREMIUM_BUTTON = {

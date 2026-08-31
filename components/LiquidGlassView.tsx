@@ -90,11 +90,12 @@ const styles = StyleSheet.create({
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
     shadowRadius: GLASS.shadowRadius,
-    elevation: 4,
+    elevation: 6,
   },
   innerGlassBody: {
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderTopWidth: 1.25,
   },
   specularTopSheen: {
     position: 'absolute',

@@ -327,10 +327,12 @@ const styles = StyleSheet.create({
   outerCard: {
     marginBottom: 14,
     borderRadius: 16,
+    overflow: 'visible',
     shadowColor: GLASS.shadowColor,
     shadowOffset: GLASS.shadowOffset,
     shadowOpacity: GLASS.shadowOpacity,
     shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   outerCardPressed: {
     opacity: 0.65,
@@ -339,7 +341,8 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderTopWidth: 1.25,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     borderLeftColor: GLASS.borderSides,

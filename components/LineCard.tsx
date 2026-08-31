@@ -225,7 +225,8 @@ export const LineCard = memo(function LineCard({
             borderRadius: cardRadius,
             backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
             overflow: 'hidden',
-            borderWidth: mode === 'select' && selected ? 1.5 : StyleSheet.hairlineWidth,
+            borderWidth: mode === 'select' && selected ? 1.5 : 1,
+            borderTopWidth: mode === 'select' && selected ? 1.5 : 1.25,
             borderTopColor: mode === 'select' && selected
               ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.70)' : withAlpha(line.color, 'E6'))
               : GLASS.borderTop,
@@ -399,7 +400,12 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     position: 'relative',
-    overflow: 'hidden',
+    overflow: 'visible',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   cardInner: {
     flex: 1,

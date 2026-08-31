@@ -185,10 +185,10 @@ const DepartureCard = memo(function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.container, containerAnimStyle, jiggleStyle]}
+      style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <Animated.View style={[{ flex: 1 }, pressAnim.animatedStyle]}>
+      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle]}>
         <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
         <LinearGradient
@@ -284,20 +284,27 @@ export default DepartureCard;
 
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
+  outerContainer: {
+    marginBottom: 12,
+    borderRadius: 14,
+    overflow: 'visible',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
+  },
+  innerGlass: {
+    flex: 1,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderTopWidth: 1.25,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     borderLeftColor: GLASS.borderSides,
     borderRightColor: GLASS.borderSides,
     borderRadius: 14,
-    marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
   },
   pressable: {
     paddingHorizontal: 14,

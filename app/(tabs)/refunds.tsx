@@ -57,10 +57,9 @@ import {
   isSurveySnoozed,
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
-import { DashboardGradient } from '../../components/DashboardGradient'
-import { OnboardingGradient } from '../../components/OnboardingGradient'
+import { LinearGradient } from 'expo-linear-gradient'
+import { SCREEN_2_BACKGROUND_GRADIENT, GLASS } from '../../theme/colors'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
-import { GLASS } from '../../theme/colors'
 import {
   COLOR_EMERALD,
   COLOR_AMBER,
@@ -698,7 +697,14 @@ export default function RefundsScreen() {
 
   return (
     <View style={styles.rootContainer}>
-      <DashboardGradient severity="good" />
+      <LinearGradient
+        colors={SCREEN_2_BACKGROUND_GRADIENT.colors}
+        locations={SCREEN_2_BACKGROUND_GRADIENT.locations}
+        start={SCREEN_2_BACKGROUND_GRADIENT.start}
+        end={SCREEN_2_BACKGROUND_GRADIENT.end}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
 
       <View style={{ flex: 1, paddingTop: insets.top }}>
         <FlatList<{ type: 'CLAIM'; item: RadarClaim } | { type: 'EMPTY' }>

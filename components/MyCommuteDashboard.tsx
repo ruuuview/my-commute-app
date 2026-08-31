@@ -273,6 +273,11 @@ const section = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: PREMIUM_BUTTON.background,
+    shadowColor: PREMIUM_BUTTON.shadowColor,
+    shadowOffset: PREMIUM_BUTTON.shadowOffset,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
+    elevation: PREMIUM_BUTTON.elevation,
   },
   addBtnText: {
     fontFamily: 'SpaceGrotesk_400Regular',
@@ -1054,8 +1059,13 @@ const dash = StyleSheet.create({
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
     backgroundColor: PREMIUM_BUTTON.background,
+    shadowColor: PREMIUM_BUTTON.shadowColor,
+    shadowOffset: PREMIUM_BUTTON.shadowOffset,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
+    elevation: PREMIUM_BUTTON.elevation,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   headerBtnText: {
     fontFamily: 'SpaceGrotesk_500Medium',

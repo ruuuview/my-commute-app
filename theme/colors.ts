@@ -64,11 +64,14 @@ export const GLASS = {
 };
 
 export const PREMIUM_BUTTON = {
-  background: 'rgba(255,255,255,0.12)',
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.30)',
-  shadowOpacity: 0.15,
-  shadowRadius: 6,
+  background: 'rgba(255, 255, 255, 0.12)',
+  borderWidth: 1.25,
+  borderColor: 'rgba(255, 255, 255, 0.38)',
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.45,
+  shadowRadius: 8,
+  elevation: 4,
 };
 
 /** The interactive accent colour used across the app (not iOS blue) */

@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
@@ -68,18 +69,28 @@ const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress })
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom || 16 }]}>
-      <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
-        <View style={styles.tabs}>
-          {tabs.map(tab => (
-            <TabButton
-              key={tab.key}
-              tab={tab}
-              isActive={activeKey === tab.key}
-              onPress={() => onPress(tab.key)}
-            />
-          ))}
+      <View style={styles.outerShadowWrapper}>
+        <View style={styles.blurContainer}>
+          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={styles.specularTopSheen}
+          />
+          <View style={styles.tabs}>
+            {tabs.map(tab => (
+              <TabButton
+                key={tab.key}
+                tab={tab}
+                isActive={activeKey === tab.key}
+                onPress={() => onPress(tab.key)}
+              />
+            ))}
+          </View>
         </View>
-      </BlurView>
+      </View>
     </View>
   );
 };
@@ -94,29 +105,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
+  outerShadowWrapper: {
+    borderRadius: 32,
+    overflow: 'visible',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.55,
+    shadowRadius: 20,
+    elevation: 12,
+  },
   blurContainer: {
     flexDirection: 'row',
     borderRadius: 32,
     overflow: 'hidden',
     backgroundColor: GLASS.background,
-    borderWidth: 1,
-    borderTopWidth: 1.25,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
-    borderLeftColor: GLASS.borderSides,
-    borderRightColor: GLASS.borderSides,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: 10,
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
   },
   tabs: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     width: '100%',
   },
   tab: {
@@ -134,11 +152,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   activeTab: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.40)',
+    borderRadius: 24,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.30,
+    shadowRadius: 6,
+    elevation: 3,
   },
   tabLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 14,
   }
 });

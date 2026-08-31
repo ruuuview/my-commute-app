@@ -19,6 +19,8 @@ import LivingDot from '../LivingDot';
 import { formatRelativeTime } from '../../services/refundSlaService';
 import { GLASS } from '../../theme/colors';
 
+import { SolariCurrencyRow } from './SolariCurrencyRow';
+
 export default function ZeroStateHeroCard({
   checkedAtIso = null,
 }: {
@@ -73,10 +75,10 @@ export default function ZeroStateHeroCard({
           <Text style={styles.syncText}>{relativeTime ? `Synced ${relativeTime.toLowerCase()}` : 'Live surveillance'}</Text>
         </View>
 
-        {/* Hero status headline & amount */}
+        {/* Hero status headline & split-flap amount */}
         <View style={styles.heroBlock}>
           <Text style={styles.heroTag}>ALL CORRIDORS CLEAR</Text>
-          <Text style={styles.hero}>£0.00</Text>
+          <SolariCurrencyRow amountPence={0} />
           <Text style={styles.heroSub}>No Claimable Delays Today</Text>
         </View>
 

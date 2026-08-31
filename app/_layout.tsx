@@ -273,11 +273,25 @@ export default function RootLayout() {
       console.log(`[NotificationResponse] Received action: ${actionId} for category: ${categoryId}`);
       
       const data = response.notification.request.content.data as Record<string, any> | undefined;
-      const title = response.notification.request.content.title || '';
+      const title = (response.notification.request.content.title || '').toLowerCase();
+      const body = (response.notification.request.content.body || '').toLowerCase();
       const effectiveCategory = categoryId || data?.category || data?.type;
 
-      if (effectiveCategory === 'CLAIM_REMINDER' || data?.type === 'CLAIM_REMINDER' || title.includes('Refund') || title.includes('Claim')) {
-        // Radar v2 Test D: claim push → activate claim and open Refund Radar terminal directly
+      const isClaimPush =
+        effectiveCategory === 'CLAIM_REMINDER' ||
+        data?.type === 'CLAIM_REMINDER' ||
+        data?.claimId != null ||
+        title.includes('refund') ||
+        title.includes('claim') ||
+        title.includes('coffee') ||
+        title.includes('repay') ||
+        body.includes('refund') ||
+        body.includes('delay repay') ||
+        body.includes('claim') ||
+        body.includes('repay');
+
+      if (isClaimPush) {
+        // Radar v2: claim push → activate claim and open Refund Radar terminal directly
         useUserPreferencesStore.getState().setSimulatedClaimActive(true);
         router.push('/(tabs)/refunds');
       } else if (effectiveCategory === 'REROUTE_ONLY' || effectiveCategory === 'COMMUTE_DISRUPTION_V2' || effectiveCategory === 'COMMUTE_DISRUPTION' || actionId === 'view_reroute') {

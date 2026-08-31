@@ -841,6 +841,37 @@ export default function SettingsScreen() {
             
             <View style={styles.divider} />
 
+            <Pressable
+              style={styles.aboutRow}
+              onPress={async () => {
+                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                await Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: '£3.60 Delay Refund Detected',
+                    body: 'Victoria line severe delay detected during your commute. Tap to claim your refund.',
+                    data: { lineId: 'victoria', claimId: 999 },
+                    categoryIdentifier: 'CLAIM_REMINDER',
+                    sound: 'default',
+                  },
+                  trigger: { seconds: 2 } as any,
+                });
+                Alert.alert(
+                  'Notification Scheduled',
+                  'Lock your screen or switch apps. In 2 seconds, a test refund alert will appear. Tapping it opens the Refund Radar terminal.',
+                  [{ text: 'Got it' }]
+                );
+              }}
+            >
+              <Broadcast size={24} color="#34C759" />
+              <View style={styles.aboutInfo}>
+                <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate Claim Notification</Text>
+                <Text style={styles.settingDescription}>Fires in 2s · Tests deep-link to Refund Radar</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+            </Pressable>
+
+            <View style={styles.divider} />
+
             <Animated.View style={resetPressAnim.animatedStyle}>
               <Pressable
                 style={styles.aboutRow}

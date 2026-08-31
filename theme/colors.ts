@@ -41,23 +41,26 @@ export const IMMINENT_BLUE = '#60A5FA';
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
   // Live optical blur intensity
-  blurIntensity: 22,
-  // Card base tint (translucent overlay preserving live optical status glow)
-  background: 'rgba(255, 255, 255, 0.06)',
-  // High-contrast directional rim lighting
+  blurIntensity: 25,
+  // Card base frosted tint (creates distinct glass body substance against vibrant/dark backgrounds)
+  background: 'rgba(255, 255, 255, 0.10)',
+  // Hardware-accelerated uniform perimeter rim (CoreAnimation GPU native)
+  borderColor: 'rgba(255, 255, 255, 0.38)',
+  borderWidth: 1.25,
+  // Directional fallbacks
   borderTop: 'rgba(255, 255, 255, 0.55)',
-  borderSides: 'rgba(255, 255, 255, 0.32)',
-  borderSide: 'rgba(255, 255, 255, 0.32)',
-  borderBottom: 'rgba(255, 255, 255, 0.18)',
-  // Specular top-rim catch-light sheen
-  specularStart: 'rgba(255, 255, 255, 0.24)',
+  borderSides: 'rgba(255, 255, 255, 0.38)',
+  borderSide: 'rgba(255, 255, 255, 0.38)',
+  borderBottom: 'rgba(255, 255, 255, 0.22)',
+  // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
+  specularStart: 'rgba(255, 255, 255, 0.28)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
-  // Calibrated ambient elevation shadow (clean physical lift, no vignette halos)
+  // Deep ambient elevation drop shadow
   shadowColor: '#000000',
   shadowOffset: { width: 0, height: 6 } as const,
-  shadowOpacity: 0.50,
-  shadowRadius: 16,
-  elevation: 6,
+  shadowOpacity: 0.60,
+  shadowRadius: 18,
+  elevation: 8,
 };
 
 export const PREMIUM_BUTTON = {

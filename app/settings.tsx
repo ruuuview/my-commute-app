@@ -845,27 +845,53 @@ export default function SettingsScreen() {
               style={styles.aboutRow}
               onPress={async () => {
                 void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                await Notifications.scheduleNotificationAsync({
-                  content: {
-                    title: '£3.60 Delay Refund Detected',
-                    body: 'Victoria line severe delay detected during your commute. Tap to claim your refund.',
-                    data: { lineId: 'victoria', claimId: 999 },
-                    categoryIdentifier: 'CLAIM_REMINDER',
-                    sound: 'default',
-                  },
-                  trigger: { seconds: 2 } as any,
-                });
-                Alert.alert(
-                  'Notification Scheduled',
-                  'Lock your screen or switch apps. In 2 seconds, a test refund alert will appear. Tapping it opens the Refund Radar terminal.',
-                  [{ text: 'Got it' }]
-                );
+                try {
+                  const settings = await Notifications.getPermissionsAsync();
+                  if (!settings.granted && settings.status !== 'granted') {
+                    const req = await Notifications.requestPermissionsAsync({
+                      ios: {
+                        allowAlert: true,
+                        allowBadge: true,
+                        allowSound: true,
+                        allowDisplayInCarPlay: false,
+                        allowCriticalAlerts: false,
+                        provideAppNotificationSettings: false,
+                        allowProvisional: false,
+                      },
+                    });
+                    if (!req.granted && req.status !== 'granted') {
+                      Alert.alert(
+                        'Notifications Disabled',
+                        'Please allow notifications for My Commute in your iPhone Settings to receive test refund alerts.',
+                        [
+                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                          { text: 'Cancel', style: 'cancel' }
+                        ]
+                      );
+                      return;
+                    }
+                  }
+
+                  await Notifications.scheduleNotificationAsync({
+                    content: {
+                      title: '🚇 £3.60 Delay Refund Detected',
+                      body: 'Victoria line severe delay detected during your commute. Tap to claim your refund.',
+                      data: { lineId: 'victoria', claimId: 999 },
+                      categoryIdentifier: 'CLAIM_REMINDER',
+                      sound: true,
+                    },
+                    trigger: null, // Fires immediately
+                  });
+                } catch (err) {
+                  console.warn('[SimulateClaim] Failed to fire notification:', err);
+                  Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
+                }
               }}
             >
               <Broadcast size={24} color="#34C759" />
               <View style={styles.aboutInfo}>
                 <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate Claim Notification</Text>
-                <Text style={styles.settingDescription}>Fires in 2s · Tests deep-link to Refund Radar</Text>
+                <Text style={styles.settingDescription}>Fires immediately · Tests deep-link to Refund Radar</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
             </Pressable>

@@ -49,6 +49,16 @@ void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
   },
 ]).catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
 
+void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', [
+  {
+    identifier: 'view_claim',
+    buttonTitle: 'View Refund 💷',
+    options: {
+      opensAppToForeground: true,
+    },
+  },
+]).catch((err) => console.warn('[NotificationCategory] CLAIM_REMINDER register failed:', err));
+
 LogBox.ignoreLogs([
   'ref.measureLayout must be called with a ref to a native component',
 ]);

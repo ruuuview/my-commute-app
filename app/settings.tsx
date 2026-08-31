@@ -845,16 +845,17 @@ export default function SettingsScreen() {
               style={styles.aboutRow}
               onPress={async () => {
                 void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                // 1. Activate simulated test claim in store
+                // 1. Activate simulated test claim in store so it's ready upon entry
                 useUserPreferencesStore.getState().setSimulatedClaimActive(true);
 
-                // 2. Schedule system notification
+                // 2. Request / verify permissions
                 try {
                   const settings = await Notifications.getPermissionsAsync();
                   if (!settings.granted && settings.status !== 'granted') {
                     await Notifications.requestPermissionsAsync();
                   }
 
+                  // 3. Schedule notification for 4 seconds from now
                   await Notifications.scheduleNotificationAsync({
                     content: {
                       title: '🚇 £3.60 Delay Refund Detected',
@@ -863,20 +864,28 @@ export default function SettingsScreen() {
                       categoryIdentifier: 'CLAIM_REMINDER',
                       sound: true,
                     },
-                    trigger: null,
-                  }).catch(() => {});
-                } catch {
-                  // Fallback: navigation will proceed directly
-                }
+                    trigger: {
+                      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                      seconds: 4,
+                    },
+                  });
 
-                // 3. Immediately transition to Refund Radar tab to test the claim
-                router.push('/(tabs)/refunds');
+                  // 4. Alert user to lock screen / swipe home so they see the banner
+                  Alert.alert(
+                    '🔔 Test Push Scheduled in 4s',
+                    'Lock your screen or swipe up to Home Screen right now. In 4 seconds, tap the notification banner to test the deep-link!',
+                    [{ text: 'OK, Locking Now' }]
+                  );
+                } catch (err) {
+                  console.warn('[SimulateClaim] Error:', err);
+                  Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
+                }
               }}
             >
               <Broadcast size={24} color="#34C759" />
               <View style={styles.aboutInfo}>
-                <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate Claim & Open Radar</Text>
-                <Text style={styles.settingDescription}>Injects test £3.60 claim & navigates to Radar</Text>
+                <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate Push Notification</Text>
+                <Text style={styles.settingDescription}>Fires in 4s · Lock phone & tap banner to test</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
             </Pressable>

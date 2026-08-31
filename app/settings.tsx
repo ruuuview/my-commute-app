@@ -876,8 +876,8 @@ export default function SettingsScreen() {
                   // 3. Schedule native iOS lockscreen notification 5s from now
                   await Notifications.scheduleNotificationAsync({
                     content: {
-                      title: 'Potential Refund Detected · ~£3.60',
-                      body: 'Victoria line service disruption on your route. Tap to review eligibility & submit claim.',
+                      title: 'Victoria line owes you a coffee date? ☕️',
+                      body: 'Radar tracked a 22m delay (~£3.60 potential refund). Wanna hit TfL up? Tap to review your proof.',
                       data: { lineId: 'victoria', claimId: 99999 },
                       categoryIdentifier: 'CLAIM_REMINDER',
                       sound: 'default',

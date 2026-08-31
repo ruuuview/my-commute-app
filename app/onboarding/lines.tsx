@@ -315,15 +315,6 @@ export default function LinesScreen() {
         <Text style={styles.skipAbsoluteText}>Skip</Text>
       </Pressable>
 
-      {/* Grain Overlay */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-        <Image
-          source={require('../../assets/images/grain.png')}
-          style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
-          resizeMode="repeat"
-        />
-      </View>
-
       {/* Stack Navigator Options */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 

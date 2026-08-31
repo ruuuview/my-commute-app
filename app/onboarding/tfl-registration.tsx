@@ -135,15 +135,6 @@ export default function TflRegistrationScreen() {
     <View style={styles.root}>
       <OnboardingGradient />
 
-      {/* Grain Overlay */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-        <Image
-          source={require('../../assets/images/grain.png')}
-          style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
-          resizeMode="repeat"
-        />
-      </View>
-
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
       {/* Skip — absolute top-right, matches lines.tsx pattern */}

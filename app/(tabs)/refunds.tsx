@@ -630,15 +630,6 @@ export default function RefundsScreen() {
     <View style={styles.rootContainer}>
       <OnboardingGradient />
 
-      {/* Film Grain Texture Overlay */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-        <Image
-          source={require('../../assets/images/grain.png')}
-          style={[StyleSheet.absoluteFillObject, { opacity: 0.03 }]}
-          resizeMode="repeat"
-        />
-      </View>
-
       <View style={{ flex: 1, paddingTop: insets.top }}>
         <FlatList<{ type: 'CLAIM'; item: RadarClaim } | { type: 'EMPTY' }>
           style={styles.list}

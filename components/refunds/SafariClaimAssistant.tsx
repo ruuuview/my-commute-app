@@ -26,6 +26,7 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
 import { LINE_NAMES } from '../../constants/lineColors';
+import { GLASS } from '../../theme/colors';
 
 const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds-and-replacements';
 
@@ -260,8 +261,17 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
     backgroundColor: 'rgba(10, 15, 60, 0.96)',
-    borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 12,
   },
   sheetTint: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',

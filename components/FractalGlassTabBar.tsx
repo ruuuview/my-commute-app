@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { GLASS } from '../theme/colors';
 
 interface TabBarProps {
   tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[];
@@ -97,9 +98,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 32,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: GLASS.background,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 10,
   },
   tabs: {
     flexDirection: 'row',

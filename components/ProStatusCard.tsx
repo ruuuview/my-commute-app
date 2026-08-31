@@ -75,11 +75,17 @@ const styles = StyleSheet.create({
   blurFill: {
     borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
+    borderTopWidth: 1.25,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     borderLeftColor: GLASS.borderSides,
     borderRightColor: GLASS.borderSides,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   card: {
     padding: 16,

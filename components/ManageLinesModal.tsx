@@ -22,6 +22,7 @@ import { getSeverityLabel, getSeverityRank } from '../utils/getSeverityColor';
 
 
 import { APP_CONFIG } from '../config/app.config';
+import { GLASS } from '../theme/colors';
 
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
@@ -285,9 +286,18 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : 'rgba(255, 255, 255, 0.08)',
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 12,
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
   },
   dragHandleWrap: {
     alignItems: 'center',

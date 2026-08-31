@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -418,7 +419,13 @@ export function LineDetailModal({
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
-          <View style={styles.glassTint} pointerEvents="none" />
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={styles.specularTopSheen}
+          />
 
           {/* ── Content wrapper: scrollable when content is long, flexGrow: 0 shrink-wraps short content ── */}
           <ScrollView
@@ -557,25 +564,29 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     width: POPUP_WIDTH,
-    maxHeight: MAX_POPUP_HEIGHT, // hard cap — popup can never exceed this
-    borderRadius: 16, // shape owned here (BlurView is an absolute background)
+    maxHeight: MAX_POPUP_HEIGHT,
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
+    borderWidth: 1,
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
     elevation: 15,
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
   },
 
-  glassTint: {
+  specularTopSheen: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    height: 18,
   },
 
   popupFade: {

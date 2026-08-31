@@ -26,6 +26,7 @@ import {
 } from '../../components/refunds/types';
 import { formatPence } from '../../services/refundSlaService';
 import { LINE_IDENTITY_COLORS, LINE_NAMES } from '../../constants/lineColors';
+import { GLASS } from '../../theme/colors';
 
 export interface ActiveClaimHeroCardProps {
   claim: RadarClaim;
@@ -213,9 +214,18 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
     backgroundColor: 'rgba(10, 15, 60, 0.65)',
     marginBottom: 12,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   surfaceFill: {
     flexDirection: 'row',

@@ -21,6 +21,7 @@ import {
   type PermissionKey,
 } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { GLASS } from '../theme/colors';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -101,8 +102,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20, 24, 42, 0.88)',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 12,
     paddingHorizontal: 24,
     paddingTop: 12,
     gap: 14,

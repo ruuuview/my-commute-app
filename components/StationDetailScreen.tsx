@@ -19,6 +19,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Train } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -271,10 +272,19 @@ export default function StationDetailScreen({
       <View
         key={group.lineId}
         testID={`screen-line-${group.lineId}`}
-        style={idx > 0 ? { marginTop: 14 } : undefined}
+        style={[s.lineCardOuter, idx > 0 ? { marginTop: 14 } : undefined]}
       >
         <View style={s.lineCardInner}>
           <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={s.specularTopSheen}
+          />
+
           {/* Line header: color bar + name in small caps */}
           <View style={s.lineHeader}>
             <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
@@ -518,14 +528,35 @@ const s = StyleSheet.create({
   },
 
   // ── Line section glass card —─────────────────────────────────
+  lineCardOuter: {
+    borderRadius: 14,
+    overflow: 'visible',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
+  },
   lineCardInner: {
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 10,
     borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1,
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
   },
 
   lineHeader: {

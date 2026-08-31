@@ -26,6 +26,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
+import { GLASS } from '../theme/colors';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -204,6 +205,17 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
+    borderTopWidth: 1.25,
+    borderTopColor: GLASS.borderTop,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 12,
     maxHeight: '70%',
     paddingHorizontal: 20,
     paddingTop: 10,

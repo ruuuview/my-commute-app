@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import LivingDot from '../LivingDot';
 import { formatRelativeTime } from '../../services/refundSlaService';
+import { GLASS } from '../../theme/colors';
 
 export default function ZeroStateHeroCard({
   checkedAtIso = null,
@@ -93,8 +94,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(0, 152, 212, 0.25)',
+    borderTopWidth: 1.25,
+    borderTopColor: 'rgba(0, 152, 212, 0.45)',
+    borderBottomColor: 'rgba(0, 152, 212, 0.15)',
+    borderLeftColor: 'rgba(0, 152, 212, 0.25)',
+    borderRightColor: 'rgba(0, 152, 212, 0.25)',
     marginBottom: 16,
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: 6,
   },
   fill: {
     backgroundColor: 'rgba(10, 15, 60, 0.65)',

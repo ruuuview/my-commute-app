@@ -57,6 +57,7 @@ import {
   isSurveySnoozed,
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
+import { DashboardGradient } from '../../components/DashboardGradient'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
 import { GLASS } from '../../theme/colors'
@@ -697,7 +698,7 @@ export default function RefundsScreen() {
 
   return (
     <View style={styles.rootContainer}>
-      <OnboardingGradient />
+      <DashboardGradient severity="good" />
 
       <View style={{ flex: 1, paddingTop: insets.top }}>
         <FlatList<{ type: 'CLAIM'; item: RadarClaim } | { type: 'EMPTY' }>

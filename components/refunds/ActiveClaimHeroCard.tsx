@@ -1,7 +1,5 @@
 // components/refunds/ActiveClaimHeroCard.tsx
-// Radar v3 Gold Standard — Actionable Claim Feed Card (~185px dynamic height).
-// Left line-accent strip, 1-glance dark glass proof capsule (zero accordions),
-// dominant 48pt primary CTA for 5-chip Claim Assistant, top-right ghost dismiss.
+// Radar v3 Gold Standard — Actionable Claim Feed Card with pristine Apple Liquid Glass.
 
 import React from 'react';
 import {
@@ -9,8 +7,10 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   Clock,
@@ -96,112 +96,110 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
 
   return (
     <View style={styles.outerContainer}>
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
-      <View style={styles.surfaceFill}>
-        {/* Left 3.5px solid line-identity accent strip */}
-        <View
-          style={[
-            styles.lineAccentStrip,
-            { backgroundColor: lineColor },
-            isNorthern && styles.northernAccentBorder,
-          ]}
-        />
+      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-        <View style={styles.cardBody}>
-          {/* Top Header Row: Line Badge + Countdown + Ghost Dismiss */}
-          <View style={styles.topHeaderRow}>
-            {/* High-contrast Line Badge */}
-            <View style={styles.lineBadge}>
-              <View
-                style={[
-                  styles.lineDot,
-                  { backgroundColor: lineColor },
-                  isNorthern && styles.northernDotBorder,
-                ]}
-              />
-              <Text style={styles.lineBadgeText}>{lineDisplayName} Line</Text>
-            </View>
+      <LinearGradient
+        colors={[GLASS.specularStart, GLASS.specularEnd]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+        style={styles.specularTopSheen}
+      />
 
-            {/* Right: Countdown Capsule + Ghost Dismiss (44x44 hit target) */}
-            <View style={styles.topRightActions}>
-              <View style={styles.countdownBadge}>
-                <Clock size={11} color="rgba(255, 255, 255, 0.75)" weight="bold" />
-                <Text style={styles.countdownText}>{expiresText}</Text>
-              </View>
-
-              <Pressable
-                style={styles.ghostDismissButton}
-                onPress={handleDismiss}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel="Dismiss this claim"
-              >
-                <X size={15} color="rgba(255, 255, 255, 0.45)" weight="bold" />
-              </Pressable>
-            </View>
+      <View style={styles.cardBody}>
+        {/* Top Header Row: Line Badge + Countdown + Ghost Dismiss */}
+        <View style={styles.topHeaderRow}>
+          {/* High-contrast Line Badge */}
+          <View style={styles.lineBadge}>
+            <View
+              style={[
+                styles.lineDot,
+                { backgroundColor: lineColor },
+                isNorthern && styles.northernDotBorder,
+              ]}
+            />
+            <Text style={styles.lineBadgeText}>{lineDisplayName} Line</Text>
           </View>
 
-          {/* Primary Route + Refund Value Row */}
-          <View style={styles.primaryInfoRow}>
-            {/* Route & Timestamp */}
-            <View style={styles.routeCol}>
-              <View style={styles.stationRow}>
-                <Text style={styles.stationName} numberOfLines={2}>
-                  {claim.entryStation ?? 'Origin'}
-                </Text>
-                <ArrowRight size={13} color="rgba(255, 255, 255, 0.4)" weight="bold" style={styles.arrowIcon} />
-                <Text style={styles.stationName} numberOfLines={2}>
-                  {claim.exitStation ?? 'Destination'}
-                </Text>
-              </View>
-              <Text style={styles.timestampText}>
-                {dateFormatted} · {timeFormatted}
-              </Text>
+          {/* Right: Countdown Capsule + Ghost Dismiss (44x44 hit target) */}
+          <View style={styles.topRightActions}>
+            <View style={styles.countdownBadge}>
+              <Clock size={11} color="rgba(255, 255, 255, 0.75)" weight="bold" />
+              <Text style={styles.countdownText}>{expiresText}</Text>
             </View>
 
-            {/* Estimated Value */}
-            <View style={styles.valueCol}>
-              <Text style={styles.amountText}>
-                ~{formatPence(claim.amountPence ?? 310)}
-              </Text>
-              <Text style={styles.estRefundBadge}>EST. REFUND</Text>
-            </View>
+            <Pressable
+              style={styles.ghostDismissButton}
+              onPress={handleDismiss}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss this claim"
+            >
+              <X size={15} color="rgba(255, 255, 255, 0.45)" weight="bold" />
+            </Pressable>
           </View>
+        </View>
 
-          {/* Integrated Proof Capsule (100% visible, zero accordions) */}
-          <View style={styles.proofCapsule}>
-            <Info size={13} color="#0098D4" weight="fill" style={styles.proofIcon} />
-            <Text style={styles.proofText} numberOfLines={2}>
-              <Text style={styles.proofMetrics}>
-                {actualDurationMin}m actual vs {baselineMin}m baseline (+{delayMin}m delay)
+        {/* Primary Route + Refund Value Row */}
+        <View style={styles.primaryInfoRow}>
+          {/* Route & Timestamp */}
+          <View style={styles.routeCol}>
+            <View style={styles.stationRow}>
+              <Text style={styles.stationName} numberOfLines={2}>
+                {claim.entryStation ?? 'Origin'}
               </Text>
-              {' · '}
-              {causeText}
+              <ArrowRight size={13} color="rgba(255, 255, 255, 0.4)" weight="bold" style={styles.arrowIcon} />
+              <Text style={styles.stationName} numberOfLines={2}>
+                {claim.exitStation ?? 'Destination'}
+              </Text>
+            </View>
+            <Text style={styles.timestampText}>
+              {dateFormatted} · {timeFormatted}
             </Text>
           </View>
 
-          {/* Action Area: Optimistic Filed State vs 48pt Primary Assistant CTA */}
-          {locallyFiledAtMs != null ? (
-            <View style={styles.filedStatusBanner}>
-              <CheckCircle size={15} color="#10B981" weight="fill" />
-              <Text style={styles.filedStatusText}>
-                Filed — Awaiting TfL 10-day review
-              </Text>
-            </View>
-          ) : (
-            <Pressable
-              style={styles.primaryCtaButton}
-              onPress={handlePrimaryPress}
-              accessibilityRole="button"
-              accessibilityLabel="File a claim on TfL"
-            >
-              <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
-              <Text style={styles.primaryCtaText}>
-                File a Claim ↗
-              </Text>
-            </Pressable>
-          )}
+          {/* Estimated Value */}
+          <View style={styles.valueCol}>
+            <Text style={styles.amountText}>
+              ~{formatPence(claim.amountPence ?? 310)}
+            </Text>
+            <Text style={styles.estRefundBadge}>EST. REFUND</Text>
+          </View>
         </View>
+
+        {/* Integrated Proof Capsule (100% visible, zero accordions) */}
+        <View style={styles.proofCapsule}>
+          <Info size={13} color="#0098D4" weight="fill" style={styles.proofIcon} />
+          <Text style={styles.proofText} numberOfLines={2}>
+            <Text style={styles.proofMetrics}>
+              {actualDurationMin}m actual vs {baselineMin}m baseline (+{delayMin}m delay)
+            </Text>
+            {' · '}
+            {causeText}
+          </Text>
+        </View>
+
+        {/* Action Area: Optimistic Filed State vs 48pt Primary Assistant CTA */}
+        {locallyFiledAtMs != null ? (
+          <View style={styles.filedStatusBanner}>
+            <CheckCircle size={15} color="#10B981" weight="fill" />
+            <Text style={styles.filedStatusText}>
+              Filed — Awaiting TfL 10-day review
+            </Text>
+          </View>
+        ) : (
+          <Pressable
+            style={styles.primaryCtaButton}
+            onPress={handlePrimaryPress}
+            accessibilityRole="button"
+            accessibilityLabel="File a claim on TfL"
+          >
+            <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
+            <Text style={styles.primaryCtaText}>
+              File a Claim ↗
+            </Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -211,36 +209,24 @@ export default ActiveClaimHeroCard;
 
 const styles = StyleSheet.create({
   outerContainer: {
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
-    backgroundColor: 'rgba(10, 15, 60, 0.65)',
-    marginBottom: 12,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
-  },
-  surfaceFill: {
-    flexDirection: 'row',
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
+    marginBottom: 16,
     position: 'relative',
   },
-  lineAccentStrip: {
-    width: 3.5,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-  },
-  northernAccentBorder: {
-    borderRightWidth: 1,
-    borderRightColor: '#3A3A3C',
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
   },
   cardBody: {
-    flex: 1,
     padding: 16,
-    paddingLeft: 14,
-    gap: 10,
+    gap: 12,
   },
   topHeaderRow: {
     flexDirection: 'row',
@@ -266,8 +252,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   lineBadgeText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
-    fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
@@ -286,15 +272,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   countdownText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 11,
-    fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.75)',
   },
   ghostDismissButton: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -315,31 +301,32 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   stationName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
   arrowIcon: {
-    marginHorizontal: 1,
+    marginHorizontal: 2,
   },
   timestampText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.60)',
+    marginTop: 2,
   },
   valueCol: {
     alignItems: 'flex-end',
   },
   amountText: {
-    fontSize: 19,
-    fontWeight: '800',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: -0.4,
   },
   estRefundBadge: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 9.5,
-    fontWeight: '800',
     color: '#10B981',
     letterSpacing: 0.5,
     marginTop: 2,
@@ -347,41 +334,42 @@ const styles = StyleSheet.create({
   proofCapsule: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    gap: 6,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 8,
   },
   proofIcon: {
-    marginTop: 1,
+    marginTop: 2,
     flexShrink: 0,
   },
   proofText: {
     flex: 1,
-    fontSize: 11.5,
-    lineHeight: 16,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
     color: 'rgba(255, 255, 255, 0.75)',
   },
   proofMetrics: {
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.95)',
   },
   primaryCtaButton: {
-    height: 46,
-    borderRadius: 13,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: '#0098D4',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 2,
+    marginTop: 4,
   },
   primaryCtaText: {
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
     color: '#0A0F3C',
     letterSpacing: 0.1,
   },
@@ -398,8 +386,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   filedStatusText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 12.5,
-    fontWeight: '600',
     color: '#10B981',
   },
 });

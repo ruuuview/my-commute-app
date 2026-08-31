@@ -798,16 +798,17 @@ const styles = StyleSheet.create({
     color: '#0098D4',
   },
   title: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 28,
     color: '#FFFFFF',
     letterSpacing: -0.5,
+    lineHeight: 32,
   },
   subtitle: {
-    fontSize: 15,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.65)',
-    marginTop: 4,
-    fontWeight: '400',
+    marginTop: 2,
   },
   feedSummaryBanner: {
     marginTop: 16,

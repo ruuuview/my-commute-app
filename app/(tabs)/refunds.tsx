@@ -24,6 +24,8 @@ import {
   Image,
   Alert,
   Linking,
+  AppState,
+  AppStateStatus,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import * as Notifications from 'expo-notifications'
@@ -396,9 +398,43 @@ export default function RefundsScreen() {
     [setSimulatedClaimActive]
   )
 
+  const pendingSubmissionClaimIdRef = useRef<number | null>(null)
+
+  // When returning from Safari, present the submission verification modal
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active' && pendingSubmissionClaimIdRef.current != null) {
+        const claimId = pendingSubmissionClaimIdRef.current
+        pendingSubmissionClaimIdRef.current = null
+        setTimeout(() => {
+          Alert.alert(
+            'Did you submit your claim on TfL?',
+            'If you completed the submission on TfL, we will track the 10-day refund review and log your receipt.',
+            [
+              {
+                text: 'Not yet / Incomplete',
+                style: 'cancel',
+              },
+              {
+                text: 'Yes, Claim Submitted',
+                style: 'default',
+                onPress: () => {
+                  void handleFile(claimId)
+                },
+              },
+            ]
+          )
+        }, 400)
+      }
+    })
+
+    return () => sub.remove()
+  }, [handleFile])
+
   const handleClaimPress = useCallback(
     async (claim: RadarClaim) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      pendingSubmissionClaimIdRef.current = claim.id
       const TFL_CLAIM_URL =
         'https://tfl.gov.uk/fares/refunds-and-replacements'
 
@@ -414,7 +450,7 @@ export default function RefundsScreen() {
         console.warn('[RefundRadar] Clipboard copy error:', err)
       }
 
-      // 2. Immediately launch native system Safari (where persistent TfL login + Keychain Face ID are active)
+      // 2. Launch native system Safari
       try {
         const supported = await Linking.canOpenURL(TFL_CLAIM_URL)
         if (supported) {
@@ -428,32 +464,8 @@ export default function RefundsScreen() {
       } catch (e) {
         console.warn('[RefundRadar] Failed to launch Safari:', e)
       }
-
-      // 3. Prompt user for verified submission status rather than blindly marking as filed
-      setTimeout(() => {
-        Alert.alert(
-          'Did you submit this claim on TfL?',
-          'If you completed the claim on TfL, we will track the 10-day refund review for you.',
-          [
-            {
-              text: 'Not yet / Incomplete',
-              style: 'cancel',
-              onPress: () => {
-                // Keep card active with "File a Claim ↗"
-              },
-            },
-            {
-              text: 'Yes, Claim Submitted',
-              style: 'default',
-              onPress: () => {
-                void handleFile(claim.id)
-              },
-            },
-          ]
-        )
-      }, 600)
     },
-    [handleFile]
+    []
   )
 
   const handleConnectRegistered = useCallback(() => {

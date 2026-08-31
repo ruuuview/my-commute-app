@@ -852,7 +852,24 @@ export default function SettingsScreen() {
                 try {
                   const settings = await Notifications.getPermissionsAsync();
                   if (!settings.granted && settings.status !== 'granted') {
-                    await Notifications.requestPermissionsAsync();
+                    const req = await Notifications.requestPermissionsAsync({
+                      ios: {
+                        allowAlert: true,
+                        allowBadge: true,
+                        allowSound: true,
+                      },
+                    });
+                    if (!req.granted && req.status !== 'granted') {
+                      Alert.alert(
+                        'Notifications Disabled in iOS',
+                        'To receive test claim banners, please enable notifications for My Commute in iPhone Settings.',
+                        [
+                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                          { text: 'Cancel', style: 'cancel' },
+                        ]
+                      );
+                      return;
+                    }
                   }
 
                   // 3. Schedule notification for 4 seconds from now
@@ -862,11 +879,12 @@ export default function SettingsScreen() {
                       body: 'Victoria line severe delay detected during your commute. Tap to claim your refund.',
                       data: { lineId: 'victoria', claimId: 99999 },
                       categoryIdentifier: 'CLAIM_REMINDER',
-                      sound: true,
+                      sound: 'default',
                     },
                     trigger: {
                       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                       seconds: 4,
+                      repeats: false,
                     },
                   });
 

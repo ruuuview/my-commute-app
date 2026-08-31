@@ -44,12 +44,19 @@ const MonitoredCorridorsRow: React.FC<MonitoredCorridorsRowProps> = ({
 
 function chipStyle(brandColor: string, borderColor: string) {
   return {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1.25,
     borderColor: borderColor,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
   };
 }
 

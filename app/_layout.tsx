@@ -371,12 +371,12 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
+      <SafeAreaProvider style={styles.root}>
         {isReady ? (
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: 'transparent' },
+              contentStyle: { backgroundColor: '#0A0A0F' },
             }}
           />
         ) : null}

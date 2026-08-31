@@ -883,8 +883,10 @@ export default function SettingsScreen() {
                       sound: 'default',
                     },
                     trigger: {
+                      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                       seconds: 5,
-                    } as any,
+                      repeats: false,
+                    },
                   });
 
                   // 4. Alert with explicit instructions

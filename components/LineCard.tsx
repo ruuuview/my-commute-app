@@ -118,11 +118,11 @@ export const LineCard = memo(function LineCard({
 
   const shadowOpacityBase = (mode === 'select' && selected)
     ? (line.id === 'northern' ? 0.6 : (line.id === 'jubilee' ? 0.65 : 0.5))
-    : GLASS.shadowOpacity;
+    : 0;
 
   const shadowRadiusBase = (mode === 'select' && selected)
     ? (line.id === 'northern' ? 10 : 8)
-    : GLASS.shadowRadius;
+    : 0;
 
   const elevationBase = (mode === 'select' && selected) ? 5 : 0;
 

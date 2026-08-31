@@ -65,9 +65,9 @@ export const useJiggle = (
     const rotVal = active || reducedMotion ? 0 : (globalJiggle ? globalJiggle.value : rotation.value);
     const rotStr = `${rotVal}deg`;
 
-    // Baseline fallbacks matching regular glass theme card values
-    const baseOpacity = options?.baselineShadowOpacity ?? GLASS.shadowOpacity;
-    const baseRadius = options?.baselineShadowRadius ?? GLASS.shadowRadius;
+    // Baseline fallbacks matching clean glass theme card values (zero shadow by default)
+    const baseOpacity = options?.baselineShadowOpacity ?? 0;
+    const baseRadius = options?.baselineShadowRadius ?? 0;
     const baseElevation = options?.baselineElevation ?? 0;
 
     return {

@@ -55,12 +55,12 @@ export const GLASS = {
   // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
   specularStart: 'rgba(255, 255, 255, 0.28)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
-  // Deep ambient elevation drop shadow
-  shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 6 } as const,
-  shadowOpacity: 0.65,
-  shadowRadius: 18,
-  elevation: 8,
+  // Clean zero-bleed ambient elevation
+  shadowColor: 'transparent',
+  shadowOffset: { width: 0, height: 0 } as const,
+  shadowOpacity: 0,
+  shadowRadius: 0,
+  elevation: 0,
 };
 
 export const PREMIUM_BUTTON = {

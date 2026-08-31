@@ -266,11 +266,11 @@ export default function RootLayout() {
     
     setupNotificationCategories();
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+    const handleNotificationResponse = (response: Notifications.NotificationResponse) => {
       const actionId = response.actionIdentifier;
       const categoryId = response.notification.request.content.categoryIdentifier;
       
-      console.log(`[NotificationResponse] Received action: ${actionId} for category: ${categoryId}`);
+      console.log(`[NotificationResponse] Processing action: ${actionId} for category: ${categoryId}`);
       
       const data = response.notification.request.content.data as Record<string, any> | undefined;
       const title = (response.notification.request.content.title || '').toLowerCase();
@@ -293,33 +293,46 @@ export default function RootLayout() {
       if (isClaimPush) {
         // Radar v2: claim push → activate claim and open Refund Radar terminal directly
         useUserPreferencesStore.getState().setSimulatedClaimActive(true);
-        router.push('/(tabs)/refunds');
+        setTimeout(() => {
+          router.replace('/(tabs)/refunds');
+        }, 150);
       } else if (effectiveCategory === 'REROUTE_ONLY' || effectiveCategory === 'COMMUTE_DISRUPTION_V2' || effectiveCategory === 'COMMUTE_DISRUPTION' || actionId === 'view_reroute') {
         const lineId = data?.lineId || 'victoria';
-        router.push({
-          pathname: '/(tabs)',
-          params: { openRerouteLineId: String(lineId) },
-        } as never);
+        setTimeout(() => {
+          router.replace({
+            pathname: '/(tabs)',
+            params: { openRerouteLineId: String(lineId) },
+          } as never);
+        }, 150);
       } else if (effectiveCategory === 'ARRIVED_ALERT') {
         const prefs = useUserPreferencesStore.getState();
         if (actionId === 'snooze4h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 4 * 60 * 60 * 1000);
-          await SessionManager.closeSession(true).catch(() => {
+          void SessionManager.closeSession(true).catch(() => {
             console.warn('Failed to close session');
           });
         } else if (actionId === 'snooze8h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 8 * 60 * 60 * 1000);
-          await SessionManager.closeSession(true).catch(() => {
+          void SessionManager.closeSession(true).catch(() => {
             console.warn('Failed to close session');
           });
         } else if (actionId === 'snooze12h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 12 * 60 * 60 * 1000);
-          await SessionManager.closeSession(true).catch(() => {
+          void SessionManager.closeSession(true).catch(() => {
             console.warn('Failed to close session');
           });
         }
       }
+    };
+
+    // Cold launch notification check (app opened by tapping push from killed state)
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        handleNotificationResponse(response);
+      }
     });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
 
     return () => {
       subscription.remove();

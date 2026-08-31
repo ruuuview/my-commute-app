@@ -57,8 +57,8 @@ import {
   isSurveySnoozed,
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
-import { LinearGradient } from 'expo-linear-gradient'
-import { SCREEN_2_BACKGROUND_GRADIENT, GLASS } from '../../theme/colors'
+import { OnboardingGradient } from '../../components/OnboardingGradient'
+import { GLASS } from '../../theme/colors'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
 import {
   COLOR_EMERALD,
@@ -665,31 +665,38 @@ export default function RefundsScreen() {
   }
 
   const renderFooter = () => {
-    if (tflAccountStatus !== 'REGISTERED_28_DAY') return <View style={{ height: 40 }} />
-
     return (
-      <View>
-        {/* Earned UI — mounts ONLY when money has actually been recovered */}
-        {earnedUIMounted && (
-          <View style={{ marginTop: 20 }}>
-            <LifetimeMetricsCard
-              recoveredTotalPence={recoveredTotal}
-              settledCount={settledCount}
-            />
-            <Pressable
-              onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                router.push('/refunds/history')
-              }}
-              style={styles.historyRow}
-              accessibilityRole="button"
-              accessibilityLabel="View receipts and claim history"
-            >
-              <Text style={styles.historyRowText}>Receipts & claim history</Text>
-              <CaretRight size={16} color="rgba(255,255,255,0.45)" weight="bold" />
-            </Pressable>
+      <View style={{ marginTop: 16, gap: 14 }}>
+        {/* Quick action: Claim History & Receipts */}
+        <Pressable
+          onPress={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+            setHistoryDrawerVisible(true)
+          }}
+          style={styles.historyCard}
+          accessibilityRole="button"
+          accessibilityLabel="View claim history and receipts"
+        >
+          <View style={styles.historyCardLeft}>
+            <View style={styles.historyIconCircle}>
+              <Receipt size={18} color="#0098D4" weight="bold" />
+            </View>
+            <View>
+              <Text style={styles.historyCardTitle}>Claim History & Receipts</Text>
+              <Text style={styles.historyCardSubtitle}>View filed and settled TfL refunds</Text>
+            </View>
           </View>
-        )}
+          <CaretRight size={16} color="rgba(255,255,255,0.40)" weight="bold" />
+        </Pressable>
+
+        {/* Reassuring statutory guarantee note */}
+        <View style={styles.microTrustRow}>
+          <ShieldCheck size={14} color="#34C759" weight="fill" />
+          <Text style={styles.microTrustText}>
+            TfL 28-Day Guarantee · Claims reconciled against registered Oyster/Card
+          </Text>
+        </View>
+
         <View style={{ height: 40 }} />
       </View>
     )
@@ -697,14 +704,7 @@ export default function RefundsScreen() {
 
   return (
     <View style={styles.rootContainer}>
-      <LinearGradient
-        colors={SCREEN_2_BACKGROUND_GRADIENT.colors}
-        locations={SCREEN_2_BACKGROUND_GRADIENT.locations}
-        start={SCREEN_2_BACKGROUND_GRADIENT.start}
-        end={SCREEN_2_BACKGROUND_GRADIENT.end}
-        style={StyleSheet.absoluteFillObject}
-        pointerEvents="none"
-      />
+      <OnboardingGradient />
 
       <View style={{ flex: 1, paddingTop: insets.top }}>
         <FlatList<{ type: 'CLAIM'; item: RadarClaim } | { type: 'EMPTY' }>
@@ -988,6 +988,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.85)',
+  },
+  historyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1.25,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  historyCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historyIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 152, 212, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyCardTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14.5,
+    color: '#FFFFFF',
+  },
+  historyCardSubtitle: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.55)',
+    marginTop: 1,
   },
 
   // ── Signal Lock overlay ───

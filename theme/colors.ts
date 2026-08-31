@@ -1,17 +1,17 @@
 // theme/colors.ts
-export const MASTER_BACKGROUND_GRADIENT = {  
+export const MASTER_BACKGROUND_GRADIENT = {
   // Vivid & Mid TfL blue variations held all the way through the upper 75%
-  colors: ['#0066CC', '#0055B3', '#003B8E', '#001240', '#000204'] as const,  
-  locations: [0, 0.30, 0.75, 0.88, 1.0] as const,  
-  start: { x: 0, y: 0 },  
+  colors: ['#0066CC', '#0055B3', '#003B8E', '#001240', '#000204'] as const,
+  locations: [0, 0.30, 0.75, 0.88, 1.0] as const,
+  start: { x: 0, y: 0 },
   end: { x: 0, y: 1 },
 };
 
-export const SCREEN_2_BACKGROUND_GRADIENT = {  
+export const SCREEN_2_BACKGROUND_GRADIENT = {
   // Symmetrical screen 2 depth curve forcing a steep, deliberate drop to absolute black
-  colors: ['#005FBF', '#004EA6', '#003380', '#001038', '#000204'] as const,  
-  locations: [0, 0.32, 0.75, 0.89, 1.0] as const,  
-  start: { x: 0, y: 0 },  
+  colors: ['#005FBF', '#004EA6', '#003380', '#001038', '#000204'] as const,
+  locations: [0, 0.32, 0.75, 0.89, 1.0] as const,
+  start: { x: 0, y: 0 },
   end: { x: 0, y: 1 },
 };
 

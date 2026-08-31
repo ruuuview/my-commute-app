@@ -273,17 +273,21 @@ export default function RootLayout() {
       
       console.log(`[NotificationResponse] Received action: ${actionId} for category: ${categoryId}`);
       
-      if (categoryId === 'REROUTE_ONLY' || categoryId === 'COMMUTE_DISRUPTION_V2' || categoryId === 'COMMUTE_DISRUPTION' || actionId === 'view_reroute') {
-        const data = response.notification.request.content.data as Record<string, any> | undefined;
+      const data = response.notification.request.content.data as Record<string, any> | undefined;
+      const title = response.notification.request.content.title || '';
+      const effectiveCategory = categoryId || data?.category || data?.type;
+
+      if (effectiveCategory === 'CLAIM_REMINDER' || data?.type === 'CLAIM_REMINDER' || title.includes('Refund') || title.includes('Claim')) {
+        // Radar v2 Test D: claim push → activate claim and open Refund Radar terminal directly
+        useUserPreferencesStore.getState().setSimulatedClaimActive(true);
+        router.push('/(tabs)/refunds');
+      } else if (effectiveCategory === 'REROUTE_ONLY' || effectiveCategory === 'COMMUTE_DISRUPTION_V2' || effectiveCategory === 'COMMUTE_DISRUPTION' || actionId === 'view_reroute') {
         const lineId = data?.lineId || 'victoria';
         router.push({
           pathname: '/(tabs)',
           params: { openRerouteLineId: String(lineId) },
         } as never);
-      } else if (categoryId === 'CLAIM_REMINDER') {
-        // Radar v2 Test D: claim push → open the Refund Radar terminal directly.
-        router.push('/(tabs)/refunds');
-      } else if (categoryId === 'ARRIVED_ALERT') {
+      } else if (effectiveCategory === 'ARRIVED_ALERT') {
         const prefs = useUserPreferencesStore.getState();
         if (actionId === 'snooze4h') {
           prefs.setArrivalSnoozeExpiry(Date.now() + 4 * 60 * 60 * 1000);

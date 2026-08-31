@@ -297,8 +297,10 @@ const styles = StyleSheet.create({
   innerGlass: {
     flex: 1,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-    borderWidth: 1,
     borderTopWidth: 1.25,
+    borderBottomWidth: 1.0,
+    borderLeftWidth: 1.0,
+    borderRightWidth: 1.0,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     borderLeftColor: GLASS.borderSides,

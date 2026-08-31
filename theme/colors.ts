@@ -40,18 +40,24 @@ export const IMMINENT_BLUE = '#60A5FA';
 
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
-  background: 'rgba(255, 255, 255, 0.08)',
-  borderTop: 'rgba(255, 255, 255, 0.50)',
-  borderSides: 'rgba(255, 255, 255, 0.20)',
-  borderSide: 'rgba(255, 255, 255, 0.20)',
-  borderBottom: 'rgba(255, 255, 255, 0.10)',
+  // Live optical blur intensity
   blurIntensity: 22,
-  specularStart: 'rgba(255, 255, 255, 0.20)',
+  // Card base tint (translucent overlay preserving live optical status glow)
+  background: 'rgba(255, 255, 255, 0.06)',
+  // High-contrast directional rim lighting
+  borderTop: 'rgba(255, 255, 255, 0.55)',
+  borderSides: 'rgba(255, 255, 255, 0.32)',
+  borderSide: 'rgba(255, 255, 255, 0.32)',
+  borderBottom: 'rgba(255, 255, 255, 0.18)',
+  // Specular top-rim catch-light sheen
+  specularStart: 'rgba(255, 255, 255, 0.24)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
+  // Calibrated ambient elevation shadow (clean physical lift, no vignette halos)
   shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 8 } as const,
-  shadowOpacity: 0.45,
-  shadowRadius: 18,
+  shadowOffset: { width: 0, height: 6 } as const,
+  shadowOpacity: 0.50,
+  shadowRadius: 16,
+  elevation: 6,
 };
 
 export const PREMIUM_BUTTON = {

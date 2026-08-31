@@ -18,6 +18,7 @@ import {
 } from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { showMessage } from 'react-native-flash-message';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { PermissionRow } from '../components/PermissionRow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -852,27 +853,10 @@ export default function SettingsScreen() {
                 try {
                   const settings = await Notifications.getPermissionsAsync();
                   if (!settings.granted && settings.status !== 'granted') {
-                    const req = await Notifications.requestPermissionsAsync({
-                      ios: {
-                        allowAlert: true,
-                        allowBadge: true,
-                        allowSound: true,
-                      },
-                    });
-                    if (!req.granted && req.status !== 'granted') {
-                      Alert.alert(
-                        'Notifications Disabled in iOS',
-                        'To receive test claim banners, please enable notifications for My Commute in iPhone Settings.',
-                        [
-                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-                          { text: 'Cancel', style: 'cancel' },
-                        ]
-                      );
-                      return;
-                    }
+                    await Notifications.requestPermissionsAsync();
                   }
 
-                  // 3. Schedule notification for 4 seconds from now
+                  // 3. Fire native notification
                   await Notifications.scheduleNotificationAsync({
                     content: {
                       title: '🚇 £3.60 Delay Refund Detected',
@@ -881,23 +865,48 @@ export default function SettingsScreen() {
                       categoryIdentifier: 'CLAIM_REMINDER',
                       sound: 'default',
                     },
-                    trigger: {
-                      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                      seconds: 4,
-                      repeats: false,
-                    },
+                    trigger: null,
                   });
-
-                  // 4. Alert user to lock screen / swipe home so they see the banner
-                  Alert.alert(
-                    '🔔 Test Push Scheduled in 4s',
-                    'Lock your screen or swipe up to Home Screen right now. In 4 seconds, tap the notification banner to test the deep-link!',
-                    [{ text: 'OK, Locking Now' }]
-                  );
                 } catch (err) {
-                  console.warn('[SimulateClaim] Error:', err);
-                  Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
+                  console.warn('[SimulateClaim] Native push schedule error:', err);
                 }
+
+                // 4. Guaranteed Top Notification Dropdown Banner
+                showMessage({
+                  message: '🚇 £3.60 Delay Refund Detected',
+                  description: 'Victoria line delay detected during your commute. Tap here to claim your refund.',
+                  type: 'success',
+                  backgroundColor: '#0A0F3C',
+                  color: '#FFFFFF',
+                  duration: 8000,
+                  floating: true,
+                  icon: 'auto',
+                  style: {
+                    borderWidth: 1.25,
+                    borderColor: '#0098D4',
+                    borderRadius: 16,
+                    marginTop: 8,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.5,
+                    shadowRadius: 10,
+                    elevation: 8,
+                  },
+                  titleStyle: {
+                    fontFamily: 'SpaceGrotesk_700Bold',
+                    fontSize: 15,
+                    color: '#FFFFFF',
+                  },
+                  textStyle: {
+                    fontFamily: 'SpaceGrotesk_400Regular',
+                    fontSize: 13,
+                    color: 'rgba(255, 255, 255, 0.75)',
+                  },
+                  onPress: () => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/(tabs)/refunds');
+                  },
+                });
               }}
             >
               <Broadcast size={24} color="#34C759" />

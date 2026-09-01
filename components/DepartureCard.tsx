@@ -98,7 +98,7 @@ const DepartureCard = memo(function DepartureCard({
 
   const pressAnim = usePressAnimation('departure_card');
   const defaultJiggleStyle = useAnimatedStyle(() => ({ transform: [{ rotate: '0deg' }] }));
-  const activeJiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
+  const activeJiggleStyle = useJiggle(isEditing, isActive, globalJiggle, index, {
     baselineShadowOpacity: GLASS.shadowOpacity,
     baselineShadowRadius: GLASS.shadowRadius,
     baselineElevation: 0,
@@ -200,12 +200,19 @@ const DepartureCard = memo(function DepartureCard({
         />
 
         <Pressable
-          onPress={handlePress}
-          onLongPress={onLongPress}
-          onPressIn={() => {
+          onPress={isEditing ? undefined : handlePress}
+          delayLongPress={isEditing ? 180 : 400}
+          onLongPress={() => {
             if (isEditing && drag) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               drag();
-            } else if (!isEditing) {
+            } else if (!isEditing && onLongPress) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              onLongPress();
+            }
+          }}
+          onPressIn={() => {
+            if (!isEditing) {
               pressAnim.onPressIn();
             }
           }}
@@ -222,8 +229,9 @@ const DepartureCard = memo(function DepartureCard({
             {isEditing && onDelete && (
               <Pressable
                 style={styles.deleteBadge}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
                   onDelete(stationId);
                 }}
                 testID={`departure-card-delete-${stationId}`}

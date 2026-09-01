@@ -126,7 +126,7 @@ export const LineCard = memo(function LineCard({
 
   const elevationBase = (mode === 'select' && selected) ? 5 : 0;
 
-  const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, {
+  const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, index, {
     baselineShadowOpacity: shadowOpacityBase,
     baselineShadowRadius: shadowRadiusBase,
     baselineElevation: elevationBase,
@@ -186,13 +186,15 @@ export const LineCard = memo(function LineCard({
   };
 
   // FIX 2: handleLongPress flattened — dashboard owns all routing logic.
-  // Previously this had its own isEditing check duplicating the dashboard's
-  // mode-aware onLongPress prop, creating a double-routing risk where stale
-  // closure values could fire the wrong branch. Now LineCard is a dumb
-  // passthrough: whatever the dashboard wired into onLongPress, just call it.
   const handleLongPress = () => {
     if (disabled) return;
-    if (onLongPress) onLongPress();
+    if (isEditing && drag) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      drag();
+    } else if (!isEditing && onLongPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      onLongPress();
+    }
   };
 
   // Resolve status text colors — canonical severity colors come from the
@@ -264,12 +266,11 @@ export const LineCard = memo(function LineCard({
         />
 
         <Pressable
-          onPress={handlePress}
+          onPress={isEditing ? undefined : handlePress}
+          delayLongPress={isEditing ? 180 : 400}
           onLongPress={handleLongPress}
           onPressIn={() => {
-            if (isEditing && drag) {
-              drag();
-            } else if (!isEditing) {
+            if (!isEditing) {
               pressAnim.onPressIn();
             }
           }}
@@ -369,7 +370,7 @@ export const LineCard = memo(function LineCard({
                 onPressIn={deletePressAnim.onPressIn}
                 onPressOut={deletePressAnim.onPressOut}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
                   onDelete(line.id);
                 }}
               >

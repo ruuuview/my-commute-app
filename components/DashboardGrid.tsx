@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect, useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -81,7 +82,6 @@ export interface DashboardGridProps {
 export default function DashboardGrid({
   stations,
   isJiggling,
-  onExitJiggle,
   onDelete,
   onLongPressCard,
   onScrollEnabledChange,
@@ -104,13 +104,6 @@ export default function DashboardGrid({
 
   const renderItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<any>) => {
     const index = getIndex() ?? stations.findIndex(s => s.id === item.id);
-    const handleLongPress = () => {
-      if (isJiggling) {
-        drag();
-      } else {
-        onLongPressCard();
-      }
-    };
 
     return (
       <ScaleDecorator>
@@ -120,7 +113,7 @@ export default function DashboardGrid({
             stationName={item.name}
             isEditing={isJiggling && !isDragging}
             onDelete={onDelete}
-            onLongPress={handleLongPress}
+            onLongPress={onLongPressCard}
             onCardTap={handleCardTap}
             drag={isJiggling ? drag : undefined}
             index={index}
@@ -132,37 +125,8 @@ export default function DashboardGrid({
     );
   }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, globalJiggle, skipEntrance]);
 
-  if (!isJiggling) {
-    return (
-      <View style={styles.container} testID="dashboard-grid">
-        {stations.map((item, index) => (
-          <DepartureCard
-            key={item.id}
-            stationId={item.id}
-            stationName={item.name}
-            isEditing={false}
-            onDelete={onDelete}
-            onLongPress={onLongPressCard}
-            onCardTap={handleCardTap}
-            index={index}
-            globalJiggle={globalJiggle}
-          />
-        ))}
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container} testID="dashboard-grid">
-      {/* Background dismiss layer — absoluteFill behind cards, catches inter-card taps */}
-      {isJiggling && (
-        <Pressable
-          style={StyleSheet.absoluteFillObject}
-          onPress={onExitJiggle}
-          testID="jiggle-dismiss-bg"
-        />
-      )}
-
       <NestableDraggableFlatList
         data={stations}
         keyExtractor={(item) => item.id}
@@ -176,7 +140,12 @@ export default function DashboardGrid({
           onScrollEnabledChange(true);
           onReorderStations?.(data);
         }}
-        activationDistance={8}
+        onPlaceholderIndexChange={() => {
+          Haptics.selectionAsync().catch(() => {});
+        }}
+        activationDistance={10}
+        autoscrollThreshold={80}
+        autoscrollSpeed={120}
         dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
         simultaneousHandlers={simultaneousHandlers}
         scrollEnabled={false}

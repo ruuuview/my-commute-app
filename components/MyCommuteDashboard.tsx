@@ -16,7 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
@@ -239,8 +239,19 @@ NetworkHealthDot.displayName = 'NetworkHealthDot';
 // ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
 
 // ─── Section header ───────────────────────────────────────────────
-const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd?: () => void; isEditing: boolean }> = ({ title, icon, onPressAdd, isEditing }) => (
-  <View style={section.row}>
+const SectionHeader: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  onPressAdd?: () => void;
+  isEditing: boolean;
+  onExitJiggle?: () => void;
+}> = ({ title, icon, onPressAdd, isEditing, onExitJiggle }) => (
+  <Pressable
+    style={section.row}
+    onPress={isEditing ? onExitJiggle : undefined}
+    accessibilityRole={isEditing ? 'button' : undefined}
+    accessibilityLabel={isEditing ? `Exit editing ${title}` : undefined}
+  >
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
       {icon}
       <Text style={section.title}>{title}</Text>
@@ -259,7 +270,7 @@ const SectionHeader: React.FC<{ title: string; icon: React.ReactNode; onPressAdd
         <Text style={section.addBtnText}>+</Text>
       </BouncyPressable>
     )}
-  </View>
+  </Pressable>
 );
 const section = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
@@ -415,17 +426,15 @@ const MyCommuteDashboard: React.FC = () => {
 
   useEffect(() => {
     if (isEditing && !reducedMotion) {
+      globalJiggle.value = 0;
       globalJiggle.value = withRepeat(
-        withSequence(
-          withTiming(-JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) }),
-          withTiming(JIGGLE_DEG, { duration: JIGGLE_MS, easing: Easing.inOut(Easing.sin) })
-        ),
+        withTiming(2 * Math.PI, { duration: 220, easing: Easing.linear }),
         -1,
         false
       );
     } else {
       cancelAnimation(globalJiggle);
-      globalJiggle.value = withTiming(0, { duration: 150 });
+      globalJiggle.value = 0;
     }
   }, [isEditing, globalJiggle, reducedMotion]);
 
@@ -552,17 +561,33 @@ const MyCommuteDashboard: React.FC = () => {
   }, [forceRefresh]);
 
   const handleEdit = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsEditing((v) => !v);
+    setIsEditing((prev) => {
+      const next = !prev;
+      if (next) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      return next;
+    });
   }, []);
 
   // ── Backdrop tap exits jiggle ─────────────────────────────────
   const handleBackdropPress = useCallback(() => {
     if (isEditing) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setIsEditing(false);
     }
   }, [isEditing]);
+
+  // Tab switch automatically exits jiggle mode
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setIsEditing(false);
+      };
+    }, [])
+  );
 
   const sortedLines = myLines;
 
@@ -573,6 +598,7 @@ const MyCommuteDashboard: React.FC = () => {
     const severity = getDashboardSeverity(item.status, item.status_severity);
 
     const handlePress = () => {
+      if (isEditing) return;
       const ref = itemRefs.current[item.id];
       if (ref) {
         ref.measureInWindow((x, y, width, height) => {
@@ -582,9 +608,7 @@ const MyCommuteDashboard: React.FC = () => {
     };
 
     const handleLongPress = () => {
-      if (isEditing) {
-        drag();
-      } else {
+      if (!isEditing) {
         handleEdit();
       }
     };
@@ -651,12 +675,14 @@ const MyCommuteDashboard: React.FC = () => {
                 {hasContent && (
                   <BouncyPressable
                     onPress={handleEdit}
-                    style={dash.headerBtn}
+                    style={[dash.headerBtn, isEditing && dash.headerBtnDone]}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel={isEditing ? 'Finish editing layout' : 'Edit layout'}
                     accessibilityRole="button"
                   >
-                    <Text style={dash.headerBtnText}>{isEditing ? 'Done' : 'Edit'}</Text>
+                    <Text style={[dash.headerBtnText, isEditing && dash.headerBtnTextDone]}>
+                      {isEditing ? 'Done' : 'Edit'}
+                    </Text>
                   </BouncyPressable>
                 )}
               </View>
@@ -696,71 +722,35 @@ const MyCommuteDashboard: React.FC = () => {
                     icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />}
                     onPressAdd={() => setModalVisible(true)}
                     isEditing={isEditing}
+                    onExitJiggle={handleBackdropPress}
                   />
-                  {isEditing ? (
-                    <NestableDraggableFlatList
-                      data={sortedLines}
-                      keyExtractor={(item: LineData) => item.id}
-                      renderItem={renderLineItem}
-                      onDragBegin={() => {
-                        setIsDraggingLine(true);
-                        setScrollEnabled(false);
-                      }}
-                      onDragEnd={({ data }) => {
-                        setIsDraggingLine(false);
-                        setScrollEnabled(true);
-                        reorderLines((data as LineData[]).map(l => l.id));
-                      }}
-                      activationDistance={8}
-                      dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
-                      simultaneousHandlers={scrollRef}
-                      scrollEnabled={false}
-                      initialNumToRender={10}
-                      windowSize={11}
-                      maxToRenderPerBatch={10}
-                      updateCellsBatchingPeriod={50}
-                    />
-                  ) : (
-                    <View>
-                      {sortedLines.map((item: LineData, idx: number) => {
-                        const severity = getDashboardSeverity(item.status, item.status_severity);
-                        const handlePress = () => {
-                          if (isEditing) return;
-                          const ref = itemRefs.current[item.id];
-                          if (ref) {
-                            ref.measureInWindow((x, y, width, height) => {
-                              setSelectedLineInfo({ id: item.id, anchorRect: { x, y, width, height } });
-                            });
-                          }
-                        };
-                        const handleLongPress = () => {
-                          if (isEditing) return;
-                          handleEdit();
-                        };
-                        return (
-                          <View
-                            key={item.id}
-                            ref={el => { if (el) itemRefs.current[item.id] = el; }}
-                            style={{ height: 46, marginBottom: 12 }}
-                          >
-                            <LineCard
-                              line={item}
-                              selected={false}
-                              onPress={handlePress}
-                              onLongPress={handleLongPress}
-                              statusType={severity}
-                              statusLabel={item.status || 'Good service'}
-                              cardHeight={46}
-                              mode="display"
-                              isEditing={false}
-                              index={idx}
-                              globalJiggle={globalJiggle}
-                            />
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
+                  <NestableDraggableFlatList
+                    data={sortedLines}
+                    keyExtractor={(item: LineData) => item.id}
+                    renderItem={renderLineItem}
+                    onDragBegin={() => {
+                      setIsDraggingLine(true);
+                      setScrollEnabled(false);
+                    }}
+                    onDragEnd={({ data }) => {
+                      setIsDraggingLine(false);
+                      setScrollEnabled(true);
+                      reorderLines((data as LineData[]).map(l => l.id));
+                    }}
+                    onPlaceholderIndexChange={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                    }}
+                    activationDistance={10}
+                    autoscrollThreshold={80}
+                    autoscrollSpeed={120}
+                    dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                    simultaneousHandlers={scrollRef}
+                    scrollEnabled={false}
+                    initialNumToRender={10}
+                    windowSize={11}
+                    maxToRenderPerBatch={10}
+                    updateCellsBatchingPeriod={50}
+                  />
                 </View>
               )}
 
@@ -831,6 +821,7 @@ const MyCommuteDashboard: React.FC = () => {
                     icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />}
                     onPressAdd={() => setStationModalVisible(true)}
                     isEditing={isEditing}
+                    onExitJiggle={handleBackdropPress}
                   />
                   {selectedStations.length === 0 ? (
                     <BouncyPressable
@@ -877,19 +868,11 @@ const MyCommuteDashboard: React.FC = () => {
           {/* Bottom spacer — catches backdrop taps below all cards */}
           {isEditing && (
             <Pressable
-              style={{ flex: 1, minHeight: 250 }}
+              style={{ flex: 1, minHeight: 180 }}
               onPress={handleBackdropPress}
             />
           )}
         </NestableScrollContainer>
-
-        {/* Full-screen absolute backdrop behind scroll — catches all empty space */}
-        {isEditing && (
-          <Pressable
-            style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
-            onPress={handleBackdropPress}
-          />
-        )}
 
 
 
@@ -1067,10 +1050,21 @@ const dash = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerBtnDone: {
+    backgroundColor: '#007AFF',
+    borderColor: 'rgba(255, 255, 255, 0.40)',
+    shadowColor: '#007AFF',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
   headerBtnText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12,
     color: 'rgba(255,255,255,0.80)'
+  },
+  headerBtnTextDone: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: '#FFFFFF',
   },
   subheadingArea: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
 

@@ -30,6 +30,10 @@ import Animated, {
   withTiming,
   useReducedMotion,
   SharedValue,
+  FadeIn,
+  FadeOut,
+  ZoomIn,
+  ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle } from '../hooks/useJiggle';
@@ -225,20 +229,6 @@ const DepartureCard = memo(function DepartureCard({
           {/* Station header */}
           <View style={styles.headerRow}>
             <Text style={styles.stationName} numberOfLines={1}>{cleanName}</Text>
-
-            {isEditing && onDelete && (
-              <Pressable
-                style={styles.deleteBadge}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
-                  onDelete(stationId);
-                }}
-                testID={`departure-card-delete-${stationId}`}
-              >
-                <Text style={styles.deleteIcon}>−</Text>
-              </Pressable>
-            )}
           </View>
 
           {/* Subtle glass divider to give definition to the station name */}
@@ -283,6 +273,28 @@ const DepartureCard = memo(function DepartureCard({
           )}
         </Pressable>
       </Animated.View>
+
+      {isEditing && onDelete && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(100)}
+          style={styles.deleteBadgeContainer}
+        >
+          <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
+            <Pressable
+              style={styles.deleteBadge}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
+                onDelete(stationId);
+              }}
+              testID={`departure-card-delete-${stationId}`}
+            >
+              <Text style={styles.deleteIcon}>−</Text>
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
@@ -395,24 +407,33 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.35)',
     paddingVertical: 4,
   },
-  deleteBadge: {
+  deleteBadgeContainer: {
     position: 'absolute',
-    top: -6,
-    left: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: -7,
+    left: -7,
+    zIndex: 9999,
+    elevation: 20,
+  },
+  deleteBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#FF3B30',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#1E1E1E',
+    borderColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
   },
   deleteIcon: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: -2,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   specularTopSheen: {
     position: 'absolute',

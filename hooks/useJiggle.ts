@@ -6,9 +6,9 @@ import {
   SharedValue,
 } from 'react-native-reanimated';
 
-export const JIGGLE_DEG = 1.25;
+export const JIGGLE_DEG = 1.6;
 export const PHASE_OFFSET = 0.72;
-export const JIGGLE_MS = 220;
+export const JIGGLE_MS = 130;
 
 export const useJiggle = (
   isEditing: boolean,

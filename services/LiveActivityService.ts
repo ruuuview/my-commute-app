@@ -33,7 +33,9 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
 // The Expo Modules bridge (expo-modules-core requireOptionalNativeModule).
-const MyCommuteLiveActivityModule = requireOptionalNativeModule('MyCommuteLiveActivity');
+const MyCommuteLiveActivityModule =
+  requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
+  requireOptionalNativeModule('MyCommuteLiveActivity');
 
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
 

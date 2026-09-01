@@ -428,9 +428,12 @@ const MyCommuteDashboard: React.FC = () => {
     if (isEditing && !reducedMotion) {
       globalJiggle.value = 0;
       globalJiggle.value = withRepeat(
-        withTiming(2 * Math.PI, { duration: 130, easing: Easing.linear }),
+        withSequence(
+          withTiming(-1, { duration: 110, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1, { duration: 110, easing: Easing.inOut(Easing.sin) })
+        ),
         -1,
-        false
+        true
       );
     } else {
       cancelAnimation(globalJiggle);

@@ -6,9 +6,12 @@ import {
   SharedValue,
 } from 'react-native-reanimated';
 
-export const JIGGLE_DEG = 1.6;
-export const PHASE_OFFSET = 0.72;
-export const JIGGLE_MS = 130;
+// Apple Wide-Widget Golden Ratio Constants:
+// On wide 350pt cards, 0.75° rotation + 0.6px micro-float matches
+// native iOS widget stack jiggle without text vibration or harsh flutter.
+export const JIGGLE_DEG = 0.75;
+export const JIGGLE_TRANSLATE_Y = 0.6;
+export const JIGGLE_MS = 110;
 
 export const useJiggle = (
   isEditing: boolean,
@@ -40,7 +43,7 @@ export const useJiggle = (
     // 1. Zero-Angle Settle on Exit: explicitly reset to 0deg and 1.0 scale
     if (!editing && !active) {
       return {
-        transform: [{ rotate: '0deg' }, { scale: 1 }],
+        transform: [{ rotate: '0deg' }, { translateY: 0 }, { scale: 1 }],
         zIndex: 1,
         shadowOpacity: options?.baselineShadowOpacity ?? 0,
         shadowRadius: options?.baselineShadowRadius ?? 0,
@@ -48,10 +51,10 @@ export const useJiggle = (
       };
     }
 
-    // 2. Drag-Lift Invariant: Freeze rotation at 0deg, scale up to 1.04x, elevate drop shadow
+    // 2. Drag-Lift Invariant: Freeze rotation, scale to 1.04x, elevation shadow
     if (active) {
       return {
-        transform: [{ rotate: '0deg' }, { scale: 1.04 }],
+        transform: [{ rotate: '0deg' }, { translateY: 0 }, { scale: 1.04 }],
         zIndex: 999,
         shadowOpacity: 0.35,
         shadowRadius: 16,
@@ -62,7 +65,7 @@ export const useJiggle = (
     // 3. Reduced Motion safety
     if (reducedMotion) {
       return {
-        transform: [{ rotate: '0deg' }, { scale: 1 }],
+        transform: [{ rotate: '0deg' }, { translateY: 0 }, { scale: 1 }],
         zIndex: 1,
         shadowOpacity: options?.baselineShadowOpacity ?? 0,
         shadowRadius: options?.baselineShadowRadius ?? 0,
@@ -70,13 +73,21 @@ export const useJiggle = (
       };
     }
 
-    // 4. Organic Harmonic Physics: theta_i(t) = JIGGLE_DEG * sin(t + i * 0.72)
-    const t = globalJiggle ? globalJiggle.value : 0;
-    const rotVal = JIGGLE_DEG * Math.sin(t + index * PHASE_OFFSET);
-    const rotStr = `${rotVal}deg`;
+    // 4. Apple SpringBoard Physics (Sinusoidal Eased Oscillations):
+    // Continuous harmonic swing without boundary ticks
+    const factor = globalJiggle ? globalJiggle.value : 0;
+    const rotPhase = (index % 2 === 0) ? 1 : -0.85;
+    const transPhase = (index % 3 === 0) ? 1 : -0.75;
+
+    const rotVal = JIGGLE_DEG * factor * rotPhase;
+    const transVal = JIGGLE_TRANSLATE_Y * factor * transPhase;
 
     return {
-      transform: [{ rotate: rotStr }, { scale: 1 }],
+      transform: [
+        { rotate: `${rotVal}deg` },
+        { translateY: transVal },
+        { scale: 1 },
+      ],
       zIndex: 1,
       shadowOpacity: options?.baselineShadowOpacity ?? 0,
       shadowRadius: options?.baselineShadowRadius ?? 0,

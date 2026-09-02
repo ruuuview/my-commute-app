@@ -244,9 +244,11 @@ const SectionHeader: React.FC<{
   onPressAdd?: () => void;
   isEditing: boolean;
   onExitJiggle?: () => void;
-}> = ({ title, icon, onPressAdd, isEditing, onExitJiggle }) => (
+  onPressIn?: () => void;
+}> = ({ title, icon, onPressAdd, isEditing, onExitJiggle, onPressIn }) => (
   <Pressable
     style={section.row}
+    onPressIn={onPressIn}
     onPress={isEditing ? onExitJiggle : undefined}
     accessibilityRole={isEditing ? 'button' : undefined}
     accessibilityLabel={isEditing ? `Exit editing ${title}` : undefined}
@@ -559,14 +561,11 @@ const MyCommuteDashboard: React.FC = () => {
     await forceRefresh();
   }, [forceRefresh]);
 
-  const justEnteredEditingRef = useRef(0);
+  const touchStartedInEditModeRef = useRef(false);
 
   const handleEdit = useCallback(() => {
     setIsEditing((prev) => {
       const next = !prev;
-      if (next) {
-        justEnteredEditingRef.current = Date.now();
-      }
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       setTimeout(() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -574,6 +573,10 @@ const MyCommuteDashboard: React.FC = () => {
       return next;
     });
   }, []);
+
+  const handleBackgroundPressIn = useCallback(() => {
+    touchStartedInEditModeRef.current = isEditing;
+  }, [isEditing]);
 
   // Android hardware back button exits edit mode seamlessly
   useEffect(() => {
@@ -587,8 +590,8 @@ const MyCommuteDashboard: React.FC = () => {
 
   // ── Backdrop tap exits jiggle ─────────────────────────────────
   const handleBackdropPress = useCallback(() => {
-    // Prevent the trailing finger-lift touch-up of the initial long-press from immediately exiting edit mode
-    if (Date.now() - justEnteredEditingRef.current < 600) {
+    // Only exit edit mode if this touch STARTED while already in edit mode (i.e. an intentional subsequent single tap)
+    if (!touchStartedInEditModeRef.current) {
       return;
     }
     if (isEditing) {
@@ -681,6 +684,7 @@ const MyCommuteDashboard: React.FC = () => {
           <Pressable
             style={StyleSheet.absoluteFillObject}
             delayLongPress={450}
+            onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
             onPress={isEditing ? handleBackdropPress : undefined}
             testID="dashboard-background-pressable"
@@ -741,6 +745,7 @@ const MyCommuteDashboard: React.FC = () => {
                     icon={<Ionicons name="train-outline" size={13} color="rgba(255,255,255,0.35)" />}
                     onPressAdd={() => setModalVisible(true)}
                     isEditing={isEditing}
+                    onPressIn={handleBackgroundPressIn}
                     onExitJiggle={handleBackdropPress}
                   />
                   <NestableDraggableFlatList
@@ -832,6 +837,7 @@ const MyCommuteDashboard: React.FC = () => {
               <Pressable
                 style={{ height: isEditing ? 24 : 12 }}
                 delayLongPress={450}
+                onPressIn={handleBackgroundPressIn}
                 onLongPress={!isEditing ? handleEdit : undefined}
                 onPress={isEditing ? handleBackdropPress : undefined}
               />
@@ -843,6 +849,7 @@ const MyCommuteDashboard: React.FC = () => {
                     icon={<Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.35)" />}
                     onPressAdd={() => setStationModalVisible(true)}
                     isEditing={isEditing}
+                    onPressIn={handleBackgroundPressIn}
                     onExitJiggle={handleBackdropPress}
                   />
                   {selectedStations.length === 0 ? (
@@ -890,6 +897,7 @@ const MyCommuteDashboard: React.FC = () => {
           <Pressable
             style={{ flex: 1, minHeight: 180 }}
             delayLongPress={450}
+            onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
             onPress={isEditing ? handleBackdropPress : undefined}
           />

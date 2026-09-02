@@ -248,6 +248,7 @@ const SectionHeader: React.FC<{
 }> = ({ title, icon, onPressAdd, isEditing, onExitJiggle, onPressIn }) => (
   <Pressable
     style={section.row}
+    unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
     onPressIn={onPressIn}
     onPress={isEditing ? onExitJiggle : undefined}
     accessibilityRole={isEditing ? 'button' : undefined}
@@ -669,7 +670,11 @@ const MyCommuteDashboard: React.FC = () => {
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80, flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={scrollEnabled}
-          removeClippedSubviews={true}
+          bounces={true}
+          alwaysBounceVertical={true}
+          overScrollMode="always"
+          keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={false}
           onScrollBeginDrag={() => {
             isScrollingRef.current = true;
           }}
@@ -683,6 +688,7 @@ const MyCommuteDashboard: React.FC = () => {
           {/* ── Background Touch Layer: Long-press to jiggle, tap to dismiss ── */}
           <Pressable
             style={StyleSheet.absoluteFillObject}
+            unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
             delayLongPress={450}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
@@ -794,6 +800,7 @@ const MyCommuteDashboard: React.FC = () => {
                       return (
                         <AnimatedPressable
                           onPress={() => setArrivalNotificationsEnabled(true)}
+                          unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
                           onPressIn={notificationsOffPress.onPressIn}
                           onPressOut={notificationsOffPress.onPressOut}
                           style={[dash.arrivalBanner, notificationsOffPress.animatedStyle]}
@@ -816,6 +823,7 @@ const MyCommuteDashboard: React.FC = () => {
                       return (
                         <AnimatedPressable
                           onPress={() => setArrivalSnoozeExpiry(null)}
+                          unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
                           onPressIn={snoozedPress.onPressIn}
                           onPressOut={snoozedPress.onPressOut}
                           style={[dash.arrivalBanner, snoozedPress.animatedStyle]}
@@ -836,6 +844,7 @@ const MyCommuteDashboard: React.FC = () => {
               {/* Spacer between sections — catches backdrop taps and long-presses */}
               <Pressable
                 style={{ height: isEditing ? 24 : 12 }}
+                unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
                 delayLongPress={450}
                 onPressIn={handleBackgroundPressIn}
                 onLongPress={!isEditing ? handleEdit : undefined}
@@ -896,6 +905,7 @@ const MyCommuteDashboard: React.FC = () => {
           {/* Bottom spacer — catches backdrop taps and long-presses */}
           <Pressable
             style={{ flex: 1, minHeight: 180 }}
+            unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
             delayLongPress={450}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}

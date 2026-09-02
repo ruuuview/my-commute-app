@@ -4,7 +4,7 @@
 // Reduced Motion: safeguards against motion-induced flickering when accessibility is active.
 
 import React from 'react';
-import { Pressable, StyleProp, ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -67,6 +67,7 @@ export default function BouncyPressable({
     <Animated.View style={[springStyle, animatedStyle]}>
       <Pressable
         onPress={disabled ? undefined : onPress}
+        unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
         onLongPress={disabled ? undefined : onLongPress}
         onPressIn={disabled ? undefined : handlePressIn}
         onPressOut={disabled ? undefined : handlePressOut}

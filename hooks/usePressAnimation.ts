@@ -1,10 +1,11 @@
 // hooks/usePressAnimation.ts
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { AccessibilityInfo, Platform } from 'react-native';
+import { AccessibilityInfo } from 'react-native';
 import {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withDelay,
   Easing,
   useReducedMotion,
   cancelAnimation,
@@ -16,7 +17,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 const LIFT_IN_MS = 90;    // Sub-100ms = instantaneous (Apple HIG)
 const LIFT_OUT_MS = 220;  // Leisurely settle reads as elegant, not snappy
 const LIFT_EASING = Easing.out(Easing.cubic);
-const DEBOUNCE_LOCKOUT_MS = 200;
+const DEBOUNCE_LOCKOUT_MS = 150;
 
 // ── Ghost Shadow (imperceptible at rest, growth origin for animation) ──
 const LIFT_REST = {
@@ -37,15 +38,15 @@ const LIFT_ACTIVE = {
 };
 
 export const PRESS_PRESETS = {
-  LINE_PILL_SELECT:   { scaleUp: 1.02 },
-  LINE_PILL_DESELECT: { scaleUp: 1.02 },
-  STATION_ROW:        { scaleUp: 1.02 },
-  CONTINUE_BTN:       { scaleUp: 1.02 },
-  BACK_BTN:           { scaleUp: 1.02 },
-  SKIP_BTN:           { scaleUp: 1.02 },
-  NAV_BAR_ITEM:       { scaleUp: 1.02 },
-  DEPARTURE_CARD:     { scaleUp: 1.02 },
-  CHIP:               { scaleUp: 1.02 },
+  LINE_PILL_SELECT:   { scaleUp: 1.025 },
+  LINE_PILL_DESELECT: { scaleUp: 1.025 },
+  STATION_ROW:        { scaleUp: 1.025 },
+  CONTINUE_BTN:       { scaleUp: 1.025 },
+  BACK_BTN:           { scaleUp: 1.025 },
+  SKIP_BTN:           { scaleUp: 1.025 },
+  NAV_BAR_ITEM:       { scaleUp: 1.025 },
+  DEPARTURE_CARD:     { scaleUp: 1.025 },
+  CHIP:               { scaleUp: 1.025 },
 } as const;
 
 export type PressType =
@@ -83,6 +84,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
   const isReanimatedReducedMotion = useReducedMotion();
   const [a11yReduceMotion, setA11yReduceMotion] = useState(false);
   const lastTapTime = useRef(0);
+  const pressStartTime = useRef(0);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setA11yReduceMotion).catch(() => {});
@@ -128,16 +130,16 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
   const onPressIn = useCallback(() => {
     if (disabled || reduceMotion) return;
 
-    // 200ms debounce lockout (JS thread — Pressable callbacks are JS)
     const now = Date.now();
     if (now - lastTapTime.current < DEBOUNCE_LOCKOUT_MS) return;
     lastTapTime.current = now;
+    pressStartTime.current = now;
 
     if (hapticsEnabled) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
 
-    // Cancel any running press-out to prevent UI thread fighting
+    // Cancel previous return animations
     cancelAll();
 
     const timingConfig = { duration: LIFT_IN_MS, easing: LIFT_EASING };
@@ -150,10 +152,8 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
   }, [config, disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, hapticsEnabled, cancelAll]);
 
   const onPressOut = useCallback(() => {
-    // Cancel any running press-in to prevent stacking
-    cancelAll();
-
     if (disabled || reduceMotion) {
+      cancelAll();
       scale.value = 1;
       shadowRadius.value = LIFT_REST.shadowRadius;
       shadowOpacity.value = LIFT_REST.shadowOpacity;
@@ -163,13 +163,17 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
       return;
     }
 
+    // Ensure quick single taps complete full apex before settling back
+    const elapsed = Date.now() - pressStartTime.current;
+    const remainingHold = Math.max(0, LIFT_IN_MS - elapsed);
     const timingConfig = { duration: LIFT_OUT_MS, easing: LIFT_EASING };
-    scale.value = withTiming(1.0, timingConfig);
-    shadowRadius.value = withTiming(LIFT_REST.shadowRadius, timingConfig);
-    shadowOpacity.value = withTiming(LIFT_REST.shadowOpacity, timingConfig);
-    shadowOffsetY.value = withTiming(LIFT_REST.shadowOffsetY, timingConfig);
-    liftElevation.value = withTiming(LIFT_REST.elevation, timingConfig);
-    borderOpacity.value = withTiming(LIFT_REST.borderOpacity, timingConfig);
+
+    scale.value = withDelay(remainingHold, withTiming(1.0, timingConfig));
+    shadowRadius.value = withDelay(remainingHold, withTiming(LIFT_REST.shadowRadius, timingConfig));
+    shadowOpacity.value = withDelay(remainingHold, withTiming(LIFT_REST.shadowOpacity, timingConfig));
+    shadowOffsetY.value = withDelay(remainingHold, withTiming(LIFT_REST.shadowOffsetY, timingConfig));
+    liftElevation.value = withDelay(remainingHold, withTiming(LIFT_REST.elevation, timingConfig));
+    borderOpacity.value = withDelay(remainingHold, withTiming(LIFT_REST.borderOpacity, timingConfig));
   }, [disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, cancelAll]);
 
   return {

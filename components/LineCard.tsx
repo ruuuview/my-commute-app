@@ -217,7 +217,8 @@ export const LineCard = memo(function LineCard({
         styles.outerCard,
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
         selectedShadowStyle,
-        jiggleStyle
+        jiggleStyle,
+        pressAnim.liftShadowStyle,
       ]}
     >
       <Animated.View
@@ -233,6 +234,7 @@ export const LineCard = memo(function LineCard({
               : GLASS.borderColor,
           },
           combinedStyle,
+          pressAnim.liftBorderStyle,
         ]}
       >
         <BlurView
@@ -267,7 +269,6 @@ export const LineCard = memo(function LineCard({
 
         <Pressable
           onPress={isEditing ? undefined : handlePress}
-          unstable_pressDelay={80}
           delayLongPress={isEditing ? 180 : 400}
           onLongPress={handleLongPress}
           onPressIn={() => {

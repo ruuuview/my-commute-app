@@ -205,7 +205,6 @@ const DepartureCard = memo(function DepartureCard({
 
         <Pressable
           onPress={isEditing ? undefined : handlePress}
-          unstable_pressDelay={80}
           delayLongPress={isEditing ? 180 : 400}
           onLongPress={() => {
             if (isEditing && drag) {

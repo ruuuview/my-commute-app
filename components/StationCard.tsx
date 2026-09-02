@@ -243,7 +243,6 @@ export function StationCard({
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
-      unstable_pressDelay={80}
       onPressIn={pressAnim.onPressIn}
       onPressOut={pressAnim.onPressOut}
       disabled={disabled}

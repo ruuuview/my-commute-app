@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -134,11 +134,19 @@ export default function DashboardGrid({
         onDragBegin={() => {
           setIsDragging(true);
           onScrollEnabledChange(false);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         }}
-        onDragEnd={({ data }) => {
+        onDragEnd={({ data, from, to }) => {
           setIsDragging(false);
           onScrollEnabledChange(true);
           onReorderStations?.(data);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          if (typeof from === 'number' && typeof to === 'number' && data[to]) {
+            const cardName = data[to].name || 'Station';
+            AccessibilityInfo.announceForAccessibility(
+              `${cardName} moved to position ${to + 1} of ${data.length}`
+            );
+          }
         }}
         onPlaceholderIndexChange={() => {
           Haptics.selectionAsync().catch(() => {});

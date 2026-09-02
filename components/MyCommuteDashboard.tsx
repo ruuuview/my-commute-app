@@ -14,6 +14,7 @@ import {
   UIManager,
   View,
   RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -563,19 +564,28 @@ const MyCommuteDashboard: React.FC = () => {
   const handleEdit = useCallback(() => {
     setIsEditing((prev) => {
       const next = !prev;
-      if (next) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      setTimeout(() => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }, 80);
       return next;
     });
   }, []);
 
+  // Android hardware back button exits edit mode seamlessly
+  useEffect(() => {
+    if (!isEditing) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setIsEditing(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [isEditing]);
+
   // ── Backdrop tap exits jiggle ─────────────────────────────────
   const handleBackdropPress = useCallback(() => {
     if (isEditing) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       setIsEditing(false);
     }
   }, [isEditing]);

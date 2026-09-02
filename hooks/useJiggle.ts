@@ -1,12 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo } from 'react-native';
 import {
   useAnimatedStyle,
   useSharedValue,
   useReducedMotion,
+  cancelAnimation,
   SharedValue,
 } from 'react-native-reanimated';
 
-export const JIGGLE_DEG = 1.05;
+export const SAFE_ROTATION_DEG = 0.62; // Aspect-ratio clamped max rotation to prevent corner overhang
+export const JIGGLE_DEG = SAFE_ROTATION_DEG; // Backward compat alias
 export const JIGGLE_MS = 120;
 
 export const useJiggle = (
@@ -20,9 +23,18 @@ export const useJiggle = (
     baselineElevation?: number;
   }
 ) => {
-  const reducedMotion = useReducedMotion();
+  const isReanimatedReduced = useReducedMotion();
+  const [a11yReduceMotion, setA11yReduceMotion] = useState(false);
   const isActiveShared = useSharedValue(isActive ? 1 : 0);
   const isEditingShared = useSharedValue(isEditing ? 1 : 0);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setA11yReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setA11yReduceMotion);
+    return () => sub.remove();
+  }, []);
+
+  const reducedMotion = isReanimatedReduced || a11yReduceMotion;
 
   useEffect(() => {
     isActiveShared.value = isActive ? 1 : 0;
@@ -31,6 +43,15 @@ export const useJiggle = (
   useEffect(() => {
     isEditingShared.value = isEditing ? 1 : 0;
   }, [isEditing, isEditingShared]);
+
+  // Unmount cleanup: cancel worklets to prevent memory leaks + Hermes crashes
+  useEffect(() => {
+    return () => {
+      if (globalJiggle) {
+        cancelAnimation(globalJiggle);
+      }
+    };
+  }, [globalJiggle]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const active = isActiveShared.value === 1;
@@ -69,10 +90,10 @@ export const useJiggle = (
       };
     }
 
-    // 4. Harmonic Anti-Phase Jiggle (Pure Continuous Alternating Wobble)
+    // 4. Harmonic Anti-Phase Jiggle (Aspect-Clamped 0.62°)
     const factor = globalJiggle ? globalJiggle.value : 0;
     const direction = index % 2 === 0 ? 1 : -1;
-    const rotVal = factor * JIGGLE_DEG * direction;
+    const rotVal = factor * SAFE_ROTATION_DEG * direction;
 
     return {
       transform: [

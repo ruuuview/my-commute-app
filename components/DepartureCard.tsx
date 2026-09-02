@@ -189,10 +189,10 @@ const DepartureCard = memo(function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
+      style={[styles.outerContainer, containerAnimStyle, jiggleStyle, pressAnim.liftShadowStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle]}>
+      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle]}>
         <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
 
         <LinearGradient

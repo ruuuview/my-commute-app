@@ -559,9 +559,14 @@ const MyCommuteDashboard: React.FC = () => {
     await forceRefresh();
   }, [forceRefresh]);
 
+  const justEnteredEditingRef = useRef(0);
+
   const handleEdit = useCallback(() => {
     setIsEditing((prev) => {
       const next = !prev;
+      if (next) {
+        justEnteredEditingRef.current = Date.now();
+      }
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       setTimeout(() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -582,6 +587,10 @@ const MyCommuteDashboard: React.FC = () => {
 
   // ── Backdrop tap exits jiggle ─────────────────────────────────
   const handleBackdropPress = useCallback(() => {
+    // Prevent the trailing finger-lift touch-up of the initial long-press from immediately exiting edit mode
+    if (Date.now() - justEnteredEditingRef.current < 600) {
+      return;
+    }
     if (isEditing) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       setIsEditing(false);
@@ -858,7 +867,7 @@ const MyCommuteDashboard: React.FC = () => {
                     <DashboardGrid
                       stations={selectedStations}
                       isJiggling={isEditing}
-                      onExitJiggle={() => setIsEditing(false)}
+                      onExitJiggle={handleBackdropPress}
                       onDelete={removeStation}
                       onScrollEnabledChange={setScrollEnabled}
                       onReorderStations={reorderStations}

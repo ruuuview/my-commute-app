@@ -28,7 +28,6 @@ import Animated, {
   Easing,
   useReducedMotion,
   cancelAnimation,
-  withSpring
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { PREMIUM_BUTTON } from '../theme/colors';
@@ -53,7 +52,6 @@ import { DashboardSkeleton } from './DashboardSkeleton';
 import LivingDot from './LivingDot';
 import BouncyPressable from './BouncyPressable';
 import { useLineDataStore } from '../store/lineDataStore';
-import { JIGGLE_DEG, JIGGLE_MS } from '../hooks/useJiggle';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
 import { getSeverityColor, getSeverityRank } from '../utils/getSeverityColor';

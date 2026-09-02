@@ -262,6 +262,7 @@ export const LineCard = memo(function LineCard({
 
         <Pressable
           onPress={isEditing ? undefined : handlePress}
+          unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
           delayLongPress={isEditing ? 180 : 400}
           onLongPress={handleLongPress}
           onPressIn={() => {

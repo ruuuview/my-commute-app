@@ -158,13 +158,6 @@ export const LineCard = memo(function LineCard({
   const pressAnim = usePressAnimation(configKey, disabled);
   const deletePressAnim = usePressAnimation('line_deselect', disabled);
 
-  const combinedStyle = useAnimatedStyle(() => {
-    const scale = pressAnim.animatedStyle.transform?.[0]?.scale ?? 1;
-    return {
-      transform: [{ scale }],
-    };
-  });
-
   const handlePress = () => {
     if (disabled) return;
     if (isEditing || !touchReady) return;
@@ -233,7 +226,7 @@ export const LineCard = memo(function LineCard({
               ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.70)' : withAlpha(line.color, 'E6'))
               : GLASS.borderColor,
           },
-          combinedStyle,
+          pressAnim.animatedStyle,
           pressAnim.liftBorderStyle,
         ]}
       >

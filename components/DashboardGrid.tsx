@@ -66,8 +66,8 @@ export interface DashboardGridProps {
   /** Called when background tap should exit jiggle mode */
   onExitJiggle: () => void;
   onDelete: (id: string) => void;
-  /** Called on long-press of any card to enter jiggle mode */
-  onLongPressCard: () => void;
+  /** Optional callback for card long-press */
+  onLongPressCard?: () => void;
   /** Called whenever scroll should be enabled/disabled in the parent ScrollView */
   onScrollEnabledChange: (enabled: boolean) => void;
   /** Called when a station card is tapped — navigates to full-screen StationDetailScreen */

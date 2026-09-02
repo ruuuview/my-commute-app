@@ -617,12 +617,6 @@ const MyCommuteDashboard: React.FC = () => {
       }
     };
 
-    const handleLongPress = () => {
-      if (!isEditing) {
-        handleEdit();
-      }
-    };
-
     return (
       <ScaleDecorator>
         <View
@@ -633,7 +627,6 @@ const MyCommuteDashboard: React.FC = () => {
             line={item}
             selected={false}
             onPress={handlePress}
-            onLongPress={handleLongPress}
             statusType={severity}
             statusLabel={item.status || 'Good service'}
             cardHeight={46}
@@ -648,7 +641,7 @@ const MyCommuteDashboard: React.FC = () => {
         </View>
       </ScaleDecorator>
     );
-  }, [isEditing, isDraggingLine, sortedLines, removeLine, handleEdit, globalJiggle]);
+  }, [isEditing, isDraggingLine, sortedLines, removeLine, globalJiggle]);
   const worstStatus = useWorstStatus(selectedLines);
   const networkSeverity = useMemo(() => {
     if (staleState === 'offline') return 'offline';
@@ -663,7 +656,7 @@ const MyCommuteDashboard: React.FC = () => {
         <NestableScrollContainer
           ref={scrollRef}
           style={[dash.scroll, { zIndex: 1 }]}
-          contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80 }]}
+          contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80, flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={scrollEnabled}
           removeClippedSubviews={true}
@@ -677,6 +670,15 @@ const MyCommuteDashboard: React.FC = () => {
           onMomentumScrollEnd={applyPendingData}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
+          {/* ── Background Touch Layer: Long-press to jiggle, tap to dismiss ── */}
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            delayLongPress={450}
+            onLongPress={!isEditing ? handleEdit : undefined}
+            onPress={isEditing ? handleBackdropPress : undefined}
+            testID="dashboard-background-pressable"
+          />
+
           {/* ── Global header ── */}
           <View style={[dash.header, { paddingHorizontal: 4 }]}>
             <View style={dash.titleRow}>
@@ -819,10 +821,13 @@ const MyCommuteDashboard: React.FC = () => {
                 </>
               )}
 
-              {/* Spacer between sections — catches backdrop taps */}
-              {isEditing && sortedLines.length > 0 && (
-                <Pressable style={{ height: 24 }} onPress={handleBackdropPress} />
-              )}
+              {/* Spacer between sections — catches backdrop taps and long-presses */}
+              <Pressable
+                style={{ height: isEditing ? 24 : 12 }}
+                delayLongPress={450}
+                onLongPress={!isEditing ? handleEdit : undefined}
+                onPress={isEditing ? handleBackdropPress : undefined}
+              />
 
               {(selectedStations.length > 0 || isEditing) && (
                 <View style={dash.section}>
@@ -857,7 +862,6 @@ const MyCommuteDashboard: React.FC = () => {
                       isJiggling={isEditing}
                       onExitJiggle={() => setIsEditing(false)}
                       onDelete={removeStation}
-                      onLongPressCard={() => setIsEditing(true)}
                       onScrollEnabledChange={setScrollEnabled}
                       onReorderStations={reorderStations}
                       simultaneousHandlers={scrollRef}
@@ -875,13 +879,13 @@ const MyCommuteDashboard: React.FC = () => {
             </>
           )}
 
-          {/* Bottom spacer — catches backdrop taps below all cards */}
-          {isEditing && (
-            <Pressable
-              style={{ flex: 1, minHeight: 180 }}
-              onPress={handleBackdropPress}
-            />
-          )}
+          {/* Bottom spacer — catches backdrop taps and long-presses */}
+          <Pressable
+            style={{ flex: 1, minHeight: 180 }}
+            delayLongPress={450}
+            onLongPress={!isEditing ? handleEdit : undefined}
+            onPress={isEditing ? handleBackdropPress : undefined}
+          />
         </NestableScrollContainer>
 
 

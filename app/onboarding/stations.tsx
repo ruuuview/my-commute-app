@@ -12,6 +12,8 @@ import {
   InteractionManager,
   Image,
   Keyboard,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -176,9 +178,24 @@ export default function StationsScreen() {
 
   const handleToggleStation = useCallback(
     async (station: TfLStation) => {
+      // 1. Tactile feedback
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // 2. Drop keyboard and blur input cleanly
+      inputRef.current?.blur();
+      Keyboard.dismiss();
+
+      // 3. Smooth layout transition for list collapse
+      if (Platform.OS === 'ios' || (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)) {
+        try {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        } catch {
+          // ignore layout anim fallback
+        }
+      }
+
       const isPinned = isStationPinned(station);
       if (isPinned) {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         playSound('deselect', 0.35);
         if (hasCompletedOnboarding) {
           useUserPreferencesStore.getState().unpinStation(station.id);
@@ -186,7 +203,6 @@ export default function StationsScreen() {
           useOnboardingStore.getState().removeStation(station.id);
         }
       } else {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         playSound('select', 0.45);
 
         // Deduplicate and reinsert recent search at index 0 first

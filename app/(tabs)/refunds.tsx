@@ -588,19 +588,33 @@ export default function RefundsScreen() {
       )
     }
 
-    if (tflAccountStatus === 'NOT_SET') {
-      return (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.decisionCopy}>
-            Choose how Refund Radar should watch your journeys.
-          </Text>
-        </View>
-      )
-    }
-
     return (
       <View>
         <ZeroStateHeroCard checkedAtIso={lastEvaluatedAt} />
+
+        {/* Unlinked / NOT_SET setup prompt */}
+        {tflAccountStatus === 'NOT_SET' && (
+          <View style={styles.sevenDayBox}>
+            <View style={styles.sevenDayTitleRow}>
+              <Text style={styles.sevenDayTitle}>Radar Standby</Text>
+              <Pressable
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  setConnectSheetVisible(true)
+                }}
+                hitSlop={8}
+                style={styles.changePill}
+                accessibilityRole="button"
+                accessibilityLabel="Activate Refund Radar"
+              >
+                <Text style={styles.changePillText}>ACTIVATE</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.sevenDayBody}>
+              Link your card or phone on TfL to scan for claimable journey delays and auto-file refunds.
+            </Text>
+          </View>
+        )}
 
         {/* 7-day honesty disclosure for unregistered accounts */}
         {tflAccountStatus === 'UNREGISTERED_7_DAY' && (

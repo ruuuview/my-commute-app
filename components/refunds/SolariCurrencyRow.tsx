@@ -1,5 +1,4 @@
-// components/refunds/SolariCurrencyRow.tsx
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SolariFlapTile } from './SolariFlapTile';
 
@@ -15,17 +14,39 @@ export const SolariCurrencyRow = memo(function SolariCurrencyRow({
   const penceStr = penceRemainder.toString().padStart(2, '0');
   const poundStr = pounds.toString();
 
-  // Split into individual characters: ['£', ...poundDigits, '.', ...penceDigits]
-  const chars: string[] = ['£', ...poundStr.split(''), '.', ...penceStr.split('')];
+  const targetChars = useMemo(
+    () => ['£', ...poundStr.split(''), '.', ...penceStr.split('')],
+    [poundStr, penceStr]
+  );
+
+  const [displayChars, setDisplayChars] = useState<string[]>(['£', '0', '7', '.', '5', '0']);
+
+  // 400ms mechanical flap awakening cascade
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      setDisplayChars(['£', '0', '0', '.', '2', '0']);
+    }, 120);
+    const t2 = setTimeout(() => {
+      setDisplayChars(targetChars);
+    }, 380);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [targetChars]);
+
+  const accessibilityText = `Refund Radar: £${(amountPence / 100).toFixed(2)} claimable`;
 
   return (
-    <View style={styles.container}>
-      {chars.map((ch, idx) => (
-        <SolariFlapTile
-          key={idx}
-          char={ch}
-          isDot={ch === '.'}
-        />
+    <View
+      style={styles.container}
+      accessibilityRole="summary"
+      accessibilityLabel={accessibilityText}
+    >
+      {displayChars.map((ch, idx) => (
+        <View key={idx} accessibilityElementsHidden={true} importantForAccessibility="no">
+          <SolariFlapTile char={ch} isDot={ch === '.'} />
+        </View>
       ))}
     </View>
   );

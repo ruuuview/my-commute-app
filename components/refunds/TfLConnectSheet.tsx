@@ -9,8 +9,10 @@ import {
   ScrollView,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
@@ -114,9 +116,17 @@ export default function TfLConnectSheet({
         
         {/* Plain View owns layout; BlurView is background-only */}
         <View style={styles.sheet}>
-          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFillObject} />
           <View style={[StyleSheet.absoluteFillObject, styles.sheetTint]} />
           
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.03)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.specularTopSheen}
+            pointerEvents="none"
+          />
+
           {/* Drag Handle */}
           <View style={styles.dragHandle} />
 
@@ -229,28 +239,36 @@ const styles = StyleSheet.create({
   sheet: {
     alignSelf: 'stretch',
     maxHeight: Math.round(Dimensions.get('window').height * 0.88),
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: 'hidden',
-    backgroundColor: 'rgba(18, 26, 43, 0.96)',
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
-    borderColor: GLASS.borderColor,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 12, 28, 0.68)' : 'rgba(11, 18, 38, 0.94)',
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,
     shadowRadius: 20,
     elevation: 16,
   },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    zIndex: 10,
+  },
   sheetTint: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   dragHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    width: 36,
+    height: 4.5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.30)',
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 6,
@@ -379,11 +397,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    shadowColor: '#0098D4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
   },
   primaryCtaText: {
-    color: '#0A0F3C',
+    color: '#070C1C',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   secondaryPill: {
     width: '100%',

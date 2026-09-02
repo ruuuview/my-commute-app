@@ -28,7 +28,6 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
 import { LINE_NAMES } from '../../constants/lineColors';
-import { GLASS } from '../../theme/colors';
 
 const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds-and-replacements';
 

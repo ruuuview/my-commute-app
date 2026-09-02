@@ -23,7 +23,6 @@ import {
   X,
   ShieldCheck,
 } from 'phosphor-react-native';
-import { GLASS } from '../../theme/colors';
 
 const TFL_CONTACTLESS_PORTAL_URL =
   'https://tfl.gov.uk/fares/contactless-and-oyster-account';

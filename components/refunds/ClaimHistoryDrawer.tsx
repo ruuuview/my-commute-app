@@ -21,7 +21,6 @@ import {
   WarningCircle,
   XCircle,
 } from 'phosphor-react-native';
-import { GLASS } from '../../theme/colors';
 import { formatPence } from '../../services/refundSlaService';
 import {
   loopStateOf,

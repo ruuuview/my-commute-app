@@ -254,7 +254,7 @@ const DepartureCard = memo(function DepartureCard({
                   </Text>
                   <View style={styles.destPlatform}>
                     <Text style={styles.arrDest} numberOfLines={1}>
-                      {arr.destination}
+                      {cleanDestinationName(arr.destination)}
                       {arr.via ? (
                         <Text style={styles.arrVia}> {arr.via}</Text>
                       ) : null}

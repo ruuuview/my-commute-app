@@ -21,6 +21,7 @@ interface Props {
   style?: StyleProp<ViewStyle>;
   animatedStyle?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  pressDelay?: number;
   children: React.ReactNode;
   accessibilityLabel?: string;
   accessibilityRole?: 'button' | 'checkbox' | 'link' | 'none';
@@ -37,6 +38,7 @@ export default function BouncyPressable({
   style,
   animatedStyle,
   disabled = false,
+  pressDelay = 0,
   children,
   accessibilityLabel,
   accessibilityRole,
@@ -53,7 +55,7 @@ export default function BouncyPressable({
 
   const handlePressIn = () => {
     if (reducedMotion) return;
-    scale.value = withSpring(1.025, PREMIUM_SPRING_CONFIG);
+    scale.value = withSpring(0.96, PREMIUM_SPRING_CONFIG);
     onPressIn?.();
   };
 
@@ -67,7 +69,7 @@ export default function BouncyPressable({
     <Animated.View style={[springStyle, animatedStyle]}>
       <Pressable
         onPress={disabled ? undefined : onPress}
-        unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+        unstable_pressDelay={pressDelay}
         onLongPress={disabled ? undefined : onLongPress}
         onPressIn={disabled ? undefined : handlePressIn}
         onPressOut={disabled ? undefined : handlePressOut}

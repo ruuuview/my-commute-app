@@ -21,6 +21,7 @@ import {
   LinkBreak,
   ArrowSquareOut,
   X,
+  ShieldCheck,
 } from 'phosphor-react-native';
 import { GLASS } from '../../theme/colors';
 
@@ -64,7 +65,7 @@ export default function TfLConnectSheet({
         await Linking.openURL(TFL_CONTACTLESS_PORTAL_URL);
       } else {
         await WebBrowser.openBrowserAsync(TFL_CONTACTLESS_PORTAL_URL, {
-          toolbarColor: '#0A0F3C',
+          toolbarColor: '#070E26',
           controlsColor: '#0098D4',
         });
       }
@@ -113,14 +114,28 @@ export default function TfLConnectSheet({
           accessibilityRole="button"
           accessibilityLabel="Dismiss sheet"
         />
-        
-        {/* Plain View owns layout; BlurView is background-only */}
+
+        {/* Outer Plain View owns layout boundaries; BlurView & Gradients act as background layers */}
         <View style={styles.sheet}>
-          <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={[StyleSheet.absoluteFillObject, styles.sheetTint]} />
-          
+          {/* Glass optical blur */}
+          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+
+          {/* Electric sapphire/obsidian depth gradient */}
           <LinearGradient
-            colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.03)']}
+            colors={[
+              'rgba(0, 152, 212, 0.15)',
+              'rgba(10, 22, 58, 0.55)',
+              'rgba(4, 9, 26, 0.92)',
+            ]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+
+          {/* Top specular rim catch-light */}
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.specularTopSheen}
@@ -140,9 +155,15 @@ export default function TfLConnectSheet({
           >
             {/* Header: Headline + Top-Right Close Button */}
             <View style={styles.headerRow}>
-              <Text style={styles.title}>
-                Link your card so Refund Radar can see your delays
-              </Text>
+              <View style={styles.titleWrap}>
+                <View style={styles.badgeHeader}>
+                  <ShieldCheck size={14} color="#38BDF8" weight="fill" />
+                  <Text style={styles.badgeHeaderText}>REFUND RADAR PROTECTION</Text>
+                </View>
+                <Text style={styles.title}>
+                  Link your card so Refund Radar can see your delays
+                </Text>
+              </View>
               <Pressable
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -153,25 +174,47 @@ export default function TfLConnectSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Close sheet"
               >
-                <X size={18} color="rgba(255, 255, 255, 0.7)" weight="bold" />
+                <X size={16} color="#FFFFFF" weight="bold" />
               </Pressable>
             </View>
 
-            {/* Comparison Box with Folded Apple Pay Note */}
+            {/* Apple Frosted Glass Comparison Card */}
             <View style={styles.comparisonBox}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.03)']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.35)', 'transparent']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={styles.cardSpecularTop}
+                pointerEvents="none"
+              />
+
               {/* Row 1: Registered (28-day) */}
               <View style={styles.comparisonRow}>
-                <View style={styles.pillIcon}>
-                  <CreditCard size={18} color="#0098D4" weight="bold" />
+                <View style={styles.pillIconRegistered}>
+                  <CreditCard size={20} color="#38BDF8" weight="bold" />
                 </View>
                 <View style={styles.pillText}>
-                  <Text style={styles.pillHeading}>Card or Phone Registered on TfL</Text>
+                  <View style={styles.rowHeadingWrap}>
+                    <Text style={styles.pillHeading}>Card or Phone Registered on TfL</Text>
+                    <View style={styles.badgeCyan}>
+                      <Text style={styles.badgeCyanText}>28-DAY WINDOW</Text>
+                    </View>
+                  </View>
                   <Text style={styles.pillDesc}>
-                    Full 28-day claim window. Every eligible delay on your physical card, iPhone, Apple Watch, or Google Pay is protected and claimable.
+                    Full 28-day claim window. Every eligible delay on your contactless card, iPhone, Apple Watch, or Google Pay is protected.
                   </Text>
-                  <Text style={styles.applePayFoldedNote}>
-                    Using Apple Pay or Google Pay? Link the underlying card on TfL to auto-protect phone taps.
-                  </Text>
+                  <View style={styles.applePayContainer}>
+                    <Text style={styles.applePayFoldedNote}>
+                      ✦ Using Apple Pay or Google Pay? Link the underlying card on TfL to auto-protect phone taps.
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -179,11 +222,16 @@ export default function TfLConnectSheet({
 
               {/* Row 2: Unregistered (7-day) */}
               <View style={styles.comparisonRow}>
-                <View style={styles.linkIconB}>
-                  <LinkBreak size={18} color="rgba(255,255,255,0.6)" weight="bold" />
+                <View style={styles.pillIconUnregistered}>
+                  <LinkBreak size={20} color="rgba(255, 255, 255, 0.70)" weight="bold" />
                 </View>
                 <View style={styles.linkText}>
-                  <Text style={styles.linkHeading}>Unregistered Card / Phone Tap Only</Text>
+                  <View style={styles.rowHeadingWrap}>
+                    <Text style={styles.linkHeading}>Unregistered Card / Phone Tap Only</Text>
+                    <View style={styles.badgeMuted}>
+                      <Text style={styles.badgeMutedText}>7-DAY LIMIT</Text>
+                    </View>
+                  </View>
                   <Text style={styles.linkDesc}>
                     Only 7 days of journey history kept by TfL. Delays older than 7 days are erased and non-refundable.
                   </Text>
@@ -198,19 +246,33 @@ export default function TfLConnectSheet({
               </Text>
 
               <Pressable
-                style={({ pressed }) => [styles.primaryCta, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [styles.primaryCtaPressable, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}
                 onPress={handleOpenTflPortal}
                 accessibilityRole="button"
                 accessibilityLabel="Sign In or Link Card on TfL"
               >
-                <ArrowSquareOut size={18} color="#0A0F3C" weight="bold" />
-                <Text style={styles.primaryCtaText}>
-                  Sign In / Link Card or Phone on TfL
-                </Text>
+                <LinearGradient
+                  colors={['#00B8FF', '#0098D4', '#0072A8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.primaryCtaGradient}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.45)', 'transparent']}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={styles.buttonSpecular}
+                    pointerEvents="none"
+                  />
+                  <ArrowSquareOut size={19} color="#FFFFFF" weight="bold" />
+                  <Text style={styles.primaryCtaText}>
+                    Sign In / Link Card or Phone on TfL
+                  </Text>
+                </LinearGradient>
               </Pressable>
 
               <Pressable
-                style={({ pressed }) => [styles.secondaryPill, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [styles.secondaryPressable, pressed && { opacity: 0.75, transform: [{ scale: 0.99 }] }]}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onUnregistered();
@@ -218,9 +280,16 @@ export default function TfLConnectSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Continue with 7-Day Window (Unregistered)"
               >
-                <Text style={styles.secondaryPillText}>
-                  Continue with 7-Day Window (Unregistered)
-                </Text>
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.14)', 'rgba(255, 255, 255, 0.04)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.secondaryGradient}
+                >
+                  <Text style={styles.secondaryPillText}>
+                    Continue with 7-Day Window (Unregistered)
+                  </Text>
+                </LinearGradient>
               </Pressable>
             </View>
           </ScrollView>
@@ -233,42 +302,55 @@ export default function TfLConnectSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   sheet: {
     alignSelf: 'stretch',
-    maxHeight: Math.round(Dimensions.get('window').height * 0.88),
+    maxHeight: Math.round(Dimensions.get('window').height * 0.90),
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 12, 28, 0.68)' : 'rgba(11, 18, 38, 0.94)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
     borderTopWidth: 1.5,
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.32)',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 16,
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.75,
+    shadowRadius: 24,
+    elevation: 20,
   },
   specularTopSheen: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 1.5,
+    height: 2,
     zIndex: 10,
   },
-  sheetTint: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  cardSpecularTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    zIndex: 2,
+  },
+  buttonSpecular: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    zIndex: 2,
   },
   dragHandle: {
-    width: 36,
+    width: 38,
     height: 4.5,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.30)',
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 6,
@@ -284,8 +366,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  title: {
+  titleWrap: {
     flex: 1,
+    gap: 4,
+  },
+  badgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  badgeHeaderText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.8,
+  },
+  title: {
     fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
@@ -293,134 +390,190 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
     borderWidth: 1,
-    borderColor: GLASS.borderColor,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   comparisonBox: {
-    backgroundColor: 'rgba(10, 15, 60, 0.65)',
-    borderRadius: 16,
-    padding: 14,
-    gap: 12,
+    borderRadius: 20,
+    padding: 16,
+    gap: 14,
     borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    overflow: 'hidden',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 6,
   },
   comparisonRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
-  pillIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 152, 212, 0.18)',
+  rowHeadingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  badgeCyan: {
+    backgroundColor: 'rgba(0, 152, 212, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.40)',
+  },
+  badgeCyanText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.4,
+  },
+  badgeMuted: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  badgeMutedText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.65)',
+    letterSpacing: 0.4,
+  },
+  pillIconRegistered: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 152, 212, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.50)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  pillIconUnregistered: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
   pillText: {
     flex: 1,
+    gap: 4,
   },
   pillHeading: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   pillDesc: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.65)',
-    marginTop: 2,
-    lineHeight: 16,
+    fontSize: 12.5,
+    color: 'rgba(255, 255, 255, 0.80)',
+    lineHeight: 17,
+  },
+  applePayContainer: {
+    marginTop: 4,
+    backgroundColor: 'rgba(0, 152, 212, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.30)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   applePayFoldedNote: {
-    fontSize: 11,
-    color: 'rgba(0, 152, 212, 0.95)',
-    fontStyle: 'italic',
-    marginTop: 6,
-    lineHeight: 15,
+    fontSize: 11.5,
+    color: '#7DD3FC',
+    lineHeight: 16,
+    fontWeight: '500',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  linkIconB: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   linkText: {
     flex: 1,
+    gap: 4,
   },
   linkHeading: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.92)',
+    letterSpacing: -0.2,
   },
   linkDesc: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: 'rgba(255, 255, 255, 0.65)',
-    marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 17,
   },
   actionBlock: {
-    gap: 10,
+    gap: 12,
   },
   microcopy: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.55)',
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.60)',
     textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
     paddingHorizontal: 8,
-    marginBottom: 2,
   },
-  primaryCta: {
-    backgroundColor: '#0098D4',
-    borderRadius: 14,
-    paddingVertical: 14,
+  primaryCtaPressable: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#0098D4',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  primaryCtaGradient: {
+    paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#0098D4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.40)',
+    borderRadius: 16,
   },
   primaryCtaText: {
-    color: '#070C1C',
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 15.5,
     fontWeight: '800',
+    letterSpacing: -0.2,
   },
-  secondaryPill: {
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  secondaryPressable: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  secondaryGradient: {
     borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderRadius: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryPillText: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.90)',
     fontSize: 14,
     fontWeight: '600',
   },
 });
+

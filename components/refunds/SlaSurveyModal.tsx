@@ -1,12 +1,8 @@
-// components/refunds/SlaSurveyModal.tsx
-// Day 14 SLA Resolution Survey (FE-04) — extracted single source.
-// Used by both the Radar tab orchestrator and the /refunds/history receipts
-// screen so the survey UX can never drift between surfaces.
-
 import React from 'react'
-import { View, Text, StyleSheet, Pressable, Modal } from 'react-native'
+import { View, Text, StyleSheet, Pressable, Modal, Platform } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import { Clock } from 'phosphor-react-native'
 import {
   workingDaysSince,
@@ -101,14 +97,36 @@ export function SlaSurveyModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <BlurView intensity={50} tint="dark" style={styles.modalContainer}>
+        <View style={styles.modalContainer}>
+          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+          
+          <LinearGradient
+            colors={[
+              'rgba(0, 152, 212, 0.15)',
+              'rgba(10, 22, 58, 0.55)',
+              'rgba(4, 9, 26, 0.92)',
+            ]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.specularTopSheen}
+            pointerEvents="none"
+          />
+
           <View style={styles.modalHeader}>
-            <Clock size={24} color="#0098D4" weight="bold" />
+            <Clock size={24} color="#38BDF8" weight="bold" />
             <Text style={styles.modalTitle}>TfL Delay Repay SLA Review</Text>
           </View>
           <Text style={styles.modalSubtitle}>
             Filed {daysSinceFiled} working days ago. Did your{' '}
-            {formatPence(claim.amountPence)} refund for {claim.entryStation} →{' '}
+            <Text style={styles.amountHighlight}>{formatPence(claim.amountPence)}</Text> refund for {claim.entryStation} →{' '}
             {claim.exitStation} land in your account?
           </Text>
 
@@ -116,7 +134,11 @@ export function SlaSurveyModal({
             {SURVEY_OPTIONS.map((option) => (
               <Pressable
                 key={option.key}
-                style={[styles.surveyBtn, { backgroundColor: option.bg }]}
+                style={({ pressed }) => [
+                  styles.surveyBtn,
+                  { backgroundColor: option.bg },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+                ]}
                 onPress={() => {
                   void handleOption(option)
                 }}
@@ -129,7 +151,7 @@ export function SlaSurveyModal({
               </Pressable>
             ))}
           </View>
-        </BlurView>
+        </View>
       </View>
     </Modal>
   )
@@ -138,7 +160,7 @@ export function SlaSurveyModal({
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -146,18 +168,26 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: 'rgba(10, 15, 60, 0.95)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
     borderRadius: 24,
     padding: 24,
-    borderWidth: 1.25,
-    borderColor: 'rgba(0, 152, 212, 0.45)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
     gap: 16,
     overflow: 'hidden',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.60,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.75,
     shadowRadius: 24,
-    elevation: 16,
+    elevation: 20,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    zIndex: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -168,11 +198,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   modalSubtitle: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.75)',
     lineHeight: 20,
+  },
+  amountHighlight: {
+    color: '#38BDF8',
+    fontWeight: '700',
   },
   surveyButtons: {
     gap: 10,
@@ -183,9 +218,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
   },
   surveyBtnText: {
     fontSize: 14,
     fontWeight: '700',
   },
 })
+

@@ -20,21 +20,21 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
   useClaimArrivalAnimation,
   formatOdometer,
-} from '@/hooks/useClaimArrivalAnimation';
+} from '../hooks/useClaimArrivalAnimation';
 import {
   loopStateOf,
   daysLeftUntil,
   shouldMountEarnedUI,
   type RadarClaim,
-} from '@/components/refunds/types';
-import { useUserPreferencesStore } from '@/store/userPreferencesStore';
-import LifetimeMetricsCard from '@/components/refunds/LifetimeMetricsCard';
-import TfLConnectSheet from '@/components/refunds/TfLConnectSheet';
-import { SlaSurveyModal } from '@/components/refunds/SlaSurveyModal';
+} from '../components/refunds/types';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import LifetimeMetricsCard from '../components/refunds/LifetimeMetricsCard';
+import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
+import { SlaSurveyModal } from '../components/refunds/SlaSurveyModal';
 import {
   isSurveySnoozed,
   snoozeSurvey,
-} from '@/services/refundSlaService';
+} from '../services/refundSlaService';
 
 // ── Lightweight reanimated stub (hook under test only uses these symbols) ──
 jest.mock('react-native-reanimated', () => ({

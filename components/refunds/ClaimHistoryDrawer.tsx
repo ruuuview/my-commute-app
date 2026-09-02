@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   X,
@@ -87,7 +88,27 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
         <Pressable style={styles.dismissOverlay} onPress={onClose} />
 
         <View style={styles.sheetContainer}>
-          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+          
+          <LinearGradient
+            colors={[
+              'rgba(0, 152, 212, 0.15)',
+              'rgba(10, 22, 58, 0.55)',
+              'rgba(4, 9, 26, 0.92)',
+            ]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.specularTopSheen}
+            pointerEvents="none"
+          />
 
           <View style={styles.innerContent}>
             {/* Grabber handle */}
@@ -96,7 +117,7 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
             {/* Header */}
             <View style={styles.headerRow}>
               <View style={styles.headerTitleGroup}>
-                <Receipt size={20} color="#0098D4" weight="bold" />
+                <Receipt size={20} color="#38BDF8" weight="bold" />
                 <Text style={styles.headerTitle}>Claim History & Receipts</Text>
               </View>
               <Pressable
@@ -162,7 +183,7 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
                   state === 'received'
                     ? '#34C759'
                     : state === 'filed'
-                    ? '#0098D4'
+                    ? '#38BDF8'
                     : state === 'eligible'
                     ? '#F59E0B'
                     : 'rgba(255,255,255,0.35)';
@@ -203,28 +224,36 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.60)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   dismissOverlay: {
     flex: 1,
   },
   sheetContainer: {
-    maxHeight: SCREEN_HEIGHT * 0.82,
+    maxHeight: SCREEN_HEIGHT * 0.85,
     minHeight: 380,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: 'hidden',
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    backgroundColor: Platform.OS === 'android' ? '#0E111A' : GLASS.background,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.65,
-    shadowRadius: 20,
-    elevation: 16,
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.75,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    zIndex: 10,
   },
   innerContent: {
     paddingHorizontal: 20,
@@ -233,10 +262,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    width: 38,
+    height: 4.5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
     alignSelf: 'center',
     marginBottom: 14,
   },
@@ -252,19 +281,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   closeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: GLASS.borderColor,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   filterRow: {
     flexDirection: 'row',
@@ -273,23 +303,24 @@ const styles = StyleSheet.create({
   },
   filterPill: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 7,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   filterPillActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    borderColor: GLASS.borderColor,
+    backgroundColor: 'rgba(0, 152, 212, 0.25)',
+    borderColor: 'rgba(56, 189, 248, 0.50)',
   },
   filterPillText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.60)',
+    color: 'rgba(255, 255, 255, 0.65)',
   },
   filterPillTextActive: {
-    color: '#FFFFFF',
+    color: '#38BDF8',
+    fontWeight: '700',
   },
   listContent: {
     paddingBottom: 24,
@@ -297,10 +328,10 @@ const styles = StyleSheet.create({
   },
   receiptCard: {
     padding: 14,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1.25,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     gap: 6,
   },
   receiptTop: {
@@ -355,3 +386,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 });
+

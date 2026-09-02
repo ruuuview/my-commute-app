@@ -8,8 +8,10 @@ import {
   Pressable,
   ScrollView,
   Linking,
+  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -155,8 +157,30 @@ export default function SafariClaimAssistant({
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         {/* Plain View owns ALL layout; BlurView is background-only */}
         <View style={styles.sheet}>
-          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={[StyleSheet.absoluteFillObject, styles.sheetTint]} />
+          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+          
+          <LinearGradient
+            colors={[
+              'rgba(0, 152, 212, 0.15)',
+              'rgba(10, 22, 58, 0.55)',
+              'rgba(4, 9, 26, 0.92)',
+            ]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.specularTopSheen}
+            pointerEvents="none"
+          />
+
+          {/* Drag Handle */}
+          <View style={styles.dragHandle} />
           
           <ScrollView
             bounces={false}
@@ -166,22 +190,25 @@ export default function SafariClaimAssistant({
             {/* Header row: Copy icon + title + close X */}
             <View style={styles.headerRow}>
               <View style={styles.copyIcon}>
-                <Copy size={20} color="#0098D4" weight="bold" />
+                <Copy size={20} color="#38BDF8" weight="bold" />
               </View>
               <Text style={styles.title}>TfL Claim Assistant</Text>
               <Pressable
                 style={styles.closeButton}
                 accessibilityRole="button"
                 accessibilityLabel="Close claim assistant"
-                onPress={onClose}
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onClose();
+                }}
               >
-                <X size={24} color="rgba(255, 255, 255, 0.5)" />
+                <X size={18} color="#FFFFFF" weight="bold" />
               </Pressable>
             </View>
 
             {/* Subtitle */}
             <Text style={styles.subtitle}>
-              {entryStation} → {exitStation} · ~{formatPence(amount)}
+              {entryStation} → {exitStation} · <Text style={styles.subtitleAmount}>{formatPence(amount)}</Text>
             </Text>
 
             {/* Clipboard chip grid */}
@@ -198,9 +225,9 @@ export default function SafariClaimAssistant({
                   onPress={() => handleCopy(chip.key, chip.value)}
                 >
                   <View style={styles.chipIcon}>
-                    {chip.icon && <chip.icon size={12} color="#FFFFFF" />}
+                    {chip.icon && <chip.icon size={13} color={copiedStates[chip.key] ? '#34C759' : '#38BDF8'} />}
                   </View>
-                  <Text style={styles.chipLabel}>
+                  <Text style={[styles.chipLabel, copiedStates[chip.key] && styles.chipLabelCopied]}>
                     {chip.label}: {chip.value}
                   </Text>
                 </Pressable>
@@ -209,6 +236,13 @@ export default function SafariClaimAssistant({
 
             {/* How to claim step guidance */}
             <View style={styles.guidanceBox}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.10)', 'rgba(255, 255, 255, 0.02)']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
               <Text style={styles.guidanceTitle}>How TfL delay refunds work:</Text>
               <Text style={styles.guidanceText}>
                 1. Tap the button below to open TfL in Safari.
@@ -224,17 +258,32 @@ export default function SafariClaimAssistant({
             {/* Footer */}
             <View style={styles.footer}>
               <Pressable
-                style={styles.primaryFooter}
+                style={({ pressed }) => [styles.primaryFooterPressable, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}
                 accessibilityRole="button"
                 accessibilityLabel="Open TfL in Safari"
                 onPress={handleOpenTflPortal}
               >
-                <ArrowSquareOut size={16} color="#0A0F3C" weight="bold" />
-                <Text style={styles.primaryFooterText}>
-                  Open TfL in Safari ↗
-                </Text>
+                <LinearGradient
+                  colors={['#00B8FF', '#0098D4', '#0072A8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.primaryFooterGradient}
+                >
+                  <ArrowSquareOut size={18} color="#FFFFFF" weight="bold" />
+                  <Text style={styles.primaryFooterText}>
+                    Open TfL in Safari ↗
+                  </Text>
+                </LinearGradient>
               </Pressable>
-              <Pressable onPress={onClose} hitSlop={10} style={{ paddingVertical: 6 }}>
+
+              <Pressable
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onClose();
+                }}
+                hitSlop={10}
+                style={styles.cancelBtn}
+              >
                 <Text style={styles.secondaryFooterText}>
                   Cancel
                 </Text>
@@ -250,134 +299,181 @@ export default function SafariClaimAssistant({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   sheet: {
     alignSelf: 'stretch',
-    maxHeight: Math.round(Dimensions.get('window').height * 0.88),
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    maxHeight: Math.round(Dimensions.get('window').height * 0.90),
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: 'hidden',
-    backgroundColor: 'rgba(10, 15, 60, 0.96)',
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
-    borderColor: GLASS.borderColor,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 16,
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.75,
+    shadowRadius: 24,
+    elevation: 20,
   },
-  sheetTint: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    zIndex: 10,
+  },
+  dragHandle: {
+    width: 38,
+    height: 4.5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 6,
   },
   content: {
-    padding: 20,
-    gap: 12,
-    paddingBottom: 34,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    gap: 14,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingBottom: 8,
+    paddingVertical: 4,
   },
   copyIcon: {
-    padding: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 152, 212, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.40)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
-    fontWeight: 800,
+    fontWeight: '800',
     color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
   closeButton: {
-    padding: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.75)',
     textAlign: 'center',
-    marginHorizontal: 20,
-    marginVertical: 12,
+    marginHorizontal: 16,
+  },
+  subtitleAmount: {
+    color: '#34C759',
+    fontWeight: '700',
   },
   chipGrid: {
-    paddingHorizontal: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    justifyContent: 'center',
   },
   chip: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 60,
+    gap: 6,
   },
   chipCopied: {
-    backgroundColor: 'rgba(52, 199, 89, 0.25)',
+    backgroundColor: 'rgba(52, 199, 89, 0.20)',
     borderColor: '#34C759',
   },
   chipIcon: {
-    width: 20,
-    height: 20,
-    marginBottom: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chipLabel: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: '600',
+  },
+  chipLabelCopied: {
+    color: '#34C759',
   },
   guidanceBox: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 4,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(10, 15, 60, 0.65)',
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    gap: 4,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    overflow: 'hidden',
+    gap: 6,
   },
   guidanceTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 2,
   },
   guidanceText: {
-    fontSize: 11.5,
-    color: 'rgba(255, 255, 255, 0.7)',
-    lineHeight: 16,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 17,
   },
   footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    paddingTop: 8,
+    gap: 10,
+    alignItems: 'stretch',
   },
-  primaryFooter: {
-    backgroundColor: '#0098D4',
-    borderRadius: 14,
+  primaryFooterPressable: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#0098D4',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.50,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  primaryFooterGradient: {
     paddingVertical: 15,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: 16,
   },
   primaryFooterText: {
-    color: '#0A0F3C',
-    fontSize: 14,
-    fontWeight: 700,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  cancelBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
   },
   secondaryFooterText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });

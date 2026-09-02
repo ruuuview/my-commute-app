@@ -172,7 +172,7 @@ export const LineCard = memo(function LineCard({
       if (onPress) onPress();
     } else {
       if (onPress) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress();
       }
     }

@@ -428,15 +428,17 @@ const MyCommuteDashboard: React.FC = () => {
 
   useEffect(() => {
     if (isEditing && !reducedMotion) {
-      globalJiggle.value = -1;
       globalJiggle.value = withRepeat(
-        withTiming(1, { duration: 120, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 200, easing: Easing.inOut(Easing.sin) }),
         -1,
         true
       );
     } else {
       cancelAnimation(globalJiggle);
-      globalJiggle.value = 0;
+      globalJiggle.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+      });
     }
   }, [isEditing, globalJiggle, reducedMotion]);
 
@@ -567,10 +569,14 @@ const MyCommuteDashboard: React.FC = () => {
   const handleEdit = useCallback(() => {
     setIsEditing((prev) => {
       const next = !prev;
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      setTimeout(() => {
+      if (prev) {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      } else {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      }, 80);
+        setTimeout(() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        }, 80);
+      }
       return next;
     });
   }, []);
@@ -689,7 +695,7 @@ const MyCommuteDashboard: React.FC = () => {
           <Pressable
             style={StyleSheet.absoluteFillObject}
             unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
-            delayLongPress={450}
+            delayLongPress={700}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
             onPress={isEditing ? handleBackdropPress : undefined}
@@ -845,7 +851,7 @@ const MyCommuteDashboard: React.FC = () => {
               <Pressable
                 style={{ height: isEditing ? 24 : 12 }}
                 unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
-                delayLongPress={450}
+                delayLongPress={700}
                 onPressIn={handleBackgroundPressIn}
                 onLongPress={!isEditing ? handleEdit : undefined}
                 onPress={isEditing ? handleBackdropPress : undefined}
@@ -906,7 +912,7 @@ const MyCommuteDashboard: React.FC = () => {
           <Pressable
             style={{ flex: 1, minHeight: 180 }}
             unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
-            delayLongPress={450}
+            delayLongPress={700}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
             onPress={isEditing ? handleBackdropPress : undefined}

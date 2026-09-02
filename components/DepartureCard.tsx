@@ -17,9 +17,9 @@ import {
   StyleSheet,
   View,
   Text,
-  Pressable,
   Platform,
 } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -206,7 +206,7 @@ const DepartureCard = memo(function DepartureCard({
         <Pressable
           onPress={isEditing ? undefined : handlePress}
           unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
-          delayLongPress={isEditing ? 180 : 400}
+          delayLongPress={isEditing ? 350 : 700}
           onLongPress={() => {
             if (isEditing && drag) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

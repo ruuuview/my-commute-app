@@ -1,5 +1,6 @@
 import React, { useEffect, useState, memo } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -263,7 +264,7 @@ export const LineCard = memo(function LineCard({
         <Pressable
           onPress={isEditing ? undefined : handlePress}
           unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
-          delayLongPress={isEditing ? 180 : 400}
+          delayLongPress={isEditing ? 350 : 700}
           onLongPress={handleLongPress}
           onPressIn={() => {
             if (!isEditing) {

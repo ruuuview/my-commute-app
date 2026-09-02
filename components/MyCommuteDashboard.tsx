@@ -8,7 +8,6 @@
 import React, { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import {
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   UIManager,
@@ -16,6 +15,7 @@ import {
   RefreshControl,
   BackHandler,
 } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';

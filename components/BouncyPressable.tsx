@@ -4,7 +4,8 @@
 // Reduced Motion: safeguards against motion-induced flickering when accessibility is active.
 
 import React from 'react';
-import { Pressable, StyleProp, ViewStyle } from 'react-native';
+import { StyleProp, ViewStyle } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

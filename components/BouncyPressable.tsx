@@ -55,14 +55,16 @@ export default function BouncyPressable({
   }));
 
   const handlePressIn = () => {
-    if (reducedMotion) return;
-    scale.value = withSpring(0.96, PREMIUM_SPRING_CONFIG);
+    if (!reducedMotion) {
+      scale.value = withSpring(0.96, PREMIUM_SPRING_CONFIG);
+    }
     onPressIn?.();
   };
 
   const handlePressOut = () => {
-    if (reducedMotion) return;
-    scale.value = withSpring(1, PREMIUM_SPRING_CONFIG);
+    if (!reducedMotion) {
+      scale.value = withSpring(1, PREMIUM_SPRING_CONFIG);
+    }
     onPressOut?.();
   };
 

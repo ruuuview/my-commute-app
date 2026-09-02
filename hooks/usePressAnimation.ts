@@ -96,7 +96,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
   const hapticsEnabled = useUserPreferencesStore(state => state.hapticsEnabled !== false);
 
   const mappedKey = (KEY_MAP[configKey] || configKey) as keyof typeof PRESS_PRESETS;
-  const config = PRESS_PRESETS[mappedKey];
+  const config = PRESS_PRESETS[mappedKey] ?? { scaleUp: 1.025 };
 
   // Scale-only — safe for ALL 14 consumers. Zero side effects.
   const animatedStyle = useAnimatedStyle(() => ({

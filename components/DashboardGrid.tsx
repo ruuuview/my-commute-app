@@ -43,8 +43,8 @@ const StaggeredEntranceWrapper = memo(
         delay,
         withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) })
       );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [index, reducedMotion, skipEntrance]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const animatedStyle = useAnimatedStyle(() => ({
       opacity: opacity.value,

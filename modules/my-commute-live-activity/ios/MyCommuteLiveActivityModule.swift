@@ -26,6 +26,14 @@ public class MyCommuteLiveActivityModule: Module {
       guard #available(iOS 16.2, *) else { return nil }
       guard ActivityAuthorizationInfo().areActivitiesEnabled else { return nil }
 
+      // Singleton Teardown: terminate any existing active Live Activities
+      let existingActivities = Activity<MyCommuteLiveActivityAttributes>.activities
+      for oldActivity in existingActivities {
+        Task {
+          await oldActivity.end(nil, dismissalPolicy: .immediate)
+        }
+      }
+
       let attrs = MyCommuteLiveActivityAttributes(
         stationId: payload["stationId"] as? String ?? "",
         lineId: payload["lineId"] as? String ?? "",
@@ -36,9 +44,11 @@ public class MyCommuteLiveActivityModule: Module {
       self.writeMirror(payload)
 
       do {
+        let staleDate = Date().addingTimeInterval(900) // 15-minute auto-expiry
+        let content = ActivityContent(state: state, staleDate: staleDate)
         let activity = try Activity<MyCommuteLiveActivityAttributes>.request(
           attributes: attrs,
-          contentState: state,
+          content: content,
           pushType: nil
         )
         return activity.id
@@ -55,7 +65,8 @@ public class MyCommuteLiveActivityModule: Module {
 
       let activities = Activity<MyCommuteLiveActivityAttributes>.activities
       guard let activity = activities.first else { return }
-      let content = ActivityContent(state: state, staleDate: nil)
+      let staleDate = Date().addingTimeInterval(900)
+      let content = ActivityContent(state: state, staleDate: staleDate)
       Task {
         await activity.update(content)
       }
@@ -80,6 +91,19 @@ public class MyCommuteLiveActivityModule: Module {
     AsyncFunction("isActivityActive") { () -> Bool in
       guard #available(iOS 16.2, *) else { return false }
       return !Activity<MyCommuteLiveActivityAttributes>.activities.isEmpty
+    }
+
+    AsyncFunction("syncWidgetCache") { (linesJson: String, statusesJson: String) -> Void in
+      guard let userDefaults = UserDefaults(suiteName: self.appGroupId) else { return }
+      if !linesJson.isEmpty {
+        userDefaults.set(linesJson, forKey: "myLines")
+      }
+      if !statusesJson.isEmpty {
+        userDefaults.set(statusesJson, forKey: "cachedLineStatuses")
+        userDefaults.set(statusesJson, forKey: "cachedTfLStatus")
+      }
+      userDefaults.synchronize()
+      WidgetCenter.shared.reloadAllTimelines()
     }
   }
 

@@ -69,22 +69,14 @@ export const useJiggle = (
       };
     }
 
-    // 4. Apple iOS SpringBoard Pendulum Wobble (Pure Continuous Swing)
+    // 4. Harmonic Anti-Phase Jiggle (Pure Continuous Alternating Wobble)
     const factor = globalJiggle ? globalJiggle.value : 0;
-    const isOdd = index % 2 !== 0;
-
-    // Alternating angular tilt
-    const rotVal = (isOdd ? -JIGGLE_DEG : JIGGLE_DEG) * factor;
-
-    // Subtle desynchronized micro-float (0.35px)
-    const transX = (index % 3 === 1 ? 0.35 : (index % 3 === 2 ? -0.35 : 0)) * factor;
-    const transY = (isOdd ? 0.35 : -0.35) * factor;
+    const direction = index % 2 === 0 ? 1 : -1;
+    const rotVal = factor * JIGGLE_DEG * direction;
 
     return {
       transform: [
         { rotate: `${rotVal}deg` },
-        { translateX: transX },
-        { translateY: transY },
         { scale: 1 },
       ],
       zIndex: 1,

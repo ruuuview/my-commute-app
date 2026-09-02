@@ -206,6 +206,98 @@ export class LiveActivityService {
     }
   }
 
+  private static lastWidgetSyncAt = 0;
+  private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
+
+  /**
+   * Synchronizes user's saved lines and latest status snapshots to the App Group UserDefaults.
+   * Debounced to 30 seconds to respect iOS WidgetKit daily reload budgets.
+   */
+  static async syncWidgetCache(selectedLines: string[], customStatuses?: Array<{ id: string; name: string; status: string; severity: number }>): Promise<void> {
+    if (Platform.OS !== 'ios') return;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.syncWidgetCache !== 'function') {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - this.lastWidgetSyncAt < this.WIDGET_RELOAD_DEBOUNCE_MS) {
+      return;
+    }
+    this.lastWidgetSyncAt = now;
+
+    try {
+      const linesArray = (selectedLines && selectedLines.length > 0)
+        ? selectedLines.map(id => ({ id: normaliseLineId(id), name: tflCapitalise(id) }))
+        : [
+            { id: 'victoria', name: 'Victoria' },
+            { id: 'jubilee', name: 'Jubilee' },
+            { id: 'northern', name: 'Northern' },
+            { id: 'central', name: 'Central' },
+            { id: 'piccadilly', name: 'Piccadilly' },
+            { id: 'elizabeth', name: 'Elizabeth' },
+          ];
+
+      const linesJson = JSON.stringify(linesArray);
+
+      let statusesJson = '';
+      if (customStatuses && customStatuses.length > 0) {
+        statusesJson = JSON.stringify(customStatuses);
+      } else {
+        // Build basic baseline statuses so widget renders 0ms pre-warmed
+        const baselineStatuses = linesArray.map(l => ({
+          id: l.id,
+          name: l.name,
+          status: 'Good Service',
+          severity: 10,
+        }));
+        statusesJson = JSON.stringify(baselineStatuses);
+      }
+
+      await MyCommuteLiveActivityModule.syncWidgetCache(linesJson, statusesJson);
+      console.log('[LiveActivityService] Synced widget pre-warmed snapshot cache.');
+    } catch (e) {
+      console.error('[LiveActivityService] syncWidgetCache failed:', e);
+    }
+  }
+
+  /**
+   * 1-Tap Preview trigger for instant on-device testing of Dynamic Island & Lock Screen Live Activity.
+   * Purges prior instances and creates a rich preview session.
+   */
+  static async startPreviewActivity(): Promise<string | null> {
+    if (Platform.OS !== 'ios') return null;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+      return null;
+    }
+
+    const previewPayload: LiveActivityBridgePayload = {
+      stationId: 'HUBVIC',
+      lineId: 'victoria',
+      lineName: 'Victoria',
+      branchKnown: true,
+      arrivals: [
+        { destinationName: 'Brixton', timeToStationSeconds: 120 },
+        { destinationName: 'Brixton', timeToStationSeconds: 300 },
+      ],
+      statusText: 'Good Service',
+      isDisrupted: false,
+      signalState: 'ok',
+    };
+
+    try {
+      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(previewPayload);
+      console.log(`[LiveActivityService] Started preview activity ${activityId}`);
+      return activityId;
+    } catch (e) {
+      console.error('[LiveActivityService] Failed to start preview activity:', e);
+      return null;
+    }
+  }
+
+  static async stopPreviewActivity(): Promise<void> {
+    await this.end();
+  }
+
   static async end(): Promise<void> {
     if (Platform.OS !== 'ios') return;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.endCommuteActivity !== 'function') {

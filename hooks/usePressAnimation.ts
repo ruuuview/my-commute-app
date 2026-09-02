@@ -6,15 +6,15 @@ import * as Haptics from 'expo-haptics';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 export const PRESS_PRESETS = {
-  LINE_PILL_SELECT:   { scaleDown: 0.94, damping: 8, stiffness: 200 },
-  LINE_PILL_DESELECT: { scaleDown: 0.94, damping: 8, stiffness: 200 },
-  STATION_ROW:        { scaleDown: 0.94, damping: 8, stiffness: 200 },
-  CONTINUE_BTN:       { scaleDown: 0.94, damping: 8, stiffness: 180 },
-  BACK_BTN:           { scaleDown: 0.94, damping: 8, stiffness: 200 },
-  SKIP_BTN:           { scaleDown: 0.95, damping: 10, stiffness: 220 },
-  NAV_BAR_ITEM:       { scaleDown: 0.88, scaleUp: 1.04, damping: 8, stiffness: 200 },
-  DEPARTURE_CARD:     { scaleDown: 0.94, damping: 8, stiffness: 200 },
-  CHIP:               { scaleDown: 0.94, damping: 8, stiffness: 200 }
+  LINE_PILL_SELECT:   { scaleDown: 0.985, damping: 28, stiffness: 300 },
+  LINE_PILL_DESELECT: { scaleDown: 0.985, damping: 28, stiffness: 300 },
+  STATION_ROW:        { scaleDown: 0.985, damping: 28, stiffness: 300 },
+  CONTINUE_BTN:       { scaleDown: 0.94, damping: 18, stiffness: 220 },
+  BACK_BTN:           { scaleDown: 0.94, damping: 18, stiffness: 220 },
+  SKIP_BTN:           { scaleDown: 0.95, damping: 18, stiffness: 220 },
+  NAV_BAR_ITEM:       { scaleDown: 0.92, scaleUp: 1.02, damping: 18, stiffness: 220 },
+  DEPARTURE_CARD:     { scaleDown: 0.985, damping: 28, stiffness: 300 },
+  CHIP:               { scaleDown: 0.985, damping: 28, stiffness: 300 }
 } as const;
 
 export type PressType =

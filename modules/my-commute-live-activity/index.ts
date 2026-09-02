@@ -48,6 +48,7 @@ export interface MyCommuteLiveActivity {
   updateCommuteActivity(payload: LiveActivityBridgePayload): Promise<void>;
   endCommuteActivity(): Promise<void>;
   isActivityActive(): Promise<boolean>;
+  syncWidgetCache(linesJson: string, statusesJson: string): Promise<void>;
 }
 
 export default MyCommuteLiveActivityModule as MyCommuteLiveActivity;

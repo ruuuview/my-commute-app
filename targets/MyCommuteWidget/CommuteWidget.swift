@@ -132,11 +132,25 @@ struct CommuteEntry: TimelineEntry {
 private let kAppGroupID = "group.com.mycommute.app"
 
 struct CommuteProvider: TimelineProvider {
+    private static let defaultLines: [SavedLine] = [
+        SavedLine(id: "victoria", name: "Victoria"),
+        SavedLine(id: "jubilee", name: "Jubilee"),
+        SavedLine(id: "northern", name: "Northern"),
+        SavedLine(id: "central", name: "Central"),
+        SavedLine(id: "piccadilly", name: "Piccadilly"),
+        SavedLine(id: "elizabeth", name: "Elizabeth")
+    ]
+
     func placeholder(in context: Context) -> CommuteEntry {
         CommuteEntry(date: Date(), fetchDate: Date(), lines: [], debugMessage: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CommuteEntry) -> Void) {
+        let savedLines = (try? readSavedLines()) ?? Self.defaultLines
+        if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
+            completion(CommuteEntry(date: Date(), fetchDate: Date(), lines: cached, debugMessage: nil))
+            return
+        }
         Task {
             let (lines, msg) = await fetchRawData()
             completion(CommuteEntry(date: Date(), fetchDate: Date(), lines: lines, debugMessage: msg))
@@ -174,22 +188,21 @@ struct CommuteProvider: TimelineProvider {
         }
     }
 
+    private func readPreWarmedCache(for savedLines: [SavedLine]) -> [CommuteLine]? {
+        guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else { return nil }
+        let rawJson = userDefaults.string(forKey: "cachedLineStatuses") ?? userDefaults.string(forKey: "cachedTfLStatus")
+        guard let jsonString = rawJson,
+              let data = jsonString.data(using: .utf8),
+              let cachedLines = try? JSONDecoder().decode([CommuteLine].self, from: data) else {
+            return nil
+        }
+        let filtered = cachedLines.filter { cl in savedLines.contains { $0.id == cl.id } }
+        return filtered.isEmpty ? cachedLines : filtered
+    }
+
     private func fetchRawData() async -> ([CommuteLine], String?) {
-        let savedLines: [SavedLine]
-        do {
-            savedLines = try readSavedLines()
-        } catch WidgetError.fileNotFound {
-            return ([], "Open the app to save your commute lines.")
-        } catch {
-            #if DEBUG
-            return ([], "BRIDGE ERROR: " + error.localizedDescription)
-            #else
-            return ([], "Open the app to sync your commute data.")
-            #endif
-        }
-        guard !savedLines.isEmpty else {
-            return ([], "Open the app to save your commute lines.")
-        }
+        let savedLines = (try? readSavedLines()) ?? Self.defaultLines
+        
         do {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
             // Cache the successfully fetched lines
@@ -197,23 +210,14 @@ struct CommuteProvider: TimelineProvider {
                let encoded = try? JSONEncoder().encode(commuteLines),
                let jsonString = String(data: encoded, encoding: .utf8) {
                 userDefaults.set(jsonString, forKey: "cachedTfLStatus")
+                userDefaults.set(jsonString, forKey: "cachedLineStatuses")
                 userDefaults.synchronize()
             }
             return (commuteLines, nil)
         } catch {
-            // Fail-open: try loading last successfully cached statuses
-            if let userDefaults = UserDefaults(suiteName: kAppGroupID),
-               let jsonString = userDefaults.string(forKey: "cachedTfLStatus"),
-               let cachedData = jsonString.data(using: .utf8),
-               let cachedLines = try? JSONDecoder().decode([CommuteLine].self, from: cachedData) {
-                
-                // Filter cached lines to only match the currently saved line IDs
-                let filteredCachedLines = cachedLines.filter { cachedLine in
-                    savedLines.contains { $0.id == cachedLine.id }
-                }
-                if !filteredCachedLines.isEmpty {
-                    return (filteredCachedLines, "Still offline. Tap again when clear")
-                }
+            // Fail-open: return pre-warmed snapshot immediately
+            if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
+                return (cached, "Still offline. Tap again when clear")
             }
             return ([], "Still offline. Tap again when clear")
         }
@@ -221,19 +225,15 @@ struct CommuteProvider: TimelineProvider {
 
     private func readSavedLines() throws -> [SavedLine] {
         guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else {
-            throw WidgetError.appGroupUnavailable
+            return Self.defaultLines
         }
-        guard let jsonString = userDefaults.string(forKey: "myLines") else {
-            throw WidgetError.fileNotFound
+        guard let jsonString = userDefaults.string(forKey: "myLines"),
+              let data = jsonString.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([SavedLine].self, from: data),
+              !decoded.isEmpty else {
+            return Self.defaultLines
         }
-        guard let data = jsonString.data(using: .utf8) else {
-            throw WidgetError.decodingFailed("String to UTF-8 failed")
-        }
-        do {
-            return try JSONDecoder().decode([SavedLine].self, from: data)
-        } catch {
-            throw WidgetError.decodingFailed("JSON decode failed: " + error.localizedDescription)
-        }
+        return decoded
     }
 
     private func getSeverityRank(_ severity: Int) -> Int {

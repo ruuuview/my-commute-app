@@ -26,7 +26,6 @@ import Animated, {
   withRepeat,
   withSequence,
   Easing,
-  useReducedMotion,
   cancelAnimation,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -42,6 +41,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { useJiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard'; // memoized
 import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -191,7 +191,7 @@ function getDashboardSeverity(statusText: string, statusSeverity?: number): Seve
 // ─── Smart Heartbeat Dot ─────────────────────────────────────────
 const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
   const opacity = useSharedValue(0.8);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useLiveReducedMotion();
 
   let color = '#4CAF50';
   let duration = 2400;
@@ -304,7 +304,7 @@ const section = StyleSheet.create({
 // ─── Stale Status Text ──────────────────────────────────────────────
 const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: number }> = ({ staleState, staleMinutes }) => {
   const opacity = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useLiveReducedMotion();
   const [displayText, setDisplayText] = useState('');
 
   useEffect(() => {
@@ -349,7 +349,6 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<any>(null);
-  const reducedMotion = useReducedMotion();
 
   const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, completedJourneys, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
@@ -404,7 +403,7 @@ const MyCommuteDashboard: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-  const globalJiggle = useSharedValue(0);
+  const jiggle = useJiggleDriver(isEditing);
 
   const isScrollingRef = useRef(false);
   const pendingDataRef = useRef<DashboardData | null>(null);
@@ -425,22 +424,6 @@ const MyCommuteDashboard: React.FC = () => {
       console.log('[MyCommuteDashboard] Applied deferred scroll data update');
     }
   }, []);
-
-  useEffect(() => {
-    if (isEditing && !reducedMotion) {
-      globalJiggle.value = withRepeat(
-        withTiming(1, { duration: 200, easing: Easing.inOut(Easing.sin) }),
-        -1,
-        true
-      );
-    } else {
-      cancelAnimation(globalJiggle);
-      globalJiggle.value = withTiming(0, {
-        duration: 200,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-  }, [isEditing, globalJiggle, reducedMotion]);
 
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
   const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
@@ -635,7 +618,7 @@ const MyCommuteDashboard: React.FC = () => {
     };
 
     return (
-      <ScaleDecorator>
+      <ScaleDecorator activeScale={1.04}>
         <View
           ref={el => { if (el) itemRefs.current[item.id] = el; }}
           style={{ height: 46, marginBottom: 12 }}
@@ -653,12 +636,12 @@ const MyCommuteDashboard: React.FC = () => {
             drag={isEditing ? drag : undefined}
             isActive={isActive}
             index={idx}
-            globalJiggle={globalJiggle}
+            jiggle={jiggle}
           />
         </View>
       </ScaleDecorator>
     );
-  }, [isEditing, isDraggingLine, sortedLines, removeLine, globalJiggle]);
+  }, [isEditing, isDraggingLine, sortedLines, removeLine, jiggle]);
   const worstStatus = useWorstStatus(selectedLines);
   const networkSeverity = useMemo(() => {
     if (staleState === 'offline') return 'offline';
@@ -894,7 +877,7 @@ const MyCommuteDashboard: React.FC = () => {
                       onScrollEnabledChange={setScrollEnabled}
                       onReorderStations={reorderStations}
                       simultaneousHandlers={scrollRef}
-                      globalJiggle={globalJiggle}
+                      jiggle={jiggle}
                       skipEntrance={hasCompletedFirstEntrance.current}
                       onStationTap={(stationId, stationName) =>
                         router.push(

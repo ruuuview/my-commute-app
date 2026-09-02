@@ -7,12 +7,12 @@ import Animated, {
   withSpring,
   withTiming,
   withDelay,
-  useReducedMotion,
   Easing,
   SharedValue,
 } from 'react-native-reanimated';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
+import { JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 
 // ─── Per-card wrapper: stagger entrance animation ──────────────────
 interface StaggeredEntranceWrapperProps {
@@ -25,7 +25,7 @@ const StaggeredEntranceWrapper = memo(
   ({ children, index, skipEntrance = false }: StaggeredEntranceWrapperProps) => {
     const entranceY = useSharedValue(skipEntrance ? 0 : 16);
     const opacity = useSharedValue(skipEntrance ? 1 : 0);
-    const reducedMotion = useReducedMotion();
+    const reducedMotion = useLiveReducedMotion();
 
     // Entrance animation: runs once on mount
     useEffect(() => {
@@ -75,6 +75,7 @@ export interface DashboardGridProps {
   /** Triggered when the drag reordering finishes */
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
+  jiggle?: JiggleDriver;
   globalJiggle?: SharedValue<number>;
   skipEntrance?: boolean;
 }
@@ -88,7 +89,7 @@ export default function DashboardGrid({
   onStationTap,
   onReorderStations,
   simultaneousHandlers,
-  globalJiggle,
+  jiggle,
   skipEntrance = false,
 }: DashboardGridProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -106,7 +107,7 @@ export default function DashboardGrid({
     const index = getIndex() ?? stations.findIndex(s => s.id === item.id);
 
     return (
-      <ScaleDecorator>
+      <ScaleDecorator activeScale={1.04}>
         <StaggeredEntranceWrapper index={index} skipEntrance={skipEntrance}>
           <DepartureCard
             stationId={item.id}
@@ -118,12 +119,12 @@ export default function DashboardGrid({
             drag={isJiggling ? drag : undefined}
             index={index}
             isActive={isActive}
-            globalJiggle={globalJiggle}
+            jiggle={jiggle}
           />
         </StaggeredEntranceWrapper>
       </ScaleDecorator>
     );
-  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, globalJiggle, skipEntrance]);
+  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, jiggle, skipEntrance]);
 
   return (
     <View style={styles.container} testID="dashboard-grid">

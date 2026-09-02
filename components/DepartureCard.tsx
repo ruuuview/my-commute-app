@@ -28,7 +28,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  useReducedMotion,
   SharedValue,
   FadeIn,
   FadeOut,
@@ -36,7 +35,7 @@ import Animated, {
   ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { useJiggle } from '../hooks/useJiggle';
+import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
@@ -77,6 +76,7 @@ export interface DepartureCardProps {
   drag?: () => void;
   index?: number;
   isActive?: boolean;
+  jiggle?: JiggleDriver;
   globalJiggle?: SharedValue<number>;
 }
 
@@ -92,22 +92,16 @@ const DepartureCard = memo(function DepartureCard({
   drag,
   index = 0,
   isActive = false,
-  globalJiggle,
+  jiggle,
 }: DepartureCardProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useLiveReducedMotion();
   const [arrivals, setArrivals] = useState<NormalizedDeparture[]>([]);
   const [loading, setLoading] = useState(true);
 
   const selectedLines = useUserPreferencesStore(useShallow(s => s.selectedLines || []));
 
-  const pressAnim = usePressAnimation('departure_card');
-  const defaultJiggleStyle = useAnimatedStyle(() => ({ transform: [{ rotate: '0deg' }] }));
-  const activeJiggleStyle = useJiggle(isEditing, isActive, globalJiggle, index, {
-    baselineShadowOpacity: GLASS.shadowOpacity,
-    baselineShadowRadius: GLASS.shadowRadius,
-    baselineElevation: 0,
-  });
-  const jiggleStyle = (isEditing || isActive) ? activeJiggleStyle : defaultJiggleStyle;
+  const pressAnim = usePressAnimation('departure_card', false, isActive);
+  const jiggleStyle = useJiggle(jiggle, index, isActive);
 
   // ── Fetch live arrivals ───────────────────────────────────────
   const fetchArrivals = useCallback(

@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useReducedMotion,
   withRepeat,
   withTiming,
   FadeIn,
@@ -15,7 +14,7 @@ import Animated, {
   SharedValue,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { useJiggle } from '../hooks/useJiggle';
+import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import * as Haptics from 'expo-haptics';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { getSeverityColor } from '../utils/getSeverityColor';
@@ -32,7 +31,7 @@ function withAlpha(hexColor: string, alpha: string): string {
 
 function StatusSkeleton() {
   const opacity = useSharedValue(0.35);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useLiveReducedMotion();
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -87,6 +86,7 @@ interface LineCardProps {
   drag?: () => void;
   isActive?: boolean;
   index?: number;
+  jiggle?: JiggleDriver;
   globalJiggle?: SharedValue<number>;
 }
 
@@ -105,7 +105,7 @@ export const LineCard = memo(function LineCard({
   drag,
   isActive = false,
   index = 0,
-  globalJiggle,
+  jiggle,
 }: LineCardProps) {
   const isSlim = cardHeight <= 48;
   const cardRadius = isSlim ? 16 : 18;
@@ -127,11 +127,7 @@ export const LineCard = memo(function LineCard({
 
   const elevationBase = (mode === 'select' && selected) ? 5 : 0;
 
-  const jiggleStyle = useJiggle(isEditing, isActive, globalJiggle, index, {
-    baselineShadowOpacity: shadowOpacityBase,
-    baselineShadowRadius: shadowRadiusBase,
-    baselineElevation: elevationBase,
-  });
+  const jiggleStyle = useJiggle(jiggle, index, isActive);
   const [touchReady, setTouchReady] = useState(true);
 
   useEffect(() => {
@@ -154,9 +150,8 @@ export const LineCard = memo(function LineCard({
     opacity: opacityVal.value,
   }));
 
-
   const configKey = selected ? 'line_deselect' : 'line_select';
-  const pressAnim = usePressAnimation(configKey, disabled);
+  const pressAnim = usePressAnimation(configKey, disabled, isActive);
   const deletePressAnim = usePressAnimation('line_deselect', disabled);
 
   const handlePress = () => {
@@ -203,6 +198,9 @@ export const LineCard = memo(function LineCard({
   const selectedShadowStyle = (mode === 'select' && selected) ? {
     shadowColor: line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : line.color,
     shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: shadowOpacityBase,
+    shadowRadius: shadowRadiusBase,
+    elevation: elevationBase,
   } : null;
 
   return (
@@ -212,7 +210,7 @@ export const LineCard = memo(function LineCard({
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
         selectedShadowStyle,
         jiggleStyle,
-        pressAnim.liftShadowStyle,
+        mode === 'display' ? pressAnim.liftShadowStyle : null,
       ]}
     >
       <Animated.View
@@ -228,7 +226,7 @@ export const LineCard = memo(function LineCard({
               : GLASS.borderColor,
           },
           pressAnim.animatedStyle,
-          pressAnim.liftBorderStyle,
+          mode === 'display' ? pressAnim.liftBorderStyle : null,
         ]}
       >
         <BlurView

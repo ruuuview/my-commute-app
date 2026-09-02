@@ -73,6 +73,8 @@ const KEY_MAP: Record<string, keyof typeof PRESS_PRESETS> = {
   chip: 'CHIP',
 };
 
+const DEFAULT_PRESET = { scaleUp: 1.025 } as const;
+
 export function usePressAnimation(configKey: PressType, disabled = false) {
   const scale = useSharedValue(1);
   const shadowRadius = useSharedValue(LIFT_REST.shadowRadius);
@@ -94,9 +96,6 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
 
   const reduceMotion = isReanimatedReducedMotion || a11yReduceMotion;
   const hapticsEnabled = useUserPreferencesStore(state => state.hapticsEnabled !== false);
-
-  const mappedKey = (KEY_MAP[configKey] || configKey) as keyof typeof PRESS_PRESETS;
-  const config = PRESS_PRESETS[mappedKey] ?? { scaleUp: 1.025 };
 
   // Scale-only — safe for ALL 14 consumers. Zero side effects.
   const animatedStyle = useAnimatedStyle(() => ({
@@ -142,6 +141,9 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
     // Cancel previous return animations
     cancelAll();
 
+    const mappedKey = (KEY_MAP[configKey] || configKey) as keyof typeof PRESS_PRESETS;
+    const config = PRESS_PRESETS[mappedKey] ?? DEFAULT_PRESET;
+
     const timingConfig = { duration: LIFT_IN_MS, easing: LIFT_EASING };
     scale.value = withTiming(config.scaleUp, timingConfig);
     shadowRadius.value = withTiming(LIFT_ACTIVE.shadowRadius, timingConfig);
@@ -149,7 +151,7 @@ export function usePressAnimation(configKey: PressType, disabled = false) {
     shadowOffsetY.value = withTiming(LIFT_ACTIVE.shadowOffsetY, timingConfig);
     liftElevation.value = withTiming(LIFT_ACTIVE.elevation, timingConfig);
     borderOpacity.value = withTiming(LIFT_ACTIVE.borderOpacity, timingConfig);
-  }, [config, disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, hapticsEnabled, cancelAll]);
+  }, [configKey, disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, hapticsEnabled, cancelAll]);
 
   const onPressOut = useCallback(() => {
     if (disabled || reduceMotion) {

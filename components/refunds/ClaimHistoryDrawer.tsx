@@ -27,6 +27,7 @@ import {
   daysLeftUntil,
   type RadarClaim,
 } from './types';
+import { GLASS } from '../../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -87,13 +88,13 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
         <Pressable style={styles.dismissOverlay} onPress={onClose} />
 
         <View style={styles.sheetContainer}>
-          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
-          
+          <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+
           <LinearGradient
             colors={[
-              'rgba(0, 152, 212, 0.15)',
-              'rgba(10, 22, 58, 0.55)',
-              'rgba(4, 9, 26, 0.92)',
+              'rgba(0, 152, 212, 0.12)',
+              'rgba(10, 22, 58, 0.70)',
+              'rgba(4, 9, 26, 0.95)',
             ]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -102,7 +103,7 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
           />
 
           <LinearGradient
-            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.specularTopSheen}
@@ -116,7 +117,7 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
             {/* Header */}
             <View style={styles.headerRow}>
               <View style={styles.headerTitleGroup}>
-                <Receipt size={20} color="#38BDF8" weight="bold" />
+                <Receipt size={20} color="#FFFFFF" weight="bold" />
                 <Text style={styles.headerTitle}>Claim History & Receipts</Text>
               </View>
               <Pressable
@@ -223,15 +224,15 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
     justifyContent: 'flex-end',
   },
   dismissOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   sheetContainer: {
-    maxHeight: SCREEN_HEIGHT * 0.85,
-    minHeight: 380,
+    maxHeight: Math.round(Dimensions.get('window').height * 0.88),
+    height: Math.round(Dimensions.get('window').height * 0.82),
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -239,10 +240,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.32)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.85)' : '#0E0E14',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.75,
+    shadowOpacity: 0.65,
     shadowRadius: 24,
     elevation: 20,
   },
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 2,
+    height: 18,
     zIndex: 10,
   },
   innerContent: {
@@ -292,8 +293,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
   },
   filterRow: {
     flexDirection: 'row',
@@ -309,8 +310,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   filterPillActive: {
-    backgroundColor: 'rgba(0, 152, 212, 0.25)',
-    borderColor: 'rgba(56, 189, 248, 0.50)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: '#FFFFFF',
   },
   filterPillText: {
     fontSize: 12.5,
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.65)',
   },
   filterPillTextActive: {
-    color: '#38BDF8',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   listContent: {
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.30)',
     gap: 6,
   },
   receiptTop: {

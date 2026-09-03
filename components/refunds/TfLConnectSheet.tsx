@@ -18,11 +18,11 @@ import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import {
   CreditCard,
-  LinkBreak,
   ArrowSquareOut,
   X,
   ShieldCheck,
 } from 'phosphor-react-native';
+import { GLASS } from '../../theme/colors';
 
 const TFL_CONTACTLESS_PORTAL_URL =
   'https://tfl.gov.uk/fares/contactless-and-oyster-account';
@@ -116,15 +116,15 @@ export default function TfLConnectSheet({
 
         {/* Outer Plain View owns layout boundaries; BlurView & Gradients act as background layers */}
         <View style={styles.sheet}>
-          {/* Glass optical blur */}
-          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+          {/* Deep dark glass optical blur to block background bleed-through */}
+          <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
 
-          {/* Electric sapphire/obsidian depth gradient */}
+          {/* Deep dark glass background gradient for ultra-crisp text legibility */}
           <LinearGradient
             colors={[
-              'rgba(0, 152, 212, 0.15)',
-              'rgba(10, 22, 58, 0.55)',
-              'rgba(4, 9, 26, 0.92)',
+              'rgba(0, 152, 212, 0.12)',
+              'rgba(10, 22, 58, 0.70)',
+              'rgba(4, 9, 26, 0.95)',
             ]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -134,7 +134,7 @@ export default function TfLConnectSheet({
 
           {/* Top specular rim catch-light */}
           <LinearGradient
-            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.specularTopSheen}
@@ -156,18 +156,18 @@ export default function TfLConnectSheet({
             <View style={styles.headerRow}>
               <View style={styles.titleWrap}>
                 <View style={styles.badgeHeader}>
-                  <ShieldCheck size={14} color="#38BDF8" weight="fill" />
-                  <Text style={styles.badgeHeaderText}>REFUND RADAR PROTECTION</Text>
+                  <ShieldCheck size={14} color="rgba(255, 255, 255, 0.75)" weight="fill" />
+                  <Text style={styles.badgeHeaderText}>REFUND RADAR</Text>
                 </View>
                 <Text style={styles.title}>
-                  Link your card so Refund Radar can see your delays
+                  Stop losing money to TfL delays.
+                </Text>
+                <Text style={styles.subtitle}>
+                  Connect once for a 28-day claim window.
                 </Text>
               </View>
               <Pressable
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onClose();
-                }}
+                onPress={onClose}
                 hitSlop={12}
                 style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
                 accessibilityRole="button"
@@ -177,118 +177,76 @@ export default function TfLConnectSheet({
               </Pressable>
             </View>
 
-            {/* Apple Frosted Glass Comparison Card */}
-            <View style={styles.comparisonBox}>
+            {/* The single recommended card — Full Protection (28 Days) */}
+            <View style={styles.recommendedCard}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.03)']}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-                pointerEvents="none"
-              />
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.35)', 'transparent']}
+                colors={['rgba(255, 255, 255, 0.18)', 'rgba(255, 255, 255, 0.00)']}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 1 }}
                 style={styles.cardSpecularTop}
                 pointerEvents="none"
               />
 
-              {/* Row 1: Registered (28-day) */}
-              <View style={styles.comparisonRow}>
-                <View style={styles.pillIconRegistered}>
-                  <CreditCard size={20} color="#38BDF8" weight="bold" />
+              <View style={styles.cardRow}>
+                <View style={styles.cardIconWrap}>
+                  <CreditCard size={20} color="#FFFFFF" weight="bold" />
                 </View>
-                <View style={styles.pillText}>
-                  <View style={styles.rowHeadingWrap}>
-                    <Text style={styles.pillHeading}>Card or Phone Registered on TfL</Text>
-                    <View style={styles.badgeCyan}>
-                      <Text style={styles.badgeCyanText}>28-DAY WINDOW</Text>
+                <View style={styles.cardTextWrap}>
+                  <View style={styles.cardHeadingRow}>
+                    <Text style={styles.cardHeading}>Full Protection</Text>
+                    <View style={styles.badgeDays}>
+                      <Text style={styles.badgeDaysText}>28 DAYS</Text>
                     </View>
                   </View>
-                  <Text style={styles.pillDesc}>
-                    Full 28-day claim window. Every eligible delay on your contactless card, iPhone, Apple Watch, or Google Pay is protected.
-                  </Text>
-                  <View style={styles.applePayContainer}>
-                    <Text style={styles.applePayFoldedNote}>
-                      ✦ Using Apple Pay or Google Pay? Link the underlying card on TfL to auto-protect phone taps.
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              {/* Row 2: Unregistered (7-day) */}
-              <View style={styles.comparisonRow}>
-                <View style={styles.pillIconUnregistered}>
-                  <LinkBreak size={20} color="rgba(255, 255, 255, 0.70)" weight="bold" />
-                </View>
-                <View style={styles.linkText}>
-                  <View style={styles.rowHeadingWrap}>
-                    <Text style={styles.linkHeading}>Unregistered Card / Phone Tap Only</Text>
-                    <View style={styles.badgeMuted}>
-                      <Text style={styles.badgeMutedText}>7-DAY LIMIT</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.linkDesc}>
-                    Only 7 days of journey history kept by TfL. Delays older than 7 days are erased and non-refundable.
+                  <Text style={styles.cardBody}>
+                    Auto-detects delays on cards & wallets. Max claim window.
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Actions: Security Trust Note → Primary CTA → Secondary CTA */}
+            {/* Flattened Apple Pay & Google Pay tip (zero nested containers) */}
+            <Text style={styles.applePayLine}>
+              Apple Pay / Google Pay: link the card behind your phone on TfL to cover taps.
+            </Text>
+
+            {/* Actions: Security Trust Note → Primary Solid White CTA → Consequence Skip Text */}
             <View style={styles.actionBlock}>
               <Text style={styles.microcopy}>
-                🔒 Opens official TfL portal. No card details or passwords stored by MyCommute.
+                🔒 Opens official TfL portal. We never see your password.
               </Text>
 
               <Pressable
-                style={({ pressed }) => [styles.primaryCtaPressable, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}
+                style={({ pressed }) => [
+                  styles.primaryCtaButton,
+                  pressed && { opacity: 0.90, transform: [{ scale: 0.99 }] },
+                ]}
                 onPress={handleOpenTflPortal}
                 accessibilityRole="button"
-                accessibilityLabel="Sign In or Link Card on TfL"
+                accessibilityLabel="Unlock 28-Day Refunds"
               >
-                <LinearGradient
-                  colors={['#00B8FF', '#0098D4', '#0072A8']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.primaryCtaGradient}
-                >
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.45)', 'transparent']}
-                    start={{ x: 0.5, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
-                    style={styles.buttonSpecular}
-                    pointerEvents="none"
-                  />
-                  <ArrowSquareOut size={19} color="#FFFFFF" weight="bold" />
-                  <Text style={styles.primaryCtaText}>
-                    Sign In / Link Card or Phone on TfL
-                  </Text>
-                </LinearGradient>
+                <ArrowSquareOut size={18} color="#04091A" weight="bold" />
+                <Text style={styles.primaryCtaText}>
+                  Unlock 28-Day Refunds
+                </Text>
               </Pressable>
 
               <Pressable
-                style={({ pressed }) => [styles.secondaryPressable, pressed && { opacity: 0.75, transform: [{ scale: 0.99 }] }]}
+                style={({ pressed }) => [
+                  styles.skipButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+                hitSlop={{ top: 12, bottom: 16, left: 20, right: 20 }}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onUnregistered();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Continue with 7-Day Window (Unregistered)"
+                accessibilityLabel="Skip · Lose delays after 7 days"
               >
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.14)', 'rgba(255, 255, 255, 0.04)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.secondaryGradient}
-                >
-                  <Text style={styles.secondaryPillText}>
-                    Continue with 7-Day Window (Unregistered)
-                  </Text>
-                </LinearGradient>
+                <Text style={styles.skipButtonText}>
+                  Skip · Lose delays after 7 days
+                </Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -301,7 +259,7 @@ export default function TfLConnectSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -310,14 +268,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.85)' : '#0E0E14',
     borderTopWidth: 1.5,
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.32)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.75,
+    shadowOpacity: 0.65,
     shadowRadius: 24,
     elevation: 20,
   },
@@ -326,7 +284,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 2,
+    height: 18,
     zIndex: 10,
   },
   cardSpecularTop: {
@@ -334,15 +292,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 1.5,
-    zIndex: 2,
-  },
-  buttonSpecular: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
+    height: 18,
     zIndex: 2,
   },
   dragHandle: {
@@ -367,212 +317,164 @@ const styles = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   badgeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   badgeHeaderText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
-    fontWeight: '800',
-    color: '#38BDF8',
+    color: 'rgba(255, 255, 255, 0.70)',
     letterSpacing: 0.8,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 21,
     color: '#FFFFFF',
-    lineHeight: 26,
+    lineHeight: 27,
     letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13.5,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 18,
+    marginTop: 2,
   },
   closeBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
     backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.38)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  comparisonBox: {
-    borderRadius: 20,
+  recommendedCard: {
+    borderRadius: 18,
     padding: 16,
-    gap: 14,
     borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 6,
+    position: 'relative',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: GLASS.elevation,
   },
-  comparisonRow: {
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
-  rowHeadingWrap: {
+  cardIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.25,
+    borderColor: GLASS.borderColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  cardTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  cardHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
   },
-  badgeCyan: {
+  cardHeading: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  badgeDays: {
     backgroundColor: 'rgba(0, 152, 212, 0.25)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.40)',
+    borderColor: 'rgba(0, 152, 212, 0.60)',
+    flexShrink: 0,
   },
-  badgeCyanText: {
-    fontSize: 10,
-    fontWeight: '800',
+  badgeDaysText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10.5,
     color: '#38BDF8',
-    letterSpacing: 0.4,
+    letterSpacing: 0.6,
   },
-  badgeMuted: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+  cardBody: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 18,
   },
-  badgeMutedText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.65)',
-    letterSpacing: 0.4,
-  },
-  pillIconRegistered: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 152, 212, 0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.50)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  pillIconUnregistered: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  pillText: {
-    flex: 1,
-    gap: 4,
-  },
-  pillHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-  },
-  pillDesc: {
+  applePayLine: {
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12.5,
-    color: 'rgba(255, 255, 255, 0.80)',
+    color: 'rgba(255, 255, 255, 0.70)',
     lineHeight: 17,
-  },
-  applePayContainer: {
-    marginTop: 4,
-    backgroundColor: 'rgba(0, 152, 212, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.30)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  applePayFoldedNote: {
-    fontSize: 11.5,
-    color: '#7DD3FC',
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  linkText: {
-    flex: 1,
-    gap: 4,
-  },
-  linkHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.92)',
-    letterSpacing: -0.2,
-  },
-  linkDesc: {
-    fontSize: 12.5,
-    color: 'rgba(255, 255, 255, 0.65)',
-    lineHeight: 17,
+    paddingHorizontal: 4,
   },
   actionBlock: {
     gap: 12,
+    marginTop: 4,
   },
   microcopy: {
-    fontSize: 11.5,
-    color: 'rgba(255, 255, 255, 0.60)',
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
     lineHeight: 16,
     paddingHorizontal: 8,
   },
-  primaryCtaPressable: {
+  primaryCtaButton: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#0098D4',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  primaryCtaGradient: {
     paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.40)',
-    borderRadius: 16,
+    borderColor: 'rgba(255, 255, 255, 0.90)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
   primaryCtaText: {
-    color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: '#04091A',
     fontSize: 15.5,
-    fontWeight: '800',
     letterSpacing: -0.2,
   },
-  secondaryPressable: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  secondaryGradient: {
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
-    borderRadius: 16,
-    paddingVertical: 14,
+  skipButton: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 10,
   },
-  secondaryPillText: {
-    color: 'rgba(255, 255, 255, 0.90)',
-    fontSize: 14,
-    fontWeight: '600',
+  skipButtonText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 13.5,
+    letterSpacing: -0.2,
+    textAlign: 'center',
   },
 });
 

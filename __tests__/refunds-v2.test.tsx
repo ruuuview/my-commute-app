@@ -189,27 +189,28 @@ describe('Radar v2 — 5. TfLConnectSheet streamlined 6-element decision sheet',
     return { onRegistered, onUnregistered, onClose, ...utils };
   };
 
-  it('renders all 6 streamlined elements with folded Apple Pay guidance', async () => {
+  it('renders streamlined single-path elements with flattened Apple Pay guidance', async () => {
     const { getByText, getByLabelText } = await setup();
-    expect(getByText('Link your card so Refund Radar can see your delays')).toBeTruthy(); // 1. Headline
+    expect(getByText('Stop losing money to TfL delays.')).toBeTruthy(); // 1. Headline
+    expect(getByText('Connect once for a 28-day claim window.')).toBeTruthy(); // Subtitle
     expect(getByLabelText('Close sheet')).toBeTruthy(); // 2. Top-right close X
-    expect(getByText('Card or Phone Registered on TfL')).toBeTruthy(); // 3. Comparison row 1
-    expect(getByText(/Using Apple Pay or Google Pay\? Link the underlying card/)).toBeTruthy(); // Folded note
-    expect(getByText(/Only 7 days of journey history/)).toBeTruthy(); // Comparison row 2
-    expect(getByText(/Opens official TfL portal/)).toBeTruthy(); // 4. Security trust note
-    expect(getByText('Sign In / Link Card or Phone on TfL')).toBeTruthy(); // 5. Primary CTA
-    expect(getByText('Continue with 7-Day Window (Unregistered)')).toBeTruthy(); // 6. Secondary CTA
+    expect(getByText('Full Protection')).toBeTruthy(); // 3. Recommended card title
+    expect(getByText('28 DAYS')).toBeTruthy(); // 4. 28-Day badge
+    expect(getByText(/Apple Pay \/ Google Pay: link the card behind your phone/)).toBeTruthy(); // Flattened tip
+    expect(getByText(/Opens official TfL portal. We never see your password./)).toBeTruthy(); // 5. Security trust note
+    expect(getByText('Unlock 28-Day Refunds')).toBeTruthy(); // 6. Primary CTA
+    expect(getByText('Skip · Lose delays after 7 days')).toBeTruthy(); // 7. Consequence Skip text
   });
 
-  it('switches modes: register → onRegistered, 7-day pill → onUnregistered, X → onClose', async () => {
+  it('switches modes: register → onRegistered, skip → onUnregistered, X → onClose', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
       // Simulate user clicking 'Yes, signed in'
       buttons?.find((b) => b.text === 'Yes, signed in')?.onPress?.();
     });
     const { getByText, getByLabelText, onRegistered, onUnregistered, onClose } = await setup();
-    fireEvent.press(getByText('Sign In / Link Card or Phone on TfL'));
+    fireEvent.press(getByText('Unlock 28-Day Refunds'));
     await waitFor(() => expect(onRegistered).toHaveBeenCalledTimes(1));
-    fireEvent.press(getByText('Continue with 7-Day Window (Unregistered)'));
+    fireEvent.press(getByText('Skip · Lose delays after 7 days'));
     await waitFor(() => expect(onUnregistered).toHaveBeenCalledTimes(1));
     fireEvent.press(getByLabelText('Close sheet'));
     expect(onClose).toHaveBeenCalledTimes(2);

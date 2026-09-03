@@ -592,51 +592,44 @@ export default function RefundsScreen() {
       <View>
         <ZeroStateHeroCard checkedAtIso={lastEvaluatedAt} />
 
-        {/* Unlinked / NOT_SET setup prompt */}
-        {tflAccountStatus === 'NOT_SET' && (
-          <View style={styles.sevenDayBox}>
-            <View style={styles.sevenDayTitleRow}>
-              <Text style={styles.sevenDayTitle}>Radar Standby</Text>
+        {/* Coverage tier (Unlinked: NOT_SET or UNREGISTERED_7_DAY) */}
+        {(tflAccountStatus === 'NOT_SET' || tflAccountStatus === 'UNREGISTERED_7_DAY') && (
+          <View style={styles.coverageBox}>
+            <View style={styles.coverageTitleRow}>
+              <Text style={styles.coverageTitle}>Coverage: 7-Day Basic</Text>
               <Pressable
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                   setConnectSheetVisible(true)
                 }}
                 hitSlop={8}
-                style={styles.changePill}
+                style={({ pressed }) => [
+                  styles.unlockPill,
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                ]}
                 accessibilityRole="button"
-                accessibilityLabel="Activate Refund Radar"
+                accessibilityLabel="Unlock 28 Days"
               >
-                <Text style={styles.changePillText}>ACTIVATE</Text>
+                <Text style={styles.unlockPillText}>Unlock 28 Days</Text>
               </Pressable>
             </View>
-            <Text style={styles.sevenDayBody}>
-              Link your card or phone on TfL to scan for claimable journey delays and auto-file refunds.
+            <Text style={styles.coverageBody}>
+              TfL wipes journey history after 7 days. Connect your account to protect 28 days of refunds.
             </Text>
           </View>
         )}
 
-        {/* 7-day honesty disclosure for unregistered accounts */}
-        {tflAccountStatus === 'UNREGISTERED_7_DAY' && (
-          <View style={styles.sevenDayBox}>
-            <View style={styles.sevenDayTitleRow}>
-              <Text style={styles.sevenDayTitle}>7-Day Radar Active</Text>
-              <Pressable
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                  setConnectSheetVisible(true)
-                }}
-                hitSlop={8}
-                style={styles.changePill}
-                accessibilityRole="button"
-                accessibilityLabel="Change TfL account status"
-              >
-                <Text style={styles.changePillText}>CHANGE</Text>
-              </Pressable>
+        {/* Coverage tier (Linked: REGISTERED_28_DAY) */}
+        {tflAccountStatus === 'REGISTERED_28_DAY' && (
+          <View style={styles.coverageBox}>
+            <View style={styles.coverageTitleRow}>
+              <Text style={styles.coverageTitle}>Coverage: 28-Day Maximum</Text>
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeBadgeText}>Active</Text>
+              </View>
             </View>
-            <Text style={styles.sevenDayBody}>
-              Self-reported. Without a TfL link we can only reach the last 7 days
-              of journey history — older delays stay invisible.
+            <Text style={styles.coverageBody}>
+              Your cards and wallets are covered for the full statutory claim window.
             </Text>
           </View>
         )}
@@ -647,24 +640,20 @@ export default function RefundsScreen() {
   const renderFooter = () => {
     return (
       <View style={{ marginTop: 16, gap: 14 }}>
-        {/* Quick action: Claim History & Receipts */}
+        {/* Quick action: Claim History & Receipts (flat matte glass, zero iOS 7 specular sheen) */}
         <Pressable
           onPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
             setHistoryDrawerVisible(true)
           }}
-          style={styles.historyCard}
+          style={({ pressed }) => [
+            styles.historyCard,
+            pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+          ]}
           accessibilityRole="button"
           accessibilityLabel="View claim history and receipts"
         >
           <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.historySpecularSheen}
-          />
           <View style={styles.historyCardContent}>
             <View style={styles.historyCardLeft}>
               <View style={styles.historyIconCircle}>
@@ -683,7 +672,7 @@ export default function RefundsScreen() {
         <View style={styles.microTrustRow}>
           <ShieldCheck size={14} color="#34C759" weight="fill" />
           <Text style={styles.microTrustText}>
-            TfL 28-Day Guarantee · Claims reconciled against registered Oyster/Card
+            TfL 28-Day Guarantee · Claims verified against TfL history
           </Text>
         </View>
 
@@ -926,47 +915,68 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // ── 7-day disclosure ───
-  sevenDayBox: {
-    borderRadius: 16,
+  // ── Coverage Tier (The Upsell) ───
+  coverageBox: {
+    borderRadius: 18,
     borderWidth: 1.25,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(10, 15, 60, 0.65)',
-    padding: 14,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 16,
+    gap: 8,
     marginTop: 4,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.40,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  sevenDayTitleRow: {
+  coverageTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
-  sevenDayTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+  coverageTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
     color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
-  changePill: {
-    paddingHorizontal: 8,
+  unlockPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  unlockPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 11.5,
+    color: '#04091A',
+    letterSpacing: -0.2,
+  },
+  activeBadge: {
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,152,212,0.15)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.40)',
   },
-  changePillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#0098D4',
+  activeBadgeText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 11,
+    color: '#34D399',
     letterSpacing: 0.5,
   },
-  sevenDayBody: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
-    lineHeight: 15,
+  coverageBody: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 17,
   },
 
   // ── Earned UI footer ───
@@ -993,19 +1003,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   historyCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    backgroundColor: GLASS.background,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     position: 'relative',
-  },
-  historySpecularSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
   },
   historyCardContent: {
     flexDirection: 'row',
@@ -1033,7 +1036,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   historyCardSubtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 11.5,
     color: 'rgba(255, 255, 255, 0.55)',
     marginTop: 1,
@@ -1095,9 +1098,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   microTrustText: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.40)',
-    fontWeight: '500',
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.55)',
     letterSpacing: 0.2,
   },
 })

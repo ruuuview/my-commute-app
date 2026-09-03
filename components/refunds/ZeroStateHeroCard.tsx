@@ -1,7 +1,7 @@
 // components/refunds/ZeroStateHeroCard.tsx
 // Radar v2 State A' hero — live surveillance radar card with pristine Apple Liquid Glass.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,8 +12,8 @@ import Animated, {
   withRepeat,
   withTiming,
   useReducedMotion,
+  Easing,
 } from 'react-native-reanimated';
-import { formatRelativeTime } from '../../services/refundSlaService';
 import { GLASS } from '../../theme/colors';
 import { SolariCurrencyRow } from './SolariCurrencyRow';
 
@@ -23,32 +23,38 @@ export default function ZeroStateHeroCard({
   checkedAtIso?: string | null;
 }) {
   const reducedMotion = useReducedMotion();
-  const [relativeTime, setRelativeTime] = useState(
-    formatRelativeTime(checkedAtIso),
-  );
-
-  // Relative-time ticker (10s cadence mirrors the honest server cadence)
-  useEffect(() => {
-    setRelativeTime(formatRelativeTime(checkedAtIso));
-    const interval = setInterval(() => {
-      setRelativeTime(formatRelativeTime(checkedAtIso));
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [checkedAtIso]);
 
   // Slow breathing pulse on the surveillance ring
-  const pulse = useSharedValue(0);
+  const ringPulse = useSharedValue(0);
   useEffect(() => {
     if (reducedMotion) {
-      pulse.value = 0;
+      ringPulse.value = 0;
       return;
     }
-    pulse.value = withRepeat(withTiming(1, { duration: 1600 }), -1, true);
-  }, [pulse, reducedMotion]);
+    ringPulse.value = withRepeat(withTiming(1, { duration: 1600 }), -1, true);
+  }, [ringPulse, reducedMotion]);
 
   const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + 0.15 * pulse.value }],
-    opacity: 1 - 0.25 * pulse.value,
+    transform: [{ scale: 1 + 0.15 * ringPulse.value }],
+    opacity: 1 - 0.25 * ringPulse.value,
+  }));
+
+  // Continuous Reanimated breathing physics for the emerald ● LIVE dot (opacity 0.35 <-> 1.0 every 2s)
+  const dotOpacity = useSharedValue(1);
+  useEffect(() => {
+    if (reducedMotion) {
+      dotOpacity.value = 1;
+      return;
+    }
+    dotOpacity.value = withRepeat(
+      withTiming(0.35, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [dotOpacity, reducedMotion]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: dotOpacity.value,
   }));
 
   return (
@@ -76,23 +82,26 @@ export default function ZeroStateHeroCard({
             </View>
           </View>
 
-          {/* RIGHT: understated sync timestamp without duplicate dot */}
-          <Text style={styles.syncText}>{relativeTime ? `Synced ${relativeTime.toLowerCase()}` : 'Live surveillance'}</Text>
+          {/* RIGHT: Live Pulse with Reanimated continuous breathing physics */}
+          <View style={styles.liveBadge}>
+            <Animated.View style={[styles.liveDot, dotStyle]} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </View>
         </View>
 
         {/* Hero status headline & split-flap amount */}
         <View style={styles.heroBlock}>
           <Text style={styles.heroTag}>ALL CORRIDORS CLEAR</Text>
           <SolariCurrencyRow amountPence={0} />
-          <Text style={styles.heroSub}>No Claimable Delays Today</Text>
         </View>
 
-        <Text style={styles.subtitle}>
-          No qualifying delays over 15 minutes detected on your routes.
-        </Text>
-        <Text style={styles.caption}>
-          We monitor TfL 24/7. The moment an eligible delay hits, your claim lands here automatically.
-        </Text>
+        {/* Strict 2-line clean reassurance */}
+        <View style={styles.bodyBlock}>
+          <Text style={styles.bodyTitle}>Zero claimable delays today.</Text>
+          <Text style={styles.bodyCaption}>
+            Monitoring your lines 24/7. Eligible delays over 15 mins will queue here automatically.
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -153,10 +162,32 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: 'rgba(255, 255, 255, 0.50)',
   },
-  syncText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 11.5,
-    color: 'rgba(255, 255, 255, 0.55)',
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.30)',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#34D399',
+    shadowColor: '#34D399',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  liveText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+    color: '#34D399',
   },
   heroBlock: {
     alignItems: 'center',
@@ -166,28 +197,26 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
     letterSpacing: 1.2,
-    color: '#34C759',
-    marginBottom: 4,
+    color: '#34D399',
+    marginBottom: 6,
   },
-  heroSub: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
+  bodyBlock: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+  },
+  bodyTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  bodyCaption: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 12.5,
     color: 'rgba(255, 255, 255, 0.75)',
-    marginTop: 2,
-  },
-  subtitle: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.70)',
     textAlign: 'center',
-    lineHeight: 19,
-    marginHorizontal: 8,
-  },
-  caption: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.45)',
-    textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
   },
 });

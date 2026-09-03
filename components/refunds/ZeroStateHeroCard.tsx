@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Broadcast } from 'phosphor-react-native';
+import { Broadcast, ShieldCheck } from 'phosphor-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,8 +19,10 @@ import { SolariCurrencyRow } from './SolariCurrencyRow';
 
 export default function ZeroStateHeroCard({
   checkedAtIso = null,
+  isRegistered28Day = false,
 }: {
   checkedAtIso?: string | null;
+  isRegistered28Day?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
 
@@ -82,10 +84,18 @@ export default function ZeroStateHeroCard({
             </View>
           </View>
 
-          {/* RIGHT: Live Pulse with Reanimated continuous breathing physics */}
-          <View style={styles.liveBadge}>
-            <Animated.View style={[styles.liveDot, dotStyle]} />
-            <Text style={styles.liveText}>LIVE</Text>
+          {/* RIGHT: Live Pulse & optional 28D Protected badge */}
+          <View style={styles.rightGroup}>
+            {isRegistered28Day && (
+              <View style={styles.protectedBadge}>
+                <ShieldCheck size={12} color="#34D399" weight="fill" />
+                <Text style={styles.protectedText}>28D PROTECTED</Text>
+              </View>
+            )}
+            <View style={styles.liveBadge}>
+              <Animated.View style={[styles.liveDot, dotStyle]} />
+              <Text style={styles.liveText}>LIVE</Text>
+            </View>
           </View>
         </View>
 
@@ -97,9 +107,9 @@ export default function ZeroStateHeroCard({
 
         {/* Strict 2-line clean reassurance */}
         <View style={styles.bodyBlock}>
-          <Text style={styles.bodyTitle}>Zero claimable delays today.</Text>
+          <Text style={styles.bodyTitle}>No Delays Detected Today</Text>
           <Text style={styles.bodyCaption}>
-            Monitoring your lines 24/7. Eligible delays over 15 mins will queue here automatically.
+            Monitoring your lines 24/7. Eligible delays over 15 mins queue here automatically.
           </Text>
         </View>
       </View>
@@ -161,6 +171,28 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 10.5,
     color: 'rgba(255, 255, 255, 0.50)',
+  },
+  rightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  protectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.30)',
+  },
+  protectedText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: '#34D399',
   },
   liveBadge: {
     flexDirection: 'row',

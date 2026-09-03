@@ -590,48 +590,36 @@ export default function RefundsScreen() {
 
     return (
       <View>
-        <ZeroStateHeroCard checkedAtIso={lastEvaluatedAt} />
+        <ZeroStateHeroCard
+          checkedAtIso={lastEvaluatedAt}
+          isRegistered28Day={tflAccountStatus === 'REGISTERED_28_DAY'}
+        />
 
-        {/* Coverage tier (Unlinked: NOT_SET or UNREGISTERED_7_DAY) */}
-        {(tflAccountStatus === 'NOT_SET' || tflAccountStatus === 'UNREGISTERED_7_DAY') && (
-          <View style={styles.coverageBox}>
+        {/* Coverage tier (Unlinked: NOT_SET or UNREGISTERED_7_DAY) — Completely vanishes when REGISTERED_28_DAY */}
+        {tflAccountStatus !== 'REGISTERED_28_DAY' && (
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              setConnectSheetVisible(true)
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.coverageBox,
+              pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Coverage: 7-Day Basic. Tap to unlock 28 days."
+          >
             <View style={styles.coverageTitleRow}>
               <Text style={styles.coverageTitle}>Coverage: 7-Day Basic</Text>
-              <Pressable
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  setConnectSheetVisible(true)
-                }}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  styles.unlockPill,
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Unlock 28 Days"
-              >
-                <Text style={styles.unlockPillText}>Unlock 28 Days</Text>
-              </Pressable>
+              <View style={styles.unlockPill}>
+                <Text style={styles.unlockPillText}>Unlock 28 Days →</Text>
+              </View>
             </View>
             <Text style={styles.coverageBody}>
               TfL wipes journey history after 7 days. Connect your account to protect 28 days of refunds.
             </Text>
-          </View>
-        )}
-
-        {/* Coverage tier (Linked: REGISTERED_28_DAY) */}
-        {tflAccountStatus === 'REGISTERED_28_DAY' && (
-          <View style={styles.coverageBox}>
-            <View style={styles.coverageTitleRow}>
-              <Text style={styles.coverageTitle}>Coverage: 28-Day Maximum</Text>
-              <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
-              </View>
-            </View>
-            <Text style={styles.coverageBody}>
-              Your cards and wallets are covered for the full statutory claim window.
-            </Text>
-          </View>
+          </Pressable>
         )}
       </View>
     )

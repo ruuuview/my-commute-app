@@ -31,23 +31,35 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import LifetimeMetricsCard from '../components/refunds/LifetimeMetricsCard';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
 import { SlaSurveyModal } from '../components/refunds/SlaSurveyModal';
+import ZeroStateHeroCard from '../components/refunds/ZeroStateHeroCard';
 import {
   isSurveySnoozed,
   snoozeSurvey,
 } from '../services/refundSlaService';
 
 // ── Lightweight reanimated stub (hook under test only uses these symbols) ──
-jest.mock('react-native-reanimated', () => ({
-  useSharedValue: (init: number) => ({ value: init }),
-  withTiming: (target: number) => target,
-  Easing: {
-    out: (fn: (x: number) => number) => fn,
-    expo: (x: number) => (x === 1 ? 1 : 1 - Math.pow(2, -10 * x)),
-  },
-  useReducedMotion: () => false,
-  useAnimatedReaction: () => undefined,
-  runOnJS: (fn: unknown) => fn,
-}));
+jest.mock('react-native-reanimated', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: {
+      View,
+    },
+    useSharedValue: (init: number) => ({ value: init }),
+    withTiming: (target: number) => target,
+    withRepeat: (anim: unknown) => anim,
+    useAnimatedStyle: (fn: () => unknown) => fn(),
+    Easing: {
+      out: (fn: (x: number) => number) => fn,
+      inOut: (fn: (x: number) => number) => fn,
+      ease: (x: number) => x,
+      expo: (x: number) => (x === 1 ? 1 : 1 - Math.pow(2, -10 * x)),
+    },
+    useReducedMotion: () => false,
+    useAnimatedReaction: () => undefined,
+    runOnJS: (fn: unknown) => fn,
+  };
+});
 
 const baseClaim = (overrides: Partial<RadarClaim> = {}): RadarClaim => ({
   id: 501,
@@ -237,6 +249,24 @@ describe('Radar v2 — 6. Day-14 survey snooze (regression: /review catch)', () 
     fireEvent.press(screen.getByText(/Still Waiting/));
     await waitFor(() => expect(submittedId).toBe(4242));
     expect(isSurveySnoozed(4242)).toBe(true);
+  });
+});
+
+describe('Radar v2 — 7. ZeroStateHeroCard 10/10 & Disappearing Coverage Architecture', () => {
+  it('renders live breathing indicator and canonical 2-line reassurance', async () => {
+    const screen = await render(<ZeroStateHeroCard checkedAtIso={null} isRegistered28Day={false} />);
+    expect(screen.getByText('RADAR SENTINEL')).toBeTruthy();
+    expect(screen.getByText('LIVE')).toBeTruthy();
+    expect(screen.getByText('ALL CORRIDORS CLEAR')).toBeTruthy();
+    expect(screen.getByText('No Delays Detected Today')).toBeTruthy();
+    expect(screen.getByText(/Monitoring your lines 24\/7/)).toBeTruthy();
+    expect(screen.queryByText('28D PROTECTED')).toBeNull();
+  });
+
+  it('renders 28D PROTECTED badge when isRegistered28Day is true', async () => {
+    const screen = await render(<ZeroStateHeroCard checkedAtIso={null} isRegistered28Day={true} />);
+    expect(screen.getByText('28D PROTECTED')).toBeTruthy();
+    expect(screen.getByText('LIVE')).toBeTruthy();
   });
 });
 

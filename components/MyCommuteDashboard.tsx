@@ -435,7 +435,7 @@ const MyCommuteDashboard: React.FC = () => {
 
       if (action === 'show-reroute') {
         // Quick Action [View Reroute 🚇] from expanded banner
-        setRerouteInitialSection('alternatives');
+        setRerouteInitialSection(initialSection);
         setRerouteLine(lineData);
         setSelectedLineInfo(null);
       } else {

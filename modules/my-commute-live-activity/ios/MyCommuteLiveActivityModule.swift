@@ -1,32 +1,43 @@
 import ExpoModulesCore
 import ActivityKit
 import WidgetKit
+import UserNotifications
+import UIKit
 
 // MARK: - Bridge module (Expo Modules Core)
 //
-// This module is the ONLY writer of the Live Activity. It receives a
-// cache-shaped payload from RN (already built by the Tier2CacheManager agent)
-// and maps it onto ActivityKit. It never fetches, never owns cache state.
-//
-// It ALSO mirrors the payload to a JSON file in the App Group container so the
-// Widget Extension process — which cannot reach the RN bridge — can read the
-// same single source of truth for passive Lock Screen / Dynamic Island display.
-// Single writer (RN -> this module), single reader (widget). No duplicate cache.
+// This module is the single writer of the Live Activity on iOS.
+// Supports:
+// - ActivityKit Live Activity lifecycle (start, update, end)
+// - Singleton enforcement (cancelling any prior activity before starting a new one)
+// - Dual-token push registration (Push-to-Start on iOS 17.2+, Live Activity pushTokenUpdates)
+// - App Group cache mirroring for the Widget Extension process
+// - Time-Sensitive notification permission queries
 
 public class MyCommuteLiveActivityModule: Module {
   private let appGroupId = "group.com.mycommute.app"
   private let mirrorFileName = "live-activity-mirror.json"
+  private var pushToStartTask: Task<Void, Never>?
 
   public func definition() -> ModuleDefinition {
     Name("MyCommuteLiveActivityModule")
 
-    Events("onActivityUpdate")
+    Events("onActivityUpdate", "onPushToStartTokenUpdate", "onLiveActivityPushTokenUpdate")
+
+    OnCreate {
+      self.startPushToStartObservation()
+    }
+
+    OnDestroy {
+      self.pushToStartTask?.cancel()
+      self.pushToStartTask = nil
+    }
 
     AsyncFunction("startCommuteActivity") { (payload: [String: Any]) -> String? in
       guard #available(iOS 16.2, *) else { return nil }
       guard ActivityAuthorizationInfo().areActivitiesEnabled else { return nil }
 
-      // Singleton Teardown: terminate any existing active Live Activities
+      // 1. Singleton Enforce: Atomic teardown of all pre-existing Live Activities
       let existingActivities = Activity<MyCommuteLiveActivityAttributes>.activities
       for oldActivity in existingActivities {
         Task {
@@ -34,23 +45,50 @@ public class MyCommuteLiveActivityModule: Module {
         }
       }
 
+      let journeyId = payload["journeyId"] as? String ?? "j_\(Int(Date().timeIntervalSince1970))"
+      let originStation = payload["originStation"] as? String ?? (payload["stationId"] as? String ?? "")
+      let destinationStation = payload["destinationStation"] as? String ?? ""
+      let lineId = payload["lineId"] as? String ?? ""
+      let lineName = payload["lineName"] as? String ?? ""
+
       let attrs = MyCommuteLiveActivityAttributes(
-        stationId: payload["stationId"] as? String ?? "",
-        lineId: payload["lineId"] as? String ?? "",
-        lineName: payload["lineName"] as? String ?? ""
+        journeyId: journeyId,
+        originStation: originStation,
+        destinationStation: destinationStation,
+        lineId: lineId,
+        lineName: lineName,
+        stationId: originStation
       )
 
       let state = Self.state(from: payload)
       self.writeMirror(payload)
 
       do {
-        let staleDate = Date().addingTimeInterval(900) // 15-minute auto-expiry
+        let staleTimeout = TimeInterval(state.segmentMaxDuration > 0 ? state.segmentMaxDuration : 900)
+        let staleDate = state.etaTimestamp > 0
+          ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp)).addingTimeInterval(staleTimeout)
+          : Date().addingTimeInterval(900)
+
         let content = ActivityContent(state: state, staleDate: staleDate)
+
+        // Request with pushType: .token to obtain remote APNs updates
         let activity = try Activity<MyCommuteLiveActivityAttributes>.request(
           attributes: attrs,
           content: content,
-          pushType: nil
+          pushType: .token
         )
+
+        // 2. Observe Live Activity Push Token updates (handles token rotation)
+        Task {
+          for await tokenData in activity.pushTokenUpdates {
+            let tokenStr = tokenData.map { String(format: "%02x", $0) }.joined()
+            self.sendEvent("onLiveActivityPushTokenUpdate", [
+              "journeyId": journeyId,
+              "token": tokenStr
+            ])
+          }
+        }
+
         return activity.id
       } catch {
         print("[MyCommuteLiveActivity] start failed: \(error.localizedDescription)")
@@ -65,7 +103,12 @@ public class MyCommuteLiveActivityModule: Module {
 
       let activities = Activity<MyCommuteLiveActivityAttributes>.activities
       guard let activity = activities.first else { return }
-      let staleDate = Date().addingTimeInterval(900)
+
+      let staleTimeout = TimeInterval(state.segmentMaxDuration > 0 ? state.segmentMaxDuration : 900)
+      let staleDate = state.etaTimestamp > 0
+        ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp)).addingTimeInterval(staleTimeout)
+        : Date().addingTimeInterval(900)
+
       let content = ActivityContent(state: state, staleDate: staleDate)
       Task {
         await activity.update(content)
@@ -75,7 +118,7 @@ public class MyCommuteLiveActivityModule: Module {
     AsyncFunction("endCommuteActivity") { () -> Void in
       guard #available(iOS 16.2, *) else { return }
       let activities = Activity<MyCommuteLiveActivityAttributes>.activities
-      let finalState = activities.first?.contentState
+      let finalState = activities.first?.content.state
       let content = ActivityContent(
         state: finalState ?? Self.emptyState(),
         staleDate: nil
@@ -105,15 +148,79 @@ public class MyCommuteLiveActivityModule: Module {
       userDefaults.synchronize()
       WidgetCenter.shared.reloadAllTimelines()
     }
+
+    AsyncFunction("hasDynamicIsland") { () -> Bool in
+      // Dynamic Island is present on iPhone 14 Pro, 14 Pro Max, and all iPhone 15 & 16 series
+      if #available(iOS 16.0, *) {
+        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
+        let screenHeight = UIScreen.main.nativeBounds.height
+        // 2556 = 14 Pro, 15, 15 Pro, 16
+        // 2796 = 14 Pro Max, 15 Plus, 15 Pro Max, 16 Plus
+        // 2622 / 2868 = 16 Pro / 16 Pro Max
+        let isDIHeight = screenHeight == 2556 || screenHeight == 2796 || screenHeight == 2622 || screenHeight == 2868
+        return isPhone && isDIHeight
+      }
+      return false
+    }
+
+    AsyncFunction("checkTimeSensitivePermission") { () -> Bool in
+      let center = UNUserNotificationCenter.current()
+      let settings = await center.notificationSettings()
+      if #available(iOS 15.0, *) {
+        return settings.timeSensitiveSetting == .enabled
+      }
+      return settings.authorizationStatus == .authorized
+    }
+
+    AsyncFunction("requestTimeSensitivePermission") { () -> Bool in
+      let center = UNUserNotificationCenter.current()
+      do {
+        var options: UNAuthorizationOptions = [.alert, .sound, .badge]
+        if #available(iOS 15.0, *) {
+          options.insert(.timeSensitive)
+        }
+        let granted = try await center.requestAuthorization(options: options)
+        return granted
+      } catch {
+        return false
+      }
+    }
+  }
+
+  // MARK: - Push-to-Start Token Observation (iOS 17.2+)
+
+  private func startPushToStartObservation() {
+    guard #available(iOS 17.2, *) else { return }
+    pushToStartTask?.cancel()
+    pushToStartTask = Task { [weak self] in
+      for await tokenData in Activity<MyCommuteLiveActivityAttributes>.pushToStartTokenUpdates {
+        guard let self = self else { return }
+        let tokenStr = tokenData.map { String(format: "%02x", $0) }.joined()
+        self.sendEvent("onPushToStartTokenUpdate", ["token": tokenStr])
+      }
+    }
   }
 
   // MARK: - Mapping helpers
 
   private static func state(from payload: [String: Any]) -> MyCommuteLiveActivityAttributes.ContentState {
-    let branchKnown = payload["branchKnown"] as? Bool ?? false
-    let signal = payload["signalState"] as? String ?? "ok"
+    let lineName = payload["lineName"] as? String ?? ""
+    let statusSeverity = payload["statusSeverity"] as? String ?? "good"
     let statusText = payload["statusText"] as? String ?? "On time"
-    let isDisrupted = payload["isDisrupted"] as? Bool ?? false
+    let severityTier = payload["severityTier"] as? Int ?? 0
+    let nextTrainMinutes = payload["nextTrainMinutes"] as? Int ?? 0
+    let etaTimestamp = payload["etaTimestamp"] as? Int ?? Int(Date().addingTimeInterval(480).timeIntervalSince1970)
+    let etaDelta = payload["etaDelta"] as? String ?? "On time"
+    let isEscalated = payload["isEscalated"] as? Bool ?? (severityTier >= 3)
+    let detourLine = payload["detourLine"] as? String
+    let detourMinutes = payload["detourMinutes"] as? Int
+    let detourStatus = payload["detourStatus"] as? String
+    let delayRepayEligible = payload["delayRepayEligible"] as? Bool ?? false
+    let estimatedFare = payload["estimatedFare"] as? String
+    let delayMinutes = payload["delayMinutes"] as? Int ?? 0
+    let tunnelState = payload["tunnelState"] as? String ?? "normal"
+    let progress = payload["progress"] as? Double ?? 0.0
+    let segmentMaxDuration = payload["segmentMaxDuration"] as? Int ?? 180
 
     var arrivals: [Arrival] = []
     if let raw = payload["arrivals"] as? [[String: Any]] {
@@ -131,21 +238,47 @@ public class MyCommuteLiveActivityModule: Module {
     }
 
     return MyCommuteLiveActivityAttributes.ContentState(
-      branchKnown: branchKnown,
-      arrivals: arrivals,
+      lineName: lineName,
+      statusSeverity: statusSeverity,
       statusText: statusText,
-      isDisrupted: isDisrupted,
-      signalState: signal
+      severityTier: severityTier,
+      nextTrainMinutes: nextTrainMinutes,
+      etaTimestamp: etaTimestamp,
+      etaDelta: etaDelta,
+      isEscalated: isEscalated,
+      detourLine: detourLine,
+      detourMinutes: detourMinutes,
+      detourStatus: detourStatus,
+      delayRepayEligible: delayRepayEligible,
+      estimatedFare: estimatedFare,
+      delayMinutes: delayMinutes,
+      tunnelState: tunnelState,
+      progress: progress,
+      segmentMaxDuration: segmentMaxDuration,
+      arrivals: arrivals.isEmpty ? nil : arrivals
     )
   }
 
   private static func emptyState() -> MyCommuteLiveActivityAttributes.ContentState {
     MyCommuteLiveActivityAttributes.ContentState(
-      branchKnown: false,
-      arrivals: [],
+      lineName: "",
+      statusSeverity: "good",
       statusText: "On time",
-      isDisrupted: false,
-      signalState: "ok"
+      severityTier: 0,
+      nextTrainMinutes: 0,
+      etaTimestamp: 0,
+      etaDelta: "On time",
+      isEscalated: false,
+      detourLine: nil,
+      detourMinutes: nil,
+      detourStatus: nil,
+      delayRepayEligible: false,
+      estimatedFare: nil,
+      delayMinutes: 0,
+      tunnelState: "normal",
+      progress: 0.0,
+      segmentMaxDuration: 180,
+      arrivals: nil
     )
   }
 
@@ -160,16 +293,21 @@ public class MyCommuteLiveActivityModule: Module {
 
   private func writeMirror(_ payload: [String: Any]) {
     guard let url = mirrorURL() else { return }
-    // Only persist what the widget needs — a strict subset of the payload.
+    if let userDefaults = UserDefaults(suiteName: appGroupId),
+       let backendUrl = payload["backendUrl"] as? String, !backendUrl.isEmpty {
+      userDefaults.set(backendUrl, forKey: "backendApiUrl")
+      userDefaults.synchronize()
+    }
     let slim: [String: Any] = [
       "stationId": payload["stationId"] ?? "",
       "lineId": payload["lineId"] ?? "",
       "lineName": payload["lineName"] ?? "",
-      "branchKnown": payload["branchKnown"] ?? false,
-      "arrivals": payload["arrivals"] ?? [],
       "statusText": payload["statusText"] ?? "On time",
-      "isDisrupted": payload["isDisrupted"] ?? false,
-      "signalState": payload["signalState"] ?? "ok"
+      "severityTier": payload["severityTier"] ?? 0,
+      "isEscalated": payload["isEscalated"] ?? false,
+      "detourLine": payload["detourLine"] ?? "",
+      "etaTimestamp": payload["etaTimestamp"] ?? 0,
+      "tunnelState": payload["tunnelState"] ?? "normal"
     ]
     try? JSONSerialization.data(withJSONObject: slim).write(to: url)
   }

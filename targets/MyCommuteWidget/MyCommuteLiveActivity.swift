@@ -22,39 +22,94 @@ public struct Arrival: Codable, Hashable {
 }
 
 public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
-  // Static for the life of the activity.
-  public var stationId: String
+  // Static attributes
+  public var journeyId: String
+  public var originStation: String
+  public var destinationStation: String
   public var lineId: String
-  public var lineName: String
+  public var lineName: String?
+  public var stationId: String? // legacy compatibility
 
-  // Mutable content state.
+  // Mutable content state
   public struct ContentState: Codable, Hashable {
-    public var branchKnown: Bool
-    public var arrivals: [Arrival]
-    public var statusText: String
-    public var isDisrupted: Bool
-    // "ok" | "no-signal" | "meltdown"
-    public var signalState: String
+    public var lineName: String
+    public var statusSeverity: String      // "good" | "minor_delays" | "severe_delays" | "suspended"
+    public var statusText: String          // Max 60 chars (4KB payload limit)
+    public var severityTier: Int           // 0-3
+    public var nextTrainMinutes: Int
+    public var etaTimestamp: Int           // Unix timestamp
+    public var etaDelta: String            // "+4m" | "On time" | "N/A"
+    public var isEscalated: Bool
+    public var detourLine: String?
+    public var detourMinutes: Int?
+    public var detourStatus: String?       // Actual status of detour line
+    public var delayRepayEligible: Bool
+    public var estimatedFare: String?      // e.g. "3.60" (displayed with ~ prefix)
+    public var delayMinutes: Int
+    public var tunnelState: String         // "normal" | "held"
+    public var progress: Double            // 0.0-1.0
+    public var segmentMaxDuration: Int     // Seconds (for staleDate calculation)
+    public var arrivals: [Arrival]?
+
+    public var isDisrupted: Bool {
+      return severityTier > 0
+    }
 
     public init(
-      branchKnown: Bool,
-      arrivals: [Arrival],
-      statusText: String,
-      isDisrupted: Bool,
-      signalState: String
+      lineName: String = "",
+      statusSeverity: String = "good",
+      statusText: String = "On time",
+      severityTier: Int = 0,
+      nextTrainMinutes: Int = 0,
+      etaTimestamp: Int = 0,
+      etaDelta: String = "On time",
+      isEscalated: Bool = false,
+      detourLine: String? = nil,
+      detourMinutes: Int? = nil,
+      detourStatus: String? = nil,
+      delayRepayEligible: Bool = false,
+      estimatedFare: String? = nil,
+      delayMinutes: Int = 0,
+      tunnelState: String = "normal",
+      progress: Double = 0.0,
+      segmentMaxDuration: Int = 180,
+      arrivals: [Arrival]? = nil
     ) {
-      self.branchKnown = branchKnown
-      self.arrivals = arrivals
+      self.lineName = lineName
+      self.statusSeverity = statusSeverity
       self.statusText = statusText
-      self.isDisrupted = isDisrupted
-      self.signalState = signalState
+      self.severityTier = severityTier
+      self.nextTrainMinutes = nextTrainMinutes
+      self.etaTimestamp = etaTimestamp
+      self.etaDelta = etaDelta
+      self.isEscalated = isEscalated
+      self.detourLine = detourLine
+      self.detourMinutes = detourMinutes
+      self.detourStatus = detourStatus
+      self.delayRepayEligible = delayRepayEligible
+      self.estimatedFare = estimatedFare
+      self.delayMinutes = delayMinutes
+      self.tunnelState = tunnelState
+      self.progress = progress
+      self.segmentMaxDuration = segmentMaxDuration
+      self.arrivals = arrivals
     }
   }
 
-  public init(stationId: String, lineId: String, lineName: String) {
-    self.stationId = stationId
+  public init(
+    journeyId: String = "",
+    originStation: String = "",
+    destinationStation: String = "",
+    lineId: String = "",
+    lineName: String? = nil,
+    stationId: String? = nil
+  ) {
+    self.journeyId = journeyId
+    self.originStation = originStation
+    self.destinationStation = destinationStation
     self.lineId = lineId
     self.lineName = lineName
+    self.stationId = stationId
   }
 }
 
@@ -187,6 +242,9 @@ struct MyCommuteWidgetBundle: WidgetBundle {
   var body: some Widget {
     CommutePremiumWidget()
     MyCommuteLiveActivityWidget()
+    if #available(iOS 18.0, *) {
+      MyCommuteControlWidget()
+    }
   }
 }
 
@@ -198,13 +256,25 @@ struct MyCommuteLiveActivityWidget: Widget {
     } dynamicIsland: { context in
       // ---- Dynamic Island ----
       DynamicIsland {
-        // Expanded (long-press)
-        DynamicIslandExpandedRegion(.leading) { EmptyView() }
-        DynamicIslandExpandedRegion(.trailing) { EmptyView() }
-        DynamicIslandExpandedRegion(.center) {
-          ExpandedIslandView(context: context)
+        // Expanded (long-press) — Apple HIG 3-region expanded layout
+        DynamicIslandExpandedRegion(.leading) {
+          HStack(spacing: 5) {
+            Circle()
+              .fill(LineColor.color(for: context.attributes.lineId))
+              .frame(width: 8, height: 8)
+            Text(context.attributes.lineName ?? context.state.lineName)
+              .font(.system(size: 13, weight: .bold))
+              .foregroundColor(.white)
+          }
+          .padding(.leading, 4)
         }
-        DynamicIslandExpandedRegion(.bottom) { EmptyView() }
+        DynamicIslandExpandedRegion(.trailing) {
+          ExpandedStatusPill(context: context)
+            .padding(.trailing, 4)
+        }
+        DynamicIslandExpandedRegion(.bottom) {
+          DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+        }
       } compactLeading: {
         CompactIslandView(context: context, trailing: false)
       } compactTrailing: {
@@ -222,11 +292,13 @@ private struct CompactIslandView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
   let trailing: Bool
 
-  private var hero: Arrival? { context.state.arrivals.first }
-  private var signalDegraded: Bool { context.state.signalState != "ok" }
+  private var hero: Arrival? { context.state.arrivals?.first }
+  private var signalDegraded: Bool { context.state.tunnelState == "held" }
   private var minutesAway: Int {
-    guard let hero = hero else { return 0 }
-    return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+    if let hero = hero {
+      return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+    }
+    return context.state.nextTrainMinutes
   }
 
   var body: some View {
@@ -235,14 +307,17 @@ private struct CompactIslandView: View {
         Text("...")
           .font(.mcHeadline)
           .foregroundColor(.white.opacity(0.7))
+          .accessibilityLabel("Reconnecting")
       } else if context.state.isDisrupted {
         Text("🟡 \(minutesAway)m")
           .font(.mcHeadline)
           .foregroundColor(Color(hex: 0xFFB000))
+          .accessibilityLabel("Disrupted, next train in \(minutesAway) minutes")
       } else {
         Text("\(minutesAway == 0 ? "Due" : "\(minutesAway)m")")
           .font(.mcHeadline)
           .foregroundColor(.white)
+          .accessibilityLabel(minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes")
       }
     } else {
       HStack(spacing: 3) {
@@ -251,6 +326,7 @@ private struct CompactIslandView: View {
           .font(.mcHeadline)
           .foregroundColor(.white)
       }
+      .accessibilityLabel("\(context.attributes.lineName ?? context.state.lineName) line")
     }
   }
 
@@ -262,7 +338,50 @@ private struct CompactIslandView: View {
       "piccadilly": "Picc", "victoria": "Vic", "waterlooandcity": "W&C",
       "overground": "Over"
     ]
-    return map[context.attributes.lineId.lowercased()] ?? context.attributes.lineName.prefix(4).capitalized
+    let name = context.attributes.lineName ?? context.state.lineName
+    return map[context.attributes.lineId.lowercased()] ?? String(name.prefix(4)).capitalized
+  }
+}
+
+// MARK: - Dynamic Island Expanded Status Pill
+
+private struct ExpandedStatusPill: View {
+  let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
+
+  var body: some View {
+    if context.state.tunnelState == "held" {
+      Text("Reconnecting")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(.white.opacity(0.7))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color.white.opacity(0.12))
+        .cornerRadius(4)
+    } else if context.state.severityTier >= 2 {
+      Text(context.state.severityTier == 3 ? "Suspended" : "Severe Delays")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(Color(hex: 0xFF3B30))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color(hex: 0xFF3B30).opacity(0.18))
+        .cornerRadius(4)
+    } else if context.state.severityTier == 1 {
+      Text("Minor Delays")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(Color(hex: 0xFFB000))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color(hex: 0xFFB000).opacity(0.18))
+        .cornerRadius(4)
+    } else {
+      Text("Good Service")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(Color(hex: 0x30D158))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color(hex: 0x30D158).opacity(0.18))
+        .cornerRadius(4)
+    }
   }
 }
 
@@ -271,12 +390,14 @@ private struct CompactIslandView: View {
 private struct ExpandedIslandView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
-  private var hero: Arrival? { context.state.arrivals.first }
-  private var signalDegraded: Bool { context.state.signalState != "ok" }
-  private var hasArrival: Bool { hero != nil }
+  private var hero: Arrival? { context.state.arrivals?.first }
+  private var signalDegraded: Bool { context.state.tunnelState == "held" }
+  private var hasArrival: Bool { hero != nil || context.state.nextTrainMinutes >= 0 }
   private var minutesAway: Int {
-    guard let hero = hero else { return 0 }
-    return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+    if let hero = hero {
+      return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+    }
+    return context.state.nextTrainMinutes
   }
 
   var body: some View {
@@ -285,7 +406,7 @@ private struct ExpandedIslandView: View {
         Circle()
           .fill(LineColor.color(for: context.attributes.lineId))
           .frame(width: 8, height: 8)
-        Text(context.attributes.lineName)
+        Text(context.attributes.lineName ?? context.state.lineName)
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
         Spacer()
@@ -297,7 +418,15 @@ private struct ExpandedIslandView: View {
             .padding(.vertical, 2)
             .background(Color.white.opacity(0.12))
             .cornerRadius(4)
-        } else if context.state.isDisrupted {
+        } else if context.state.severityTier >= 2 {
+          Text(context.state.severityTier == 3 ? "Suspended" : "Severe Delays")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(Color(hex: 0xFF3B30))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color(hex: 0xFF3B30).opacity(0.18))
+            .cornerRadius(4)
+        } else if context.state.severityTier == 1 {
           Text("Minor Delays")
             .font(.system(size: 10, weight: .bold))
             .foregroundColor(Color(hex: 0xFFB000))
@@ -317,12 +446,7 @@ private struct ExpandedIslandView: View {
       }
 
       if hasArrival {
-        DeliveryTrackView(
-          minutesAway: minutesAway,
-          lineId: context.attributes.lineId,
-          lineName: context.attributes.lineName,
-          destinationName: destinationText
-        )
+        DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
       } else {
         Text("No trains currently scheduled")
           .font(.system(size: 12, weight: .medium))
@@ -333,10 +457,10 @@ private struct ExpandedIslandView: View {
   }
 
   private var destinationText: String {
-    if context.state.branchKnown, let hero = hero, !hero.destinationName.isEmpty {
+    if let hero = hero, !hero.destinationName.isEmpty {
       return hero.destinationName
     }
-    return context.attributes.lineName
+    return context.attributes.lineName ?? context.state.lineName
   }
 }
 
@@ -345,18 +469,19 @@ private struct ExpandedIslandView: View {
 private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
-  private var hero: Arrival? { context.state.arrivals.first }
-  private var signalDegraded: Bool { context.state.signalState != "ok" }
-  private var hasArrival: Bool { hero != nil }
+  private var hero: Arrival? { context.state.arrivals?.first }
+  private var signalDegraded: Bool { context.state.tunnelState == "held" }
+  private var hasArrival: Bool { hero != nil || context.state.nextTrainMinutes >= 0 }
 
   private var minutesAway: Int {
-    guard let hero = hero else { return 0 }
-    return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+    if let hero = hero {
+      return max(0, Int((hero.timeToStationSeconds + 30) / 60))
+    }
+    return context.state.nextTrainMinutes
   }
 
   private var isSevere: Bool {
-    let text = context.state.statusText.lowercased()
-    return text.contains("severe") || text.contains("suspended") || text.contains("closure")
+    return context.state.severityTier >= 2
   }
 
   private var mainHeadline: String {
@@ -366,8 +491,11 @@ private struct LockScreenView: View {
     if !hasArrival {
       return "No trains currently scheduled"
     }
-    if context.state.isDisrupted {
-      return "\(lineDisplayName) train delayed (+4m)"
+    if context.state.isEscalated {
+      return "\(lineDisplayName) Suspended"
+    }
+    if context.state.severityTier > 0 {
+      return "\(lineDisplayName) train delayed (\(context.state.etaDelta))"
     }
     if minutesAway == 0 {
       return "Train arriving at platform"
@@ -386,11 +514,11 @@ private struct LockScreenView: View {
       "piccadilly": "Piccadilly", "victoria": "Victoria", "waterlooandcity": "Waterloo",
       "overground": "Overground"
     ]
-    return map[context.attributes.lineId.lowercased()] ?? context.attributes.lineName
+    return map[context.attributes.lineId.lowercased()] ?? (context.attributes.lineName ?? context.state.lineName)
   }
 
   private var destinationText: String {
-    if context.state.branchKnown, let hero = hero, !hero.destinationName.isEmpty {
+    if let hero = hero, !hero.destinationName.isEmpty {
       return hero.destinationName
     }
     return lineDisplayName
@@ -480,127 +608,12 @@ private struct LockScreenView: View {
         }
       }
 
-      // 3. Horizontal Delivery-Style Track (Origin -> Moving Train -> Destination)
-      if hasArrival {
-        DeliveryTrackView(
-          minutesAway: minutesAway,
-          lineId: context.attributes.lineId,
-          lineName: lineDisplayName,
-          destinationName: destinationText
-        )
-      }
-
-      // 4. Dynamic Utility Slot (Delay Repay Tracking when Disrupted / Perk when Normal)
-      HStack(spacing: 6) {
-        if context.state.isDisrupted {
-          Image(systemName: "sterlingsign.circle.fill")
-            .font(.system(size: 12))
-            .foregroundColor(Color(hex: 0x30D158))
-          Text("£3.60 Delay Repay claim tracking active")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.9))
-        } else {
-          Image(systemName: "sparkles")
-            .font(.system(size: 11))
-            .foregroundColor(.yellow)
-          Text("Perk ready on arrival at \(destinationText)")
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.white.opacity(0.65))
-        }
-      }
-      .padding(.top, 2)
+      // 3. SpringBoard-Native Delivery Track
+      DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
     }
     .padding(16)
     .background(.ultraThinMaterial)
     .cornerRadius(20)
     .padding(10)
-  }
-}
-
-// MARK: - Delivery Track Component
-
-private struct DeliveryTrackView: View {
-  let minutesAway: Int
-  let lineId: String
-  let lineName: String
-  let destinationName: String
-
-  // 20-minute window for progress calculation
-  private var progress: Double {
-    let clamped = min(max(Double(minutesAway), 0), 20)
-    return 1.0 - (clamped / 20.0) // 0 mins -> 1.0 (at destination), 20 mins -> 0.0
-  }
-
-  var body: some View {
-    VStack(spacing: 6) {
-      GeometryReader { geo in
-        let trackInset: CGFloat = 20
-        let trackWidth = geo.size.width - (trackInset * 2)
-        let trainX = trackInset + (trackWidth * CGFloat(progress))
-
-        ZStack(alignment: .leading) {
-          // Track line
-          Capsule()
-            .fill(Color.white.opacity(0.18))
-            .frame(height: 5)
-            .padding(.horizontal, trackInset)
-
-          // Completed progress fill
-          Capsule()
-            .fill(LineColor.color(for: lineId))
-            .frame(width: max(8, trainX - trackInset), height: 5)
-            .padding(.leading, trackInset)
-
-          // Origin Station Pin (Left)
-          Circle()
-            .fill(Color.white.opacity(0.9))
-            .frame(width: 14, height: 14)
-            .overlay(
-              Circle()
-                .stroke(Color.black.opacity(0.4), lineWidth: 2)
-            )
-            .offset(x: trackInset - 7)
-
-          // Destination Station Pin (Right)
-          Circle()
-            .fill(LineColor.color(for: lineId))
-            .frame(width: 16, height: 16)
-            .overlay(
-              Image(systemName: "flag.fill")
-                .font(.system(size: 8))
-                .foregroundColor(.white)
-            )
-            .offset(x: geo.size.width - trackInset - 8)
-
-          // Moving Train Capsule Marker
-          HStack(spacing: 3) {
-            Image(systemName: "tram.fill")
-              .font(.system(size: 10))
-              .foregroundColor(.white)
-            Text(lineName)
-              .font(.system(size: 9, weight: .bold))
-              .foregroundColor(.white)
-          }
-          .padding(.horizontal, 6)
-          .padding(.vertical, 3)
-          .background(LineColor.color(for: lineId))
-          .cornerRadius(10)
-          .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
-          .offset(x: max(trackInset, min(trainX - 24, geo.size.width - trackInset - 55)))
-        }
-      }
-      .frame(height: 24)
-
-      // Station Labels below track
-      HStack {
-        Text("Origin")
-          .font(.system(size: 10))
-          .foregroundColor(.white.opacity(0.5))
-        Spacer()
-        Text(destinationName)
-          .font(.system(size: 10, weight: .medium))
-          .foregroundColor(.white.opacity(0.85))
-      }
-    }
   }
 }

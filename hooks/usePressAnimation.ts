@@ -18,30 +18,30 @@ const LIFT_OUT_MS = 220;  // Leisurely settle reads as elegant, not snappy
 const LIFT_EASING = Easing.out(Easing.cubic);
 const DEBOUNCE_LOCKOUT_MS = 150;
 
-// ── Ghost Shadow (imperceptible at rest, growth origin for animation) ──
+// ── Ghost Shadow (zero shadow as requested) ──
 const LIFT_REST = {
-  shadowRadius: 4,
-  shadowOpacity: 0.06,
-  shadowOffsetY: 2,
-  elevation: 2,
+  shadowRadius: 0,
+  shadowOpacity: 0,
+  shadowOffsetY: 0,
+  elevation: 0,
   borderOpacity: 0.48, // Matches GLASS.borderColor rgba(255,255,255,0.48)
 };
 
 // ── Lifted State (single tap) ───────────────────────────────────────
 const LIFT_ACTIVE = {
-  shadowRadius: 22,
-  shadowOpacity: 0.35,
-  shadowOffsetY: 8,     // Offset grows (depth cue)
-  elevation: 12,
+  shadowRadius: 0,
+  shadowOpacity: 0,
+  shadowOffsetY: 0,
+  elevation: 0,
   borderOpacity: 0.60,  // Glass brightening
 };
 
 // ── Drag-Lift State (active drag) ───────────────────────────────────
 const LIFT_DRAG = {
-  shadowRadius: 20,
-  shadowOpacity: 0.35,
-  shadowOffsetY: 10,
-  elevation: 14,
+  shadowRadius: 0,
+  shadowOpacity: 0,
+  shadowOffsetY: 0,
+  elevation: 0,
   borderOpacity: 0.60,
 };
 
@@ -103,13 +103,12 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
   }));
 
   // Opt-in shadow lift — consumer applies to outer shadow-hosting layer.
-  // Uses #000 shadowColor (overrides GLASS.shadowColor which is transparent).
   const liftShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: shadowOffsetY.value },
-    shadowRadius: shadowRadius.value,
-    shadowOpacity: shadowOpacity.value,
-    elevation: liftElevation.value,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   }));
 
   // Opt-in border brightening — consumer applies to inner border-hosting layer.

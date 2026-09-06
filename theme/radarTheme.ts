@@ -8,20 +8,22 @@
 // colors, statutory constants, and TfL brand pass-through (single source:
 // constants/lineColors.ts — never duplicated here, per AGENTS.md §0).
 
-import { GLASS } from './colors';
+import { GLASS, MASTER_CANVAS } from './colors';
 import { LINE_IDENTITY_COLORS, LINE_NAMES } from '../constants/lineColors';
 
 // ── Core palette ────────────────────────────────────────────────────────────
 export const RADAR = {
   /** Deep-space base behind the terminal surfaces */
-  obsidian: '#0B101B',
+  obsidian: MASTER_CANVAS.VAULT_SETTINGS_BASE,
   /** Translucent navy card fill laid OVER BlurView(tint="dark") — replaces ad-hoc rgba(10,15,60,*) fills */
   glassFill: 'rgba(18, 26, 43, 0.75)',
   /** Hairline container border — value-identical to GLASS.borderSide */
   border: GLASS.borderSide,
   /** Signal-state colors ("Signal Lock" choreography) */
-  signalClear: '#10B981', // emerald — all clear
-  signalAction: '#F59E0B', // amber — action required / eligible
+  signalClear: MASTER_CANVAS.EMERALD_PROTECT, // emerald — protection secured / all clear (#34D399)
+  signalAction: MASTER_CANVAS.AMBER_EXPOSURE, // amber — 7-day limit / action required (#F59E0B)
+  signalScan: MASTER_CANVAS.CYAN_TELEMETRY,   // cyan — radar scan active (#0098D4)
+  signalError: MASTER_CANVAS.CRIMSON_ALERT,   // red — error state (#EF4444)
 } as const;
 
 // ── Statutory rules (display copy + chip labels) ───────────────────────────

@@ -364,11 +364,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   cardRow: {
     flexDirection: 'row',

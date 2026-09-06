@@ -16,7 +16,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Image,
   ScrollView,
   Linking,
 } from 'react-native';
@@ -368,11 +367,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
     backgroundColor: GLASS.background,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   accentBar: {
     position: 'absolute',

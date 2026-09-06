@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Slot, useRouter, usePathname } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useReducedMotion, withTiming } from 'react-native-reanimated';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
@@ -75,6 +76,7 @@ const TabsLayout = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="light" />
       <Animated.View style={[styles.flex1, contentStyle]}>
         <Slot />
       </Animated.View>

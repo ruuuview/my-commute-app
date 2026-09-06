@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, StyleSheet } from 'react-native';
 import { ShieldCheck, Clock, Lock } from 'phosphor-react-native';
-import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
+import { LiquidGlassView } from './LiquidGlassView';
 
 interface ProStatusCardProps {
   isPro: boolean;
@@ -15,73 +14,57 @@ export const ProStatusCard: React.FC<ProStatusCardProps> = ({
   trialCommutesRemaining,
   onUpgrade,
 }) => {
-
   if (isPro) {
     return (
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <ShieldCheck size={24} color="#30D158" style={styles.icon} />
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>You are a Pro Member</Text>
-              <Text style={styles.subtitle}>You have unlimited lifetime access.</Text>
-            </View>
+      <LiquidGlassView borderRadius={14} style={styles.glassWrapper} contentStyle={styles.card}>
+        <View style={styles.row}>
+          <ShieldCheck size={24} color="#30D158" style={styles.icon} />
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>You are a Pro Member</Text>
+            <Text style={styles.subtitle}>You have unlimited lifetime access.</Text>
           </View>
         </View>
-      </BlurView>
+      </LiquidGlassView>
     );
   }
 
   if (trialCommutesRemaining > 0) {
     return (
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Clock size={24} color="#30D158" style={styles.icon} />
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>Pro Trial Active</Text>
-              <Text style={styles.subtitle}>
-                You have {trialCommutesRemaining} of 10 trial commutes remaining.
-              </Text>
-            </View>
+      <LiquidGlassView borderRadius={14} style={styles.glassWrapper} contentStyle={styles.card}>
+        <View style={styles.row}>
+          <Clock size={24} color="#30D158" style={styles.icon} />
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>Pro Trial Active</Text>
+            <Text style={styles.subtitle}>
+              {trialCommutesRemaining} of 10 trial commutes remaining.
+            </Text>
           </View>
-          <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
-            <Text style={styles.buttonText}>Upgrade for Life - £7.99</Text>
-          </Pressable>
         </View>
-      </BlurView>
+      </LiquidGlassView>
     );
   }
 
   return (
-    <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill}>
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Lock size={24} color="#FF453A" style={styles.icon} />
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>You are on the Free Plan</Text>
-            <Text style={styles.subtitle}>You are limited to 3 items. Upgrade for unlimited access.</Text>
-          </View>
+    <LiquidGlassView borderRadius={14} style={styles.glassWrapper} contentStyle={styles.card}>
+      <View style={styles.row}>
+        <Lock size={24} color="rgba(255, 255, 255, 0.45)" style={styles.icon} />
+        <View style={styles.textContainer}>
+          <Text style={styles.title}>Trial Complete</Text>
+          <Text style={styles.subtitle}>Thank you for evaluating My Commute early preview.</Text>
         </View>
-        <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]} onPress={onUpgrade}>
-          <Text style={styles.buttonText}>Upgrade for Life - £7.99</Text>
-        </Pressable>
       </View>
-    </BlurView>
+    </LiquidGlassView>
   );
 };
 
 const styles = StyleSheet.create({
-  blurFill: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
+  glassWrapper: {
+    borderRadius: 14,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   card: {
     padding: 16,
@@ -109,15 +92,5 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.60)',
     lineHeight: 16,
-  },
-  button: {
-    ...PREMIUM_BUTTON,
-    marginTop: 14,
-  },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#07103a',
   },
 });

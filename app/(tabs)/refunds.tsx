@@ -21,7 +21,6 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-  Image,
   Alert,
   Linking,
   AppState,
@@ -32,7 +31,7 @@ import * as Notifications from 'expo-notifications'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
 import { BlurView } from 'expo-blur'
-import { LinearGradient } from 'expo-linear-gradient'
+import { StatusBar } from 'expo-status-bar'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
   useSharedValue,
@@ -49,7 +48,7 @@ import {
   ShieldCheck,
   Receipt,
 } from 'phosphor-react-native'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useFocusEffect } from 'expo-router'
 import { APP_CONFIG } from '../../config/app.config'
 import { ensureDeviceIdentity } from '../../services/deviceIdentity'
 import {
@@ -71,12 +70,10 @@ import {
 import ZeroStateHeroCard from '../../components/refunds/ZeroStateHeroCard'
 import ActiveClaimHeroCard from '../../components/refunds/ActiveClaimHeroCard'
 import TfLConnectSheet from '../../components/refunds/TfLConnectSheet'
-import LifetimeMetricsCard from '../../components/refunds/LifetimeMetricsCard'
 import { ClaimHistoryDrawer } from '../../components/refunds/ClaimHistoryDrawer'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
 import {
   loopStateOf,
-  shouldMountEarnedUI,
   type ClaimsResponse,
   type RadarClaim,
 } from '../../components/refunds/types'
@@ -163,15 +160,15 @@ function SignalLockHero({
 
 export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
-  const router = useRouter()
 
-  const selectedLines = useUserPreferencesStore((s) => s.selectedLines)
   const tflAccountStatus = useUserPreferencesStore((s) => s.tflAccountStatus)
   const setTflAccountStatus = useUserPreferencesStore((s) => s.setTflAccountStatus)
   const submittedClaims = useUserPreferencesStore((s) => s.submittedClaims)
   const dismissedClaims = useUserPreferencesStore((s) => s.dismissedClaims)
   const simulatedClaimActive = useUserPreferencesStore((s) => s.simulatedClaimActive)
   const setSimulatedClaimActive = useUserPreferencesStore((s) => s.setSimulatedClaimActive)
+  const selectedLines = useUserPreferencesStore((s) => s.selectedLines)
+  const pinnedStations = useUserPreferencesStore((s) => s.pinnedStations)
   const storeRef = useRef(useUserPreferencesStore)
 
   const [data, setData] = useState<ClaimsResponse | null>(null)
@@ -294,21 +291,25 @@ export default function RefundsScreen() {
   const claims = useMemo(() => {
     const rawList = data ? [...data.claims] : []
     if (simulatedClaimActive) {
+      const primaryLine = selectedLines[0] || 'piccadilly'
+      const originStation = pinnedStations[0]?.name || 'Origin'
+      const destStation = pinnedStations[1]?.name || 'Destination'
+      const primaryLineDisplay = primaryLine.charAt(0).toUpperCase() + primaryLine.slice(1)
       const SIMULATED_TEST_CLAIM: RadarClaim = {
         id: 99999,
         status: 'detected',
         claimStatus: 'eligible',
         filedAt: null,
         receivedAt: null,
-        lineId: 'victoria',
+        lineId: primaryLine,
         operator: 'tfl',
-        entryStation: 'Victoria',
-        exitStation: 'Finsbury Park',
+        entryStation: originStation,
+        exitStation: destStation,
         amountPence: 360,
-        cause: 'Signal failure at Oxford Circus',
+        cause: `Service delay on ${primaryLineDisplay} line`,
         causeEligible: true,
         delayMinutes: 22,
-        windowCause: 'Signal Failure',
+        windowCause: 'Service Delay',
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 27 * 86400000).toISOString(),
         entryTime: new Date(Date.now() - 3600000).toISOString(),
@@ -323,7 +324,7 @@ export default function RefundsScreen() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
     return sorted
-  }, [data, simulatedClaimActive])
+  }, [data, simulatedClaimActive, selectedLines, pinnedStations])
 
   const activeClaims = useMemo(
     () =>
@@ -334,17 +335,6 @@ export default function RefundsScreen() {
     [claims, dismissedClaims]
   )
 
-  const totalEstimatedPence = useMemo(
-    () => activeClaims.reduce((sum, c) => sum + (c.amountPence ?? 310), 0),
-    [activeClaims]
-  )
-
-  const settledCount = useMemo(
-    () => claims.filter((c) => loopStateOf(c) === 'received').length,
-    [claims]
-  )
-  const recoveredTotal = data?.recoveredTotal ?? 0
-  const earnedUIMounted = shouldMountEarnedUI(settledCount)
 
   // Signal Lock choreography driver (gated by MMKV last_animated_claim_id).
   const { shouldAnimate, animatedClaimId } = useClaimArrivalAnimation(activeClaims)
@@ -671,6 +661,7 @@ export default function RefundsScreen() {
 
   return (
     <View style={styles.rootContainer}>
+      <StatusBar style="light" />
       <OnboardingGradient />
 
       <View style={{ flex: 1, paddingTop: insets.top }}>

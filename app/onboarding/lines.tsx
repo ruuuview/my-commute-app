@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   Pressable,
   useWindowDimensions,
 } from 'react-native';

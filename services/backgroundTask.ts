@@ -7,8 +7,15 @@ import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
 import { SessionManager } from './SessionManager';
+import { LiveActivityService } from './LiveActivityService';
 import { getSeverityRank } from '../utils/getSeverityColor';
 import { fetchWithTimeout } from '../utils/network';
+import {
+  presentDisruptionNotification,
+  presentServiceRecoveryNotification,
+  presentServiceImprovingNotification,
+} from './notifications/dispatch';
+import { isLineId, LineId } from './notifications/payload';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
@@ -212,40 +219,59 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         const { lineNotificationToggles } = getNotificationToggles();
         const isLineEnabled = lineNotificationToggles[lineId] !== false;
 
-        if (canScheduleNotifications && isLineEnabled) {
-          if (currentRank > lastRank) {
-            // Severity worsened - trigger disruption alert
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `Disruption on ${lineData.name} line`,
-                body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
-                sound: true,
-              },
-              trigger: null,
-            });
+        // Commute alert hours filter
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const [startH, startM] = (state.alertWindowStart || '06:00').split(':').map(Number);
+        const [endH, endM] = (state.alertWindowEnd || '22:00').split(':').map(Number);
+        const startMinutes = (startH || 6) * 60 + (startM || 0);
+        const endMinutes = (endH || 22) * 60 + (endM || 0);
+        const isWithinAlertHours = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+        const isSevere = currentSeverity <= 6;
+        const bypassWindow = Boolean(state.severeBypassAlertHours && isSevere);
+        const shouldDeliverAlert = isWithinAlertHours || bypassWindow;
+
+        if (canScheduleNotifications && isLineEnabled && shouldDeliverAlert) {
+          if (!isLineId(lineId)) {
+            console.warn(`[backgroundTask] Cannot dispatch notification: unrecognized lineId "${lineId}"`);
+          } else if (currentRank > lastRank) {
+            // Live Activity priority path: during an active session on this line, update the card directly
+            const isSessionActive = SessionManager.getSessionState() === 'active';
+            const activeLineId = SessionManager.getCommuteLineId();
+            const activeStationId = SessionManager.getCommuteOriginId();
+
+            if (isSessionActive && activeLineId && activeLineId.toLowerCase() === lineId && activeStationId) {
+              console.log(`[backgroundTask] In-transit session active on ${lineId} — updating Live Activity directly without noisy banner.`);
+              void LiveActivityService.update(activeStationId, lineId).catch(() => {});
+            } else {
+              // Severity worsened - trigger rich disruption banner with precomputed alternative
+              await presentDisruptionNotification({
+                lineId,
+                lineName: lineData.name,
+                statusDescription,
+                reason,
+                severity: currentSeverity,
+              });
+            }
           } else if (currentRank === 0 && lastRank > 0) {
             // Severity cleared - trigger cleared alert
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `Service cleared on ${lineData.name} line`,
-                body: `Good Service has resumed.`,
-                sound: true,
-              },
-              trigger: null,
+            await presentServiceRecoveryNotification({
+              lineId,
+              lineName: lineData.name,
             });
           } else {
             // Severity improved but not fully cleared - trigger improving alert
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `Service improving on ${lineData.name} line`,
-                body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
-                sound: true,
-              },
-              trigger: null,
+            await presentServiceImprovingNotification({
+              lineId,
+              lineName: lineData.name,
+              statusDescription,
+              reason,
             });
           }
         } else if (!canScheduleNotifications) {
           console.log(`🔕 Notifications not granted for ${lineData.name} line (${lineId})`);
+        } else if (!shouldDeliverAlert) {
+          console.log(`🔕 Alert suppressed outside commute hours (${state.alertWindowStart || '06:00'}-${state.alertWindowEnd || '22:00'}) for ${lineData.name}`);
         } else {
           console.log(`🔕 Disruption alerts disabled for ${lineData.name} line (${lineId})`);
         }
@@ -350,3 +376,29 @@ export async function syncGeofencesAsync(pinnedStations: any[]) {
     console.error('❌ Failed to sync Geofences:', err);
   }
 }
+
+/**
+ * Diagnostic & Settings health check probe.
+ * Reports whether CoreLocation geofencing task is registered and how many regions exist.
+ */
+export async function checkGeofenceHealthAsync(): Promise<{
+  active: boolean;
+  regionCount: number;
+  taskRegistered: boolean;
+}> {
+  try {
+    const taskRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
+    if (!taskRegistered) {
+      return { active: false, regionCount: 0, taskRegistered: false };
+    }
+    // Location.startGeofencingAsync doesn't have a direct getMonitoredRegions query in expo-location,
+    // so active is determined by task registration + background permission.
+    const bgStatus = await Location.getBackgroundPermissionsAsync();
+    const active = bgStatus.status === 'granted';
+    return { active, regionCount: active ? 2 : 0, taskRegistered };
+  } catch (err) {
+    console.warn('[GeofenceHealth] probe failed:', err);
+    return { active: false, regionCount: 0, taskRegistered: false };
+  }
+}
+

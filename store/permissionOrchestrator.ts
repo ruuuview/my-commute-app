@@ -231,9 +231,13 @@ async function osPrompt(key: PermissionKey): Promise<boolean> {
       return fg.status === 'granted';
     }
     case 'locationAlways': {
-      // Requires While-Using already granted (the upgrade path guarantees it).
-      const fg = await Location.getForegroundPermissionsAsync();
-      if (fg.status !== 'granted') return false;
+      // 2-step progressive authorization: ensure While-Using (foreground) is
+      // granted first before prompting the native background (Always) dialog.
+      let fg = await Location.getForegroundPermissionsAsync();
+      if (fg.status !== 'granted') {
+        fg = await Location.requestForegroundPermissionsAsync();
+        if (fg.status !== 'granted') return false;
+      }
       const bg = await Location.requestBackgroundPermissionsAsync();
       return bg.status === 'granted';
     }

@@ -47,9 +47,9 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
   onOpenPortal,
   locallyFiledAtMs,
 }) => {
-  const lineKey = (claim.lineId ?? 'victoria').toLowerCase().trim();
-  const lineColor = LINE_IDENTITY_COLORS[lineKey] ?? '#0098D4';
-  const lineDisplayName = LINE_NAMES[lineKey] ?? (claim.lineId ? claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1) : 'Tube');
+  const lineKey = (claim.lineId ?? '').toLowerCase().trim();
+  const lineColor = LINE_IDENTITY_COLORS[lineKey] ?? '#8E8E93';
+  const lineDisplayName = LINE_NAMES[lineKey] ?? (claim.lineId ? claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1) : 'Tube Line');
   const isNorthern = lineKey === 'northern';
 
   const daysLeft = daysLeftUntil(claim.expiresAt);
@@ -65,24 +65,24 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
         day: 'numeric',
         month: 'short',
       })
-    : 'Today';
+    : (claim.createdAt ? new Date(claim.createdAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Today');
 
   const timeFormatted = entryDate
     ? entryDate.toLocaleTimeString('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
       })
-    : '14:11';
+    : (claim.createdAt ? new Date(claim.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--');
 
   // Compute actual travel vs baseline
-  let actualDurationMin = 25;
+  const delayMin = claim.delayMinutes || 0;
+  let actualDurationMin = delayMin > 0 ? delayMin + 10 : 0;
   if (entryDate && exitDate) {
     const diff = Math.round((exitDate.getTime() - entryDate.getTime()) / 60000);
     if (diff > 0) actualDurationMin = diff;
   }
-  const delayMin = claim.delayMinutes || 15;
   const baselineMin = Math.max(4, actualDurationMin - delayMin);
-  const causeText = claim.cause || claim.windowCause || 'Signal failure at Oxford Circus';
+  const causeText = claim.cause || claim.windowCause || 'Service disruption';
 
   const handleDismiss = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -161,7 +161,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
           {/* Estimated Value */}
           <View style={styles.valueCol}>
             <Text style={styles.amountText}>
-              ~{formatPence(claim.amountPence ?? 310)}
+              {claim.amountPence != null ? `~${formatPence(claim.amountPence)}` : 'Est. pending'}
             </Text>
             <Text style={styles.estRefundBadge}>EST. REFUND</Text>
           </View>
@@ -169,7 +169,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
 
         {/* Integrated Proof Capsule */}
         <View style={styles.proofCapsule}>
-          <Info size={13} color="#0098D4" weight="fill" style={styles.proofIcon} />
+          <Info size={13} color={lineColor} weight="fill" style={styles.proofIcon} />
           <Text style={styles.proofText} numberOfLines={2}>
             <Text style={styles.proofMetrics}>
               {actualDurationMin}m actual vs {baselineMin}m baseline (+{delayMin}m delay)
@@ -178,6 +178,11 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             {causeText}
           </Text>
         </View>
+
+        {/* TfL Attributed Proxy Disclaimer */}
+        <Text style={styles.disclaimerText}>
+          Attributed journey proxy. TfL verifies against your registered contactless/Oyster card upon claim submission.
+        </Text>
 
         {/* Action Area: Frosted Filed State vs Full Apple Liquid Glass CTA */}
         {locallyFiledAtMs != null ? (
@@ -418,5 +423,13 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 12.5,
     color: '#10B981',
+  },
+  disclaimerText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 10,
+    lineHeight: 14,
+    color: 'rgba(255, 255, 255, 0.45)',
+    textAlign: 'center',
+    marginHorizontal: 4,
   },
 });

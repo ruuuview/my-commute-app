@@ -22,6 +22,8 @@ import { syncPushTokenWithBackend } from '../services/notificationRegistrationSe
 import * as Notifications from 'expo-notifications';
 import { SessionManager } from '../services/SessionManager';
 import { installDirectionNotification } from '../services/directionNotification';
+import { resolveRerouteTarget } from '../services/notifications/payload';
+import { parseNotificationIntent, navigateToIntent, NotificationIntent } from '../services/notifications/intent';
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
@@ -223,6 +225,8 @@ export default function RootLayout() {
     }
   }, [_hasHydrated]);
 
+  const handledNotificationIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     async function setupNotificationCategories() {
       try {
@@ -267,6 +271,15 @@ export default function RootLayout() {
     setupNotificationCategories();
 
     const handleNotificationResponse = (response: Notifications.NotificationResponse) => {
+      const responseId = response.notification.request.identifier;
+      if (responseId) {
+        if (handledNotificationIdsRef.current.has(responseId)) {
+          console.log(`[NotificationResponse] Skipping duplicate notification response: ${responseId}`);
+          return;
+        }
+        handledNotificationIdsRef.current.add(responseId);
+      }
+
       const actionId = response.actionIdentifier;
       const categoryId = response.notification.request.content.categoryIdentifier;
       
@@ -291,18 +304,51 @@ export default function RootLayout() {
         body.includes('repay');
 
       if (isClaimPush) {
-        // Radar v2: claim push → activate claim and open Refund Radar terminal directly
-        useUserPreferencesStore.getState().setSimulatedClaimActive(true);
+        // Radar v2: Only activate mock claim if this push was explicitly a test/simulation
+        if (data?.isSimulated === true || data?.claimId === 99999) {
+          useUserPreferencesStore.getState().setSimulatedClaimActive(true);
+        }
         setTimeout(() => {
-          router.replace('/(tabs)/refunds');
+          router.navigate('/(tabs)/refunds');
         }, 150);
-      } else if (effectiveCategory === 'REROUTE_ONLY' || effectiveCategory === 'COMMUTE_DISRUPTION_V2' || effectiveCategory === 'COMMUTE_DISRUPTION' || actionId === 'view_reroute') {
-        const lineId = data?.lineId || 'victoria';
+      } else if (
+        effectiveCategory === 'REROUTE_ONLY' ||
+        effectiveCategory === 'COMMUTE_DISRUPTION_V2' ||
+        effectiveCategory === 'COMMUTE_DISRUPTION' ||
+        actionId === 'view_reroute' ||
+        data?.action === 'show-disruption' ||
+        data?.action === 'show-reroute' ||
+        Boolean(data?.lineId && !isClaimPush)
+      ) {
+        let intent = parseNotificationIntent(data);
+        if (!intent) {
+          const resolvedLine = resolveRerouteTarget(data);
+          if (resolvedLine) {
+            intent = {
+              action: 'show-disruption',
+              lineId: resolvedLine,
+              initialSection: 'overview',
+              statusAsOf: Date.now(),
+            };
+          }
+        }
+
+        // Action button explicitly says "view reroute" → anchor directly to alternatives section
+        if (actionId === 'view_reroute' && intent && intent.action === 'show-disruption') {
+          intent = {
+            ...intent,
+            action: 'show-reroute',
+            initialSection: 'alternatives',
+          };
+        }
+
         setTimeout(() => {
-          router.replace({
-            pathname: '/(tabs)',
-            params: { openRerouteLineId: String(lineId) },
-          } as never);
+          if (intent) {
+            navigateToIntent(router, intent);
+          } else {
+            console.warn('[NotificationReceiver] Disruption notification tapped without valid lineId. Landing user on dashboard overview.');
+            navigateToIntent(router, { action: 'overview' });
+          }
         }, 150);
       } else if (effectiveCategory === 'ARRIVED_ALERT') {
         const prefs = useUserPreferencesStore.getState();
@@ -325,19 +371,21 @@ export default function RootLayout() {
       }
     };
 
-    // Cold launch notification check (app opened by tapping push from killed state)
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        handleNotificationResponse(response);
-      }
-    });
+    // Cold launch notification check: wait until hydration/fonts are ready before navigating
+    if (isReady) {
+      void Notifications.getLastNotificationResponseAsync().then((response) => {
+        if (response) {
+          handleNotificationResponse(response);
+        }
+      });
+    }
 
     const subscription = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
 
     return () => {
       subscription.remove();
     };
-  }, [router]);
+  }, [router, isReady]);
   
   const whiteOverlayOpacity = useSharedValue(0);
   

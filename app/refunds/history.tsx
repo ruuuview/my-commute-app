@@ -34,7 +34,6 @@ import {
   isSurveySnoozed,
   snoozeSurvey,
 } from '../../services/refundSlaService'
-import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
 import { GLASS } from '../../theme/colors'
@@ -148,7 +147,6 @@ ReceiptCard.displayName = 'ReceiptCard'
 
 export default function RefundsHistoryScreen() {
   const router = useRouter()
-  const tflRegistered = useUserPreferencesStore((s) => s.tflRegistered)
 
   const [data, setData] = useState<ClaimsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -426,11 +424,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   cardFill: {
     padding: 14,

@@ -18,6 +18,298 @@ export const CONSENT_DWELL_MS = CONSENT_DWELL_MINUTES * 60 * 1000;
 export const ARRIVAL_DWELL_MINUTES = 5;
 export const ARRIVAL_DWELL_MS = ARRIVAL_DWELL_MINUTES * 60 * 1000;
 
+// Section 12: Geofence Configuration (Zone 1 Safe)
+export const GEOFENCE_CONFIG = {
+  ORIGIN_RADIUS_METERS: 150,
+  ORIGIN_COOLDOWN_MS: 60 * 60 * 1000, // 60 minutes
+  DESTINATION_INNER_RADIUS_METERS: 100, // 45s dwell
+  DESTINATION_OUTER_RADIUS_METERS: 200,
+};
+
+// Section 5.4: Station Complexes (Zone 1)
+export interface StationComplex {
+  complexId: string;
+  lines: string[];
+  center: { lat: number; lng: number };
+  radius: number; // 100m
+}
+
+export const STATION_COMPLEXES: Record<string, StationComplex> = {
+  kings_cross_st_pancras: {
+    complexId: 'kings_cross_st_pancras',
+    lines: ['Northern', 'Piccadilly', 'Victoria', 'Circle', 'Hammersmith', 'Metropolitan'],
+    center: { lat: 51.5308, lng: -0.1238 },
+    radius: 100,
+  },
+  bank_monument: {
+    complexId: 'bank_monument',
+    lines: ['Northern', 'Central', 'Waterloo & City', 'DLR', 'Circle', 'District'],
+    center: { lat: 51.5133, lng: -0.0886 },
+    radius: 100,
+  },
+  oxford_circus: {
+    complexId: 'oxford_circus',
+    lines: ['Bakerloo', 'Central', 'Victoria'],
+    center: { lat: 51.5152, lng: -0.1418 },
+    radius: 100,
+  },
+  victoria: {
+    complexId: 'victoria',
+    lines: ['Victoria', 'District', 'Circle'],
+    center: { lat: 51.4952, lng: -0.1439 },
+    radius: 100,
+  },
+  waterloo: {
+    complexId: 'waterloo',
+    lines: ['Bakerloo', 'Jubilee', 'Northern', 'Waterloo & City'],
+    center: { lat: 51.5036, lng: -0.1143 },
+    radius: 100,
+  },
+  london_bridge: {
+    complexId: 'london_bridge',
+    lines: ['Jubilee', 'Northern'],
+    center: { lat: 51.5057, lng: -0.0888 },
+    radius: 100,
+  },
+  liverpool_street: {
+    complexId: 'liverpool_street',
+    lines: ['Central', 'Circle', 'Hammersmith', 'Metropolitan', 'Elizabeth'],
+    center: { lat: 51.5178, lng: -0.0823 },
+    radius: 100,
+  },
+  paddington: {
+    complexId: 'paddington',
+    lines: ['Bakerloo', 'Circle', 'District', 'Hammersmith', 'Elizabeth'],
+    center: { lat: 51.5164, lng: -0.1769 },
+    radius: 100,
+  },
+  euston: {
+    complexId: 'euston',
+    lines: ['Northern', 'Victoria'],
+    center: { lat: 51.5284, lng: -0.1337 },
+    radius: 100,
+  },
+  tottenham_court_road: {
+    complexId: 'tottenham_court_road',
+    lines: ['Central', 'Northern', 'Elizabeth'],
+    center: { lat: 51.5165, lng: -0.1310 },
+    radius: 100,
+  },
+  holborn: {
+    complexId: 'holborn',
+    lines: ['Central', 'Piccadilly'],
+    center: { lat: 51.5174, lng: -0.1200 },
+    radius: 100,
+  },
+  leicester_square: {
+    complexId: 'leicester_square',
+    lines: ['Northern', 'Piccadilly'],
+    center: { lat: 51.5113, lng: -0.1284 },
+    radius: 100,
+  },
+  green_park: {
+    complexId: 'green_park',
+    lines: ['Jubilee', 'Piccadilly', 'Victoria'],
+    center: { lat: 51.5067, lng: -0.1428 },
+    radius: 100,
+  },
+  south_kensington: {
+    complexId: 'south_kensington',
+    lines: ['District', 'Circle', 'Piccadilly'],
+    center: { lat: 51.4941, lng: -0.1738 },
+    radius: 100,
+  },
+  westminster: {
+    complexId: 'westminster',
+    lines: ['Circle', 'District', 'Jubilee'],
+    center: { lat: 51.501, lng: -0.1254 },
+    radius: 100,
+  },
+  piccadilly_circus: {
+    complexId: 'piccadilly_circus',
+    lines: ['Bakerloo', 'Piccadilly'],
+    center: { lat: 51.5098, lng: -0.1342 },
+    radius: 100,
+  },
+  embankment: {
+    complexId: 'embankment',
+    lines: ['Bakerloo', 'Circle', 'District', 'Northern'],
+    center: { lat: 51.5071, lng: -0.1223 },
+    radius: 100,
+  },
+  charing_cross: {
+    complexId: 'charing_cross',
+    lines: ['Bakerloo', 'Northern'],
+    center: { lat: 51.5081, lng: -0.1248 },
+    radius: 100,
+  },
+  covent_garden: {
+    complexId: 'covent_garden',
+    lines: ['Piccadilly'],
+    center: { lat: 51.5129, lng: -0.1243 },
+    radius: 100,
+  },
+  bond_street: {
+    complexId: 'bond_street',
+    lines: ['Central', 'Jubilee', 'Elizabeth'],
+    center: { lat: 51.5142, lng: -0.1494 },
+    radius: 100,
+  },
+};
+
+// Section 5.5: Tunnel Segments
+export interface TunnelSegment {
+  segmentId: string;
+  lineId: string;
+  stations: string[];
+  typicalDurationSeconds: number;
+  maxObservedDurationSeconds: number;
+}
+
+export const TUNNEL_SEGMENTS: Record<string, TunnelSegment> = {
+  northern_camden_to_kennington: {
+    segmentId: 'northern_camden_to_kennington',
+    lineId: 'northern',
+    stations: [
+      'Camden Town',
+      'Euston',
+      'Warren Street',
+      'Goodge Street',
+      'Tottenham Court Road',
+      'Leicester Square',
+      'Charing Cross',
+      'Embankment',
+      'Waterloo',
+      'Kennington',
+    ],
+    typicalDurationSeconds: 480,
+    maxObservedDurationSeconds: 720,
+  },
+  central_holborn_to_chancery_lane: {
+    segmentId: 'central_holborn_to_chancery_lane',
+    lineId: 'central',
+    stations: ['Holborn', 'Chancery Lane'],
+    typicalDurationSeconds: 120,
+    maxObservedDurationSeconds: 180,
+  },
+  victoria_kings_cross_to_victoria: {
+    segmentId: 'victoria_kings_cross_to_victoria',
+    lineId: 'victoria',
+    stations: [
+      "King's Cross St. Pancras",
+      'Euston',
+      'Warren Street',
+      'Oxford Circus',
+      'Green Park',
+      'Victoria',
+    ],
+    typicalDurationSeconds: 420,
+    maxObservedDurationSeconds: 660,
+  },
+  jubilee_baker_street_to_london_bridge: {
+    segmentId: 'jubilee_baker_street_to_london_bridge',
+    lineId: 'jubilee',
+    stations: [
+      'Baker Street',
+      'Bond Street',
+      'Green Park',
+      'Westminster',
+      'Waterloo',
+      'Southwark',
+      'London Bridge',
+    ],
+    typicalDurationSeconds: 450,
+    maxObservedDurationSeconds: 700,
+  },
+  piccadilly_kings_cross_to_south_kensington: {
+    segmentId: 'piccadilly_kings_cross_to_south_kensington',
+    lineId: 'piccadilly',
+    stations: [
+      "King's Cross St. Pancras",
+      'Russell Square',
+      'Holborn',
+      'Covent Garden',
+      'Leicester Square',
+      'Piccadilly Circus',
+      'Green Park',
+      'Hyde Park Corner',
+      'Knightsbridge',
+      'South Kensington',
+    ],
+    typicalDurationSeconds: 600,
+    maxObservedDurationSeconds: 900,
+  },
+  bakerloo_paddington_to_elephant: {
+    segmentId: 'bakerloo_paddington_to_elephant',
+    lineId: 'bakerloo',
+    stations: [
+      'Paddington',
+      'Edgware Road',
+      'Marylebone',
+      'Baker Street',
+      "Regent's Park",
+      'Oxford Circus',
+      'Piccadilly Circus',
+      'Charing Cross',
+      'Embankment',
+      'Waterloo',
+      'Lambeth North',
+      'Elephant & Castle',
+    ],
+    typicalDurationSeconds: 660,
+    maxObservedDurationSeconds: 960,
+  },
+};
+
+function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+// Section 11: Arrival Validation (No CLVisit)
+export type ArrivalAction =
+  | { type: 'dismiss'; delaySeconds: number }
+  | { type: 'keepRunning' };
+
+export function validateArrival(
+  timerRemainingSeconds: number,
+  lastGPS: { lat: number; lng: number; accuracy: number } | null,
+  lastServerUpdateMs: number,
+  destination: { lat: number; lng: number },
+  currentSegment?: TunnelSegment | null
+): ArrivalAction {
+  if (lastGPS && lastGPS.accuracy < 50) {
+    const dist = calculateHaversineDistance(lastGPS.lat, lastGPS.lng, destination.lat, destination.lng);
+    if (dist < 100) {
+      return { type: 'dismiss', delaySeconds: 60 };
+    }
+  }
+
+  const timeSinceLastUpdateMs = Date.now() - lastServerUpdateMs;
+  if (timerRemainingSeconds <= 0 && timeSinceLastUpdateMs < 90 * 1000) {
+    return { type: 'dismiss', delaySeconds: 60 };
+  }
+
+  if (timerRemainingSeconds <= 0) {
+    const timeout = Math.max(120, (currentSegment?.maxObservedDurationSeconds ?? 120) + 60);
+    if (Math.abs(timerRemainingSeconds) > timeout) {
+      return { type: 'dismiss', delaySeconds: 120 };
+    }
+  }
+
+  return { type: 'keepRunning' };
+}
+
 const activeCacheSubs = new Map<
   string,
   { unsubDirection?: () => void; unsubLiveActivity?: () => void; timer?: ReturnType<typeof setTimeout> }
@@ -57,10 +349,6 @@ export class SessionManager {
   static async startSession(originId: string, destinationId: string, lineId: string, lineName: string) {
     console.log(`[SessionManager] Starting session. Origin: ${originId}, Dest: ${destinationId}, Line: ${lineId}`);
 
-    // Tier 1 geofence hit — the "user has seen real value once" signal for
-    // the Always-location upgrade primer (plan Phase 4 #13). First hit
-    // triggers the upgrade ask; fire-and-forget so it never blocks the
-    // session start.
     try {
       const hitCount = notifyTier1GeofenceHit();
       if (hitCount === 1) {
@@ -82,25 +370,35 @@ export class SessionManager {
     backgroundStorage.remove('notified_departed');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
-    // Start Live Activity
+    // Start Live Activity with Shush Mode check
     try {
       const state = useUserPreferencesStore.getState();
-      const pinned = state.pinnedStations;
+      const deliveryMode = state.shushPreferences?.alertDeliveryMode || 'shush';
+      
+      if (deliveryMode === 'off') {
+        console.log('[SessionManager] Alert delivery mode is OFF — session started silently without Live Activity.');
+        return;
+      }
+
+      const pinned = state.pinnedStations || [];
       const origin = pinned.find(s => s.id === originId)?.name || 'Origin';
       const dest = pinned.find(s => s.id === destinationId)?.name || 'Destination';
 
-      await LiveActivityService.start(originId, lineId);
+      await LiveActivityService.start(originId, lineId, 'geofence');
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Departing ${origin}`,
-          body: `Starting live tracking towards ${dest}.`,
-          sound: true,
-        },
-        trigger: null,
-      }).catch(err => {
-        console.error('[SessionManager] Failed to schedule start notification:', err);
-      });
+      // Shush Mode: No audible chime, no banner. Loud mode: send banner + sound.
+      if (deliveryMode === 'loud') {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `Departing ${origin}`,
+            body: `Starting live tracking towards ${dest}.`,
+            sound: true,
+          },
+          trigger: null,
+        }).catch(err => {
+          console.error('[SessionManager] Failed to schedule start notification:', err);
+        });
+      }
     } catch (e) {
       console.error('[SessionManager] Failed to start Live Activity:', e);
     }
@@ -110,20 +408,23 @@ export class SessionManager {
     const currentState = this.getSessionState();
     console.log(`[SessionManager] Entered geofence: ${stationId} (${role}), state: ${currentState}`);
 
-    // P0: Fire the Tier 2 cache grab immediately + silently on geofence entry.
-    // The Tier2CacheManager WRITES the cache; the Swift Live Activity READS it.
-    // Single write, single source — never duplicate this cache elsewhere.
     const prefState = useUserPreferencesStore.getState();
+    const deliveryMode = prefState.shushPreferences?.alertDeliveryMode || 'shush';
+    if (deliveryMode === 'off') {
+      console.log(`[SessionManager] Shush delivery mode is OFF — suppressing geofence trigger.`);
+      return;
+    }
+
+    // Rule 10: Bidirectional Commute Geofence Invariant
+    if (currentState === 'idle' && role !== 'home' && role !== 'work') {
+      console.log(`[SessionManager] Geofence entered for role '${role}' — ignoring for autonomous commute dispatch.`);
+      return;
+    }
+
     const targetStation = (prefState.pinnedStations || []).find((s) => s.id === stationId);
     const lineId = targetStation?.lines?.[0] || prefState.selectedLines?.[0] || 'unknown';
     triggerTier2Grab(stationId, lineId);
 
-    // Fire the Type B direction notification once the Tier 2 cache populates.
-    // Single-shot subscription: fires for THIS station, then cleans itself up.
-    // Falls through to Priority 2 (no notification) if no endpoints derivable.
-    // Fire the Type B direction notification once the Tier 2 cache populates.
-    // Single-shot subscription: fires for THIS station, then cleans itself up.
-    // Falls through to Priority 2 (no notification) if no endpoints derivable.
     let unsubDirection: (() => void) | undefined;
     let firedDirection = false;
     unsubDirection = onTier2CachePopulated((cache) => {
@@ -136,45 +437,43 @@ export class SessionManager {
     });
     if (firedDirection) unsubDirection?.();
 
-    // Live Activity reads the Tier 2 cache. Subscribe so every cache refresh
-    // (re-)renders the Island / Lock Screen. Single source of truth, no dup.
     let wasNoSignal = false;
     const unsubLiveActivity = onTier2CachePopulated((cache) => {
       if (cache.stationId !== stationId) return;
       LiveActivityService.update(stationId, lineId).catch((e) =>
         console.error('[SessionManager] Live Activity update from cache failed:', e)
       );
-      // Signal returned after a gap: recovery flash + one-time local push.
       if (wasNoSignal) {
         wasNoSignal = false;
-        const hero = (cache.platforms || [])[0];
-        const dest = hero?.destinationName || tflCapitalise(lineId);
-        const mins = Math.max(0, Math.round((hero?.timeToStation || 0) / 60));
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Got it',
-            body: `${dest}, ${mins} min`,
-            sound: false,
-          },
-          trigger: null,
-        }).catch(() => {});
+        if (deliveryMode === 'loud') {
+          const hero = (cache.platforms || [])[0];
+          const dest = hero?.destinationName || tflCapitalise(lineId);
+          const mins = Math.max(0, Math.round((hero?.timeToStation || 0) / 60));
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Got it',
+              body: `${dest}, ${mins} min`,
+              sound: false,
+            },
+            trigger: null,
+          }).catch(() => {});
+        }
       }
     });
 
-    // No-signal handling: if the cache never populates within a short window,
-    // fire the one-time Type B local push (zero network). Honest void, not a
-    // false card — the Live Activity is simply not started until data exists.
     const noSignalTimer = setTimeout(() => {
       if (!getTier2Cache(stationId)) {
         wasNoSignal = true;
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: "Signal's patchy here — still trying.",
-            body: 'Check the platform board for now.',
-            sound: false,
-          },
-          trigger: null,
-        }).catch(() => {});
+        if (deliveryMode === 'loud') {
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: "Signal's patchy here — still trying.",
+              body: 'Check the platform board for now.',
+              sound: false,
+            },
+            trigger: null,
+          }).catch(() => {});
+        }
       }
     }, 6000);
 
@@ -186,35 +485,33 @@ export class SessionManager {
     }
     activeCacheSubs.set(stationId, { unsubDirection, unsubLiveActivity, timer: noSignalTimer });
 
-    const state = useUserPreferencesStore.getState();
-    const pinnedStations = state.pinnedStations || [];
+    const pinnedStations = prefState.pinnedStations || [];
 
     if (currentState === 'idle') {
-      // Find destination station
+      // Rule 10: Bidirectional Commute Geofence Invariant
+      if (role !== 'home' && role !== 'work') {
+        console.log(`[SessionManager] Geofence entered for role '${role}' — ignoring for autonomous commute dispatch.`);
+        return;
+      }
+
       let destStation = null;
       if (role === 'home') {
         destStation = pinnedStations.find(s => s.role === 'work');
       } else if (role === 'work') {
         destStation = pinnedStations.find(s => s.role === 'home');
-      } else {
-        destStation = pinnedStations.find(s => s.role === 'work') || pinnedStations.find(s => s.role === 'home');
       }
 
       if (destStation && destStation.id !== stationId) {
-        const targetStation = pinnedStations.find(s => s.id === stationId);
-        let lineId = targetStation?.lines?.[0];
-        if (!lineId) {
-          // Recovery 1: Use first subscribed line
-          const prefState = useUserPreferencesStore.getState();
-          lineId = prefState.selectedLines?.[0];
+        let selectedLineId = targetStation?.lines?.[0];
+        if (!selectedLineId) {
+          selectedLineId = prefState.selectedLines?.[0];
         }
-        if (!lineId) {
-          // Recovery 2: Fall back to 'unknown' and log warning
-          lineId = 'unknown';
-          console.warn(`[SessionManager] No line data found for station ${stationId} or subscribed lines, using 'unknown'`);
+        if (!selectedLineId) {
+          selectedLineId = 'unknown';
+          console.warn(`[SessionManager] No line data found for station ${stationId}, using 'unknown'`);
         }
-        const lineName = tflCapitalise(lineId);
-        await this.startSession(stationId, destStation.id, lineId, lineName);
+        const lineName = tflCapitalise(selectedLineId);
+        await this.startSession(stationId, destStation.id, selectedLineId, lineName);
       }
       return;
     }
@@ -222,14 +519,12 @@ export class SessionManager {
     if (currentState === 'active') {
       const destId = this.getCommuteDestinationId();
       if ((role === 'home' || role === 'work') && stationId === destId) {
-        // Confirmed-home gate: arrival notification only fires if labels are truth
         const prefs = useUserPreferencesStore.getState();
         if (!prefs.labelsConfirmed) {
           console.log(`[SessionManager] Home not confirmed — closing session without arrival notification.`);
           await this.closeSession(false);
           return;
         }
-        // Arrival-notifications gate: user turned off welcome-home
         if (!prefs.arrivalNotificationsEnabled) {
           console.log(`[SessionManager] Arrival notifications disabled — closing session without notification.`);
           await this.closeSession(false);
@@ -238,7 +533,6 @@ export class SessionManager {
 
         console.log(`[SessionManager] Entering destination geofence. Initiating ${ARRIVAL_DWELL_MINUTES}‑minute dwell check.`);
 
-        // Snooze gate: skip if user snoozed
         const snoozeExpiry = prefs.arrivalSnoozeExpiry;
         if (snoozeExpiry && Date.now() < snoozeExpiry) {
           console.log(`[SessionManager] Snoozed until ${new Date(snoozeExpiry).toISOString()} — skipping arrival.`);
@@ -246,7 +540,6 @@ export class SessionManager {
           return;
         }
 
-        // Build status-aware body from lastKnownData
         const body = SessionManager._buildArrivalBody(
           prefs.selectedLines || [],
           prefs.lastKnownData || []
@@ -256,7 +549,6 @@ export class SessionManager {
         backgroundStorage.set('session_state', 'closing');
         backgroundStorage.set('dwell_timer_expires', String(expires));
 
-        // Schedule notification after dwell expires
         await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
         await Notifications.scheduleNotificationAsync({
           identifier: 'arrived-consent-prompt',
@@ -264,7 +556,7 @@ export class SessionManager {
             title: `Welcome home.`,
             body: body,
             categoryIdentifier: 'ARRIVED_ALERT',
-            sound: true,
+            sound: deliveryMode === 'loud',
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -281,15 +573,16 @@ export class SessionManager {
     const currentState = this.getSessionState();
     console.log(`[SessionManager] Exited geofence: ${stationId}, state: ${currentState}`);
 
+    const state = useUserPreferencesStore.getState();
+    const deliveryMode = state.shushPreferences?.alertDeliveryMode || 'shush';
+
     if (currentState === 'active') {
       const originId = this.getCommuteOriginId();
       const exitLineId = this.getCommuteLineId();
       if (stationId === originId) {
-        // Exited origin station -> set Live Activity status to In Transit
         const isRunning = await LiveActivityService.isActive();
         if (isRunning) {
           try {
-            // Refresh the Live Activity from the (now mid-journey) Tier 2 cache.
             await LiveActivityService.update(originId, exitLineId);
           } catch (e) {
             console.error('[SessionManager] Exit update failed:', e);
@@ -297,7 +590,7 @@ export class SessionManager {
         }
 
         const alreadyNotified = backgroundStorage.getBoolean('notified_departed') ?? false;
-        if (!alreadyNotified) {
+        if (!alreadyNotified && deliveryMode === 'loud') {
           backgroundStorage.set('notified_departed', true);
           await Notifications.scheduleNotificationAsync({
             content: {
@@ -316,7 +609,6 @@ export class SessionManager {
     if (currentState === 'closing') {
       const destId = this.getCommuteDestinationId();
       if (stationId === destId) {
-        // Exited destination before dwell timer expired -> cancel timer and revert to active
         const expiresStr = backgroundStorage.getString('dwell_timer_expires');
         if (expiresStr) {
           const expires = parseInt(expiresStr, 10);
@@ -325,18 +617,20 @@ export class SessionManager {
             await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
             backgroundStorage.set('session_state', 'active');
             backgroundStorage.remove('dwell_timer_expires');
-            backgroundStorage.set('notified_departed', false); // Allow departed alert to re-fire if origin changes or they exit again
+            backgroundStorage.set('notified_departed', false);
 
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `Resuming tracking`,
-                body: `You exited ${stationName}. Continuing live commute tracking.`,
-                sound: true,
-              },
-              trigger: null,
-            }).catch(err => {
-              console.error('[SessionManager] Failed to schedule resuming notification:', err);
-            });
+            if (deliveryMode === 'loud') {
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: `Resuming tracking`,
+                  body: `You exited ${stationName}. Continuing live commute tracking.`,
+                  sound: true,
+                },
+                trigger: null,
+              }).catch(err => {
+                console.error('[SessionManager] Failed to schedule resuming notification:', err);
+              });
+            }
           }
         }
       }
@@ -346,15 +640,13 @@ export class SessionManager {
   static async closeSession(forceQuiet: boolean) {
     console.log(`[SessionManager] Closing session. ForceQuiet: ${forceQuiet}`);
 
-    // Capture session data before clearing MMKV keys
-    const originId = this.getCommuteOriginId()
-    const destId = this.getCommuteDestinationId()
-    const lineId = this.getCommuteLineId()
-    const startTime = this.getCommuteStartTime()
+    const originId = this.getCommuteOriginId();
+    const destId = this.getCommuteDestinationId();
+    const lineId = this.getCommuteLineId();
+    const startTime = this.getCommuteStartTime();
 
-    await LiveActivityService.end().catch(e => console.error('[SessionManager] End Live Activity failed:', e));
+    await LiveActivityService.end('destination_reached').catch(e => console.error('[SessionManager] End Live Activity failed:', e));
 
-    // Detach all Tier 2 cache listeners + clear active timers.
     for (const [, handle] of activeCacheSubs.entries()) {
       try { handle.unsubDirection?.(); } catch {}
       try { handle.unsubLiveActivity?.(); } catch {}
@@ -366,7 +658,6 @@ export class SessionManager {
     backgroundStorage.set('session_state', 'idle');
     backgroundStorage.remove('dwell_timer_expires');
 
-    // Increment tracked commute count for confirmation-card trigger
     const store = useUserPreferencesStore.getState();
     useUserPreferencesStore.setState({ completedJourneys: (store.completedJourneys || 0) + 1 });
     const touchInTime = this.getTouchInTime() || startTime;
@@ -377,7 +668,6 @@ export class SessionManager {
     backgroundStorage.remove('touch_in_time');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
-    // Fire-and-forget POST to backend with completed journey data
     if (originId && lineId && lineId !== 'unknown' && (touchInTime || startTime)) {
       this.postSessionToBackend({
         lineId,
@@ -405,23 +695,15 @@ export class SessionManager {
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
   }
 
-  /**
-   * Build status-aware body for welcome-home notification.
-   * Reads the user's tracked lines against cached TfL status data.
-   * Never calls the copy engine — factual only, no LLM.
-   */
   static _buildArrivalBody(selectedLines: any[], lastKnownData: any[]): string {
     if (!selectedLines || selectedLines.length === 0) return 'Your lines are all clear.';
 
-    // Normalise tracked line IDs
     const lineIds = selectedLines.map((l: any) =>
       typeof l === 'string' ? l.toLowerCase() : (l.id || l.lineId || '').toLowerCase()
     ).filter(Boolean);
 
     if (lineIds.length === 0) return 'Your lines are all clear.';
 
-    // Filter disrupted lines the user actually tracks
-    // TfL severity codes: 10=good, 9/7=minor, 6=severe, 5/4/3/20/0/11/etc=suspended
     const SEVERE_CODES = new Set([6]);
     const MINOR_CODES = new Set([9, 7]);
     const SUSPENDED_CODES = new Set([5, 4, 3, 0, 11, 8, 16, 17, 19, 1, 2, 20]);
@@ -459,11 +741,6 @@ export class SessionManager {
     }
   }
 
-  /**
-   * POST a completed journey to the backend /api/sessions endpoint.
-   * Reads auth from AsyncStorage (same pattern as notificationRegistrationService).
-   * Fire-and-forget — failures are logged, never thrown.
-   */
   private static async postSessionToBackend(payload: {
     lineId: string;
     entryStation: string;
@@ -472,13 +749,7 @@ export class SessionManager {
     exitTime: string;
   }) {
     try {
-      // Bug #3 fix: keys are guaranteed to exist (created at onboarding
-      // finish); this lazy ensure also self-heals older installs.
       const { userId, apiKey } = await ensureDeviceIdentity();
-
-      // /api/sessions lives on the Next.js backend (Railway), NOT the push
-      // brain (Vercel) — the old BACKEND_URL target returned 404 and sessions
-      // never landed in Neon, so claims could never be created from them.
       const response = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/sessions`, {
         method: 'POST',
         headers: {

@@ -29,7 +29,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
   children,
   style,
   contentStyle,
-  borderRadius = 14,
+  borderRadius = 16,
   intensity = GLASS.blurIntensity,
   tint = 'dark',
   specular = true,
@@ -49,8 +49,8 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           contentStyle,
         ]}
       >
-        {/* Layer 1: Native Live Blur */}
-        {Platform.OS === 'ios' && (
+        {/* Layer 1: Native Live Blur (iOS & Web) */}
+        {(Platform.OS === 'ios' || Platform.OS === 'web') && (
           <BlurView
             intensity={intensity}
             tint={tint}
@@ -58,7 +58,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           />
         )}
 
-        {/* Layer 2: Specular Top Rim Catch-Light */}
+        {/* Layer 2: Specular Top Rim Catch-Light (Physical Glass Reflection) */}
         {specular && (
           <LinearGradient
             colors={[GLASS.specularStart, GLASS.specularEnd]}
@@ -82,11 +82,6 @@ export default LiquidGlassView;
 const styles = StyleSheet.create({
   outerShadowContainer: {
     backgroundColor: 'transparent',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   innerGlassBody: {
     overflow: 'hidden',

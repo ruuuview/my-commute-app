@@ -6,7 +6,7 @@
  * CRITICAL ARCHITECTURE RULE (do not violate):
  *   The React Native layer (Tier2CacheManager) is the ONE AND ONLY writer of
  *   the Tier 2 cache. This service READS that cache and forwards a flattened,
- *   display-ready payload to the native bridge module
+ *   display-ready projection to the native bridge module
  *   (modules/my-commute-live-activity). It NEVER fetches TfL, NEVER owns or
  *   duplicates cache state. Single source of truth = the Tier 2 cache.
  *
@@ -15,9 +15,11 @@
  *   — which cannot call this bridge — can render the Lock Screen / Dynamic
  *   Island passively from the same single source of truth.
  *
- * Lifecycle (per master plan):
+ * Lifecycle (per master plan & Shush Mode v2.0):
  *   - Starts on Tier 2 geofence entry (NOT Tier 1 exit).
- *   - Ends at closeSession() (Tier 1 destination arrival).
+ *   - Respects Shush Mode delivery state ('loud' | 'shush' | 'off').
+ *   - Auto-registers dual APNs push tokens (Push-to-Start on iOS 17.2+ & Live Activity).
+ *   - Ends at closeSession() (Tier 1 destination arrival) or timeout.
  *   - If there is NOTHING cached, the activity is NOT started (honest void).
  * ============================================================================
  */
@@ -28,6 +30,16 @@ import { createMMKV } from 'react-native-mmkv';
 import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { tflCapitalise } from '../utils/tflCapitalise';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import {
+  addPushToStartListener,
+  addLiveActivityPushTokenListener,
+} from '../modules/my-commute-live-activity';
+import { track } from './analyticsService';
+import { APP_CONFIG } from '../config/app.config';
+import { ensureDeviceIdentity } from './deviceIdentity';
+import { estimateFare } from './fareTable';
+import { computeDetour } from './detourComputer';
 
 // Re-use the same background MMKV the SessionManager uses (single store).
 const backgroundStorage = createMMKV({ id: 'background-storage' });
@@ -40,13 +52,32 @@ const MyCommuteLiveActivityModule =
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
 
 export interface LiveActivityBridgePayload {
+  journeyId?: string;
+  backendUrl?: string;
+  originStation?: string;
+  destinationStation?: string;
   stationId: string;
   lineId: string;
   lineName: string;
   branchKnown: boolean;
   arrivals: { destinationName: string; timeToStationSeconds: number }[];
+  statusSeverity?: 'good' | 'minor_delays' | 'severe_delays' | 'suspended';
   statusText: string;
+  severityTier?: number;
+  nextTrainMinutes?: number;
+  etaTimestamp?: number;
+  etaDelta?: string;
   isDisrupted: boolean;
+  isEscalated?: boolean;
+  detourLine?: string | null;
+  detourMinutes?: number | null;
+  detourStatus?: string | null;
+  delayRepayEligible?: boolean;
+  estimatedFare?: string | null;
+  delayMinutes?: number;
+  tunnelState?: 'normal' | 'held';
+  progress?: number;
+  segmentMaxDuration?: number;
   signalState: LiveActivitySignalState;
 }
 
@@ -54,6 +85,63 @@ const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
 export class LiveActivityService {
   private static activeAbortController: AbortController | null = null;
+  private static lastDisruptedAt = 0;
+  private static lastWidgetSyncAt = 0;
+  private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
+  private static tokenSubscriptions: Array<{ remove: () => void }> = [];
+
+  /**
+   * Initialize dual-token listeners for APNs push updates.
+   * Observed asynchronously on module mount.
+   */
+  static initTokenListeners(): void {
+    if (Platform.OS !== 'ios') return;
+    if (this.tokenSubscriptions.length > 0) return;
+
+    try {
+      const subStart = addPushToStartListener((event) => {
+        if (!event?.token) return;
+        console.log('[LiveActivityService] Push-to-Start token updated:', event.token);
+        backgroundStorage.set('push_to_start_token', event.token);
+        track('shush_pushtostart_triggered');
+        track('shush_token_rotated', { type: 'pushToStart' });
+        void this.syncTokenToBackend('pushToStart', event.token);
+      });
+      this.tokenSubscriptions.push(subStart);
+
+      const subLive = addLiveActivityPushTokenListener((event) => {
+        if (!event?.token) return;
+        console.log(`[LiveActivityService] Live Activity token for ${event.journeyId}:`, event.token);
+        backgroundStorage.set('live_activity_token', event.token);
+        track('shush_token_rotated', { type: 'liveActivity', journeyId: event.journeyId });
+        void this.syncTokenToBackend('liveActivity', event.token, event.journeyId);
+      });
+      this.tokenSubscriptions.push(subLive);
+    } catch (e) {
+      console.warn('[LiveActivityService] Error initializing token listeners:', e);
+    }
+  }
+
+  private static async syncTokenToBackend(
+    tokenType: 'device' | 'liveActivity' | 'pushToStart',
+    token: string,
+    journeyId?: string
+  ): Promise<void> {
+    try {
+      const { userId, apiKey } = await ensureDeviceIdentity();
+      await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/devices/tokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({ tokenType, token, journeyId, userId }),
+      });
+    } catch (err) {
+      console.warn(`[LiveActivityService] Failed to sync ${tokenType} token to backend:`, err);
+    }
+  }
 
   /**
    * Build the bridge payload from the Tier 2 cache + session context.
@@ -103,30 +191,82 @@ export class LiveActivityService {
     const isWithinDebounce = Date.now() - LiveActivityService.lastDisruptedAt < 120 * 1000;
     const isDisrupted = rawIsDisrupted || (LiveActivityService.lastDisruptedAt > 0 && isWithinDebounce);
 
-    const statusText = isDisrupted
+    // Shush Mode Severity Classification (Section 8)
+    let severityTier = 0;
+    let statusSeverity: 'good' | 'minor_delays' | 'severe_delays' | 'suspended' = 'good';
+
+    if (isDisrupted) {
+      const desc = (disruption?.description || '').toLowerCase();
+      if (desc.includes('suspended') || desc.includes('closure') || desc.includes('no service')) {
+        severityTier = 3;
+        statusSeverity = 'suspended';
+      } else if (desc.includes('severe') || desc.includes('part suspended')) {
+        severityTier = 2;
+        statusSeverity = 'severe_delays';
+      } else {
+        severityTier = 1;
+        statusSeverity = 'minor_delays';
+      }
+    }
+
+    const rawStatusText = isDisrupted
       ? `${disruption?.description || 'Minor Delays'}${disruption?.reason ? ` — ${disruption.reason}` : ''}`
       : 'Good Service';
+    // Max 60 chars per APNs payload limit (Section 6.1)
+    const statusText = rawStatusText.length > 60 ? `${rawStatusText.slice(0, 57)}...` : rawStatusText;
+
+    const nextTrainMinutes = Math.max(0, Math.round(arrivals[0].timeToStationSeconds / 60));
+    const nowUnix = Math.floor(Date.now() / 1000);
+    const estimatedTransitSec = 12 * 60; // 12m typical leg baseline
+    const etaTimestamp = nowUnix + arrivals[0].timeToStationSeconds + estimatedTransitSec;
+    const delayMinutes = isDisrupted ? (severityTier === 3 ? 20 : severityTier === 2 ? 10 : 4) : 0;
+    const etaDelta = delayMinutes > 0 ? `+${delayMinutes}m` : 'On time';
+
+    // Delay Repay Eligibility (delay >= 15 min on TfL operated routes)
+    const delayRepayEligible = delayMinutes >= 15;
+    const estimatedFare = delayRepayEligible ? estimateFare(1, 2) : null;
 
     // Branch known when the session has resolved a destination (Priority 1-3).
-    const branchKnown = !!backgroundStorage.getString('commute_destination_id');
+    const destId = backgroundStorage.getString('commute_destination_id');
+    const branchKnown = !!destId;
+    const journeyId = `j_${Math.floor(Date.now() / 1000)}`;
 
     // Signal state override or read from storage.
     const signalState: LiveActivitySignalState =
       signalStateOverride ?? LiveActivityService.readSignalState();
 
+    const detour = severityTier >= 3 ? computeDetour(cleanLineId) : null;
+
     return {
+      journeyId,
+      backendUrl: APP_CONFIG.BACKEND_API_URL,
+      originStation: stationId,
+      destinationStation: destId || '',
       stationId,
       lineId: cleanLineId,
       lineName,
       branchKnown,
       arrivals,
+      statusSeverity,
       statusText,
+      severityTier,
+      nextTrainMinutes,
+      etaTimestamp,
+      etaDelta,
       isDisrupted,
+      isEscalated: severityTier >= 3,
+      detourLine: detour?.detourLineName ?? null,
+      detourMinutes: detour?.detourMinutes ?? null,
+      detourStatus: detour?.detourStatus ?? null,
+      delayRepayEligible,
+      estimatedFare,
+      delayMinutes,
+      tunnelState: 'normal',
+      progress: 0.15,
+      segmentMaxDuration: 180,
       signalState,
     };
   }
-
-  private static lastDisruptedAt = 0;
 
   private static readSignalState(): LiveActivitySignalState {
     const meltdown = backgroundStorage.getBoolean('tfl_global_outage') ?? false;
@@ -135,10 +275,17 @@ export class LiveActivityService {
 
   /**
    * Start the Live Activity. Reads the Tier 2 cache for `stationId`.
-   * If the cache is empty, no activity is started (honest void, not a false card).
+   * Respects Shush Mode delivery mode ('loud' | 'shush' | 'off').
    */
-  static async start(stationId: string, lineId: string): Promise<string | null> {
+  static async start(stationId: string, lineId: string, trigger = 'geofence'): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
+
+    const prefs = useUserPreferencesStore.getState();
+    const deliveryMode = prefs.shushPreferences?.alertDeliveryMode || 'shush';
+    if (deliveryMode === 'off') {
+      console.log('[LiveActivityService] Delivery mode is OFF — suppressing Live Activity start.');
+      return null;
+    }
 
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
       console.warn('[LiveActivityService] MyCommuteLiveActivityModule.startCommuteActivity unavailable.');
@@ -153,7 +300,11 @@ export class LiveActivityService {
 
     try {
       const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(payload);
-      console.log(`[LiveActivityService] Started activity ${activityId}`);
+      console.log(`[LiveActivityService] Started activity ${activityId} in ${deliveryMode} mode`);
+      track('shush_session_started', { trigger, mode: deliveryMode });
+      if (payload.severityTier === 3) {
+        track('shush_escalation_fired', { line: payload.lineId, tier: 3 });
+      }
       return activityId;
     } catch (e) {
       console.error('[LiveActivityService] Failed to start activity:', e);
@@ -163,9 +314,6 @@ export class LiveActivityService {
 
   /**
    * Update the running Live Activity from the (already refreshed) Tier 2 cache.
-   * Called whenever the Tier2CacheManager emits onTier2CachePopulated.
-   * If signal returns after a gap, the widget flashes the resumed content
-   * (handled natively by ActivityKit re-render).
    */
   static async update(
     stationId: string,
@@ -178,8 +326,6 @@ export class LiveActivityService {
     }
     const payload = this.buildPayload(stationId, lineId, signalStateOverride);
     if (!payload) {
-      // Cache vanished mid-session: keep the last rendered content (it stays
-      // softened as normal). Do not crash the activity.
       return;
     }
     try {
@@ -197,8 +343,6 @@ export class LiveActivityService {
     } else {
       backgroundStorage.set('tfl_global_outage', false);
     }
-    // For meltdown / no-signal we still need a payload to drive the copy. If we
-    // have a last-known cache, use it; otherwise the widget shows the void.
     const sid = stationId || backgroundStorage.getString('commute_origin_id') || '';
     const lid = lineId || backgroundStorage.getString('commute_line_id') || '';
     if (sid) {
@@ -206,12 +350,8 @@ export class LiveActivityService {
     }
   }
 
-  private static lastWidgetSyncAt = 0;
-  private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
-
   /**
    * Synchronizes user's saved lines and latest status snapshots to the App Group UserDefaults.
-   * Debounced to 30 seconds to respect iOS WidgetKit daily reload budgets.
    */
   static async syncWidgetCache(selectedLines: string[], customStatuses?: Array<{ id: string; name: string; status: string; severity: number }>): Promise<void> {
     if (Platform.OS !== 'ios') return;
@@ -226,16 +366,13 @@ export class LiveActivityService {
     this.lastWidgetSyncAt = now;
 
     try {
-      const linesArray = (selectedLines && selectedLines.length > 0)
-        ? selectedLines.map(id => ({ id: normaliseLineId(id), name: tflCapitalise(id) }))
-        : [
-            { id: 'victoria', name: 'Victoria' },
-            { id: 'jubilee', name: 'Jubilee' },
-            { id: 'northern', name: 'Northern' },
-            { id: 'central', name: 'Central' },
-            { id: 'piccadilly', name: 'Piccadilly' },
-            { id: 'elizabeth', name: 'Elizabeth' },
-          ];
+      const lines = (selectedLines && selectedLines.length > 0)
+        ? selectedLines
+        : useUserPreferencesStore.getState().selectedLines;
+
+      const linesArray = (lines && lines.length > 0)
+        ? lines.map(id => ({ id: normaliseLineId(id), name: tflCapitalise(id) }))
+        : [];
 
       const linesJson = JSON.stringify(linesArray);
 
@@ -243,7 +380,6 @@ export class LiveActivityService {
       if (customStatuses && customStatuses.length > 0) {
         statusesJson = JSON.stringify(customStatuses);
       } else {
-        // Build basic baseline statuses so widget renders 0ms pre-warmed
         const baselineStatuses = linesArray.map(l => ({
           id: l.id,
           name: l.name,
@@ -262,7 +398,7 @@ export class LiveActivityService {
 
   /**
    * 1-Tap Preview trigger for instant on-device testing of Dynamic Island & Lock Screen Live Activity.
-   * Purges prior instances and creates a rich preview session.
+   * Auto-terminates after 5 seconds per Shush Onboarding spec (Section 19).
    */
   static async startPreviewActivity(): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
@@ -270,23 +406,49 @@ export class LiveActivityService {
       return null;
     }
 
+    const state = useUserPreferencesStore.getState();
+    const primaryLineId = state.selectedLines?.[0] || 'piccadilly';
+    const primaryLineName = tflCapitalise(primaryLineId);
+    const station = state.pinnedStations?.[0];
+
     const previewPayload: LiveActivityBridgePayload = {
-      stationId: 'HUBVIC',
-      lineId: 'victoria',
-      lineName: 'Victoria',
+      journeyId: `preview_${Math.floor(Date.now() / 1000)}`,
+      originStation: station?.id || '940GZZLUPKC',
+      destinationStation: 'Piccadilly Circus',
+      stationId: station?.id || '940GZZLUPKC',
+      lineId: primaryLineId,
+      lineName: primaryLineName,
       branchKnown: true,
       arrivals: [
-        { destinationName: 'Brixton', timeToStationSeconds: 120 },
-        { destinationName: 'Brixton', timeToStationSeconds: 300 },
+        { destinationName: 'Cockfosters', timeToStationSeconds: 120 },
+        { destinationName: 'Arnos Grove', timeToStationSeconds: 300 },
       ],
+      statusSeverity: 'good',
       statusText: 'Good Service',
+      severityTier: 0,
+      nextTrainMinutes: 2,
+      etaTimestamp: Math.floor(Date.now() / 1000) + 720,
+      etaDelta: 'On time',
       isDisrupted: false,
+      isEscalated: false,
+      delayRepayEligible: false,
+      delayMinutes: 0,
+      tunnelState: 'normal',
+      progress: 0.25,
+      segmentMaxDuration: 180,
       signalState: 'ok',
     };
 
     try {
       const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(previewPayload);
       console.log(`[LiveActivityService] Started preview activity ${activityId}`);
+      track('shush_session_started', { trigger: 'preview', mode: 'shush' });
+
+      // Auto-terminate after 5 seconds
+      setTimeout(() => {
+        void this.end('demo_timeout');
+      }, 5000);
+
       return activityId;
     } catch (e) {
       console.error('[LiveActivityService] Failed to start preview activity:', e);
@@ -295,17 +457,18 @@ export class LiveActivityService {
   }
 
   static async stopPreviewActivity(): Promise<void> {
-    await this.end();
+    await this.end('manual_preview_stop');
   }
 
-  static async end(): Promise<void> {
+  static async end(reason = 'destination_reached'): Promise<void> {
     if (Platform.OS !== 'ios') return;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.endCommuteActivity !== 'function') {
       return;
     }
     try {
       await MyCommuteLiveActivityModule.endCommuteActivity();
-      console.log('[LiveActivityService] Ended activity');
+      console.log(`[LiveActivityService] Ended activity. Reason: ${reason}`);
+      track('shush_session_ended', { reason });
     } catch (e) {
       console.error('[LiveActivityService] Failed to end activity:', e);
     }
@@ -320,6 +483,44 @@ export class LiveActivityService {
       return await MyCommuteLiveActivityModule.isActivityActive();
     } catch (e) {
       console.error('[LiveActivityService] isActivityActive failed:', e);
+      return false;
+    }
+  }
+
+  static async hasDynamicIsland(): Promise<boolean> {
+    if (Platform.OS !== 'ios') return false;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.hasDynamicIsland !== 'function') {
+      return false;
+    }
+    try {
+      return await MyCommuteLiveActivityModule.hasDynamicIsland();
+    } catch {
+      return false;
+    }
+  }
+
+  static async checkTimeSensitivePermission(): Promise<boolean> {
+    if (Platform.OS !== 'ios') return false;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.checkTimeSensitivePermission !== 'function') {
+      return false;
+    }
+    try {
+      return await MyCommuteLiveActivityModule.checkTimeSensitivePermission();
+    } catch {
+      return false;
+    }
+  }
+
+  static async requestTimeSensitivePermission(): Promise<boolean> {
+    if (Platform.OS !== 'ios') return false;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.requestTimeSensitivePermission !== 'function') {
+      return false;
+    }
+    try {
+      const granted = await MyCommuteLiveActivityModule.requestTimeSensitivePermission();
+      useUserPreferencesStore.getState().setTimeSensitiveGranted(granted);
+      return granted;
+    } catch {
       return false;
     }
   }

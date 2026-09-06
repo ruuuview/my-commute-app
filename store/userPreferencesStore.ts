@@ -23,6 +23,31 @@ const mmkvStorageAdapter: StateStorage = {
   },
 };
 
+export interface ShushPreferences {
+  alertDeliveryMode: 'loud' | 'shush' | 'off';
+  shushActivation: 'smart' | 'schedule' | 'always';
+  shushSchedule: {
+    weekdays: number[];
+    windows: Array<{ start: string; end: string }>; // DateComponents, no TZ
+  };
+  timeSensitiveGranted: boolean;
+  hasCompletedShushOnboarding: boolean;
+}
+
+export interface ShushRuntimeState {
+  currentState: 'inactive' | 'activeSilent' | 'activeEscalated' | 'tunnelHold' | 'queuedEscalation';
+  currentTier: 0 | 1 | 2 | 3;
+  lastServerUpdate: number;
+  lastKnownETA: number;
+  activeJourneyId: string | null;
+}
+
+export interface DeviceCapabilities {
+  hasDynamicIsland: boolean;
+  iosVersion: string;
+  supportsPushToStart: boolean;
+}
+
 export interface UserPreferencesState {
   schemaVersion: number;
   hasCompletedOnboarding: boolean;
@@ -54,6 +79,23 @@ export interface UserPreferencesState {
   submittedClaims: Record<string, number>;
   // Claim IDs hidden via optimistic offline dismissal (MMKV-persisted).
   dismissedClaims: string[];
+  // Alert hours (allowed window semantics) + severe bypass policy
+  alertWindowStart: string; // HH:MM format (default: '06:00')
+  alertWindowEnd: string;   // HH:MM format (default: '22:00')
+  severeBypassAlertHours: boolean; // default: true
+  // Shush Mode states
+  shushPreferences: ShushPreferences;
+  shushRuntimeState: ShushRuntimeState;
+  deviceCapabilities: DeviceCapabilities;
+  setAlertDeliveryMode: (mode: 'loud' | 'shush' | 'off') => void;
+  setShushActivation: (activation: 'smart' | 'schedule' | 'always') => void;
+  setShushSchedule: (schedule: ShushPreferences['shushSchedule']) => void;
+  setTimeSensitiveGranted: (granted: boolean) => void;
+  setHasCompletedShushOnboarding: (completed: boolean) => void;
+  updateShushRuntimeState: (patch: Partial<ShushRuntimeState>) => void;
+  setDeviceCapabilities: (caps: Partial<DeviceCapabilities>) => void;
+  setAlertHours: (start: string, end: string) => void;
+  setSevereBypassAlertHours: (bypass: boolean) => void;
   setHasHydrated: (state: boolean) => void;
   setCalendarGranted: (granted: boolean) => void;
   setNotificationsGranted: (granted: boolean) => void;
@@ -93,7 +135,7 @@ export interface UserPreferencesState {
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -119,12 +161,37 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   tflAccountStatus: 'NOT_SET',
   submittedClaims: {},
   dismissedClaims: [],
+  alertWindowStart: '06:00',
+  alertWindowEnd: '22:00',
+  severeBypassAlertHours: true,
   simulatedClaimActive: false,
   recentSearches: [],
   stationFilterToggles: {},
   hapticsEnabled: true,
   lineNotificationToggles: {},
   stationNotificationToggles: {},
+  shushPreferences: {
+    alertDeliveryMode: 'shush',
+    shushActivation: 'smart',
+    shushSchedule: {
+      weekdays: [1, 2, 3, 4, 5],
+      windows: [{ start: '07:30', end: '09:30' }, { start: '17:00', end: '19:00' }],
+    },
+    timeSensitiveGranted: false,
+    hasCompletedShushOnboarding: false,
+  },
+  shushRuntimeState: {
+    currentState: 'inactive',
+    currentTier: 0,
+    lastServerUpdate: 0,
+    lastKnownETA: 0,
+    activeJourneyId: null,
+  },
+  deviceCapabilities: {
+    hasDynamicIsland: false,
+    iosVersion: '17.2',
+    supportsPushToStart: true,
+  },
 };
 
 const validateStationZoneCache = (state: UserPreferencesState): boolean => {
@@ -337,6 +404,15 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         });
       },
       setSimulatedClaimActive: (active) => set({ simulatedClaimActive: active }),
+      setAlertHours: (start: string, end: string) => set({ alertWindowStart: start, alertWindowEnd: end }),
+      setSevereBypassAlertHours: (bypass: boolean) => set({ severeBypassAlertHours: bypass }),
+      setAlertDeliveryMode: (mode) => set((state) => ({ shushPreferences: { ...state.shushPreferences, alertDeliveryMode: mode } })),
+      setShushActivation: (activation) => set((state) => ({ shushPreferences: { ...state.shushPreferences, shushActivation: activation } })),
+      setShushSchedule: (schedule) => set((state) => ({ shushPreferences: { ...state.shushPreferences, shushSchedule: schedule } })),
+      setTimeSensitiveGranted: (granted) => set((state) => ({ shushPreferences: { ...state.shushPreferences, timeSensitiveGranted: granted } })),
+      setHasCompletedShushOnboarding: (completed) => set((state) => ({ shushPreferences: { ...state.shushPreferences, hasCompletedShushOnboarding: completed } })),
+      updateShushRuntimeState: (patch) => set((state) => ({ shushRuntimeState: { ...state.shushRuntimeState, ...patch } })),
+      setDeviceCapabilities: (caps) => set((state) => ({ deviceCapabilities: { ...state.deviceCapabilities, ...caps } })),
     }),
     {
       name: 'user-preferences',
@@ -344,7 +420,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHours, setSevereBypassAlertHours, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

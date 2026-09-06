@@ -328,11 +328,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderRadius: 16,
     overflow: 'visible',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   outerCardPressed: {
     opacity: 0.65,

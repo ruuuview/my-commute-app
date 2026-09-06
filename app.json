@@ -24,6 +24,9 @@
           "location",
           "remote-notification"
         ],
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow My Commute to use your location in the background to detect station arrival and automate delay repay.",
+        "NSLocationAlwaysUsageDescription": "Allow My Commute to use your location in the background to detect station arrival and automate delay repay.",
+        "NSLocationWhenInUseUsageDescription": "Allow My Commute to use your location to show nearby stations and departures.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": ["citymapper", "tfl-go"],
         "NSSupportsLiveActivities": true,
@@ -82,6 +85,15 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#0098D4"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow My Commute to use your location in the background to detect station arrival and automate delay repay.",
+          "locationAlwaysPermission": "Allow My Commute to use your location in the background to detect station arrival and automate delay repay.",
+          "locationWhenInUsePermission": "Allow My Commute to use your location to show nearby stations and departures.",
+          "isIosBackgroundLocationEnabled": true
         }
       ]
     ],

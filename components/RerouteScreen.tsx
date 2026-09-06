@@ -162,6 +162,10 @@ export interface RerouteScreenProps {
   resolvedSource?: DetectionSource;
   /** Confidence of the resolution — drives highlight strength. */
   resolvedConfidence?: 'high' | 'medium' | 'low';
+  /** Deep-link target anchor: if 'alternatives', immediately scroll to alternative route card. */
+  initialSection?: 'overview' | 'alternatives';
+  /** Live revalidation: true if the disruption has resolved since the alert was fired. */
+  isCleared?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────
@@ -184,9 +188,21 @@ export default function RerouteScreen({
   resolvedTerminus,
   resolvedSource,
   resolvedConfidence,
+  initialSection = 'overview',
+  isCleared = false,
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
+
+  // Auto-scroll to alternatives section if opened via quick action
+  useEffect(() => {
+    if (visible && initialSection === 'alternatives') {
+      const timer = setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: 320, animated: !reducedMotion });
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [visible, initialSection, reducedMotion]);
 
   // ── Branch selection ────────────────────────────────────────────
   // internalBranch = the branch currently driving content + live fetch.
@@ -391,6 +407,16 @@ export default function RerouteScreen({
         />
         <Text style={s.lineHeaderName}>{lineName.toUpperCase()}</Text>
       </View>
+
+      {/* Disruption resolved banner if line has cleared */}
+      {isCleared && (
+        <View style={s.clearedBadge}>
+          <View style={s.clearedDot} />
+          <Text style={s.clearedText}>
+            Disruption resolved — Good service resumed
+          </Text>
+        </View>
+      )}
     </>
   );
 
@@ -824,6 +850,31 @@ const s = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
+  clearedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(52, 199, 89, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  clearedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#34C759',
+    marginRight: 8,
+  },
+  clearedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#34C759',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
 
   // ── Body ──────────────────────────────────────────────────────
   body: {
@@ -848,11 +899,6 @@ const s = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 10,
     marginBottom: 16,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   suggestedRouteHeaderRow: {
     flexDirection: 'row',

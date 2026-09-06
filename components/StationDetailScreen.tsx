@@ -531,11 +531,6 @@ const s = StyleSheet.create({
   lineCardOuter: {
     borderRadius: 14,
     overflow: 'visible',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   lineCardInner: {
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,

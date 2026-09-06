@@ -115,11 +115,6 @@ const styles = StyleSheet.create({
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
     marginTop: 8,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   lastUpdated: {
     fontSize: 12,

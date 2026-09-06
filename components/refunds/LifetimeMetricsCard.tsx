@@ -2,7 +2,6 @@ import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { formatPence } from '../../services/refundSlaService';
-import { RADAR } from '../../theme/radarTheme';
 import { GLASS } from '../../theme/colors';
 
 interface LifetimeMetricsCardProps {
@@ -47,11 +46,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   blurFill: StyleSheet.absoluteFillObject,
   glassFill: {

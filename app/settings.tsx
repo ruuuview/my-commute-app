@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,64 +12,69 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
-  CaretLeft, Bell, Info, WarningCircle, Warning, Clock, CaretRight,
-  DeviceMobile, Fingerprint, House, MapTrifold, MapPin, Train, Shield,
-  FileText, ArrowsClockwise, Broadcast 
+  CaretLeft, Bell, Clock, CaretRight,
+  Fingerprint, House, MapTrifold, MapPin, Shield,
+  WarningCircle, Wrench, Warning,
+  SpeakerHigh, BellSlash, Sparkle
 } from 'phosphor-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { showMessage } from 'react-native-flash-message';
-import { ProStatusCard } from '../components/ProStatusCard';
-import { PermissionRow } from '../components/PermissionRow';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { requestPermission, usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
-import { useShallow } from 'zustand/react/shallow';
-import * as Notifications from 'expo-notifications';
-import * as Calendar from 'expo-calendar';
-import * as ExpoLocation from 'expo-location';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, cancelAnimation } from 'react-native-reanimated';
-import { Image } from 'expo-image';
+import { LiveActivityService } from '../services/LiveActivityService';
+import { track } from '../services/analyticsService';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
-import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
-import { usePressAnimation } from '../hooks/usePressAnimation';
-import { playSound } from '../utils/sound';
-import { BlurView } from 'expo-blur';
-import { GLASS, PREMIUM_BUTTON } from '../theme/colors';
+import * as Notifications from 'expo-notifications';
+import * as ExpoLocation from 'expo-location';
+import { useShallow } from 'zustand/react/shallow';
+import Animated from 'react-native-reanimated';
+
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
+import { syncGeofencesAsync } from '../services/backgroundTask';
+import { ProStatusCard } from '../components/ProStatusCard';
 import { FixItSheet } from '../components/FixItSheet';
+import { AlertHoursSheet } from '../components/AlertHoursSheet';
+import { DiagnosticsModal } from '../components/DiagnosticsModal';
+import { LiquidGlassView } from '../components/LiquidGlassView';
+import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
+import { usePressAnimation } from '../hooks/usePressAnimation';
+import { SETTINGS_BACKGROUND_GRADIENT } from '../theme/colors';
 
-interface UserPreferences {
-  saved_lines: string[];
-  saved_stations: string[];
-  is_pro: boolean;
-  trial_start_date?: string;
-  trial_activated?: boolean;
-  trial_expired_modal_shown?: boolean;
-  frozen_lines?: string[];
-  frozen_stations?: string[];
+const TFL_CONTACTLESS_PORTAL_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account';
+
+interface IconBadgeProps {
+  icon: React.ReactNode;
+  backgroundColor: string;
+  borderColor?: string;
 }
 
-interface NotificationSettings {
-  enabled: boolean;
-  alert_on_minor: boolean;
-  alert_on_severe: boolean;
-  time_window_start: string; // HH:MM format
-  time_window_end: string;   // HH:MM format
+function IconBadge({ icon, backgroundColor, borderColor }: IconBadgeProps) {
+  return (
+    <View
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor,
+        borderWidth: 1,
+        borderColor: borderColor || 'rgba(255, 255, 255, 0.20)',
+        marginRight: 12,
+      }}
+    >
+      {icon}
+    </View>
+  );
 }
+
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const alwaysEntry = usePermissionOrchestrator((s) => s.permissions.locationAlways);
-  const nudgeDismissedAt = usePermissionOrchestrator((s) => s.settingsNudgeDismissedAt);
-  const dismissSettingsNudge = usePermissionOrchestrator((s) => s.dismissSettingsNudge);
-  // #13 silent degrade: Always declined ≥2 times → persistent non-dialog nudge.
-  const showAlwaysNudge =
-    alwaysEntry.decision === 'denied' &&
-    alwaysEntry.askCount >= 2 &&
-    !nudgeDismissedAt;
-  const [showFixItSheet, setShowFixItSheet] = useState(false);
+  const backAnim = usePressAnimation('back_btn', false);
+
+  // ── Store Selectors (Zustand + MMKV) ──────────────────────────────
   const {
-    resetOnboarding,
     hapticsEnabled,
     setHapticsEnabled,
     locationGranted,
@@ -78,894 +83,1074 @@ export default function SettingsScreen() {
     setCalendarGranted,
     arrivalNotificationsEnabled,
     setArrivalNotificationsEnabled,
-    labelsConfirmed,
-    completedJourneys,
-    tflRegistered,
-    setTflRegistered,
     tflAccountStatus,
     setTflAccountStatus,
-  } = useUserPreferencesStore();
-
-  const [isGranted, setIsGranted] = useState(false);
-  const [showBack, setShowBack] = useState(false);
-  const flipRotation = useSharedValue(0);
-  const flipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Plan step 11 — permission analytics readout (Debug section).
-  const permissionAnalytics = usePermissionOrchestrator(
+    completedJourneys,
+    pinnedStations,
+    resetOnboarding,
+    alertWindowStart,
+    alertWindowEnd,
+    severeBypassAlertHours,
+    shushPreferences,
+    setAlertDeliveryMode,
+    setShushActivation,
+    setTimeSensitiveGranted,
+  } = useUserPreferencesStore(
     useShallow((s) => ({
-      permissions: s.permissions,
-      tier1HitCount: s.tier1HitCount,
+      hapticsEnabled: s.hapticsEnabled,
+      setHapticsEnabled: s.setHapticsEnabled,
+      locationGranted: s.locationGranted,
+      setLocationGranted: s.setLocationGranted,
+      calendarGranted: s.calendarGranted,
+      setCalendarGranted: s.setCalendarGranted,
+      arrivalNotificationsEnabled: s.arrivalNotificationsEnabled,
+      setArrivalNotificationsEnabled: s.setArrivalNotificationsEnabled,
+      tflAccountStatus: s.tflAccountStatus,
+      setTflAccountStatus: s.setTflAccountStatus,
+      completedJourneys: s.completedJourneys,
+      pinnedStations: s.pinnedStations || [],
+      resetOnboarding: s.resetOnboarding,
+      alertWindowStart: s.alertWindowStart || '06:00',
+      alertWindowEnd: s.alertWindowEnd || '22:00',
+      severeBypassAlertHours: s.severeBypassAlertHours !== false,
+      shushPreferences: s.shushPreferences,
+      setAlertDeliveryMode: s.setAlertDeliveryMode,
+      setShushActivation: s.setShushActivation,
+      setTimeSensitiveGranted: s.setTimeSensitiveGranted,
     }))
   );
 
-  const ctaPressAnim = usePressAnimation('continue_btn', false);
-  const backAnim = usePressAnimation('back_btn', false);
-  const resetPressAnim = usePressAnimation('station_row', false);
-  const hoursPressAnim = usePressAnimation('station_row', false);
-
-  const MAX_TRIAL_COMMUTES = 10;
-  const trialCommutesRemaining = Math.max(0, MAX_TRIAL_COMMUTES - (completedJourneys || 0));
+  // ── Shush Mode & Dynamic Island State ─────────────────────────────
+  const [hasDI, setHasDI] = useState(true);
+  const [isTestingShush, setIsTestingShush] = useState(false);
 
   useEffect(() => {
-    checkPermissionsStatus();
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        void checkPermissionsStatus();
-      }
-    });
-    return () => {
-      sub.remove();
-      if (flipTimeoutRef.current) {
-        clearTimeout(flipTimeoutRef.current);
-      }
-      cancelAnimation(flipRotation);
-    };
-  }, [flipRotation]);
+    void (async () => {
+      const di = await LiveActivityService.hasDynamicIsland();
+      setHasDI(di);
+      const ts = await LiveActivityService.checkTimeSensitivePermission();
+      setTimeSensitiveGranted(ts);
+    })();
+  }, [setTimeSensitiveGranted]);
 
-  const checkPermissionsStatus = async () => {
-    const { status } = await Notifications.getPermissionsAsync();
-    setIsGranted(status === 'granted');
-  };
-
-  const handleGrantNotifications = async () => {
-    try {
-      const decision = await requestPermission('notifications', 'settings_toggle');
-      
-      if (decision === 'granted') {
-        // Guard against re-entry during the flip animation
-        if (flipTimeoutRef.current) {
-          clearTimeout(flipTimeoutRef.current);
-          flipTimeoutRef.current = null;
+  const handleSelectDeliveryMode = useCallback(
+    async (mode: 'loud' | 'shush' | 'off') => {
+      if (hapticsEnabled) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+      setAlertDeliveryMode(mode);
+      if (mode === 'shush') {
+        track('shush_mode_enabled');
+        const ts = await LiveActivityService.checkTimeSensitivePermission();
+        setTimeSensitiveGranted(ts);
+        if (!ts) {
+          const granted = await LiveActivityService.requestTimeSensitivePermission();
+          setTimeSensitiveGranted(granted);
         }
-        if (hapticsEnabled) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-        playSound('select', 0.45);
-        setShowBack(true);
-        flipRotation.value = withTiming(180, { duration: 600 });
-        
-        flipTimeoutRef.current = setTimeout(() => {
-          flipRotation.value = withTiming(0, { duration: 600 }, (finished) => {
-            if (finished) {
-              runOnJS(resolveToEnabled)();
-            }
-          });
-        }, 3000);
       } else {
-        Alert.alert(
-          'Permission Denied',
-          'Please enable notification permissions in iOS Settings to receive alerts.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Go to Settings', onPress: () => Linking.openSettings() }
-          ]
-        );
+        track('shush_mode_disabled', { newMode: mode });
       }
-    } catch (error) {
-      console.error('Permission request failed:', error);
+    },
+    [hapticsEnabled, setAlertDeliveryMode, setTimeSensitiveGranted]
+  );
+
+  const handleTestShushDemo = useCallback(async () => {
+    if (hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  };
+    setIsTestingShush(true);
+    await LiveActivityService.startPreviewActivity();
+    setTimeout(() => {
+      setIsTestingShush(false);
+    }, 5200);
+  }, [hapticsEnabled]);
 
-  const resolveToEnabled = () => {
-    setIsGranted(true);
-    setShowBack(false);
-  };
+  // ── Local Disruption Alerts Content Toggle (Layer 2) ──────────────
+  const [disruptionAlertsEnabled, setDisruptionAlertsEnabled] = useState(true);
+  const [severeAlertsEnabled, setSevereAlertsEnabled] = useState(true);
+  const [minorAlertsEnabled, setMinorAlertsEnabled] = useState(true);
 
-  const handleToggleOff = () => {
-    Alert.alert(
-      'Disable Alerts',
-      'To disable live disruption alerts, please turn off notifications in iOS Settings.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Go to Settings', onPress: () => Linking.openSettings() }
-      ]
-    );
-  };
+  // ── Modals & Sheets ───────────────────────────────────────────────
+  const [showFixItSheet, setShowFixItSheet] = useState(false);
+  const [showAlertHoursSheet, setShowAlertHoursSheet] = useState(false);
+  const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
+  const [showTflConnectSheet, setShowTflConnectSheet] = useState(false);
 
-  const frontAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotateY: `${flipRotation.value}deg` }
-      ],
-      backfaceVisibility: 'hidden',
-    };
-  });
+  // ── Real OS Permission States (System Truth - Layer 1) ───────────
+  const [osNotificationsGranted, setOsNotificationsGranted] = useState(false);
+  const [osNotifCanAskAgain, setOsNotifCanAskAgain] = useState(true);
+  const [osNotifStatus, setOsNotifStatus] = useState<Notifications.PermissionStatus>(
+    Notifications.PermissionStatus.UNDETERMINED
+  );
+  const [osLocationAlwaysGranted, setOsLocationAlwaysGranted] = useState(false);
 
-  const backAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotateY: `${flipRotation.value + 180}deg` }
-      ],
-      backfaceVisibility: 'hidden',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-    };
-  });
+  const checkOsPermissions = useCallback(async () => {
+    try {
+      const notif = await Notifications.getPermissionsAsync();
+      setOsNotificationsGranted(notif.status === 'granted');
+      setOsNotifCanAskAgain(notif.canAskAgain);
+      setOsNotifStatus(notif.status);
 
-  const [userPrefs, setUserPrefs] = useState<UserPreferences>({
-    saved_lines: [],
-    saved_stations: [],
-    is_pro: false,
-    trial_activated: false,
-    frozen_lines: [],
-    frozen_stations: [],
-  });
-  
-  // Notification Settings State
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    enabled: true,
-    alert_on_minor: true,
-    alert_on_severe: true,
-    time_window_start: '06:00',
-    time_window_end: '22:00',
-  });
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-
-  useEffect(() => {
-    loadUserPreferences();
-    loadNotificationSettings();
+      const locBg = await ExpoLocation.getBackgroundPermissionsAsync();
+      setOsLocationAlwaysGranted(locBg.status === 'granted');
+    } catch (e) {
+      console.warn('[Settings] Error checking OS permissions:', e);
+    }
   }, []);
 
-  const loadUserPreferences = async () => {
+  const handleRequestNotificationPermission = useCallback(async () => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
     try {
-      const savedPrefs = await AsyncStorage.getItem('user_preferences');
-      if (savedPrefs) {
-        setUserPrefs(JSON.parse(savedPrefs));
+      const res = await Notifications.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: true, allowSound: true },
+      });
+      const granted = res.status === 'granted';
+      setOsNotificationsGranted(granted);
+      setOsNotifStatus(res.status);
+      setOsNotifCanAskAgain(res.canAskAgain);
+      if (granted) {
+        setDisruptionAlertsEnabled(true);
+        usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
+      } else if (res.status === Notifications.PermissionStatus.DENIED && !res.canAskAgain) {
+        usePermissionOrchestrator.getState().recordDecision('notifications', 'denied');
       }
-    } catch (error) {
-      console.error('Error loading preferences:', error);
+    } catch (err) {
+      console.warn('[Settings] Failed to request notification permissions:', err);
     }
-  };
+  }, [hapticsEnabled]);
 
-  const loadNotificationSettings = async () => {
-    try {
-      setIsLoadingSettings(true);
-      const savedSettings = await AsyncStorage.getItem('notification_settings');
-      if (savedSettings) {
-        setNotificationSettings(JSON.parse(savedSettings));
+  useEffect(() => {
+    void checkOsPermissions();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void checkOsPermissions();
       }
-    } catch (error) {
-      console.error('Error loading notification settings:', error);
-    } finally {
-      setIsLoadingSettings(false);
+    });
+    return () => sub.remove();
+  }, [checkOsPermissions]);
+
+  // ── Station Helpers ───────────────────────────────────────────────
+  const homeStation = useMemo(
+    () => pinnedStations.find((s) => s.role === 'home'),
+    [pinnedStations]
+  );
+  const workStation = useMemo(
+    () => pinnedStations.find((s) => s.role === 'work'),
+    [pinnedStations]
+  );
+  const hasHomeOrWork = Boolean(homeStation || workStation);
+
+  const homeWorkSubtitle = useMemo(() => {
+    if (homeStation && workStation) {
+      return `${homeStation.name} ⇄ ${workStation.name}`;
+    }
+    if (homeStation) return `${homeStation.name} (Home)`;
+    if (workStation) return `${workStation.name} (Work)`;
+    return 'Tap to set Home & Work stations';
+  }, [homeStation, workStation]);
+
+  // ── Nearby Station Detection Subtitle ─────────────────────────────
+  const nearbySubtitle = useMemo(() => {
+    if (!osLocationAlwaysGranted) {
+      return 'Requires Always location · Tap to enable';
+    }
+    if (!hasHomeOrWork) {
+      return 'Set Home & Work station first';
+    }
+    if (locationGranted) {
+      return 'Monitoring Home & Work';
+    }
+    return 'Starts live tracking as you approach Home or Work';
+  }, [osLocationAlwaysGranted, hasHomeOrWork, locationGranted]);
+
+  // ── Priority Attention Row (Max 1) ────────────────────────────────
+  const attentionRow = useMemo(() => {
+    // Priority 1: Notifications
+    if (!osNotificationsGranted) {
+      // Truly blocked in iOS Settings (status === 'denied' and OS won't allow re-asking in-app)
+      if (osNotifStatus === Notifications.PermissionStatus.DENIED && !osNotifCanAskAgain) {
+        return {
+          id: 'notif_blocked',
+          icon: <WarningCircle size={20} color="#FF3B30" weight="bold" />,
+          title: 'Disruption alerts are blocked',
+          subtitle: 'Notifications are turned off for My Commute in iOS Settings',
+          actionLabel: 'Open Settings',
+          borderColor: 'rgba(255, 59, 48, 0.45)',
+          bgTint: 'rgba(255, 59, 48, 0.12)',
+          onPress: () => Linking.openSettings().catch(() => {}),
+        };
+      }
+      // Never asked yet or can prompt directly in-app
+      return {
+        id: 'notif_enable',
+        icon: <Bell size={20} color="#0098D4" weight="bold" />,
+        title: 'Enable disruption alerts',
+        subtitle: 'Turn on notifications to get real-time delay & closure alerts',
+        actionLabel: 'Turn On',
+        borderColor: 'rgba(0, 152, 212, 0.45)',
+        bgTint: 'rgba(0, 152, 212, 0.12)',
+        onPress: handleRequestNotificationPermission,
+      };
+    }
+    // Priority 2: Location Blocked (Feature desired but Always not granted)
+    if (locationGranted && !osLocationAlwaysGranted) {
+      return {
+        id: 'loc_blocked',
+        icon: <Warning size={20} color="#FFA500" weight="bold" />,
+        title: 'Nearby detection needs Always location',
+        subtitle: 'Allow background location to track arrival automatically',
+        actionLabel: 'Open Settings',
+        borderColor: 'rgba(255, 165, 0, 0.45)',
+        bgTint: 'rgba(255, 165, 0, 0.12)',
+        onPress: () => Linking.openSettings().catch(() => {}),
+      };
+    }
+    // Priority 3: Home/Work Missing (Feature desired but 0 stations configured)
+    if (locationGranted && !hasHomeOrWork) {
+      return {
+        id: 'stations_missing',
+        icon: <MapPin size={20} color="#007AFF" weight="bold" />,
+        title: 'Set Home & Work stations to track',
+        subtitle: 'Nearby detection requires at least one commute station',
+        actionLabel: 'Set Stations',
+        borderColor: 'rgba(0, 122, 255, 0.45)',
+        bgTint: 'rgba(0, 122, 255, 0.12)',
+        onPress: () => setShowFixItSheet(true),
+      };
+    }
+    return null;
+  }, [
+    osNotificationsGranted,
+    osNotifStatus,
+    osNotifCanAskAgain,
+    handleRequestNotificationPermission,
+    locationGranted,
+    osLocationAlwaysGranted,
+    hasHomeOrWork,
+  ]);
+
+  // ── Toggle Handlers ───────────────────────────────────────────────
+  const handleToggleDisruptionAlerts = async (val: boolean) => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (val && !osNotificationsGranted) {
+      try {
+        const current = await Notifications.getPermissionsAsync();
+        if (current.status === 'granted') {
+          setOsNotificationsGranted(true);
+          setOsNotifStatus(current.status);
+          setDisruptionAlertsEnabled(true);
+          return;
+        }
+        if (current.canAskAgain || current.status === Notifications.PermissionStatus.UNDETERMINED) {
+          const res = await Notifications.requestPermissionsAsync({
+            ios: { allowAlert: true, allowBadge: true, allowSound: true },
+          });
+          const granted = res.status === 'granted';
+          setOsNotificationsGranted(granted);
+          setOsNotifStatus(res.status);
+          setOsNotifCanAskAgain(res.canAskAgain);
+          if (granted) {
+            setDisruptionAlertsEnabled(true);
+            usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
+            return;
+          }
+        }
+        Alert.alert(
+          'Notifications Required',
+          'Please enable notifications in Settings to receive real-time alerts.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      } catch (err) {
+        console.warn('[Settings] Failed to toggle disruption alerts:', err);
+      }
+      return;
+    }
+    setDisruptionAlertsEnabled(val);
+  };
+
+  const handleToggleNearbyDetection = async (val: boolean) => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+
+    if (val) {
+      // Empty guard: if 0 home or work stations exist, force setup
+      if (!hasHomeOrWork) {
+        Alert.alert(
+          'Set Home & Work First',
+          'Nearby station detection monitors your commute corridor. Please label your Home or Work station to start tracking.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Set Stations', onPress: () => setShowFixItSheet(true) },
+          ]
+        );
+        return;
+      }
+
+      // Request locationAlways through 2-step orchestrator
+      if (!osLocationAlwaysGranted) {
+        const decision = await requestPermission('locationAlways', 'settings_toggle');
+        if (decision !== 'granted') {
+          Alert.alert(
+            'Background Location Needed',
+            'To detect when you approach Home or Work stations in the background, set Location to Always in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            ]
+          );
+          return;
+        }
+        setOsLocationAlwaysGranted(true);
+      }
+
+      setLocationGranted(true);
+      void syncGeofencesAsync(pinnedStations);
+    } else {
+      setLocationGranted(false);
+      void syncGeofencesAsync([]);
     }
   };
 
-  const saveNotificationSettings = async (newSettings: NotificationSettings) => {
-    try {
-      setNotificationSettings(newSettings);
-      await AsyncStorage.setItem('notification_settings', JSON.stringify(newSettings));
-    } catch (error) {
-      console.error('Error saving notification settings:', error);
-      Alert.alert('Error', 'Failed to save notification settings. Please try again.');
+  const handleToggleWelcomeHome = async (val: boolean) => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (val && !osNotificationsGranted) {
+      try {
+        const current = await Notifications.getPermissionsAsync();
+        if (current.status === 'granted') {
+          setOsNotificationsGranted(true);
+          setOsNotifStatus(current.status);
+          setArrivalNotificationsEnabled(true);
+          return;
+        }
+        if (current.canAskAgain || current.status === Notifications.PermissionStatus.UNDETERMINED) {
+          const res = await Notifications.requestPermissionsAsync({
+            ios: { allowAlert: true, allowBadge: true, allowSound: true },
+          });
+          const granted = res.status === 'granted';
+          setOsNotificationsGranted(granted);
+          setOsNotifStatus(res.status);
+          setOsNotifCanAskAgain(res.canAskAgain);
+          if (granted) {
+            setArrivalNotificationsEnabled(true);
+            usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
+            return;
+          }
+        }
+        Alert.alert(
+          'Notifications Required',
+          'Welcome Home sends a local arrival summary when you reach home. Please enable notifications in Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      } catch (err) {
+        console.warn('[Settings] Failed to toggle welcome home:', err);
+      }
+      return;
+    }
+    setArrivalNotificationsEnabled(val);
+  };
+
+  // ── Option C "Ratchet" TfL Tap Handler ────────────────────────────
+  const handleTflRowPress = () => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (tflAccountStatus === 'REGISTERED_28_DAY') {
+      // Already registered: Utility action -> direct to official TfL Portal
+      Linking.openURL(TFL_CONTACTLESS_PORTAL_URL).catch((err) => {
+        console.warn('[Settings] Failed to open TfL portal:', err);
+      });
+    } else {
+      // Unlinked: Acquisition action -> open TfLConnectSheet
+      setShowTflConnectSheet(true);
     }
   };
 
-  const handleToggleNotifications = (value: boolean) => {
-    saveNotificationSettings({ ...notificationSettings, enabled: value });
-  };
-
-  const handleToggleMinorAlerts = (value: boolean) => {
-    saveNotificationSettings({ ...notificationSettings, alert_on_minor: value });
-  };
-
-  const handleToggleSevereAlerts = (value: boolean) => {
-    saveNotificationSettings({ ...notificationSettings, alert_on_severe: value });
-  };
-
-  const showQuietHoursInfo = () => {
-    Alert.alert(
-      'Quiet Hours',
-      'Set the hours when you want to receive notifications. Outside these hours, all notifications will be silenced.',
-      [{ text: 'Got it' }]
-    );
-  };
-
-  const handleEditQuietHours = () => {
-    // Plan Permission 2 entry point 2 — commute window: the user is telling
-    // us when their commute lives. Cheap ask → native dialog on this tap.
-    void requestPermission('notifications', 'commute_window', { primer: false });
-    Alert.alert(
-      'Quiet Hours',
-      'Notification hours are currently set to:\n\n' +
-      `Start: ${notificationSettings.time_window_start}\n` +
-      `End: ${notificationSettings.time_window_end}\n\n` +
-      '(Time picker UI coming in next update)',
-      [{ text: 'OK' }]
-    );
-  };
+  const trialCommutesRemaining = Math.max(0, 10 - (completedJourneys || 0));
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Animated.View style={backAnim.animatedStyle}>
-          <Pressable 
-            style={styles.backButton} 
-            onPress={() => router.back()}
-            onPressIn={backAnim.onPressIn}
-            onPressOut={backAnim.onPressOut}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <CaretLeft size={28} color="#FFFFFF" />
-          </Pressable>
-        </Animated.View>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 44 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      {/* Deep Royal Sapphire to Midnight Atmospheric Gradient */}
+      <LinearGradient
+        colors={SETTINGS_BACKGROUND_GRADIENT.colors}
+        locations={SETTINGS_BACKGROUND_GRADIENT.locations}
+        start={SETTINGS_BACKGROUND_GRADIENT.start}
+        end={SETTINGS_BACKGROUND_GRADIENT.end}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic">
-        
-        {/* Frosted Push Notification Setup / Enabled Card */}
-        <View style={styles.cardContainer}>
-          {!isGranted ? (
-            <View style={{ height: 190 }}>
-              {/* Front Side Card */}
-              <Animated.View style={[styles.frontCard, frontAnimatedStyle]}>
-                <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-                <View style={styles.cardHeaderRow}>
-                  <Bell size={24} color="#30D158" />
-                  <Text style={styles.cardHeaderTitle}>{"The Central line doesn't text you when it's cooked. We do."}</Text>
-                </View>
-                <Text style={styles.cardBodyText}>
-                  {"We'll tell you before you're standing on a dead platform wondering why."}
-                </Text>
-                <Animated.View style={ctaPressAnim.animatedStyle}>
-                  <Pressable
-                    style={styles.ctaButton}
-                    onPress={handleGrantNotifications}
-                    onPressIn={ctaPressAnim.onPressIn}
-                    onPressOut={ctaPressAnim.onPressOut}
-                    accessibilityRole="button"
-                    accessibilityLabel="Enable notifications"
-                  >
-                    <Text style={styles.ctaButtonText}>Turn On Alerts</Text>
-                  </Pressable>
-                </Animated.View>
-              </Animated.View>
-              
-              {/* Back Side (Tutorial Video) */}
-              <Animated.View style={[styles.backCard, backAnimatedStyle]} pointerEvents={showBack ? 'auto' : 'none'}>
-                <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-                <View style={styles.tutorialContainer}>
-                  <Image
-                    source={require('../assets/widget_tutorial.gif')}
-                    style={styles.tutorialGif}
-                    contentFit="contain"
-                  />
-                  <Text style={styles.tutorialText}>Drag the widget to your Home Screen</Text>
-                </View>
-              </Animated.View>
-            </View>
-          ) : (
-            <View style={styles.enabledCard}>
-                <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-                <View style={styles.enabledRow}>
-                  <View style={styles.enabledInfo}>
-                    <Text style={styles.enabledTitle}>Live Disruption Alerts</Text>
-                    <Text style={styles.enabledDescription}>Enabled & Monitoring</Text>
-                  </View>
-                <Switch
-                  value={true}
-                  onValueChange={handleToggleOff}
-                  accessibilityLabel="Live disruption alerts"
-                  accessibilityHint="Alerts are managed in iOS Settings. Activate to open iOS Settings."
-                  trackColor={{ false: '#D1D5DB', true: '#28A745' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-            </View>
-          )}
+      <View style={[styles.mainWrapper, { paddingTop: insets.top }]}>
+        {/* Navigation Header */}
+        <View style={styles.header}>
+          <Animated.View style={backAnim.animatedStyle}>
+            <Pressable 
+              style={styles.backButton} 
+              onPress={() => router.back()}
+              onPressIn={backAnim.onPressIn}
+              onPressOut={backAnim.onPressOut}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
+              <CaretLeft size={28} color="#FFFFFF" />
+            </Pressable>
+          </Animated.View>
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={{ width: 44 }} />
         </View>
 
-        {/* Smart Pro Status Card */}
-        <ProStatusCard 
-          isPro={userPrefs.is_pro}
-          trialCommutesRemaining={trialCommutesRemaining}
-          onUpgrade={() => Alert.alert('Coming Soon', 'Pro features and upgrades will be available in a future update.')}
-        />
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+        >
+          {/* Conditional Priority Attention Row (Max 1) */}
+          {attentionRow && (
+            <LiquidGlassView
+              borderRadius={16}
+              borderColor={attentionRow.borderColor || 'rgba(255, 59, 48, 0.45)'}
+              style={styles.attentionCardOuter}
+              contentStyle={[
+                styles.attentionContent,
+                attentionRow.bgTint ? { backgroundColor: attentionRow.bgTint } : null,
+              ]}
+            >
+              <View style={styles.attentionLeft}>
+                {attentionRow.icon}
+                <View style={styles.attentionTextWrap}>
+                  <Text style={styles.attentionTitle}>{attentionRow.title}</Text>
+                  <Text style={styles.attentionSubtitle}>{attentionRow.subtitle}</Text>
+                </View>
+              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.attentionBtn,
+                  pressed && { opacity: 0.75, transform: [{ scale: 0.97 }] },
+                ]}
+                onPress={attentionRow.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={attentionRow.actionLabel}
+              >
+                <Text style={styles.attentionBtnText}>{attentionRow.actionLabel}</Text>
+              </Pressable>
+            </LiquidGlassView>
+          )}
 
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>Notification Preferences</Text>
-            <Pressable onPress={showQuietHoursInfo}>
-              <Info size={20} color="rgba(255,255,255,0.45)" />
-            </Pressable>
+          {/* Clean Pro Status Meter (Soft Honesty) */}
+          <View style={styles.proWrapper}>
+            <ProStatusCard 
+              isPro={false}
+              trialCommutesRemaining={trialCommutesRemaining}
+              onUpgrade={() => {}}
+            />
           </View>
-          
-          {isLoadingSettings ? (
-            <View style={styles.settingCard}>
-              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-              <Text style={styles.loadingText}>Loading settings…</Text>
-            </View>
-          ) : (
-            <View style={styles.settingCard}>
-              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-              <PermissionRow
-                permissionKey="notifications"
-                trigger="settings_toggle"
-                title="Enable Notifications"
-                description="Get real-time alerts for service disruptions"
-                icon={<Bell size={20} color="#30D158" style={styles.iconMargin} />}
-                iconColor="#30D158"
-                featureEnabled={notificationSettings.enabled}
-                onFeatureToggle={(v) => handleToggleNotifications(v)}
-                checkOsStatus={async () => {
-                  const { status } = await Notifications.getPermissionsAsync();
-                  return status === 'granted';
-                }}
-              />
-              {notificationSettings.enabled && (
+
+          {/* ── NOTIFICATION DELIVERY & SHUSH MODE ────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>NOTIFICATION DELIVERY</Text>
+
+            <LiquidGlassView
+              borderRadius={16}
+              style={styles.cardOuter}
+              contentStyle={styles.cardInner}
+            >
+              {/* Delivery Mode 3-Way Picker */}
+              <View style={styles.shushPickerRow}>
+                {/* Loud & Proud */}
+                <Pressable
+                  style={[
+                    styles.shushModeCard,
+                    shushPreferences.alertDeliveryMode === 'loud' && styles.shushModeCardActiveLoud,
+                  ]}
+                  onPress={() => handleSelectDeliveryMode('loud')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Loud & Proud delivery mode"
+                >
+                  <IconBadge
+                    icon={<SpeakerHigh size={18} color="#FF9500" weight="fill" />}
+                    backgroundColor="rgba(255, 149, 0, 0.18)"
+                    borderColor="rgba(255, 149, 0, 0.35)"
+                  />
+                  <Text style={styles.shushModeTitle}>Loud & Proud</Text>
+                  <Text style={styles.shushModeDesc}>Banners, chimes & haptics</Text>
+                </Pressable>
+
+                {/* Shush Mode ✨ */}
+                <Pressable
+                  style={[
+                    styles.shushModeCard,
+                    shushPreferences.alertDeliveryMode === 'shush' && styles.shushModeCardActiveShush,
+                  ]}
+                  onPress={() => handleSelectDeliveryMode('shush')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Shush Mode delivery mode"
+                >
+                  <IconBadge
+                    icon={<Sparkle size={18} color="#BF5AF2" weight="fill" />}
+                    backgroundColor="rgba(191, 90, 242, 0.18)"
+                    borderColor="rgba(191, 90, 242, 0.35)"
+                  />
+                  <Text style={[styles.shushModeTitle, { color: '#BF5AF2' }]}>Shush Mode ✨</Text>
+                  <Text style={styles.shushModeDesc}>Silent Dynamic Island</Text>
+                </Pressable>
+
+                {/* Off */}
+                <Pressable
+                  style={[
+                    styles.shushModeCard,
+                    shushPreferences.alertDeliveryMode === 'off' && styles.shushModeCardActiveOff,
+                  ]}
+                  onPress={() => handleSelectDeliveryMode('off')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Off delivery mode"
+                >
+                  <IconBadge
+                    icon={<BellSlash size={18} color="#8E8E93" weight="fill" />}
+                    backgroundColor="rgba(142, 142, 147, 0.18)"
+                    borderColor="rgba(142, 142, 147, 0.35)"
+                  />
+                  <Text style={styles.shushModeTitle}>Off</Text>
+                  <Text style={styles.shushModeDesc}>Complete silence</Text>
+                </Pressable>
+              </View>
+
+              {shushPreferences.alertDeliveryMode === 'shush' && (
                 <>
                   <View style={styles.divider} />
 
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingInfo}>
-                      <View style={styles.settingLabelRow}>
-                        <WarningCircle size={18} color="#DC3545" style={styles.iconMargin} />
-                        <Text style={styles.settingLabel}>Severe Delays</Text>
-                      </View>
-                      <Text style={styles.settingDescription}>
-                        Major disruptions and suspensions
-                      </Text>
+                  {/* Activation Mode Selector */}
+                  <View style={styles.shushSubRow}>
+                    <Text style={styles.shushSubLabel}>Activation</Text>
+                    <View style={styles.shushPillGroup}>
+                      {(['smart', 'schedule', 'always'] as const).map((act) => (
+                        <Pressable
+                          key={act}
+                          style={[
+                            styles.shushPill,
+                            shushPreferences.shushActivation === act && styles.shushPillActive,
+                          ]}
+                          onPress={() => {
+                            if (hapticsEnabled) {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                            }
+                            setShushActivation(act);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.shushPillText,
+                              shushPreferences.shushActivation === act && styles.shushPillTextActive,
+                            ]}
+                          >
+                            {act === 'smart' ? 'Smart' : act === 'schedule' ? 'Schedule' : 'Always'}
+                          </Text>
+                        </Pressable>
+                      ))}
                     </View>
-                    <Switch
-                      value={notificationSettings.alert_on_severe}
-                      onValueChange={handleToggleSevereAlerts}
-                      trackColor={{ false: '#D1D5DB', true: '#DC3545' }}
-                      thumbColor="#FFFFFF"
-                    />
                   </View>
 
                   <View style={styles.divider} />
 
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingInfo}>
-                      <View style={styles.settingLabelRow}>
-                        <Warning size={18} color="#FFA500" style={styles.iconMargin} />
-                        <Text style={styles.settingLabel}>Minor Delays</Text>
-                      </View>
-                      <Text style={styles.settingDescription}>
-                        Moderate disruptions and reduced service
-                      </Text>
-                    </View>
-                    <Switch
-                      value={notificationSettings.alert_on_minor}
-                      onValueChange={handleToggleMinorAlerts}
-                      trackColor={{ false: '#D1D5DB', true: '#FFA500' }}
-                      thumbColor="#FFFFFF"
-                    />
+                  {/* Surface indicator (DI vs Non-DI) */}
+                  <View style={styles.surfaceInfoRow}>
+                    <Sparkle size={15} color="#BF5AF2" weight="fill" />
+                    <Text style={styles.surfaceInfoText}>
+                      {hasDI
+                        ? 'Optimized for Dynamic Island & Lock Screen Card'
+                        : 'Delivering via silent Notification Center updates'}
+                    </Text>
                   </View>
 
-                  <View style={styles.divider} />
-
-                  <Animated.View style={hoursPressAnim.animatedStyle}>
-                    <Pressable 
-                      style={styles.settingRow} 
-                      onPress={handleEditQuietHours}
-                      onPressIn={hoursPressAnim.onPressIn}
-                      onPressOut={hoursPressAnim.onPressOut}
-                    >
-                      <View style={styles.settingInfo}>
-                        <View style={styles.settingLabelRow}>
-                          <Clock size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
-                          <Text style={styles.settingLabel}>Notification Hours</Text>
-                        </View>
-                        <Text style={styles.settingDescription}>
-                          {notificationSettings.time_window_start} - {notificationSettings.time_window_end}
+                  {/* Time-Sensitive Permission Soft Nag */}
+                  {!shushPreferences.timeSensitiveGranted && (
+                    <View style={styles.shushWarningBox}>
+                      <Warning size={18} color="#FF9F0A" weight="fill" />
+                      <View style={{ flex: 1, marginHorizontal: 8 }}>
+                        <Text style={styles.shushWarningTitle}>Time-Sensitive Alert Needed</Text>
+                        <Text style={styles.shushWarningSub}>
+                          Tier 3 line closures cannot break silence without Time-Sensitive permission.
                         </Text>
                       </View>
-                      <CaretRight size={20} color="rgba(255,255,255,0.30)" />
-                    </Pressable>
-                  </Animated.View>
-
-                  <View style={styles.divider} />
-
-                  <PermissionRow
-                    permissionKey="calendar"
-                    trigger="auto_detect"
-                    title="Auto-detect commute start"
-                    description="We peek, we don't pry. Just the start time of your next thing — enough to time your alert right."
-                    icon={<Clock size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />}
-                    iconColor="rgba(255,255,255,0.45)"
-                    featureEnabled={calendarGranted}
-                    onFeatureToggle={(v) => setCalendarGranted(v)}
-                    checkOsStatus={async () => {
-                      const p = await Calendar.getCalendarPermissionsAsync();
-                      return p.status === 'granted';
-                    }}
-                  />
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingInfo}>
-                      <View style={styles.settingLabelRow}>
-                        <DeviceMobile size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
-                        <Text style={styles.settingLabel}>Device Notifications</Text>
-                      </View>
-                      <Text style={[styles.settingDescription, { color: '#FFA500' }]}>
-                        ⏳ Coming soon - iOS push notifications
-                      </Text>
+                      <Pressable
+                        style={styles.shushEnableBtn}
+                        onPress={async () => {
+                          const ok = await LiveActivityService.requestTimeSensitivePermission();
+                          if (!ok) {
+                            Linking.openSettings().catch(() => {});
+                          }
+                        }}
+                      >
+                        <Text style={styles.shushEnableBtnText}>Enable</Text>
+                      </Pressable>
                     </View>
-                  </View>
+                  )}
 
-                  <View style={styles.divider} />
-
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingInfo}>
-                      <View style={styles.settingLabelRow}>
-                        <Fingerprint size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
-                        <Text style={styles.settingLabel}>Haptic Feedback</Text>
-                      </View>
-                      <Text style={styles.settingDescription}>
-                        Vibrate on interaction and alerts
-                      </Text>
-                    </View>
-                    <Switch
-                      value={hapticsEnabled}
-                      onValueChange={setHapticsEnabled}
-                      trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
+                  {/* 1-Tap 5-second Demo (Section 19) */}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.shushDemoBtn,
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                    ]}
+                    onPress={handleTestShushDemo}
+                    disabled={isTestingShush}
+                  >
+                    <Sparkle size={16} color="#FFFFFF" weight="bold" />
+                    <Text style={styles.shushDemoBtnText}>
+                      {isTestingShush ? 'Live Activity Preview Running (5s)...' : 'Test Shush Mode (5s Live Activity)'}
+                    </Text>
+                  </Pressable>
                 </>
               )}
-            </View>
-          )}
+            </LiquidGlassView>
+          </View>
 
-          {/* Arrival Notifications */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>ARRIVAL</Text>
-            <View style={styles.sectionContent}>
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <View style={styles.settingLabelRow}>
-                    <House size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
-                    <Text style={styles.settingLabel}>Welcome Home</Text>
+          {/* ── HUB 1: ALERTS (Protect My Time) ───────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>ALERTS</Text>
+
+            <LiquidGlassView
+              borderRadius={16}
+              style={styles.cardOuter}
+              contentStyle={styles.cardInner}
+            >
+              {/* Master Switch: Disruption Alerts */}
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<Bell size={18} color="#30D158" weight="fill" />}
+                      backgroundColor="rgba(48, 209, 88, 0.18)"
+                      borderColor="rgba(48, 209, 88, 0.35)"
+                    />
+                    <Text style={styles.rowLabel}>Disruption Alerts</Text>
                   </View>
-                  <Text style={styles.settingDescription}>
-                    Get a notification when you arrive home
+                  <Text style={styles.rowSubtitle}>
+                    Alerts for disruptions on your saved lines & stations
                   </Text>
                 </View>
                 <Switch
-                  value={arrivalNotificationsEnabled}
-                  onValueChange={setArrivalNotificationsEnabled}
-                  trackColor={{ false: '#D1D5DB', true: '#007AFF' }}
+                  value={osNotificationsGranted && disruptionAlertsEnabled}
+                  onValueChange={handleToggleDisruptionAlerts}
+                  trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {/* Child 1: Severe Disruptions (Dimmed if Master OFF) */}
+              <View style={[styles.childRow, !disruptionAlertsEnabled && styles.dimmedRow]}>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.childLabel}>Severe Disruptions</Text>
+                  <Text style={styles.rowSubtitle}>Closures, suspensions, and major delays</Text>
+                </View>
+                <Switch
+                  disabled={!disruptionAlertsEnabled}
+                  value={severeAlertsEnabled}
+                  onValueChange={setSevereAlertsEnabled}
+                  trackColor={{ false: '#3A3A3C', true: '#DC3545' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {/* Child 2: Minor Delays (Dimmed if Master OFF) */}
+              <View style={[styles.childRow, !disruptionAlertsEnabled && styles.dimmedRow]}>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.childLabel}>Minor Delays</Text>
+                  <Text style={styles.rowSubtitle}>Part-closures, reduced service, and delays</Text>
+                </View>
+                <Switch
+                  disabled={!disruptionAlertsEnabled}
+                  value={minorAlertsEnabled}
+                  onValueChange={setMinorAlertsEnabled}
+                  trackColor={{ false: '#3A3A3C', true: '#FFA500' }}
                   thumbColor="#FFFFFF"
                 />
               </View>
 
               <View style={styles.divider} />
 
-              <Animated.View style={hoursPressAnim.animatedStyle}>
-                <Pressable 
-                  style={styles.settingRow} 
-                  onPress={() => setShowFixItSheet(true)}
-                >
-                  <View style={styles.settingInfo}>
-                    <View style={styles.settingLabelRow}>
-                      <MapTrifold size={18} color="rgba(255,255,255,0.45)" style={styles.iconMargin} />
-                      <Text style={styles.settingLabel}>Home & Work</Text>
-                    </View>
-                    <Text style={styles.settingDescription}>
-                      {labelsConfirmed ? 'Angel is home' : 'Set your home and work stations'}
-                    </Text>
+              {/* Alert Hours (Allowed Window) */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={() => setShowAlertHoursSheet(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Alert hours, current window: ${alertWindowStart} to ${alertWindowEnd}`}
+                accessibilityHint="Opens sheet to adjust notification hours"
+              >
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<Clock size={18} color="#5E5CE6" weight="bold" />}
+                      backgroundColor="rgba(94, 92, 230, 0.18)"
+                      borderColor="rgba(94, 92, 230, 0.35)"
+                    />
+                    <Text style={styles.rowLabel}>Alert hours</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
-                </Pressable>
-              </Animated.View>
-            </View>
-          </View>
-
-          <FixItSheet visible={showFixItSheet} onClose={() => setShowFixItSheet(false)} />
-
-          <View style={styles.infoCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <Info size={24} color="rgba(255,255,255,0.45)" />
-            <Text style={styles.infoText}>
-              Notifications will only alert you about lines and stations you&apos;ve saved to your dashboard.
-            </Text>
-          </View>
-        </View>
-
-        {/* Location & Geofencing Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Location & Geofencing</Text>
-          {showAlwaysNudge && (
-            <View style={styles.nudgeBanner}>
-              <View style={styles.nudgeTextWrap}>
-                <Text style={styles.nudgeTitle}>Refund Radar works in the background</Text>
-                <Text style={styles.nudgeBody}>
-                  We track your journey while you use the app. Enable “Always” in iOS Settings to
-                  catch delays automatically, even when the app is closed.
-                </Text>
-              </View>
-              <Pressable onPress={dismissSettingsNudge} style={styles.nudgeDismiss} hitSlop={10}>
-                <Text style={styles.nudgeDismissText}>✕</Text>
-              </Pressable>
-            </View>
-          )}
-          <View style={styles.settingCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <PermissionRow
-              permissionKey="locationAlways"
-              trigger="settings_toggle"
-              title="Station Geofencing"
-              description="Trigger live commute tracking when approaching pinned stations"
-              icon={<MapPin size={20} color="#007AFF" style={styles.iconMargin} />}
-              iconColor="#007AFF"
-              featureEnabled={locationGranted}
-              onFeatureToggle={(v) => setLocationGranted(v)}
-              checkOsStatus={async () => {
-                // Must check background permission — geofences require Always authorization.
-                // Foreground-only status returns 'granted' even when Always is not set,
-                // which would incorrectly mark the row as satisfied.
-                const p = await ExpoLocation.getBackgroundPermissionsAsync();
-                return p.status === 'granted';
-              }}
-            />
-          </View>
-        </View>
-
-        {/* Delay Repay & Refunds Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delay Repay & Refunds</Text>
-          <View style={styles.settingCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <View style={styles.settingLabelRow}>
-                  <Broadcast size={18} color="#0098D4" style={styles.iconMargin} />
-                  <Text style={styles.settingLabel}>TfL Account Registered</Text>
+                  <Text style={styles.rowSubtitle}>
+                    {alertWindowStart} – {alertWindowEnd}
+                    {severeBypassAlertHours ? ' · Severe always on' : ' · Strict'}
+                  </Text>
                 </View>
-                <Text style={styles.settingDescription}>
-                  {tflRegistered
-                    ? '28-day claim window enabled (self-reported)'
-                    : '7-day claim window (unregistered)'}
-                </Text>
+                <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+              </Pressable>
+
+              <View style={styles.divider} />
+
+              {/* Calendar Commute Auto-Detect */}
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<Clock size={18} color="#0A84FF" weight="bold" />}
+                      backgroundColor="rgba(10, 132, 255, 0.18)"
+                      borderColor="rgba(10, 132, 255, 0.35)"
+                    />
+                    <Text style={styles.rowLabel}>Auto-detect commute from calendar</Text>
+                  </View>
+                  <Text style={styles.rowSubtitle}>
+                    Reads event start times to alert you before you travel
+                  </Text>
+                </View>
+                <Switch
+                  value={calendarGranted}
+                  onValueChange={async (v) => {
+                    if (hapticsEnabled) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    }
+                    if (v) {
+                      const res = await requestPermission('calendar', 'auto_detect');
+                      setCalendarGranted(res === 'granted');
+                    } else {
+                      setCalendarGranted(false);
+                    }
+                  }}
+                  trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
+                  thumbColor="#FFFFFF"
+                />
               </View>
-              <Switch
-                value={tflRegistered}
-                onValueChange={(val) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  setTflRegistered(val);
-                }}
-                trackColor={{ false: '#D1D5DB', true: '#0098D4' }}
-                thumbColor="#FFFFFF"
-                accessibilityLabel="TfL Account Registered"
-              />
-            </View>
+            </LiquidGlassView>
           </View>
-        </View>
 
-        {/* About Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          
-          <View style={styles.aboutCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <View style={styles.aboutRow}>
-              <Info size={24} color="rgba(255,255,255,0.45)" />
-              <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>App Version</Text>
-                <Text style={styles.aboutValue}>1.0.3</Text>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.aboutRow}>
-              <Train size={24} color="rgba(255,255,255,0.45)" />
-              <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>Transport Data</Text>
-                <Text style={styles.aboutValue}>Powered by TfL</Text>
-              </View>
-            </View>
-          </View>
-        </View>
+          {/* ── HUB 2: MY COMMUTE (Spatial Intelligence) ──────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>MY COMMUTE</Text>
 
-        {/* Legal Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Legal</Text>
-
-          <View style={styles.aboutCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <Animated.View style={resetPressAnim.animatedStyle}>
+            <LiquidGlassView
+              borderRadius={16}
+              style={styles.cardOuter}
+              contentStyle={styles.cardInner}
+            >
+              {/* Home & Work Stations Action Row */}
               <Pressable
-                style={styles.aboutRow}
-                onPress={() => { (router as any).push('/privacy'); }}
-                onPressIn={resetPressAnim.onPressIn}
-                onPressOut={resetPressAnim.onPressOut}
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={() => setShowFixItSheet(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Home and Work Stations, currently ${homeWorkSubtitle}`}
+                accessibilityHint="Opens sheet to set your home and work commute stations"
               >
-                <Shield size={24} color="rgba(255,255,255,0.45)" />
-                <View style={styles.aboutInfo}>
-                  <Text style={styles.aboutLabel}>Privacy Policy</Text>
-                  <Text style={styles.settingDescription}>How we handle your data</Text>
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<MapTrifold size={18} color="#BF5AF2" weight="fill" />}
+                      backgroundColor="rgba(175, 82, 222, 0.18)"
+                      borderColor="rgba(175, 82, 222, 0.35)"
+                    />
+                    <Text style={styles.rowLabel}>Home & Work Stations</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.rowSubtitle,
+                      !hasHomeOrWork && { color: '#FFA500', fontFamily: 'SpaceGrotesk_600SemiBold' },
+                    ]}
+                  >
+                    {homeWorkSubtitle}
+                  </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
+                <CaretRight size={18} color="rgba(255,255,255,0.35)" />
               </Pressable>
-            </Animated.View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <Animated.View style={resetPressAnim.animatedStyle}>
-              <Pressable
-                style={styles.aboutRow}
-                onPress={() => { (router as any).push('/terms'); }}
-                onPressIn={resetPressAnim.onPressIn}
-                onPressOut={resetPressAnim.onPressOut}
-              >
-                <FileText size={24} color="rgba(255,255,255,0.45)" />
-                <View style={styles.aboutInfo}>
-                  <Text style={styles.aboutLabel}>Terms of Service</Text>
-                  <Text style={styles.settingDescription}>App usage terms</Text>
+              {/* Nearby Station Detection (Silent Background Geofencing) */}
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<MapPin size={18} color="#0A84FF" weight="fill" />}
+                      backgroundColor="rgba(10, 132, 255, 0.18)"
+                      borderColor="rgba(10, 132, 255, 0.35)"
+                    />
+                    <Text style={styles.rowLabel}>Nearby Station Detection</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.rowSubtitle,
+                      locationGranted && osLocationAlwaysGranted && hasHomeOrWork && { color: '#30D158' },
+                    ]}
+                  >
+                    {nearbySubtitle}
+                  </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
-              </Pressable>
-            </Animated.View>
+                <Switch
+                  value={locationGranted && osLocationAlwaysGranted && hasHomeOrWork}
+                  onValueChange={handleToggleNearbyDetection}
+                  trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Welcome Home Summary (Independent Layer 3 Arrival Event) */}
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<House size={18} color="#FF9F0A" weight="fill" />}
+                      backgroundColor="rgba(255, 159, 10, 0.18)"
+                      borderColor="rgba(255, 159, 10, 0.35)"
+                    />
+                    <Text style={styles.rowLabel}>Welcome Home Summary</Text>
+                  </View>
+                  <Text style={styles.rowSubtitle}>
+                    Notifies upon arrival at your Home station
+                  </Text>
+                </View>
+                <Switch
+                  value={arrivalNotificationsEnabled && osNotificationsGranted}
+                  onValueChange={handleToggleWelcomeHome}
+                  trackColor={{ false: '#3A3A3C', true: '#30D158' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </LiquidGlassView>
           </View>
-        </View>
 
-        {/* Debug Section — internal instrumentation, production users must never see this */}
-        {__DEV__ && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Debug Options</Text>
+          {/* ── GENERAL & ACCOUNT ─────────────────────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>GENERAL</Text>
 
-          {/* Permission analytics — live readout of the orchestrator's
-              persisted state (plan step 11). Every ask is also tracked as
-              permission_requested/granted/denied per key+trigger in
-              analyticsService. */}
-          <View style={styles.aboutCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            {PERMISSION_KEYS.map((key) => {
-              const entry = permissionAnalytics.permissions[key];
-              const decisionColor =
-                entry?.decision === 'granted'
-                  ? '#30D158'
-                  : entry?.decision === 'denied'
-                    ? '#FF3B30'
-                    : entry?.decision === 'deferred'
-                      ? STATUS_SEVERITY_COLORS.minor
-                      : 'rgba(255,255,255,0.45)';
-              return (
-                <View key={key}>
-                  <View style={styles.analyticsRow}>
-                    <View style={styles.analyticsInfo}>
-                      <Text style={styles.analyticsKey}>{key}</Text>
-                      <Text style={styles.analyticsMeta}>
-                        asked {entry?.askCount ?? 0}×
-                        {entry?.lastAskedAt
-                          ? ` · last ${new Date(entry.lastAskedAt).toLocaleDateString()}`
-                          : ' · never'}
+            <LiquidGlassView
+              borderRadius={16}
+              style={styles.cardOuter}
+              contentStyle={styles.cardInner}
+            >
+              {/* Option C Ratchet: TfL Refund Coverage */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={handleTflRowPress}
+                accessibilityRole="button"
+                accessibilityLabel={`TfL refund coverage, status: ${tflAccountStatus === 'REGISTERED_28_DAY' ? '28-day window active' : '7-day limit'}`}
+                accessibilityHint={tflAccountStatus === 'REGISTERED_28_DAY' ? 'Opens official TfL contactless account portal' : 'Opens sheet to unlock 28-day refund protection'}
+              >
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={
+                        <Shield
+                          size={18}
+                          color={tflAccountStatus === 'REGISTERED_28_DAY' ? '#30D158' : '#00D2FF'}
+                          weight="fill"
+                        />
+                      }
+                      backgroundColor={
+                        tflAccountStatus === 'REGISTERED_28_DAY'
+                          ? 'rgba(48, 209, 88, 0.18)'
+                          : 'rgba(0, 152, 212, 0.18)'
+                      }
+                      borderColor={
+                        tflAccountStatus === 'REGISTERED_28_DAY'
+                          ? 'rgba(48, 209, 88, 0.35)'
+                          : 'rgba(0, 152, 212, 0.35)'
+                      }
+                    />
+                    <Text style={styles.rowLabel}>TfL refund coverage</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.rowSubtitle,
+                      tflAccountStatus === 'REGISTERED_28_DAY' && { color: '#30D158', fontFamily: 'SpaceGrotesk_600SemiBold' },
+                    ]}
+                  >
+                    {tflAccountStatus === 'REGISTERED_28_DAY'
+                      ? '28-day window active'
+                      : '7-day limit · Tap to unlock 28 days'}
+                  </Text>
+                </View>
+                <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+              </Pressable>
+
+              <View style={styles.divider} />
+
+              {/* Haptic Feedback */}
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<Fingerprint size={18} color="#FFFFFF" weight="bold" />}
+                      backgroundColor="rgba(255, 255, 255, 0.12)"
+                      borderColor="rgba(255, 255, 255, 0.25)"
+                    />
+                    <Text style={styles.rowLabel}>Haptic Feedback</Text>
+                  </View>
+                  <Text style={styles.rowSubtitle}>Vibrate on interaction and alerts</Text>
+                </View>
+                <Switch
+                  value={hapticsEnabled}
+                  onValueChange={setHapticsEnabled}
+                  trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
+                  thumbColor="#FFFFFF"
+                  accessibilityRole="switch"
+                  accessibilityLabel="Haptic Feedback"
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* App Version */}
+              <View style={styles.actionRow}>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowLabel}>Version</Text>
+                  <Text style={styles.rowSubtitle}>1.0.3 · Powered by TfL Open Data</Text>
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Privacy Policy */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={() => router.push('/privacy' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Privacy Policy"
+                accessibilityHint="Opens privacy policy screen"
+              >
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowLabel}>Privacy Policy</Text>
+                  <Text style={styles.rowSubtitle}>How we handle your data</Text>
+                </View>
+                <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+              </Pressable>
+
+              <View style={styles.divider} />
+
+              {/* Terms of Service */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={() => router.push('/terms' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Terms of Service"
+                accessibilityHint="Opens terms of service screen"
+              >
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowLabel}>Terms of Service</Text>
+                  <Text style={styles.rowSubtitle}>App usage terms</Text>
+                </View>
+                <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+              </Pressable>
+            </LiquidGlassView>
+          </View>
+
+          {/* ── ADVANCED & DIAGNOSTICS (__DEV__ / TestFlight Only) ─────── */}
+          {(__DEV__ || process.env.NODE_ENV !== 'production') && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>ADVANCED</Text>
+              <LiquidGlassView
+                borderRadius={16}
+                style={styles.cardOuter}
+                contentStyle={styles.cardInner}
+              >
+                <Pressable
+                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                  onPress={() => setShowDiagnosticsModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Diagnostics & Sensor Health"
+                  accessibilityHint="Opens sensor health and permissions diagnostics drawer"
+                >
+                  <View style={styles.rowInfo}>
+                    <View style={styles.labelRow}>
+                      <IconBadge
+                        icon={<Wrench size={18} color="#0A84FF" weight="bold" />}
+                        backgroundColor="rgba(10, 132, 255, 0.18)"
+                        borderColor="rgba(10, 132, 255, 0.35)"
+                      />
+                      <Text style={[styles.rowLabel, { color: '#0A84FF' }]}>
+                        Diagnostics & Sensor Health
                       </Text>
                     </View>
-                    <Text style={[styles.analyticsDecision, { color: decisionColor }]}>
-                      {entry?.decision ?? 'not_asked'}
+                    <Text style={styles.rowSubtitle}>
+                      CoreLocation health, push simulation, permissions matrix
                     </Text>
                   </View>
-                  <View style={styles.divider} />
-                </View>
-              );
-            })}
-            <View style={styles.analyticsRow}>
-              <View style={styles.analyticsInfo}>
-                <Text style={styles.analyticsKey}>tier1 geofence hits</Text>
-                <Text style={styles.analyticsMeta}>Always-upgrade fallback triggers</Text>
-              </View>
-              <Text style={styles.analyticsDecision}>{permissionAnalytics.tier1HitCount}</Text>
+                  <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                </Pressable>
+              </LiquidGlassView>
             </View>
-          </View>
+          )}
+        </ScrollView>
+      </View>
 
-          <View style={styles.aboutCard}>
-            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <Pressable
-              style={styles.aboutRow}
-              onPress={() => {
-                const current =
-                  tflAccountStatus === 'REGISTERED_28_DAY'
-                    ? '28-Day Protected (Registered)'
-                    : tflAccountStatus === 'UNREGISTERED_7_DAY'
-                      ? '7-Day Window (Unregistered)'
-                      : 'Not Configured';
+      {/* ── Modals & Sheets ─────────────────────────────────────────── */}
+      <FixItSheet
+        visible={showFixItSheet}
+        onClose={() => {
+          setShowFixItSheet(false);
+          // Re-sync geofences whenever Home/Work stations are changed
+          void syncGeofencesAsync(useUserPreferencesStore.getState().pinnedStations);
+        }}
+      />
 
-                Alert.alert(
-                  'TfL Radar Registration',
-                  `Current Status: ${current}\n\nChoose an action:`,
-                  [
-                    {
-                      text: 'Set to 28-Day Registered',
-                      onPress: () => {
-                        setTflAccountStatus('REGISTERED_28_DAY');
-                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      },
-                    },
-                    {
-                      text: 'Set to 7-Day Unregistered',
-                      onPress: () => {
-                        setTflAccountStatus('UNREGISTERED_7_DAY');
-                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      },
-                    },
-                    {
-                      text: 'Reset to Setup Sheet',
-                      style: 'destructive',
-                      onPress: () => {
-                        setTflAccountStatus('NOT_SET');
-                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                        Alert.alert('Reset Complete', 'Refund Radar will present the setup sheet next time you open the tab.');
-                      },
-                    },
-                    { text: 'Cancel', style: 'cancel' },
-                  ]
-                );
-              }}
-            >
-              <Shield size={24} color="#0098D4" />
-              <View style={styles.aboutInfo}>
-                <Text style={[styles.aboutLabel, { color: '#0098D4', fontWeight: '600' }]}>TfL Radar Registration</Text>
-                <Text style={styles.settingDescription}>
-                  {tflAccountStatus === 'REGISTERED_28_DAY'
-                    ? '28-Day Protected · Tap to change'
-                    : tflAccountStatus === 'UNREGISTERED_7_DAY'
-                      ? '7-Day Window · Tap to upgrade'
-                      : 'Not Configured · Tap to setup'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
-            </Pressable>
-            
-            <View style={styles.divider} />
+      <AlertHoursSheet
+        visible={showAlertHoursSheet}
+        onClose={() => setShowAlertHoursSheet(false)}
+      />
 
-            <Pressable
-              style={styles.aboutRow}
-              onPress={async () => {
-                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                // 1. Activate simulated test claim in store so it's ready upon entry
-                useUserPreferencesStore.getState().setSimulatedClaimActive(true);
+      <TfLConnectSheet
+        visible={showTflConnectSheet}
+        onClose={() => setShowTflConnectSheet(false)}
+        onRegistered={() => {
+          setTflAccountStatus('REGISTERED_28_DAY');
+          setShowTflConnectSheet(false);
+        }}
+        onUnregistered={() => {
+          setTflAccountStatus('UNREGISTERED_7_DAY');
+          setShowTflConnectSheet(false);
+        }}
+      />
 
-                // 2. Request / verify permissions
-                try {
-                  const settings = await Notifications.getPermissionsAsync();
-                  if (!settings.granted && settings.status !== 'granted') {
-                    const req = await Notifications.requestPermissionsAsync({
-                      ios: {
-                        allowAlert: true,
-                        allowBadge: true,
-                        allowSound: true,
-                      },
-                    });
-                    if (!req.granted && req.status !== 'granted') {
-                      Alert.alert(
-                        'Notifications Disabled in iOS Settings',
-                        'To receive real iOS lockscreen banners, please turn on Notifications for My Commute in iPhone Settings.',
-                        [
-                          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-                          { text: 'Cancel', style: 'cancel' },
-                        ]
-                      );
-                      return;
-                    }
-                  }
-
-                  // 3. Schedule native iOS lockscreen notification 5s from now
-                  await Notifications.scheduleNotificationAsync({
-                    content: {
-                      title: 'Victoria line owes you a coffee date? ☕️',
-                      body: 'Radar tracked a 22m delay (~£3.60 potential refund). Wanna hit TfL up? Tap to review your proof.',
-                      data: { lineId: 'victoria', claimId: 99999 },
-                      categoryIdentifier: 'CLAIM_REMINDER',
-                      sound: 'default',
-                    },
-                    trigger: {
-                      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                      seconds: 5,
-                      repeats: false,
-                    },
-                  });
-
-                  // 4. Alert with explicit instructions
-                  Alert.alert(
-                    '🔒 Lock Screen Now (5s)',
-                    'Press your iPhone side button to lock your phone right now. In 5 seconds, iOS will light up your lock screen with the notification banner!',
-                    [{ text: 'OK, Locking Phone' }]
-                  );
-                } catch (err) {
-                  console.warn('[SimulateClaim] Native push schedule error:', err);
-                  Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
-                }
-              }}
-            >
-              <Broadcast size={24} color="#34C759" />
-              <View style={styles.aboutInfo}>
-                <Text style={[styles.aboutLabel, { color: '#34C759', fontWeight: '600' }]}>Simulate iOS Lockscreen Push</Text>
-                <Text style={styles.settingDescription}>Fires in 5s · Lock phone & tap lockscreen banner</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
-            </Pressable>
-
-            <View style={styles.divider} />
-
-            <Pressable
-              style={styles.aboutRow}
-              onPress={() => {
-                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                useUserPreferencesStore.getState().setSimulatedClaimActive(false);
-                Alert.alert('Test Claim Cleared', 'Refund Radar has returned to the zero-state clear screen.');
-              }}
-            >
-              <ArrowsClockwise size={24} color="rgba(255,255,255,0.7)" />
-              <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>Clear Test Claims</Text>
-                <Text style={styles.settingDescription}>Removes simulated claim · Restores clear Radar</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
-            </Pressable>
-
-            <View style={styles.divider} />
-
-            <Animated.View style={resetPressAnim.animatedStyle}>
-              <Pressable
-                style={styles.aboutRow}
-                onPress={() => {
-                  Alert.alert(
-                    'Reset Onboarding',
-                    'Are you sure you want to reset onboarding? This will clear your saved lines and stations.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Reset',
-                        style: 'destructive',
-                        onPress: () => {
-                          resetOnboarding();
-                          router.back();
-                        }
-                      }
-                    ]
-                  );
-                }}
-                onPressIn={resetPressAnim.onPressIn}
-                onPressOut={resetPressAnim.onPressOut}
-              >
-                <ArrowsClockwise size={24} color="#DC3545" />
-                <View style={styles.aboutInfo}>
-                  <Text style={[styles.aboutLabel, { color: '#DC3545', fontWeight: '600' }]}>Reset Onboarding</Text>
-                  <Text style={styles.settingDescription}>Start the setup flow from the beginning</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.30)" />
-              </Pressable>
-            </Animated.View>
-          </View>
-        </View>
-        )}
-
-        <View style={styles.spacer40} />
-      </ScrollView>
+      <DiagnosticsModal
+        visible={showDiagnosticsModal}
+        onClose={() => setShowDiagnosticsModal(false)}
+        onResetOnboarding={() => {
+          setShowDiagnosticsModal(false);
+          Alert.alert(
+            'Reset Onboarding',
+            'Are you sure? This clears your saved lines and stations.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Reset',
+                style: 'destructive',
+                onPress: () => {
+                  resetOnboarding();
+                  router.back();
+                },
+              },
+            ]
+          );
+        }}
+      />
     </View>
   );
 }
@@ -973,376 +1158,302 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#030818',
   },
-  nudgeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 179, 0, 0.10)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 179, 0, 0.35)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
-    gap: 10,
-  },
-  nudgeTextWrap: {
+  mainWrapper: {
     flex: 1,
-    gap: 3,
-  },
-  nudgeTitle: {
-    color: '#FFD60A',
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
-  },
-  nudgeBody: {
-    color: 'rgba(255, 255, 255, 0.70)',
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  nudgeDismiss: {
-    padding: 4,
-  },
-  nudgeDismissText: {
-    color: 'rgba(255, 255, 255, 0.55)',
-    fontSize: 13,
-  },
-  analyticsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  analyticsInfo: {
-    flex: 1,
-  },
-  analyticsKey: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  analyticsMeta: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 2,
-  },
-  analyticsDecision: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
+    paddingVertical: 12,
   },
   backButton: {
-    padding: 8,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 20,
-    fontWeight: '700',
     color: '#FFFFFF',
-  },
-  headerSpacer: {
-    width: 40,
   },
   content: {
     flex: 1,
+    paddingHorizontal: 16,
+  },
+  proWrapper: {
+    marginBottom: 20,
+  },
+  attentionCardOuter: {
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  attentionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    gap: 12,
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+  },
+  attentionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  attentionTextWrap: {
+    flex: 1,
+  },
+  attentionTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  attentionSubtitle: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.70)',
+    marginTop: 2,
+  },
+  attentionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  attentionBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: '#FFFFFF',
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionContainer: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionContent: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    padding: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.55)',
-    letterSpacing: 0.5,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    letterSpacing: 0.8,
+    color: 'rgba(255, 255, 255, 0.55)',
     marginBottom: 8,
+    marginLeft: 4,
   },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  settingCard: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    padding: 16,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
-  settingLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  settingDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    marginTop: 2,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center',
-    paddingVertical: 8,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: GLASS.background,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    marginLeft: 12,
-    lineHeight: 20,
-  },
-  statusCard: {
-    backgroundColor: GLASS.background,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  statusInfo: {
-    flex: 1,
-  },
-  statusLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  statusDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-  },
-  planBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  cardOuter: {
     borderRadius: 16,
+    marginBottom: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  proBadge: {
-    backgroundColor: '#007AFF',
+  cardInner: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
   },
-  basicBadge: {
-    backgroundColor: '#F0F0F0',
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
   },
-  planBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  childRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingLeft: 44,
   },
-  proText: {
+  dimmedRow: {
+    opacity: 0.35,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    minHeight: 48,
+  },
+  actionRowPressed: {
+    opacity: 0.65,
+  },
+  rowInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconMargin: {
+    marginRight: 8,
+  },
+  rowLabel: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 15,
     color: '#FFFFFF',
   },
-  basicText: {
-    color: '#666',
+  childLabel: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.90)',
+  },
+  rowSubtitle: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.70)',
+    marginTop: 3,
+    lineHeight: 16,
   },
   divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginLeft: 44,
   },
-  aboutCard: {
-    backgroundColor: GLASS.background,
-    borderRadius: 12,
-    padding: 16,
-  },
-  aboutRow: {
+  shushPickerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 8,
     paddingVertical: 12,
   },
-  aboutInfo: {
-    marginLeft: 16,
+  shushModeCard: {
     flex: 1,
-  },
-  aboutLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    marginBottom: 4,
-  },
-  aboutValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  iconMargin: { marginRight: 8 },
-  spacer40: { height: 40 },
-  cardContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  frontCard: {
-    backgroundColor: GLASS.background,
+    padding: 10,
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    overflow: 'hidden',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
-    height: 190,
-    justifyContent: 'space-between',
-  },
-  backCard: {
-    backgroundColor: GLASS.background,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    overflow: 'hidden',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
-    height: 190,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
-  cardHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginLeft: 8,
-    flex: 1,
+  shushModeCardActiveLoud: {
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    borderColor: '#FF9500',
   },
-  cardBodyText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
-    lineHeight: 18,
-    marginBottom: 12,
+  shushModeCardActiveShush: {
+    backgroundColor: 'rgba(191, 90, 242, 0.18)',
+    borderColor: '#BF5AF2',
   },
-  ctaButton: {
-    backgroundColor: PREMIUM_BUTTON.background,
-    borderRadius: 20,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: PREMIUM_BUTTON.borderWidth,
-    borderColor: PREMIUM_BUTTON.borderColor,
-    shadowColor: PREMIUM_BUTTON.shadowColor,
-    shadowOffset: PREMIUM_BUTTON.shadowOffset,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
-    elevation: PREMIUM_BUTTON.elevation,
+  shushModeCardActiveOff: {
+    backgroundColor: 'rgba(142, 142, 147, 0.15)',
+    borderColor: '#8E8E93',
   },
-  ctaButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  tutorialContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tutorialGif: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
-  },
-  tutorialText: {
+  shushModeTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 8,
+    color: '#FFFFFF',
+    marginTop: 4,
     textAlign: 'center',
   },
-  enabledCard: {
-    backgroundColor: GLASS.background,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
+  shushModeDesc: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginTop: 2,
+    textAlign: 'center',
+    lineHeight: 13,
   },
-  enabledRow: {
+  shushSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 12,
   },
-  enabledInfo: {
-    flex: 1,
-  },
-  enabledTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  shushSubLabel: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 14,
     color: '#FFFFFF',
   },
-  enabledDescription: {
-    fontSize: 14,
-    color: '#30D158',
-    fontWeight: '600',
+  shushPillGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  shushPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  shushPillActive: {
+    backgroundColor: 'rgba(191, 90, 242, 0.28)',
+    borderColor: '#BF5AF2',
+  },
+  shushPillText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.70)',
+  },
+  shushPillTextActive: {
+    color: '#FFFFFF',
+  },
+  surfaceInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  surfaceInfoText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    flex: 1,
+  },
+  shushWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 159, 10, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 159, 10, 0.35)',
+    borderRadius: 10,
+    padding: 10,
+    marginVertical: 8,
+  },
+  shushWarningTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: '#FF9F0A',
+  },
+  shushWarningSub: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
     marginTop: 2,
+    lineHeight: 14,
+  },
+  shushEnableBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: '#FF9F0A',
+  },
+  shushEnableBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 11,
+    color: '#000000',
+  },
+  shushDemoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(191, 90, 242, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(191, 90, 242, 0.45)',
+    marginVertical: 10,
+  },
+  shushDemoBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    color: '#FFFFFF',
   },
 });

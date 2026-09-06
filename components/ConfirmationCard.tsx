@@ -155,11 +155,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   question: {
     fontFamily: 'SpaceGrotesk_700Bold',

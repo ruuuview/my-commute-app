@@ -14,8 +14,8 @@ import {
   View,
   RefreshControl,
   BackHandler,
+  Pressable,
 } from 'react-native';
-import { Pressable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -248,7 +248,8 @@ const SectionHeader: React.FC<{
 }> = ({ title, icon, onPressAdd, isEditing, onExitJiggle, onPressIn }) => (
   <Pressable
     style={section.row}
-    unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+    pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+    unstable_pressDelay={0}
     onPressIn={onPressIn}
     onPress={isEditing ? onExitJiggle : undefined}
     accessibilityRole={isEditing ? 'button' : undefined}
@@ -373,32 +374,92 @@ const MyCommuteDashboard: React.FC = () => {
   const snoozedPress = usePressAnimation('departure_card');
 
   const router = useRouter();
-  const searchParams = useLocalSearchParams<{ openRerouteLineId?: string }>();
+  const searchParams = useLocalSearchParams<{
+    openRerouteLineId?: string;
+    notificationIntent?: string;
+    notificationNonce?: string;
+  }>();
   const [modalVisible, setModalVisible] = useState(false);
   const [stationModalVisible, setStationModalVisible] = useState(false);
   const [data, setData] = useState<DashboardData>({ lines: lastKnownData });
   const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
+  const [rerouteInitialSection, setRerouteInitialSection] = useState<'overview' | 'alternatives'>('overview');
+  const lastConsumedNonceRef = useRef<string | null>(null);
+  const lastConsumedLegacyLineRef = useRef<string | null>(null);
 
-  // Auto-open reroute drawer when navigated from a disruption notification
+  // Auto-open unified disruption briefing when navigated from a notification intent
   useEffect(() => {
-    if (searchParams.openRerouteLineId) {
-      const targetId = String(searchParams.openRerouteLineId).toLowerCase();
-      const matched = data.lines.find(l => l.id.toLowerCase() === targetId);
-      if (matched) {
-        setRerouteLine(matched);
-      } else {
-        const name = targetId.charAt(0).toUpperCase() + targetId.slice(1);
-        setRerouteLine({
-          id: targetId,
-          name: `${name} line`,
-          color: LINE_IDENTITY_COLORS[targetId] || '#0098D4',
-          status: 'Severe Delays',
-          status_severity: 6,
-          reason: 'Disruption reported on line.',
-        });
-      }
+    // 1. Guard against replay of already-consumed notification nonce or legacy line param
+    if (searchParams.notificationNonce && searchParams.notificationNonce === lastConsumedNonceRef.current) {
+      return;
     }
-  }, [searchParams.openRerouteLineId, data.lines]);
+    if (searchParams.openRerouteLineId && searchParams.openRerouteLineId === lastConsumedLegacyLineRef.current) {
+      return;
+    }
+
+    let targetLineId: string | null = null;
+    let action: 'show-disruption' | 'show-reroute' = 'show-disruption';
+    let initialSection: 'overview' | 'alternatives' = 'overview';
+
+    if (searchParams.notificationIntent) {
+      if (searchParams.notificationNonce) {
+        lastConsumedNonceRef.current = searchParams.notificationNonce;
+      }
+      try {
+        const intent = JSON.parse(searchParams.notificationIntent);
+        if (intent && (intent.action === 'show-disruption' || intent.action === 'show-reroute')) {
+          targetLineId = String(intent.lineId).toLowerCase();
+          action = intent.action;
+          initialSection = intent.initialSection || (intent.action === 'show-reroute' ? 'alternatives' : 'overview');
+        }
+      } catch (err) {
+        console.warn('[MyCommuteDashboard] Failed to parse notificationIntent:', err);
+      }
+    } else if (searchParams.openRerouteLineId) {
+      // Backward compatibility with direct line param
+      targetLineId = String(searchParams.openRerouteLineId).toLowerCase();
+      action = 'show-reroute';
+      lastConsumedLegacyLineRef.current = searchParams.openRerouteLineId;
+    }
+
+    if (targetLineId) {
+      const matched = data.lines.find(l => l.id.toLowerCase() === targetLineId);
+      const lineData: LineData = matched || {
+        id: targetLineId,
+        name: `${targetLineId.charAt(0).toUpperCase() + targetLineId.slice(1)} line`,
+        color: LINE_IDENTITY_COLORS[targetLineId] || '#8E8E93',
+        status: 'Severe Delays',
+        status_severity: 6,
+        reason: 'Disruption reported on line.',
+      };
+
+      if (action === 'show-reroute') {
+        // Quick Action [View Reroute 🚇] from expanded banner
+        setRerouteInitialSection('alternatives');
+        setRerouteLine(lineData);
+        setSelectedLineInfo(null);
+      } else {
+        // Normal Tap on notification: Open the in-detail card showing full status on the dashboard
+        setRerouteLine(null);
+        const cardRef = itemRefs.current[targetLineId];
+        if (cardRef && typeof cardRef.measureInWindow === 'function') {
+          cardRef.measureInWindow((x, y, width, height) => {
+            setSelectedLineInfo({ id: targetLineId, anchorRect: { x, y, width, height } });
+          });
+        } else {
+          // Centered modal when card element measurement is not ready
+          setSelectedLineInfo({ id: targetLineId, anchorRect: null });
+        }
+      }
+
+      // Consume-once: clear navigation params so re-renders or drawer dismissals don't resurrect
+      router.setParams({
+        notificationIntent: '',
+        notificationNonce: '',
+        openRerouteLineId: '',
+      });
+    }
+  }, [searchParams.notificationIntent, searchParams.notificationNonce, searchParams.openRerouteLineId, data.lines, router]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);
@@ -426,7 +487,21 @@ const MyCommuteDashboard: React.FC = () => {
   }, []);
 
   const [selectedLineInfo, setSelectedLineInfo] = useState<{ id: string; anchorRect: any } | null>(null);
-  const selectedLineForModal = useMemo(() => data.lines.find(l => l.id === selectedLineInfo?.id) || null, [data.lines, selectedLineInfo]);
+  const selectedLineForModal = useMemo(() => {
+    if (!selectedLineInfo?.id) return null;
+    const found = data.lines.find(l => l.id.toLowerCase() === selectedLineInfo.id.toLowerCase());
+    if (found) return found;
+    const id = selectedLineInfo.id.toLowerCase();
+    const name = id.charAt(0).toUpperCase() + id.slice(1);
+    return {
+      id,
+      name: `${name} line`,
+      color: LINE_IDENTITY_COLORS[id] || '#8E8E93',
+      status: 'Severe Delays',
+      status_severity: 6,
+      reason: 'Disruption reported on line.',
+    };
+  }, [data.lines, selectedLineInfo]);
 
   // ── Reroute state ── (declared above)
 
@@ -659,6 +734,7 @@ const MyCommuteDashboard: React.FC = () => {
           contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80, flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={scrollEnabled}
+          canCancelContentTouches={true}
           bounces={true}
           alwaysBounceVertical={true}
           overScrollMode="always"
@@ -674,16 +750,6 @@ const MyCommuteDashboard: React.FC = () => {
           onMomentumScrollEnd={applyPendingData}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
         >
-          {/* ── Background Touch Layer: Long-press to jiggle, tap to dismiss ── */}
-          <Pressable
-            style={StyleSheet.absoluteFillObject}
-            unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
-            delayLongPress={700}
-            onPressIn={handleBackgroundPressIn}
-            onLongPress={!isEditing ? handleEdit : undefined}
-            onPress={isEditing ? handleBackdropPress : undefined}
-            testID="dashboard-background-pressable"
-          />
 
           {/* ── Global header ── */}
           <View style={[dash.header, { paddingHorizontal: 4 }]}>
@@ -709,6 +775,18 @@ const MyCommuteDashboard: React.FC = () => {
               <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
             </View>
           </View>
+
+          {/* Top spacer below header — catches backdrop taps and long-presses */}
+          <Pressable
+            style={{ height: 12 }}
+            pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+            unstable_pressDelay={0}
+            delayLongPress={700}
+            onPressIn={handleBackgroundPressIn}
+            onLongPress={!isEditing ? handleEdit : undefined}
+            onPress={isEditing ? handleBackdropPress : undefined}
+          />
+
           {!hasContent && (
             <View style={dash.premiumEmptyState}>
               <View style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]} pointerEvents="none">
@@ -789,7 +867,8 @@ const MyCommuteDashboard: React.FC = () => {
                       return (
                         <AnimatedPressable
                           onPress={() => setArrivalNotificationsEnabled(true)}
-                          unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+                          pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+                          unstable_pressDelay={0}
                           onPressIn={notificationsOffPress.onPressIn}
                           onPressOut={notificationsOffPress.onPressOut}
                           style={[dash.arrivalBanner, notificationsOffPress.animatedStyle]}
@@ -812,7 +891,8 @@ const MyCommuteDashboard: React.FC = () => {
                       return (
                         <AnimatedPressable
                           onPress={() => setArrivalSnoozeExpiry(null)}
-                          unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+                          pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+                          unstable_pressDelay={0}
                           onPressIn={snoozedPress.onPressIn}
                           onPressOut={snoozedPress.onPressOut}
                           style={[dash.arrivalBanner, snoozedPress.animatedStyle]}
@@ -833,7 +913,8 @@ const MyCommuteDashboard: React.FC = () => {
               {/* Spacer between sections — catches backdrop taps and long-presses */}
               <Pressable
                 style={{ height: isEditing ? 24 : 12 }}
-                unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+                pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+                unstable_pressDelay={0}
                 delayLongPress={700}
                 onPressIn={handleBackgroundPressIn}
                 onLongPress={!isEditing ? handleEdit : undefined}
@@ -894,7 +975,8 @@ const MyCommuteDashboard: React.FC = () => {
           {/* Bottom spacer — catches backdrop taps and long-presses */}
           <Pressable
             style={{ flex: 1, minHeight: 180 }}
-            unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+            pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+            unstable_pressDelay={0}
             delayLongPress={700}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
@@ -948,7 +1030,11 @@ const MyCommuteDashboard: React.FC = () => {
           <RerouteContainer
             rerouteLine={rerouteLine}
             selectedStations={selectedStations}
-            onClose={() => setRerouteLine(null)}
+            initialSection={rerouteInitialSection}
+            onClose={() => {
+              setRerouteLine(null);
+              setRerouteInitialSection('overview');
+            }}
           />
         )}
       </View>
@@ -964,10 +1050,11 @@ const MyCommuteDashboard: React.FC = () => {
 interface RerouteContainerProps {
   rerouteLine: LineData;
   selectedStations: { id: string; name: string; lines?: string[]; role?: string }[];
+  initialSection?: 'overview' | 'alternatives';
   onClose: () => void;
 }
 
-function RerouteContainer({ rerouteLine, selectedStations, onClose }: RerouteContainerProps) {
+function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'overview', onClose }: RerouteContainerProps) {
   // Station the reroute is scoped to: pinned station on line -> home/work -> first pinned -> empty fallback
   const scopedStation =
     selectedStations.find((st) =>
@@ -1027,6 +1114,11 @@ function RerouteContainer({ rerouteLine, selectedStations, onClose }: RerouteCon
   });
   const links = buildRerouteLinks(defaultTerminus);
 
+  const isCleared =
+    Boolean(rerouteLine.status?.toLowerCase().includes('good service')) ||
+    rerouteLine.status_severity === 10 ||
+    rerouteLine.status_severity === 1;
+
   return (
     <RerouteScreen
       visible
@@ -1053,6 +1145,8 @@ function RerouteContainer({ rerouteLine, selectedStations, onClose }: RerouteCon
       resolvedTerminus={resolvedTerminus}
       resolvedSource={resolvedSource}
       resolvedConfidence={resolvedConfidence}
+      initialSection={initialSection}
+      isCleared={isCleared}
     />
   );
 }

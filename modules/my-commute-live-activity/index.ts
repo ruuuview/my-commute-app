@@ -1,9 +1,32 @@
-import { requireNativeModule } from 'expo-modules-core';
+import { requireOptionalNativeModule, EventEmitter } from 'expo-modules-core';
 import type { Tier2Cache } from '../../services/tier2Cache';
 
+export interface EventSubscription {
+  remove(): void;
+}
+
+const mockFallbackModule = {
+  startCommuteActivity: async () => null,
+  updateCommuteActivity: async () => {},
+  endCommuteActivity: async () => {},
+  isActivityActive: async () => false,
+  syncWidgetCache: async () => {},
+  hasDynamicIsland: async () => false,
+  checkTimeSensitivePermission: async () => false,
+  requestTimeSensitivePermission: async () => false,
+  addListener: () => ({ remove: () => {} }),
+  removeListeners: () => {},
+};
+
 // The native module is registered by ExpoModulesCore via expo-module.config.json.
-// It exposes startCommuteActivity / updateCommuteActivity / endCommuteActivity / isActivityActive.
-const MyCommuteLiveActivityModule = requireNativeModule('MyCommuteLiveActivityModule');
+// It exposes startCommuteActivity / updateCommuteActivity / endCommuteActivity / isActivityActive /
+// syncWidgetCache / hasDynamicIsland / checkTimeSensitivePermission / requestTimeSensitivePermission.
+const MyCommuteLiveActivityModule =
+  requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
+  requireOptionalNativeModule('MyCommuteLiveActivity') ??
+  mockFallbackModule;
+
+const emitter = new EventEmitter(MyCommuteLiveActivityModule as any);
 
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
 
@@ -49,6 +72,21 @@ export interface MyCommuteLiveActivity {
   endCommuteActivity(): Promise<void>;
   isActivityActive(): Promise<boolean>;
   syncWidgetCache(linesJson: string, statusesJson: string): Promise<void>;
+  hasDynamicIsland(): Promise<boolean>;
+  checkTimeSensitivePermission(): Promise<boolean>;
+  requestTimeSensitivePermission(): Promise<boolean>;
+}
+
+export function addPushToStartListener(listener: (event: { token: string }) => void): EventSubscription {
+  return (emitter as any).addListener('onPushToStartTokenUpdate', listener);
+}
+
+export function addLiveActivityPushTokenListener(
+  listener: (event: { journeyId: string; token: string }) => void
+): EventSubscription {
+  return (emitter as any).addListener('onLiveActivityPushTokenUpdate', listener);
 }
 
 export default MyCommuteLiveActivityModule as MyCommuteLiveActivity;
+
+

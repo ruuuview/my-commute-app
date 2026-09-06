@@ -17,9 +17,9 @@ import {
   StyleSheet,
   View,
   Text,
+  Pressable,
   Platform,
 } from 'react-native';
-import { Pressable } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -183,7 +183,7 @@ const DepartureCard = memo(function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.outerContainer, containerAnimStyle, jiggleStyle, pressAnim.liftShadowStyle]}
+      style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
       testID={`departure-card-${stationId}`}
     >
       <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle]}>
@@ -199,7 +199,8 @@ const DepartureCard = memo(function DepartureCard({
 
         <Pressable
           onPress={isEditing ? undefined : handlePress}
-          unstable_pressDelay={Platform.OS === 'ios' ? 70 : 90}
+          pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
+          unstable_pressDelay={0}
           delayLongPress={isEditing ? 350 : 700}
           onLongPress={() => {
             if (isEditing && drag) {
@@ -303,11 +304,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 14,
     overflow: 'visible',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: GLASS.shadowOpacity,
-    shadowRadius: GLASS.shadowRadius,
-    elevation: GLASS.elevation,
   },
   innerGlass: {
     flex: 1,

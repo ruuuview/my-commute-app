@@ -29,8 +29,6 @@ import {
 } from './types';
 import { GLASS } from '../../theme/colors';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 type FilterKey = 'ALL' | 'SETTLED' | 'IN_REVIEW' | 'EXPIRED';
 
 const FILTER_PILLS: { key: FilterKey; label: string }[] = [

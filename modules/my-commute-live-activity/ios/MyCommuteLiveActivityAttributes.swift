@@ -41,6 +41,12 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
     public var progress: Double            // 0.0-1.0
     public var segmentMaxDuration: Int     // Seconds (for staleDate calculation)
     public var arrivals: [Arrival]?
+    public var phase: String               // "approaching" | "in_transit" | "arrived"
+    public var selectedEndpoint: String?
+    public var availableEndpoints: [String]?
+    public var sessionStartTime: Int       // Unix timestamp for native stopwatch
+    public var currentStationName: String?
+    public var destinationStationName: String?
 
     public var isDisrupted: Bool {
       return severityTier > 0
@@ -64,7 +70,13 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       tunnelState: String = "normal",
       progress: Double = 0.0,
       segmentMaxDuration: Int = 180,
-      arrivals: [Arrival]? = nil
+      arrivals: [Arrival]? = nil,
+      phase: String = "approaching",
+      selectedEndpoint: String? = nil,
+      availableEndpoints: [String]? = nil,
+      sessionStartTime: Int = 0,
+      currentStationName: String? = nil,
+      destinationStationName: String? = nil
     ) {
       self.lineName = lineName
       self.statusSeverity = statusSeverity
@@ -84,6 +96,12 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       self.progress = progress
       self.segmentMaxDuration = segmentMaxDuration
       self.arrivals = arrivals
+      self.phase = phase
+      self.selectedEndpoint = selectedEndpoint
+      self.availableEndpoints = availableEndpoints
+      self.sessionStartTime = sessionStartTime
+      self.currentStationName = currentStationName
+      self.destinationStationName = destinationStationName
     }
   }
 

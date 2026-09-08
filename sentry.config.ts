@@ -14,8 +14,7 @@
  * 5,000 events/month. Enough for a solo dev app.
  */
 
-import * as Sentry from 'sentry-expo';
-import { captureException } from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 
 const SENTRY_DSN =
   process.env.EXPO_PUBLIC_SENTRY_DSN ||
@@ -29,7 +28,7 @@ export function initSentry() {
 
   Sentry.init({
     dsn: SENTRY_DSN,
-    enableInExpoDevelopment: false,
+    enabled: !__DEV__,
     debug: __DEV__,
     tracesSampleRate: 0.2,        // 20% of transactions (generous for free tier)
     beforeSend(event: any) {
@@ -65,7 +64,7 @@ export async function captureErrors<T>(
   try {
     return await fn();
   } catch (error) {
-    captureException(error, {
+    Sentry.captureException(error, {
       extra: { operation, ...context },
     });
     return null;

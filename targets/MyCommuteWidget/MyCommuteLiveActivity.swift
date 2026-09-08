@@ -19,6 +19,12 @@ public struct Arrival: Codable, Hashable {
   public let destinationName: String
   public let timeToStationSeconds: Int
   public let isHero: Bool
+
+  public init(destinationName: String, timeToStationSeconds: Int, isHero: Bool) {
+    self.destinationName = destinationName
+    self.timeToStationSeconds = timeToStationSeconds
+    self.isHero = isHero
+  }
 }
 
 public struct MyCommuteLiveActivityAttributes: ActivityAttributes {

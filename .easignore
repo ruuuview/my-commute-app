@@ -7,3 +7,4 @@ dist/
 android/app/build/
 ios/build/
 *.log
+ios/.xcode.env.local

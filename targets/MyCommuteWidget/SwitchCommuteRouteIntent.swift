@@ -68,7 +68,6 @@ public struct SwitchCommuteRouteIntent: LiveActivityIntent {
     if let userDefaults = UserDefaults(suiteName: "group.com.mycommute.app") {
       userDefaults.set(newLineId, forKey: "detourActiveLine")
       userDefaults.set(Date().timeIntervalSince1970, forKey: "detourSwitchedAt")
-      userDefaults.synchronize()
     }
 
     // 3. AWAIT network (keeps extension process alive, no unattached tasks)

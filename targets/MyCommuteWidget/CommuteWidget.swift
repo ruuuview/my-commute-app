@@ -211,7 +211,6 @@ struct CommuteProvider: TimelineProvider {
                let jsonString = String(data: encoded, encoding: .utf8) {
                 userDefaults.set(jsonString, forKey: "cachedTfLStatus")
                 userDefaults.set(jsonString, forKey: "cachedLineStatuses")
-                userDefaults.synchronize()
             }
             return (commuteLines, nil)
         } catch {

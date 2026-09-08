@@ -34,6 +34,11 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
         const reason = 'Delays due to a cross-platform interchange congestion at Euston.';
         expect(isBranchMentioned('Charing Cross branch', reason)).toBe(false);
       });
+
+      test('does NOT match "Mill Hill East" on "East Finchley" disruption copy', () => {
+        const reason = 'Minor delays around East Finchley due to points failure.';
+        expect(isBranchMentioned('Mill Hill East', reason)).toBe(false);
+      });
     });
 
     describe('Positive Controls (MUST Match)', () => {
@@ -51,6 +56,12 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
       test('accurately matches Bank branch on explicit "via Bank" clause', () => {
         const reason = 'Severe delays via Bank due to track fault.';
         expect(isBranchMentioned('Bank branch', reason)).toBe(true);
+      });
+
+      test('accurately matches Ealing Broadway, Edgware Road, and Mill Hill East in disruption copy', () => {
+        expect(isBranchMentioned('Ealing Broadway', 'Severe delays between Acton Town and Ealing Broadway due to signal failure.')).toBe(true);
+        expect(isBranchMentioned('Edgware Road', 'Minor delays between Earls Court and Edgware Road due to track inspection.')).toBe(true);
+        expect(isBranchMentioned('Mill Hill East', 'Service suspended between Finchley Central and Mill Hill East.')).toBe(true);
       });
     });
   });
@@ -126,6 +137,13 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
       timeToStationSeconds: number;
     }
 
+    function firstMatchShipped<T extends { destinationName: string; via?: string; branch?: string }>(
+      arrivals: T[],
+      endpointName: string
+    ): T | undefined {
+      return RerouteHelpers.matchArrivalEndpoint(arrivals, endpointName);
+    }
+
     test('tapping "Morden (via Bank)" matches Bank train, not earlier Charing Cross train', () => {
       const arrivals: MockArrival[] = [
         { destinationName: 'Morden', via: 'via Charing Cross', timeToStationSeconds: 120 },
@@ -136,12 +154,25 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
 
       // Reproduces shipped Swift logic in SwitchEndpointIntent.swift:
       // $0.destinationName.contains(endpointName) || ... || endpointName.contains($0.destinationName)
-      const shippedMatch = arrivals.firstMatchShipped(endpointName);
+      const shippedMatch = firstMatchShipped(arrivals, endpointName);
 
       // The shipped logic wrongly returns arrival 0 because "Morden (via Bank)".includes("Morden") is true!
       // We assert that the matched arrival MUST be the Bank train (index 1)
       expect(shippedMatch).toBe(arrivals[1]);
       expect(shippedMatch?.via).toContain('Bank');
+    });
+
+    test('tapping "Edgware (via Bank)" matches Bank train, not earlier Charing Cross train', () => {
+      const arrivals: MockArrival[] = [
+        { destinationName: 'Edgware', via: 'via Charing Cross', timeToStationSeconds: 90 },
+        { destinationName: 'Edgware', via: 'via Bank', timeToStationSeconds: 210 },
+      ];
+
+      const endpointName = 'Edgware (via Bank)';
+      const match = firstMatchShipped(arrivals, endpointName);
+
+      expect(match).toBe(arrivals[1]);
+      expect(match?.via).toContain('Bank');
     });
   });
 
@@ -195,6 +226,36 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
       });
     });
 
+    test('shared station fixes at Euston and Kennington return corridor: null and route to manual review', () => {
+      const result = RerouteHelpers.deriveSessionCorridor({
+        lineId: 'northern',
+        originStation: 'Camden Town',
+        destinationStation: 'Morden',
+        via: undefined,
+        intermediateFixes: ['940GZZLUEUS', '940GZZLUKWN'], // Euston and Kennington
+      });
+
+      expect(result).toEqual({
+        corridor: null,
+        branchScope: 'unknown',
+        requiresManualReview: true,
+      });
+    });
+
+    test('ambiguous core Northern trip (King\'s Cross to Waterloo) without witness returns requiresManualReview: true', () => {
+      const result = RerouteHelpers.deriveSessionCorridor({
+        lineId: 'northern',
+        originStation: "King's Cross",
+        destinationStation: 'Waterloo',
+        via: undefined,
+        intermediateFixes: [],
+      });
+
+      expect(result.requiresManualReview).toBe(true);
+      expect(result.corridor).toBeNull();
+      expect(result.branchScope).toBe('unknown');
+    });
+
     test('Euston -> Morden with platform fix at Bank confirms Bank corridor', () => {
       const result = RerouteHelpers.deriveSessionCorridor({
         lineId: 'northern',
@@ -210,16 +271,38 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
         requiresManualReview: false,
       });
     });
+
+    test('Euston -> Morden with platform fix at King\'s Cross confirms Bank corridor', () => {
+      const result = RerouteHelpers.deriveSessionCorridor({
+        lineId: 'northern',
+        originStation: 'Euston',
+        destinationStation: 'Morden',
+        via: undefined,
+        intermediateFixes: ['940GZZLUKSX'], // King's Cross St. Pancras (exclusive Bank branch witness)
+      });
+
+      expect(result).toEqual({
+        corridor: 'Bank',
+        branchScope: 'partial',
+        requiresManualReview: false,
+      });
+    });
+
+    test('Camden Town -> Kennington with platform fix at Mornington Crescent confirms Charing Cross corridor', () => {
+      const result = RerouteHelpers.deriveSessionCorridor({
+        lineId: 'northern',
+        originStation: 'Camden Town',
+        destinationStation: 'Kennington',
+        via: undefined,
+        intermediateFixes: ['940GZZLUMNC'], // Mornington Crescent (exclusive ChX branch witness)
+      });
+
+      expect(result).toEqual({
+        corridor: 'Charing Cross',
+        branchScope: 'partial',
+        requiresManualReview: false,
+      });
+    });
   });
 });
 
-// Helper implementing the EXACT current Swift logic from SwitchEndpointIntent.swift:38-43
-declare global {
-  interface Array<T> {
-    firstMatchShipped(endpointName: string): T | undefined;
-  }
-}
-
-Array.prototype.firstMatchShipped = function (endpointName: string) {
-  return RerouteHelpers.matchArrivalEndpoint(this, endpointName);
-};

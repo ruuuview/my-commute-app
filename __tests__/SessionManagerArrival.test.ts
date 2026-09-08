@@ -113,5 +113,31 @@ describe('SessionManager Arrival & Live Activity Integration', () => {
     expect(SessionManager.getActiveDetector()).toBeNull();
     expect(storage.getString('commute_phase')).toBeFalsy();
     expect(storage.getString('commute_origin_id')).toBeFalsy();
+    expect(storage.getString('commute_intermediate_fixes')).toBeFalsy();
+  });
+
+  it('session-scopes intermediate fixes and rejects stale fixes from prior crashed session', async () => {
+    // Simulate a crashed session from yesterday leaving stale fixes in storage
+    storage.set(
+      'commute_intermediate_fixes',
+      JSON.stringify({ sessionStartTime: 1000000, fixes: ['940GZZLUBNK'] })
+    );
+
+    // Reading intermediate fixes outside an active session or with mismatched startTime purges stale storage
+    expect(SessionManager.getIntermediateFixes()).toEqual([]);
+    expect(storage.getString('commute_intermediate_fixes')).toBeFalsy();
+
+    // Start a new session today
+    await SessionManager.startSession('940GZZLUCTN', '940GZZLUMDN', 'northern', 'Northern');
+    expect(SessionManager.getIntermediateFixes()).toEqual([]);
+
+    // Record an intermediate fix during today's session
+    SessionManager.recordIntermediateFix('940GZZLUKSX'); // King's Cross
+    expect(SessionManager.getIntermediateFixes()).toEqual(['940GZZLUKSX']);
+
+    // Closing session wipes intermediate fixes
+    await SessionManager.closeSession(true);
+    expect(storage.getString('commute_intermediate_fixes')).toBeFalsy();
+    expect(SessionManager.getIntermediateFixes()).toEqual([]);
   });
 });

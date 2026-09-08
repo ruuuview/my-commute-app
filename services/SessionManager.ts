@@ -9,6 +9,7 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { ArrivalDetector, type LocationFix, type StationLocation } from './ArrivalDetector';
+import { deriveSessionCorridor } from '../components/rerouteHelpers';
 
 const stationCoordinates = require('../data/stationCoordinates.json');
 
@@ -354,12 +355,67 @@ export class SessionManager {
     return this.activeDetector;
   }
 
+  static recordIntermediateFix(stationId: string) {
+    if (!stationId) return;
+    if (this.getSessionState() !== 'active') return;
+    const currentStartTime = this.getCommuteStartTime();
+    if (!currentStartTime) return;
+    try {
+      const raw = backgroundStorage.getString('commute_intermediate_fixes');
+      let record: { sessionStartTime: number; fixes: string[] } | null = null;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.sessionStartTime === currentStartTime && Array.isArray(parsed.fixes)) {
+            record = parsed;
+          }
+        } catch {}
+      }
+      if (!record) {
+        record = { sessionStartTime: currentStartTime, fixes: [] };
+      }
+      if (!record.fixes.includes(stationId)) {
+        record.fixes.push(stationId);
+        backgroundStorage.set('commute_intermediate_fixes', JSON.stringify(record));
+      }
+    } catch {
+      // Non-blocking storage write
+    }
+  }
+
+  static getIntermediateFixes(): string[] {
+    try {
+      const currentStartTime = this.getCommuteStartTime();
+      const raw = backgroundStorage.getString('commute_intermediate_fixes');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.sessionStartTime && parsed.sessionStartTime === currentStartTime && Array.isArray(parsed.fixes)) {
+          return parsed.fixes;
+        }
+        // Stale or unaligned session evidence: immediately wipe to prevent cross-session contamination
+        backgroundStorage.remove('commute_intermediate_fixes');
+        return [];
+      }
+      if (!currentStartTime) {
+        backgroundStorage.remove('commute_intermediate_fixes');
+        return [];
+      }
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   /**
    * Process a location fix from CoreLocation through the ArrivalDetector state machine.
    */
   static handleLocationFix(fix: LocationFix) {
     if (!this.activeDetector || this.getSessionState() !== 'active') return null;
     const result = this.activeDetector.processFix(fix);
+    if (result.currentStation) {
+      this.recordIntermediateFix(result.currentStation.id);
+    }
     if (result.state === 'confirmed_arrival' && result.confirmedStation) {
       const destId = this.getCommuteDestinationId();
       const destName = backgroundStorage.getString('commute_destination_name');
@@ -404,6 +460,7 @@ export class SessionManager {
     backgroundStorage.set('touch_in_time', String(nowMs));
     backgroundStorage.remove('dwell_timer_expires');
     backgroundStorage.remove('notified_departed');
+    backgroundStorage.remove('commute_intermediate_fixes');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
 
     // Instantiate deterministic ArrivalDetector for the corridor
@@ -714,6 +771,14 @@ export class SessionManager {
     useUserPreferencesStore.setState({ completedJourneys: (store.completedJourneys || 0) + 1 });
     const touchInTime = this.getTouchInTime() || startTime;
     this.activeDetector = null;
+    const intermediateFixes = this.getIntermediateFixes();
+    const corridorResult = deriveSessionCorridor({
+      lineId: lineId || '',
+      originStation: originId || '',
+      destinationStation: destId || '',
+      intermediateFixes,
+    });
+    backgroundStorage.remove('commute_intermediate_fixes');
     backgroundStorage.remove('commute_phase');
     backgroundStorage.remove('commute_session_start_time');
     backgroundStorage.remove('commute_origin_name');
@@ -732,6 +797,7 @@ export class SessionManager {
         exitStation: destId || undefined,
         entryTime: new Date(touchInTime || startTime!).toISOString(),
         exitTime: new Date(Date.now()).toISOString(),
+        corridorWitness: corridorResult.corridor || undefined,
       }).catch(err => console.error('[SessionManager] Backend session POST failed:', err));
     } else {
       console.warn('[SessionManager] Cannot POST session — missing data:', { originId, lineId, startTime });
@@ -804,6 +870,7 @@ export class SessionManager {
     exitStation?: string;
     entryTime: string;
     exitTime: string;
+    corridorWitness?: string;
   }) {
     try {
       const { userId, apiKey } = await ensureDeviceIdentity();
@@ -820,6 +887,9 @@ export class SessionManager {
           exitStation: payload.exitStation || null,
           entryTime: payload.entryTime,
           exitTime: payload.exitTime,
+          branch: payload.corridorWitness || null,
+          corridorWitness: payload.corridorWitness || null,
+          corridor_witness: payload.corridorWitness || null,
           motionConfirmed: true,
         }),
       });

@@ -91,66 +91,64 @@ export function isBranchMentioned(branchName: string, reasonText: string): boole
   if (!branchName || !reasonText) return false;
   const reasonLower = reasonText.toLowerCase();
 
-  // Strip 'branch' and clean up punctuation
-  const coreBranch = branchName
+  // Strip 'branch' and clean up
+  const rawCore = branchName
     .toLowerCase()
     .replace(/\bbranch\b/g, '')
     .trim();
-  if (!coreBranch) return false;
+  if (!rawCore) return false;
 
   // Row 1 False-Positive Exclusion: "Bank holiday" is never a Bank branch disruption
   const cleanReason = reasonLower.replace(/\bbank\s+holiday\b/g, 'holiday_period');
 
-  // Direct multi-word phrase match with word boundaries: e.g. "charing cross", "high barnet", "ealing broadway"
-  const escapedCore = coreBranch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // If branchName contains compound names joined by '&', 'and', '/', or ','
+  // (e.g. "Amersham & Chesham", "Chesham and Amersham"), check each component sub-branch.
+  if (/(&|\band\b|\/|,)/.test(rawCore)) {
+    const parts = rawCore.split(/&|\band\b|\/|,/).map((p) => p.trim()).filter(Boolean);
+    return parts.some((part) => isBranchMentioned(part, cleanReason));
+  }
+
+  // Handle (via X) constructs: e.g. "Hainault (via Newbury Park)"
+  const viaMatch = rawCore.match(/\((?:via\s+)?([^)]+)\)/i);
+  if (viaMatch) {
+    const viaTerm = viaMatch[1].trim();
+    const mainTerm = rawCore.replace(/\((?:via\s+)?([^)]+)\)/i, '').trim();
+    if (viaTerm && isBranchMentioned(viaTerm, cleanReason)) {
+      return true;
+    }
+    if (mainTerm && isBranchMentioned(mainTerm, cleanReason)) {
+      return true;
+    }
+  }
+
+  const cleanCore = rawCore.replace(/[()]/g, '').trim();
+  if (!cleanCore) return false;
+
+  // Exact whole-phrase match with word boundaries
+  const escapedCore = cleanCore.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Poka-yoke guard: Northern Line "Edgware" terminus must NEVER match "Edgware Road"
+  // (Edgware Road is on Circle/District/Hammersmith & City/Bakerloo, not Northern).
+  if (cleanCore === 'edgware') {
+    return /\bedgware(?!\s+road\b)\b/i.test(cleanReason);
+  }
+
   if (new RegExp(`\\b${escapedCore}\\b`, 'i').test(cleanReason)) {
     return true;
   }
 
-  // Word-by-word match for distinctive terms (ignoring transit stopwords and short words)
-  const STOPWORDS = new Set([
-    'branch',
-    'via',
-    'line',
-    'lines',
-    'the',
-    'and',
-    '&',
-    'to',
-    'from',
-    'between',
-    'station',
-    'stations',
-    'road',
-    'park',
-    'cross',
-    'platform',
-    'street',
-    'hill',
-    'broadway',
-    'junction',
-    'town',
-    'lane',
-    'way',
-    'court',
-    'common',
-    'green',
-    'central',
-    'east',
-    'west',
-    'north',
-    'south',
-  ]);
+  // Distinct branch aliases / unambiguous short forms
+  if (cleanCore === 'charing cross' && /\bchx\b/i.test(cleanReason)) {
+    return true;
+  }
+  if (cleanCore === 'battersea power station' && /\bbattersea\b/i.test(cleanReason)) {
+    return true;
+  }
+  if (cleanCore === 'high barnet' && /\bbarnet\b/i.test(cleanReason)) {
+    return true;
+  }
 
-  const words = coreBranch
-    .replace(/[^a-z0-9]+/g, ' ')
-    .split(' ')
-    .filter((w) => w.length >= 4 && !STOPWORDS.has(w));
-
-  return words.some((word) => {
-    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`\\b${escaped}\\b`, 'i').test(cleanReason);
-  });
+  return false;
 }
 
 /**
@@ -307,19 +305,45 @@ export interface SessionCorridorResult {
   requiresManualReview: boolean;
 }
 
-const BANK_CORRIDOR_WITNESSES = new Set([
+/**
+ * Shared or ambiguous Northern line stations (Euston, Kennington, Camden Town, Morden).
+ * These stations serve both branches (or are trunk/divergence points) and can NEVER
+ * be used as witnesses to disambiguate Bank vs Charing Cross corridors.
+ */
+export const NORTHERN_SHARED_STATIONS = new Set([
+  '940GZZLUEUS', // Euston
+  '940GZZLUKWN', // Kennington
+  '940GZZLUCTN', // Camden Town
+  '940GZZLUMDN', // Morden
+  'EUSTON',
+  'KENNINGTON',
+  'CAMDEN TOWN',
+  'CAMDEN',
+  'MORDEN',
+]);
+
+/**
+ * Bank Corridor Exclusive Witnesses: stations that physically exist ONLY on the Bank branch.
+ * King's Cross St. Pancras, Angel, Moorgate, Old Street, Bank, London Bridge, Borough, Elephant & Castle.
+ */
+export const BANK_CORRIDOR_WITNESSES = new Set([
   'HUBBNK',
   '940GZZLUBNK', // Bank
   '940GZZLUMGT', // Moorgate
   '940GZZLUODS', // Old Street
   '940GZZLUAGL', // Angel
-  '940GZZLUKNG', // King's Cross
   '940GZZLULNB', // London Bridge
   '940GZZLUBOR', // Borough
   '940GZZLUEAC', // Elephant & Castle
+  'HUBKSX',
+  '940GZZLUKSX', // King's Cross St. Pancras
 ]);
 
-const CHARING_CROSS_CORRIDOR_WITNESSES = new Set([
+/**
+ * Charing Cross Corridor Exclusive Witnesses: stations that physically exist ONLY on Charing Cross branch.
+ * Mornington Crescent, Warren Street, Goodge Street, Tottenham Court Road, Leicester Square, Charing Cross, Embankment, Waterloo.
+ */
+export const CHARING_CROSS_CORRIDOR_WITNESSES = new Set([
   '940GZZLUCHX', // Charing Cross
   '940GZZLUEMB', // Embankment
   '940GZZLUWLO', // Waterloo
@@ -327,7 +351,50 @@ const CHARING_CROSS_CORRIDOR_WITNESSES = new Set([
   '940GZZLUTCR', // Tottenham Court Road
   '940GZZLUGDG', // Goodge Street
   '940GZZLUWST', // Warren Street
+  '940GZZLUMNC', // Mornington Crescent
 ]);
+
+function matchesCorridorWitness(fix: string, branchName: 'bank' | 'chx'): boolean {
+  const upper = fix.toUpperCase().trim();
+  if (NORTHERN_SHARED_STATIONS.has(upper)) return false;
+
+  if (branchName === 'bank') {
+    if (BANK_CORRIDOR_WITNESSES.has(upper)) return true;
+    // Word boundary check prevents "EMBANKMENT" matching "BANK"
+    if (/\bBANK\b/i.test(fix) && !/EMBANKMENT/i.test(upper)) return true;
+    if (upper.includes('BNK') && !upper.includes('EMB')) return true;
+    if (
+      upper.includes('MOORGATE') ||
+      upper.includes('OLD STREET') ||
+      upper.includes('ANGEL') ||
+      upper.includes('LONDON BRIDGE') ||
+      upper.includes('BOROUGH') ||
+      upper.includes('ELEPHANT') ||
+      upper.includes('KINGS CROSS') ||
+      upper.includes("KING'S CROSS") ||
+      upper.includes('KSX')
+    ) {
+      return true;
+    }
+  } else if (branchName === 'chx') {
+    if (CHARING_CROSS_CORRIDOR_WITNESSES.has(upper)) return true;
+    if (/\bCHARING\b/i.test(fix) || upper.includes('CHX')) return true;
+    if (
+      upper.includes('EMBANKMENT') ||
+      upper.includes('WATERLOO') ||
+      upper.includes('LEICESTER') ||
+      upper.includes('TOTTENHAM COURT') ||
+      upper.includes('GOODGE') ||
+      upper.includes('WARREN STREET') ||
+      upper.includes('MORNINGTON CRESCENT') ||
+      upper.includes('MNC')
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
  * Gate 3 Money Engine: on-device session corridor witness resolution.
@@ -350,13 +417,11 @@ export function deriveSessionCorridor(input: SessionCorridorInput): SessionCorri
     }
 
     // 2. Physical corridor station witnesses from intermediate platform fixes
-    const fixes = (input.intermediateFixes || []).map((f) => f.toUpperCase().trim());
-    const sawBank = fixes.some(
-      (f) => BANK_CORRIDOR_WITNESSES.has(f) || f.includes('BNK') || f.includes('BANK')
-    );
-    const sawChX = fixes.some(
-      (f) => CHARING_CROSS_CORRIDOR_WITNESSES.has(f) || f.includes('CHX') || f.includes('CHARING')
-    );
+    const fixes = (input.intermediateFixes || []).map((f) => f.trim());
+    const nonSharedFixes = fixes.filter((f) => !NORTHERN_SHARED_STATIONS.has(f.toUpperCase()));
+
+    const sawBank = nonSharedFixes.some((f) => matchesCorridorWitness(f, 'bank'));
+    const sawChX = nonSharedFixes.some((f) => matchesCorridorWitness(f, 'chx'));
 
     if (sawBank && !sawChX) {
       return { corridor: 'Bank', branchScope: 'partial', requiresManualReview: false };

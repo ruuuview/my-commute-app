@@ -66,6 +66,7 @@ export interface ArrivalDetectorResult {
   candidate: CandidateInfo | null
   confirmedStation: StationLocation | null
   arrivalTimestampMs: number | null
+  currentStation?: StationLocation | null
   reason: string
 }
 
@@ -102,16 +103,6 @@ export class ArrivalDetector {
    * Process a new incoming location fix from CoreLocation.
    */
   public processFix(fix: LocationFix): ArrivalDetectorResult {
-    if (this.state === 'confirmed_arrival') {
-      return {
-        state: this.state,
-        candidate: null,
-        confirmedStation: this.confirmedStation,
-        arrivalTimestampMs: this.arrivalTimestampMs,
-        reason: 'Already confirmed arrival',
-      }
-    }
-
     // Find nearest station on the corridor
     let nearestStation: StationLocation | null = null
     let minDistance = Infinity
@@ -129,6 +120,18 @@ export class ArrivalDetector {
 
     const isNearStation = minDistance <= CALIBRATION_CONSTANTS.STATION_RADIUS_METERS
     const isOrigin = nearestStation?.id === this.originStationId
+    const currentStation = isNearStation ? nearestStation : (this.state === 'confirmed_arrival' ? this.confirmedStation : null)
+
+    if (this.state === 'confirmed_arrival') {
+      return {
+        state: this.state,
+        candidate: null,
+        confirmedStation: this.confirmedStation,
+        arrivalTimestampMs: this.arrivalTimestampMs,
+        currentStation: this.confirmedStation,
+        reason: 'Already confirmed arrival',
+      }
+    }
 
     // 1. If currently in CANDIDATE state:
     if (this.state === 'candidate_arrival' && this.candidate && nearestStation) {
@@ -143,6 +146,7 @@ export class ArrivalDetector {
           candidate: null,
           confirmedStation: null,
           arrivalTimestampMs: null,
+          currentStation,
           reason: `Stale candidate at different station superseded by fix at ${nearestStation.name}`,
         }
       }
@@ -157,6 +161,7 @@ export class ArrivalDetector {
           candidate: null,
           confirmedStation: null,
           arrivalTimestampMs: null,
+          currentStation,
           reason: `Train accelerated to ${fix.speedKmh.toFixed(1)} km/h away from ${discardedStation}. Candidate discarded.`,
         }
       }
@@ -184,6 +189,7 @@ export class ArrivalDetector {
           candidate: resultCandidate,
           confirmedStation: this.confirmedStation,
           arrivalTimestampMs: this.arrivalTimestampMs,
+          currentStation: this.confirmedStation,
           reason: `Confirmed arrival at ${nearestStation.name} via sustained exit displacement (${distanceFromCenter.toFixed(0)}m at ${fix.speedKmh.toFixed(1)} km/h)`,
         }
       }
@@ -194,6 +200,7 @@ export class ArrivalDetector {
         candidate: this.candidate,
         confirmedStation: null,
         arrivalTimestampMs: null,
+        currentStation,
         reason: `Candidate arrival at ${this.candidate.stationName} pending exit displacement`,
       }
     }
@@ -207,6 +214,7 @@ export class ArrivalDetector {
           candidate: null,
           confirmedStation: null,
           arrivalTimestampMs: null,
+          currentStation,
           reason: 'At origin station, ignoring arrival triggers',
         }
       }
@@ -219,6 +227,7 @@ export class ArrivalDetector {
             candidate: null,
             confirmedStation: null,
             arrivalTimestampMs: null,
+            currentStation,
             reason: `Express pass-through at ${nearestStation.name} (${fix.speedKmh.toFixed(1)} km/h)`,
           }
         }
@@ -245,6 +254,7 @@ export class ArrivalDetector {
             candidate: this.candidate,
             confirmedStation: null,
             arrivalTimestampMs: null,
+            currentStation,
             reason: `Dwell at ${nearestStation.name} reached ${dwellDurationSec.toFixed(0)}s (>= ${CALIBRATION_CONSTANTS.DWELL_CANDIDATE_SEC}s). Candidate marked.`,
           }
         } else {
@@ -254,6 +264,7 @@ export class ArrivalDetector {
             candidate: this.candidate,
             confirmedStation: null,
             arrivalTimestampMs: null,
+            currentStation,
             reason: `Dwell at ${nearestStation.name} (${dwellDurationSec.toFixed(0)}s < ${CALIBRATION_CONSTANTS.DWELL_CANDIDATE_SEC}s). Normal intermediate stop.`,
           }
         }
@@ -268,6 +279,7 @@ export class ArrivalDetector {
       candidate: null,
       confirmedStation: null,
       arrivalTimestampMs: null,
+      currentStation: null,
       reason: 'In transit',
     }
   }

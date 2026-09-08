@@ -23,7 +23,7 @@ import * as Notifications from 'expo-notifications';
 import { SessionManager } from '../services/SessionManager';
 import { installDirectionNotification } from '../services/directionNotification';
 import { resolveRerouteTarget } from '../services/notifications/payload';
-import { parseNotificationIntent, navigateToIntent, NotificationIntent } from '../services/notifications/intent';
+import { parseNotificationIntent, navigateToIntent } from '../services/notifications/intent';
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
@@ -320,6 +320,13 @@ export default function RootLayout() {
         data?.action === 'show-reroute' ||
         Boolean(data?.lineId && !isClaimPush)
       ) {
+        if (!data || Object.keys(data).length === 0) {
+          setTimeout(() => {
+            navigateToIntent(router, { action: 'overview' });
+          }, 150);
+          return;
+        }
+
         let intent = parseNotificationIntent(data);
         if (!intent) {
           const resolvedLine = resolveRerouteTarget(data);

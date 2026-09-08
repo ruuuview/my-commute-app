@@ -50,6 +50,12 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
     public var progress: Double            // 0.0-1.0
     public var segmentMaxDuration: Int     // Seconds (for staleDate calculation)
     public var arrivals: [Arrival]?
+    public var phase: String               // "approaching" | "in_transit" | "arrived"
+    public var selectedEndpoint: String?
+    public var availableEndpoints: [String]?
+    public var sessionStartTime: Int       // Unix timestamp for native stopwatch
+    public var currentStationName: String?
+    public var destinationStationName: String?
 
     public var isDisrupted: Bool {
       return severityTier > 0
@@ -73,7 +79,13 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       tunnelState: String = "normal",
       progress: Double = 0.0,
       segmentMaxDuration: Int = 180,
-      arrivals: [Arrival]? = nil
+      arrivals: [Arrival]? = nil,
+      phase: String = "approaching",
+      selectedEndpoint: String? = nil,
+      availableEndpoints: [String]? = nil,
+      sessionStartTime: Int = 0,
+      currentStationName: String? = nil,
+      destinationStationName: String? = nil
     ) {
       self.lineName = lineName
       self.statusSeverity = statusSeverity
@@ -93,6 +105,12 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       self.progress = progress
       self.segmentMaxDuration = segmentMaxDuration
       self.arrivals = arrivals
+      self.phase = phase
+      self.selectedEndpoint = selectedEndpoint
+      self.availableEndpoints = availableEndpoints
+      self.sessionStartTime = sessionStartTime
+      self.currentStationName = currentStationName
+      self.destinationStationName = destinationStationName
     }
   }
 
@@ -181,7 +199,7 @@ extension Font {
 // Shared subviews
 // ============================================================
 
-private struct AccentBar: View {
+struct AccentBar: View {
   let lineId: String
   var body: some View {
     Rectangle()
@@ -303,7 +321,18 @@ private struct CompactIslandView: View {
 
   var body: some View {
     if trailing {
-      if signalDegraded {
+      if context.state.phase == "arrived" {
+        Text("Arrived")
+          .font(.system(size: 13, weight: .bold))
+          .foregroundColor(Color(hex: 0x30D158))
+          .accessibilityLabel("Arrived at destination")
+      } else if context.state.phase == "in_transit" && context.state.sessionStartTime > 0 {
+        let startDate = Date(timeIntervalSince1970: TimeInterval(context.state.sessionStartTime))
+        Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
+          .font(.system(size: 13, weight: .bold, design: .monospaced))
+          .foregroundColor(.white)
+          .accessibilityLabel("Elapsed travel time")
+      } else if signalDegraded {
         Text("...")
           .font(.mcHeadline)
           .foregroundColor(.white.opacity(0.7))
@@ -320,13 +349,14 @@ private struct CompactIslandView: View {
           .accessibilityLabel(minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes")
       }
     } else {
-      HStack(spacing: 3) {
+      HStack(spacing: 4) {
         AccentBar(lineId: context.attributes.lineId)
-        Text(lineShortCode)
-          .font(.mcHeadline)
+        Text(context.state.selectedEndpoint ?? lineShortCode)
+          .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
+          .lineLimit(1)
       }
-      .accessibilityLabel("\(context.attributes.lineName ?? context.state.lineName) line")
+      .accessibilityLabel("\(context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
     }
   }
 

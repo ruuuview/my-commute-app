@@ -53,7 +53,14 @@ public struct SwitchCommuteRouteIntent: LiveActivityIntent {
       delayMinutes: 0,
       tunnelState: "normal",
       progress: 0.1,
-      segmentMaxDuration: activity.content.state.segmentMaxDuration
+      segmentMaxDuration: activity.content.state.segmentMaxDuration,
+      arrivals: nil,
+      phase: activity.content.state.phase,
+      selectedEndpoint: transferStation,
+      availableEndpoints: nil,
+      sessionStartTime: activity.content.state.sessionStartTime,
+      currentStationName: nil,
+      destinationStationName: activity.content.state.destinationStationName
     )
     await activity.update(ActivityContent(state: newState, staleDate: Date().addingTimeInterval(900)))
 

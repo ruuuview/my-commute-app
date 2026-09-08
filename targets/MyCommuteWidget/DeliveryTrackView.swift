@@ -7,7 +7,7 @@ import SwiftUI
 import ActivityKit
 import AppIntents
 
-public struct StatusIcon: View {
+public struct DeliveryStatusIcon: View {
   let severity: Int
 
   public init(severity: Int) {
@@ -46,15 +46,29 @@ public struct DeliveryTrackView: View {
   }
 
   public var body: some View {
+    VStack(spacing: 10) {
+      if state.phase == "arrived" {
+        arrivedView
+      } else if state.phase == "in_transit" {
+        inTransitView
+      } else {
+        approachingView
+      }
+    }
+    .padding(12)
+  }
+
+  // MARK: - Phase 1: Approaching Platform
+  private var approachingView: some View {
     let etaDate = state.etaTimestamp > 0
       ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp))
       : Date().addingTimeInterval(300)
     let now = Date()
 
-    VStack(spacing: 8) {
-      // 1. Status line
+    return VStack(spacing: 8) {
+      // Line & Destination Header
       HStack {
-        StatusIcon(severity: state.severityTier)
+        DeliveryStatusIcon(severity: state.severityTier)
         Text(state.lineName)
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
@@ -65,7 +79,29 @@ public struct DeliveryTrackView: View {
           .lineLimit(1)
       }
 
-      // 2. Delivery Track bar
+      // 1-Tap Endpoint Selection Pills (iOS 17+)
+      if let endpoints = state.availableEndpoints, !endpoints.isEmpty {
+        HStack(spacing: 6) {
+          Text("Towards:")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundColor(.white.opacity(0.6))
+          
+          ForEach(endpoints, id: \.self) { endpoint in
+            let isSelected = (state.selectedEndpoint == endpoint)
+            if #available(iOS 17.0, *) {
+              Button(intent: SwitchEndpointIntent(endpointName: endpoint, lineId: lineId)) {
+                endpointPill(endpoint: endpoint, isSelected: isSelected)
+              }
+              .buttonStyle(.plain)
+            } else {
+              endpointPill(endpoint: endpoint, isSelected: isSelected)
+            }
+          }
+          Spacer()
+        }
+      }
+
+      // Delivery Track progress bar
       GeometryReader { geo in
         ZStack(alignment: .leading) {
           Capsule()
@@ -79,9 +115,7 @@ public struct DeliveryTrackView: View {
       }
       .frame(height: 6)
 
-      // 3. COUNTDOWN — Single Text view. No if/else branching.
-      // SpringBoard ticks this natively. Stops at 0:00. Never negative.
-      // When staleDate passes, iOS dims the entire Live Activity automatically.
+      // Live Countdown to Platform
       HStack {
         let targetDate = max(now, etaDate)
         Text(timerInterval: now...targetDate, countsDown: true)
@@ -98,41 +132,123 @@ public struct DeliveryTrackView: View {
         }
       }
 
-      // 4. Detour Banner (if Tier 3 escalated) — 1-Tap Detour Hand-off (Section 14)
-      if state.isEscalated, let detour = state.detourLine, !detour.isEmpty {
-        if #available(iOS 17.0, *) {
-          Button(intent: SwitchCommuteRouteIntent(
-            newLineId: detour,
-            transferStation: state.statusText.contains("via") ? state.statusText : "Interchange",
-            detourCurrentStatus: state.detourStatus ?? "good",
-            detourEtaDelta: "+\(state.detourMinutes ?? 5)m"
-          )) {
-            detourBanner(detour: detour)
-          }
-          .buttonStyle(.plain)
-        } else {
-          Link(destination: URL(string: "mycommute://reroute?line=\(detour)")!) {
-            detourBanner(detour: detour)
-          }
+      // Detour & Delay Repay slots
+      detourAndRepaySlots
+    }
+  }
+
+  // MARK: - Phase 2: In-Transit (Underground Stopwatch)
+  private var inTransitView: some View {
+    VStack(spacing: 8) {
+      HStack {
+        AccentBar(lineId: lineId)
+        Text("\(state.lineName) · In Transit")
+          .font(.system(size: 13, weight: .bold))
+          .foregroundColor(.white)
+        Spacer()
+        if let dest = state.destinationStationName ?? state.selectedEndpoint {
+          Text("to \(dest)")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.75))
         }
       }
 
-      // 5. Delay Repay slot (evaluated at push time, not render time)
-      if state.delayRepayEligible, let fare = state.estimatedFare {
-        Link(destination: URL(string: "https://tfl.gov.uk/fares/refunds-and-replacements/delay-repay")!) {
-          HStack(spacing: 5) {
-            Image(systemName: "sterlingsign.circle.fill")
-              .foregroundColor(Color(hex: 0x30D158))
-              .font(.system(size: 12))
-            Text("~£\(fare) potential refund · \(state.delayMinutes)m delay tracked")
-              .font(.system(size: 11, weight: .semibold))
-              .foregroundColor(.white.opacity(0.9))
-          }
-          .padding(.top, 2)
+      // Native Elapsed Stopwatch (zero JS wakes)
+      HStack {
+        let startDate = state.sessionStartTime > 0
+          ? Date(timeIntervalSince1970: TimeInterval(state.sessionStartTime))
+          : Date().addingTimeInterval(-180)
+
+        HStack(spacing: 6) {
+          Image(systemName: "stopwatch.fill")
+            .font(.system(size: 12))
+            .foregroundColor(LineColor.color(for: lineId))
+          Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
+            .font(.system(size: 16, weight: .bold, design: .monospaced))
+            .foregroundColor(.white)
+        }
+
+        Spacer()
+
+        Text(state.statusSeverity == "good" ? "On Schedule" : state.statusText)
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundColor(state.isDisrupted ? Color(hex: 0xFFB000) : Color(hex: 0x30D158))
+      }
+
+      detourAndRepaySlots
+    }
+  }
+
+  // MARK: - Phase 3: Arrived Summary
+  private var arrivedView: some View {
+    VStack(spacing: 8) {
+      HStack(spacing: 6) {
+        Image(systemName: "checkmark.circle.fill")
+          .font(.system(size: 14, weight: .bold))
+          .foregroundColor(Color(hex: 0x30D158))
+        Text("Arrived · \(state.destinationStationName ?? state.lineName)")
+          .font(.system(size: 13, weight: .bold))
+          .foregroundColor(.white)
+        Spacer()
+      }
+
+      HStack {
+        Text("Commute completed. Auto-dismissing on exit.")
+          .font(.system(size: 11))
+          .foregroundColor(.white.opacity(0.7))
+        Spacer()
+      }
+
+      detourAndRepaySlots
+    }
+  }
+
+  // MARK: - Subviews & Helpers
+  private func endpointPill(endpoint: String, isSelected: Bool) -> some View {
+    Text(endpoint)
+      .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+      .foregroundColor(isSelected ? .black : .white.opacity(0.85))
+      .padding(.horizontal, 8)
+      .padding(.vertical, 3)
+      .background(isSelected ? Color.white : Color.white.opacity(0.14))
+      .cornerRadius(6)
+  }
+
+  @ViewBuilder
+  private var detourAndRepaySlots: some View {
+    // Detour Banner
+    if state.isEscalated, let detour = state.detourLine, !detour.isEmpty {
+      if #available(iOS 17.0, *) {
+        Button(intent: SwitchCommuteRouteIntent(
+          newLineId: detour,
+          transferStation: state.statusText.contains("via") ? state.statusText : "Interchange",
+          detourCurrentStatus: state.detourStatus ?? "good",
+          detourEtaDelta: "+\(state.detourMinutes ?? 5)m"
+        )) {
+          detourBanner(detour: detour)
+        }
+        .buttonStyle(.plain)
+      } else {
+        Link(destination: URL(string: "mycommute://reroute?line=\(detour)")!) {
+          detourBanner(detour: detour)
         }
       }
     }
-    .padding(12)
+
+    // Delay Repay Slot
+    if state.delayRepayEligible, let fare = state.estimatedFare {
+      Link(destination: URL(string: "https://tfl.gov.uk/fares/refunds-and-replacements/delay-repay")!) {
+        HStack(spacing: 5) {
+          Image(systemName: "sterlingsign.circle.fill")
+            .foregroundColor(Color(hex: 0x30D158))
+            .font(.system(size: 12))
+          Text("~£\(fare) potential refund · \(state.delayMinutes)m delay tracked")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.9))
+        }
+        .padding(.top, 2)
+      }
+    }
   }
 
   @ViewBuilder

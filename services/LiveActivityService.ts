@@ -79,6 +79,12 @@ export interface LiveActivityBridgePayload {
   progress?: number;
   segmentMaxDuration?: number;
   signalState: LiveActivitySignalState;
+  phase?: 'approaching' | 'in_transit' | 'arrived';
+  selectedEndpoint?: string;
+  availableEndpoints?: string[];
+  sessionStartTime?: number;
+  currentStationName?: string;
+  destinationStationName?: string;
 }
 
 const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
@@ -88,7 +94,7 @@ export class LiveActivityService {
   private static lastDisruptedAt = 0;
   private static lastWidgetSyncAt = 0;
   private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
-  private static tokenSubscriptions: Array<{ remove: () => void }> = [];
+  private static tokenSubscriptions: { remove: () => void }[] = [];
 
   /**
    * Initialize dual-token listeners for APNs push updates.
@@ -237,6 +243,44 @@ export class LiveActivityService {
 
     const detour = severityTier >= 3 ? computeDetour(cleanLineId) : null;
 
+    const liveEndpoints = Array.from(
+      new Set(arrivals.map((a) => a.destinationName).filter(Boolean))
+    );
+    const lineTerminals: Record<string, string[]> = {
+      central: ['Epping', 'West Ruislip'],
+      northern: ['High Barnet', 'Morden'],
+      piccadilly: ['Cockfosters', 'Heathrow T5'],
+      district: ['Upminster', 'Wimbledon'],
+      metropolitan: ['Aldgate', 'Amersham'],
+      elizabeth: ['Reading', 'Abbey Wood'],
+      victoria: ['Brixton', 'Walthamstow Central'],
+      jubilee: ['Stratford', 'Stanmore'],
+      bakerloo: ['Elephant & Castle', 'Harrow & Wealdstone'],
+      circle: ['Hammersmith', 'Edgware Road'],
+      hammersmith: ['Barking', 'Hammersmith'],
+    };
+    const availableEndpoints =
+      liveEndpoints.length > 0
+        ? liveEndpoints
+        : lineTerminals[cleanLineId.toLowerCase()] || [];
+    const selectedEndpoint =
+      backgroundStorage.getString('commute_selected_endpoint') ||
+      arrivals[0]?.destinationName ||
+      availableEndpoints[0] ||
+      undefined;
+    const sessionStartTime =
+      backgroundStorage.getNumber('commute_session_start_time') || nowUnix;
+    const phase =
+      (backgroundStorage.getString('commute_phase') as
+        | 'approaching'
+        | 'in_transit'
+        | 'arrived'
+        | undefined) || 'approaching';
+    const currentStationName =
+      backgroundStorage.getString('commute_origin_name') || undefined;
+    const destinationStationName =
+      backgroundStorage.getString('commute_destination_name') || undefined;
+
     return {
       journeyId,
       backendUrl: APP_CONFIG.BACKEND_API_URL,
@@ -265,6 +309,12 @@ export class LiveActivityService {
       progress: 0.15,
       segmentMaxDuration: 180,
       signalState,
+      phase,
+      selectedEndpoint,
+      availableEndpoints,
+      sessionStartTime,
+      currentStationName,
+      destinationStationName,
     };
   }
 
@@ -350,10 +400,26 @@ export class LiveActivityService {
     }
   }
 
+  /** Update the Live Activity phase (approaching -> in_transit -> arrived). */
+  static async updatePhase(
+    phase: 'approaching' | 'in_transit' | 'arrived',
+    destinationName?: string
+  ): Promise<void> {
+    backgroundStorage.set('commute_phase', phase);
+    if (destinationName) {
+      backgroundStorage.set('commute_destination_name', destinationName);
+    }
+    const originId = backgroundStorage.getString('commute_origin_id');
+    const lineId = backgroundStorage.getString('commute_line_id');
+    if (originId && lineId) {
+      await this.update(originId, lineId);
+    }
+  }
+
   /**
    * Synchronizes user's saved lines and latest status snapshots to the App Group UserDefaults.
    */
-  static async syncWidgetCache(selectedLines: string[], customStatuses?: Array<{ id: string; name: string; status: string; severity: number }>): Promise<void> {
+  static async syncWidgetCache(selectedLines: string[], customStatuses?: { id: string; name: string; status: string; severity: number }[]): Promise<void> {
     if (Platform.OS !== 'ios') return;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.syncWidgetCache !== 'function') {
       return;
@@ -437,6 +503,12 @@ export class LiveActivityService {
       progress: 0.25,
       segmentMaxDuration: 180,
       signalState: 'ok',
+      phase: 'approaching',
+      availableEndpoints: ['Cockfosters', 'Arnos Grove'],
+      selectedEndpoint: 'Cockfosters',
+      sessionStartTime: Math.floor(Date.now() / 1000),
+      currentStationName: "King's Cross St. Pancras",
+      destinationStationName: 'Piccadilly Circus',
     };
 
     try {

@@ -8,6 +8,9 @@ import { notifyTier1GeofenceHit, requestPermission } from '../store/permissionOr
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
+import { ArrivalDetector, type LocationFix, type StationLocation } from './ArrivalDetector';
+
+const stationCoordinates = require('../data/stationCoordinates.json');
 
 export type SessionState = 'idle' | 'active' | 'closing';
 
@@ -316,6 +319,7 @@ const activeCacheSubs = new Map<
 >();
 
 export class SessionManager {
+  private static activeDetector: ArrivalDetector | null = null;
   static getSessionState(): SessionState {
     return (backgroundStorage.getString('session_state') as SessionState) || 'idle';
   }
@@ -346,6 +350,36 @@ export class SessionManager {
     return val ? parseInt(val, 10) : null;
   }
 
+  static getActiveDetector(): ArrivalDetector | null {
+    return this.activeDetector;
+  }
+
+  /**
+   * Process a location fix from CoreLocation through the ArrivalDetector state machine.
+   */
+  static handleLocationFix(fix: LocationFix) {
+    if (!this.activeDetector || this.getSessionState() !== 'active') return null;
+    const result = this.activeDetector.processFix(fix);
+    if (result.state === 'confirmed_arrival' && result.confirmedStation) {
+      const destId = this.getCommuteDestinationId();
+      const destName = backgroundStorage.getString('commute_destination_name');
+      const isDestination =
+        result.confirmedStation.id === destId ||
+        Boolean(
+          destName &&
+            (result.confirmedStation.name.toLowerCase().includes(destName.toLowerCase()) ||
+              destName.toLowerCase().includes(result.confirmedStation.name.toLowerCase()))
+        );
+      if (isDestination) {
+        console.log(`[SessionManager] Arrival confirmed at destination: ${result.confirmedStation.name}`);
+        backgroundStorage.set('commute_phase', 'arrived');
+        backgroundStorage.set('touch_out_time', String(result.arrivalTimestampMs || Date.now()));
+        void LiveActivityService.updatePhase('arrived', result.confirmedStation.name);
+      }
+    }
+    return result;
+  }
+
   static async startSession(originId: string, destinationId: string, lineId: string, lineName: string) {
     console.log(`[SessionManager] Starting session. Origin: ${originId}, Dest: ${destinationId}, Line: ${lineId}`);
 
@@ -360,6 +394,8 @@ export class SessionManager {
     
     const nowMs = Date.now();
     backgroundStorage.set('session_state', 'active');
+    backgroundStorage.set('commute_phase', 'approaching');
+    backgroundStorage.set('commute_session_start_time', Math.floor(nowMs / 1000));
     backgroundStorage.set('alerts_active', true);
     backgroundStorage.set('commute_destination_id', destinationId);
     backgroundStorage.set('commute_origin_id', originId);
@@ -369,6 +405,16 @@ export class SessionManager {
     backgroundStorage.remove('dwell_timer_expires');
     backgroundStorage.remove('notified_departed');
     await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
+
+    // Instantiate deterministic ArrivalDetector for the corridor
+    const rawStations = (stationCoordinates || {}) as Record<string, any>;
+    const lineStations: StationLocation[] = Object.values(rawStations).map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      latitude: s.lat,
+      longitude: s.lon,
+    }));
+    this.activeDetector = new ArrivalDetector(lineStations, originId);
 
     // Start Live Activity with Shush Mode check
     try {
@@ -383,6 +429,9 @@ export class SessionManager {
       const pinned = state.pinnedStations || [];
       const origin = pinned.find(s => s.id === originId)?.name || 'Origin';
       const dest = pinned.find(s => s.id === destinationId)?.name || 'Destination';
+
+      backgroundStorage.set('commute_origin_name', origin);
+      backgroundStorage.set('commute_destination_name', dest);
 
       await LiveActivityService.start(originId, lineId, 'geofence');
 
@@ -580,6 +629,9 @@ export class SessionManager {
       const originId = this.getCommuteOriginId();
       const exitLineId = this.getCommuteLineId();
       if (stationId === originId) {
+        backgroundStorage.set('commute_phase', 'in_transit');
+        void LiveActivityService.updatePhase('in_transit');
+
         const isRunning = await LiveActivityService.isActive();
         if (isRunning) {
           try {
@@ -661,6 +713,11 @@ export class SessionManager {
     const store = useUserPreferencesStore.getState();
     useUserPreferencesStore.setState({ completedJourneys: (store.completedJourneys || 0) + 1 });
     const touchInTime = this.getTouchInTime() || startTime;
+    this.activeDetector = null;
+    backgroundStorage.remove('commute_phase');
+    backgroundStorage.remove('commute_session_start_time');
+    backgroundStorage.remove('commute_origin_name');
+    backgroundStorage.remove('commute_destination_name');
     backgroundStorage.remove('commute_destination_id');
     backgroundStorage.remove('commute_origin_id');
     backgroundStorage.remove('commute_line_id');

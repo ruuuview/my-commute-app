@@ -79,9 +79,9 @@ export const PRIMER_COPY: Record<PermissionKey, { title: string; body: string; b
     button: 'Lock My Station',
   },
   locationAlways: {
-    title: 'YOU MISSED A DELAY. WE DIDN\u2019T.',
-    body: 'Let us track your Home–Work route in the background and we\u2019ll flag every delay like this — no more digging through old journeys yourself.',
-    button: 'Never Miss One',
+    title: 'Show trains on your Lock Screen.',
+    body: 'Apple requires "Always Allow" so your iPhone can wake up at your station and track your train in your pocket without opening the app.',
+    button: 'Allow in Background',
   },
   notifications: {
     title: 'Tube drama moves fast.',

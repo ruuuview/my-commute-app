@@ -29,6 +29,7 @@
 
 import { LINE_ROUTES, getStationName } from './lineRoutes';
 import type { RouteInfo } from './lineRoutes';
+import hubExpansions from '../data/hubExpansions.json';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -185,6 +186,17 @@ function buildBranch(route: RouteInfo, fromIdx: number, direction: 'inbound' | '
   };
 }
 
+const SIBLING_NAPTANS: Record<string, string[]> = {};
+for (const ids of Object.values(hubExpansions as Record<string, string[]>)) {
+  for (const id of ids) {
+    SIBLING_NAPTANS[id] = ids;
+  }
+}
+
+function getCandidateStationIds(id: string): string[] {
+  return SIBLING_NAPTANS[id] || [id];
+}
+
 // ── Main resolver ─────────────────────────────────────────────────
 
 export function resolveBranch(
@@ -194,20 +206,30 @@ export function resolveBranch(
 ): ResolvedBranch | AmbiguousBranchResult | null {
   const line = LINE_ROUTES[lineId];
   if (!line) {
-    console.warn(`[resolveBranch] Unknown line: "${lineId}"`);
     return null;
   }
+
+  const candidateFromIds = getCandidateStationIds(fromStationId);
+  const candidateToIds = toStationId ? getCandidateStationIds(toStationId) : null;
 
   // Find all routes that contain fromStationId (and optionally toStationId)
   const matches: MatchEntry[] = [];
 
   for (const direction of ['inbound', 'outbound'] as const) {
     for (const route of line[direction]) {
-      const fromIdx = route.naptanIds.indexOf(fromStationId);
+      let fromIdx = -1;
+      for (const id of candidateFromIds) {
+        fromIdx = route.naptanIds.indexOf(id);
+        if (fromIdx !== -1) break;
+      }
       if (fromIdx === -1) continue;
 
-      if (toStationId !== undefined) {
-        const toIdx = route.naptanIds.indexOf(toStationId);
+      if (candidateToIds) {
+        let toIdx = -1;
+        for (const id of candidateToIds) {
+          toIdx = route.naptanIds.indexOf(id);
+          if (toIdx !== -1) break;
+        }
         if (toIdx === -1) continue;
         // Ensure from comes before to in the route order
         if (fromIdx >= toIdx) continue;
@@ -219,7 +241,6 @@ export function resolveBranch(
   }
 
   if (matches.length === 0) {
-    console.warn(`[resolveBranch] Station "${fromStationId}" not found on line "${lineId}"`);
     return null;
   }
 
@@ -228,8 +249,9 @@ export function resolveBranch(
     return buildBranch(matches[0].route, matches[0].fromIdx, matches[0].direction);
   }
 
-  // Multiple matches → find split station
-  const { splitStationId, splitStationName } = findCommonSplitStation(matches, fromStationId);
+  // Multiple matches → find split station using matched station on route
+  const matchedFromId = matches[0].route.naptanIds[matches[0].fromIdx];
+  const { splitStationId, splitStationName } = findCommonSplitStation(matches, matchedFromId);
 
   // Build all possible branches
   const possibleBranches: ResolvedBranch[] = matches.map(m =>

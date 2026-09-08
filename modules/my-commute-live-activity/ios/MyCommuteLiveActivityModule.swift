@@ -221,6 +221,12 @@ public class MyCommuteLiveActivityModule: Module {
     let tunnelState = payload["tunnelState"] as? String ?? "normal"
     let progress = payload["progress"] as? Double ?? 0.0
     let segmentMaxDuration = payload["segmentMaxDuration"] as? Int ?? 180
+    let phase = payload["phase"] as? String ?? "approaching"
+    let selectedEndpoint = payload["selectedEndpoint"] as? String
+    let availableEndpoints = payload["availableEndpoints"] as? [String]
+    let sessionStartTime = payload["sessionStartTime"] as? Int ?? 0
+    let currentStationName = payload["currentStationName"] as? String
+    let destinationStationName = payload["destinationStationName"] as? String
 
     var arrivals: [Arrival] = []
     if let raw = payload["arrivals"] as? [[String: Any]] {
@@ -255,7 +261,13 @@ public class MyCommuteLiveActivityModule: Module {
       tunnelState: tunnelState,
       progress: progress,
       segmentMaxDuration: segmentMaxDuration,
-      arrivals: arrivals.isEmpty ? nil : arrivals
+      arrivals: arrivals.isEmpty ? nil : arrivals,
+      phase: phase,
+      selectedEndpoint: selectedEndpoint,
+      availableEndpoints: availableEndpoints,
+      sessionStartTime: sessionStartTime,
+      currentStationName: currentStationName,
+      destinationStationName: destinationStationName
     )
   }
 
@@ -278,7 +290,13 @@ public class MyCommuteLiveActivityModule: Module {
       tunnelState: "normal",
       progress: 0.0,
       segmentMaxDuration: 180,
-      arrivals: nil
+      arrivals: nil,
+      phase: "approaching",
+      selectedEndpoint: nil,
+      availableEndpoints: nil,
+      sessionStartTime: 0,
+      currentStationName: nil,
+      destinationStationName: nil
     )
   }
 

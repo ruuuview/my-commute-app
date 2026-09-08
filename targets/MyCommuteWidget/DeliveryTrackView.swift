@@ -72,6 +72,11 @@ public struct DeliveryTrackView: View {
         Text(state.lineName)
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
+        if let branch = state.branchName, !branch.isEmpty {
+          Text("· \(branch)")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.85))
+        }
         Spacer()
         Text(state.statusText)
           .font(.system(size: 11))
@@ -147,7 +152,8 @@ public struct DeliveryTrackView: View {
           .foregroundColor(.white)
         Spacer()
         if let dest = state.destinationStationName ?? state.selectedEndpoint {
-          Text("to \(dest)")
+          let branchSuffix = (state.branchName != nil && !state.branchName!.isEmpty) ? " (\(state.branchName!))" : ""
+          Text("to \(dest)\(branchSuffix)")
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.white.opacity(0.75))
         }

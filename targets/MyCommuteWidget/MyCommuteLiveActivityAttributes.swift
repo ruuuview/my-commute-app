@@ -1,0 +1,1 @@
+../../modules/my-commute-live-activity/ios/MyCommuteLiveActivityAttributes.swift

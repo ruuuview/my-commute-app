@@ -37,33 +37,45 @@ export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
  * NOT fetch, compute, or duplicate cache data. It only forwards + mirrors.
  */
 export interface LiveActivityBridgePayload {
-  /** Stable string id of the station (matches tier2:<stationId> key). */
+  journeyId?: string;
+  backendUrl?: string;
+  originStation?: string;
+  destinationStation?: string;
   stationId: string;
-  /** Canonical line id, e.g. "northern", "elizabeth", "overground". */
   lineId: string;
-  /** Human line name, e.g. "Northern line". */
   lineName: string;
-  /**
-   * True when the branch / direction is confirmed. Until then the widget shows
-   * line-level arrivals keyed by lineId (e.g. "Northern · 3 min") and performs
-   * a shared-element content swap (no rebuild) when this flips to true.
-   */
   branchKnown: boolean;
-  /**
-   * Up to 3 soonest arrivals, earliest first. `destinationName` is the
-   * direction text (e.g. "Edgware", "Charing Cross"). `timeToStationSeconds`
-   * seeds the native system timer (zero network cost once seeded).
-   */
+  branchName?: string;
   arrivals: Array<{
     destinationName: string;
     timeToStationSeconds: number;
+    via?: string;
+    branch?: string;
   }>;
-  /** Disruption status text from cached disruption data. */
+  statusSeverity?: 'good' | 'minor_delays' | 'severe_delays' | 'suspended';
   statusText: string;
-  /** Whether the line/branch is currently disrupted. */
+  severityTier?: number;
+  nextTrainMinutes?: number;
+  etaTimestamp?: number;
+  etaDelta?: string;
   isDisrupted: boolean;
-  /** Drives the meltdown glass panel vs normal rendering. */
+  isEscalated?: boolean;
+  detourLine?: string | null;
+  detourMinutes?: number | null;
+  detourStatus?: string | null;
+  delayRepayEligible?: boolean;
+  estimatedFare?: string | null;
+  delayMinutes?: number;
+  tunnelState?: 'normal' | 'held';
+  progress?: number;
+  segmentMaxDuration?: number;
   signalState: LiveActivitySignalState;
+  phase?: 'approaching' | 'in_transit' | 'arrived';
+  selectedEndpoint?: string;
+  availableEndpoints?: string[];
+  sessionStartTime?: number;
+  currentStationName?: string;
+  destinationStationName?: string;
 }
 
 export interface MyCommuteLiveActivity {

@@ -36,6 +36,7 @@ import { resolveTflStopIds } from '../utils/resolveTflStopId';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { getSeverityRank } from '../utils/getSeverityColor';
 import { fetchWithTimeout } from '../utils/network';
+import { extractViaText } from './apiService';
 
 // ---- Storage: App Group MMKV so Swift Live Activity can READ the same cache ----
 // App Group sharing is configured natively via the `AppGroupIdentifier` key in
@@ -60,6 +61,8 @@ export interface Tier2PlatformArrival {
   destinationName: string;
   expectedArrival: string; // ISO timestamp
   timeToStation: number; // seconds
+  via?: string;
+  towards?: string;
 }
 
 export interface Tier2Cache {
@@ -390,11 +393,17 @@ function flattenArrivals(responses: any[]): Tier2PlatformArrival[] {
           ? Math.max(0, Math.round((expectedArrivalMs - Date.now()) / 1000))
           : 0;
 
+      const via =
+        dep.via ||
+        extractViaText(dep.towards, dep.platform || dep.platformName);
+
       out.push({
         platformName: dep.platform || dep.platformName || '',
         destinationName: (dep.destination || dep.destinationName || '').replace(' Underground Station', ''),
         expectedArrival,
         timeToStation,
+        via,
+        towards: dep.towards,
       });
     }
   }

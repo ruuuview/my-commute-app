@@ -60,7 +60,8 @@ export interface LiveActivityBridgePayload {
   lineId: string;
   lineName: string;
   branchKnown: boolean;
-  arrivals: { destinationName: string; timeToStationSeconds: number }[];
+  branchName?: string;
+  arrivals: { destinationName: string; timeToStationSeconds: number; via?: string; branch?: string }[];
   statusSeverity?: 'good' | 'minor_delays' | 'severe_delays' | 'suspended';
   statusText: string;
   severityTier?: number;
@@ -179,6 +180,7 @@ export class LiveActivityService {
       .map((p) => ({
         destinationName: p.destinationName || '',
         timeToStationSeconds: Math.max(0, Math.round(p.timeToStation || 0)),
+        via: p.via,
       }));
 
     if (arrivals.length === 0) {
@@ -237,6 +239,16 @@ export class LiveActivityService {
     const branchKnown = !!destId;
     const journeyId = `j_${Math.floor(Date.now() / 1000)}`;
 
+    // Derive branchName from hero arrival via, backgroundStorage, or cache
+    const rawBranchName =
+      backgroundStorage.getString('commute_branch_name') ||
+      arrivals[0]?.via ||
+      cache.platforms?.[0]?.via ||
+      undefined;
+    const branchName = rawBranchName
+      ? rawBranchName.replace(/^via\s+/i, '').trim()
+      : undefined;
+
     // Signal state override or read from storage.
     const signalState: LiveActivitySignalState =
       signalStateOverride ?? LiveActivityService.readSignalState();
@@ -244,15 +256,23 @@ export class LiveActivityService {
     const detour = severityTier >= 3 ? computeDetour(cleanLineId) : null;
 
     const liveEndpoints = Array.from(
-      new Set(arrivals.map((a) => a.destinationName).filter(Boolean))
+      new Set(
+        arrivals.map((a) => {
+          if (a.via) {
+            const shortVia = a.via.replace(/^via\s+/i, '').trim();
+            return `${a.destinationName} (${shortVia})`;
+          }
+          return a.destinationName;
+        }).filter(Boolean)
+      )
     );
     const lineTerminals: Record<string, string[]> = {
-      central: ['Epping', 'West Ruislip'],
-      northern: ['High Barnet', 'Morden'],
-      piccadilly: ['Cockfosters', 'Heathrow T5'],
-      district: ['Upminster', 'Wimbledon'],
-      metropolitan: ['Aldgate', 'Amersham'],
-      elizabeth: ['Reading', 'Abbey Wood'],
+      central: ['Epping', 'Hainault', 'West Ruislip', 'Ealing Broadway'],
+      northern: ['Bank', 'Charing Cross', 'Edgware', 'High Barnet'],
+      piccadilly: ['Cockfosters', 'Heathrow T5', 'Uxbridge'],
+      district: ['Upminster', 'Wimbledon', 'Richmond', 'Ealing Broadway'],
+      metropolitan: ['Aldgate', 'Amersham', 'Watford', 'Uxbridge'],
+      elizabeth: ['Reading', 'Heathrow', 'Shenfield', 'Abbey Wood'],
       victoria: ['Brixton', 'Walthamstow Central'],
       jubilee: ['Stratford', 'Stanmore'],
       bakerloo: ['Elephant & Castle', 'Harrow & Wealdstone'],
@@ -265,7 +285,9 @@ export class LiveActivityService {
         : lineTerminals[cleanLineId.toLowerCase()] || [];
     const selectedEndpoint =
       backgroundStorage.getString('commute_selected_endpoint') ||
-      arrivals[0]?.destinationName ||
+      (arrivals[0]?.via
+        ? `${arrivals[0].destinationName} (${arrivals[0].via.replace(/^via\s+/i, '').trim()})`
+        : arrivals[0]?.destinationName) ||
       availableEndpoints[0] ||
       undefined;
     const sessionStartTime =
@@ -290,6 +312,7 @@ export class LiveActivityService {
       lineId: cleanLineId,
       lineName,
       branchKnown,
+      branchName,
       arrivals,
       statusSeverity,
       statusText,

@@ -33,10 +33,40 @@ public struct SwitchEndpointIntent: LiveActivityIntent {
     var updatedState = activity.content.state
     updatedState.selectedEndpoint = endpointName
 
-    // If arrivals are present, find the soonest train matching this endpoint
+    // If arrivals are present, find the soonest train matching this endpoint or branch
+    // Disambiguate when endpointName specifies a via/corridor (e.g. "Morden (via Bank)")
+    let cleanEndpoint = endpointName.trimmingCharacters(in: .whitespaces)
+    let viaPattern = try? NSRegularExpression(pattern: "\\((?:via\\s+)?([^)]+)\\)", options: .caseInsensitive)
+    var targetVia: String? = nil
+    var targetDest = cleanEndpoint
+
+    if let match = viaPattern?.firstMatch(in: cleanEndpoint, range: NSRange(cleanEndpoint.startIndex..., in: cleanEndpoint)),
+       let viaRange = Range(match.range(at: 1), in: cleanEndpoint) {
+      targetVia = String(cleanEndpoint[viaRange]).trimmingCharacters(in: .whitespaces)
+      if let fullRange = Range(match.range(at: 0), in: cleanEndpoint) {
+        targetDest = cleanEndpoint.replacingCharacters(in: fullRange, with: "").trimmingCharacters(in: .whitespaces)
+      }
+    }
+
     if let arrivals = updatedState.arrivals,
-       let matchingArrival = arrivals.first(where: { $0.destinationName.localizedCaseInsensitiveContains(endpointName) }) {
+       let matchingArrival = arrivals.first(where: { arrival in
+         let destMatches = arrival.destinationName.localizedCaseInsensitiveContains(targetDest) ||
+                           targetDest.localizedCaseInsensitiveContains(arrival.destinationName)
+         if let targetVia = targetVia {
+           let viaMatches = (arrival.via?.localizedCaseInsensitiveContains(targetVia) == true) ||
+                            (arrival.branch?.localizedCaseInsensitiveContains(targetVia) == true)
+           return destMatches && viaMatches
+         }
+         return destMatches ||
+                (arrival.via?.localizedCaseInsensitiveContains(endpointName) == true) ||
+                (arrival.branch?.localizedCaseInsensitiveContains(endpointName) == true)
+       }) {
       updatedState.nextTrainMinutes = max(0, Int((matchingArrival.timeToStationSeconds + 30) / 60))
+      if let via = matchingArrival.via {
+        updatedState.branchName = via.replacingOccurrences(of: "via ", with: "", options: .caseInsensitive).trimmingCharacters(in: .whitespaces)
+      } else if let branch = matchingArrival.branch {
+        updatedState.branchName = branch
+      }
     }
 
     await activity.update(ActivityContent(state: updatedState, staleDate: Date().addingTimeInterval(300)))

@@ -5,11 +5,21 @@ public struct Arrival: Codable, Hashable {
   public let destinationName: String
   public let timeToStationSeconds: Int
   public let isHero: Bool
+  public let via: String?
+  public let branch: String?
 
-  public init(destinationName: String, timeToStationSeconds: Int, isHero: Bool) {
+  public init(
+    destinationName: String,
+    timeToStationSeconds: Int,
+    isHero: Bool,
+    via: String? = nil,
+    branch: String? = nil
+  ) {
     self.destinationName = destinationName
     self.timeToStationSeconds = timeToStationSeconds
     self.isHero = isHero
+    self.via = via
+    self.branch = branch
   }
 }
 
@@ -44,6 +54,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
     public var phase: String               // "approaching" | "in_transit" | "arrived"
     public var selectedEndpoint: String?
     public var availableEndpoints: [String]?
+    public var branchName: String?
     public var sessionStartTime: Int       // Unix timestamp for native stopwatch
     public var currentStationName: String?
     public var destinationStationName: String?
@@ -74,6 +85,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       phase: String = "approaching",
       selectedEndpoint: String? = nil,
       availableEndpoints: [String]? = nil,
+      branchName: String? = nil,
       sessionStartTime: Int = 0,
       currentStationName: String? = nil,
       destinationStationName: String? = nil
@@ -99,6 +111,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       self.phase = phase
       self.selectedEndpoint = selectedEndpoint
       self.availableEndpoints = availableEndpoints
+      self.branchName = branchName
       self.sessionStartTime = sessionStartTime
       self.currentStationName = currentStationName
       self.destinationStationName = destinationStationName

@@ -2,140 +2,8 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-// ============================================================
-// MyCommuteLiveActivityAttributes
-// ------------------------------------------------------------
-// ActivityKit attributes + content state for the My Commute
-// Live Activity (Dynamic Island + Lock Screen).
-//
-// ARCHITECTURE RULE: this module READS from the Tier 2 cache
-// only. The RN layer (Tier2CacheManager) is the single writer.
-// The bridge module mirrors a slim JSON of that cache into the
-// App Group container; the widget reads THAT mirror. No cache
-// data is owned or duplicated here.
-// ============================================================
-
-public struct Arrival: Codable, Hashable {
-  public let destinationName: String
-  public let timeToStationSeconds: Int
-  public let isHero: Bool
-
-  public init(destinationName: String, timeToStationSeconds: Int, isHero: Bool) {
-    self.destinationName = destinationName
-    self.timeToStationSeconds = timeToStationSeconds
-    self.isHero = isHero
-  }
-}
-
-public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
-  // Static attributes
-  public var journeyId: String
-  public var originStation: String
-  public var destinationStation: String
-  public var lineId: String
-  public var lineName: String?
-  public var stationId: String? // legacy compatibility
-
-  // Mutable content state
-  public struct ContentState: Codable, Hashable {
-    public var lineName: String
-    public var statusSeverity: String      // "good" | "minor_delays" | "severe_delays" | "suspended"
-    public var statusText: String          // Max 60 chars (4KB payload limit)
-    public var severityTier: Int           // 0-3
-    public var nextTrainMinutes: Int
-    public var etaTimestamp: Int           // Unix timestamp
-    public var etaDelta: String            // "+4m" | "On time" | "N/A"
-    public var isEscalated: Bool
-    public var detourLine: String?
-    public var detourMinutes: Int?
-    public var detourStatus: String?       // Actual status of detour line
-    public var delayRepayEligible: Bool
-    public var estimatedFare: String?      // e.g. "3.60" (displayed with ~ prefix)
-    public var delayMinutes: Int
-    public var tunnelState: String         // "normal" | "held"
-    public var progress: Double            // 0.0-1.0
-    public var segmentMaxDuration: Int     // Seconds (for staleDate calculation)
-    public var arrivals: [Arrival]?
-    public var phase: String               // "approaching" | "in_transit" | "arrived"
-    public var selectedEndpoint: String?
-    public var availableEndpoints: [String]?
-    public var sessionStartTime: Int       // Unix timestamp for native stopwatch
-    public var currentStationName: String?
-    public var destinationStationName: String?
-
-    public var isDisrupted: Bool {
-      return severityTier > 0
-    }
-
-    public init(
-      lineName: String = "",
-      statusSeverity: String = "good",
-      statusText: String = "On time",
-      severityTier: Int = 0,
-      nextTrainMinutes: Int = 0,
-      etaTimestamp: Int = 0,
-      etaDelta: String = "On time",
-      isEscalated: Bool = false,
-      detourLine: String? = nil,
-      detourMinutes: Int? = nil,
-      detourStatus: String? = nil,
-      delayRepayEligible: Bool = false,
-      estimatedFare: String? = nil,
-      delayMinutes: Int = 0,
-      tunnelState: String = "normal",
-      progress: Double = 0.0,
-      segmentMaxDuration: Int = 180,
-      arrivals: [Arrival]? = nil,
-      phase: String = "approaching",
-      selectedEndpoint: String? = nil,
-      availableEndpoints: [String]? = nil,
-      sessionStartTime: Int = 0,
-      currentStationName: String? = nil,
-      destinationStationName: String? = nil
-    ) {
-      self.lineName = lineName
-      self.statusSeverity = statusSeverity
-      self.statusText = statusText
-      self.severityTier = severityTier
-      self.nextTrainMinutes = nextTrainMinutes
-      self.etaTimestamp = etaTimestamp
-      self.etaDelta = etaDelta
-      self.isEscalated = isEscalated
-      self.detourLine = detourLine
-      self.detourMinutes = detourMinutes
-      self.detourStatus = detourStatus
-      self.delayRepayEligible = delayRepayEligible
-      self.estimatedFare = estimatedFare
-      self.delayMinutes = delayMinutes
-      self.tunnelState = tunnelState
-      self.progress = progress
-      self.segmentMaxDuration = segmentMaxDuration
-      self.arrivals = arrivals
-      self.phase = phase
-      self.selectedEndpoint = selectedEndpoint
-      self.availableEndpoints = availableEndpoints
-      self.sessionStartTime = sessionStartTime
-      self.currentStationName = currentStationName
-      self.destinationStationName = destinationStationName
-    }
-  }
-
-  public init(
-    journeyId: String = "",
-    originStation: String = "",
-    destinationStation: String = "",
-    lineId: String = "",
-    lineName: String? = nil,
-    stationId: String? = nil
-  ) {
-    self.journeyId = journeyId
-    self.originStation = originStation
-    self.destinationStation = destinationStation
-    self.lineId = lineId
-    self.lineName = lineName
-    self.stationId = stationId
-  }
-}
+// ARCHITECTURE RULE: MyCommuteLiveActivityAttributes and Arrival are sourced
+// from the single shared attributes file: MyCommuteLiveActivityAttributes.swift.
 
 // ============================================================
 // Line color token — mirrors frontend tokens.ts LINE_COLORS.
@@ -357,13 +225,39 @@ private struct CompactIslandView: View {
     } else {
       HStack(spacing: 4) {
         AccentBar(lineId: context.attributes.lineId)
-        Text(context.state.selectedEndpoint ?? lineShortCode)
+        let leadingText: String = {
+          if let short = shortBranch {
+            return "\(lineShortCode) · \(short)"
+          }
+          return context.state.selectedEndpoint ?? lineShortCode
+        }()
+        Text(leadingText)
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
           .lineLimit(1)
       }
       .accessibilityLabel("\(context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
     }
+  }
+
+  private var shortBranch: String? {
+    guard let branch = context.state.branchName, !branch.isEmpty else { return nil }
+    let lower = branch.lowercased()
+    if lower.contains("bank") { return "Bank" }
+    if lower.contains("charing") { return "ChX" }
+    if lower.contains("heathrow") { return "LHR" }
+    if lower.contains("uxbridge") { return "Uxbr" }
+    if lower.contains("wimbledon") { return "Wimb" }
+    if lower.contains("richmond") { return "Rich" }
+    if lower.contains("reading") { return "Rdg" }
+    if lower.contains("shenfield") { return "Shen" }
+    if lower.contains("woodford") { return "Wdfd" }
+    if lower.contains("newbury") { return "Newb" }
+    if lower.contains("ealing") { return "Eal" }
+    let cleaned = branch.replacingOccurrences(of: " branch", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "via ", with: "", options: .caseInsensitive)
+                        .trimmingCharacters(in: .whitespaces)
+    return String(cleaned.prefix(5))
   }
 
   private var lineShortCode: String {
@@ -445,6 +339,11 @@ private struct ExpandedIslandView: View {
         Text(context.attributes.lineName ?? context.state.lineName)
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
+        if let branch = context.state.branchName, !branch.isEmpty {
+          Text("· \(branch)")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(.white.opacity(0.85))
+        }
         Spacer()
         if signalDegraded {
           Text("Reconnecting")
@@ -527,18 +426,19 @@ private struct LockScreenView: View {
     if !hasArrival {
       return "No trains currently scheduled"
     }
+    let branchQualifier = (context.state.branchName != nil && !context.state.branchName!.isEmpty) ? " (\(context.state.branchName!))" : ""
     if context.state.isEscalated {
-      return "\(lineDisplayName) Suspended"
+      return "\(lineDisplayName)\(branchQualifier) Suspended"
     }
     if context.state.severityTier > 0 {
-      return "\(lineDisplayName) train delayed (\(context.state.etaDelta))"
+      return "\(lineDisplayName)\(branchQualifier) train delayed (\(context.state.etaDelta))"
     }
     if minutesAway == 0 {
       return "Train arriving at platform"
     } else if minutesAway <= 1 {
       return "Train approaching shortly"
     } else {
-      return "\(lineDisplayName) train is on the way"
+      return "\(lineDisplayName)\(branchQualifier) train is on the way"
     }
   }
 
@@ -555,7 +455,15 @@ private struct LockScreenView: View {
 
   private var destinationText: String {
     if let hero = hero, !hero.destinationName.isEmpty {
+      if let branch = context.state.branchName, !branch.isEmpty {
+        return "\(hero.destinationName) (\(branch))"
+      } else if let via = hero.via, !via.isEmpty {
+        return "\(hero.destinationName) (\(via))"
+      }
       return hero.destinationName
+    }
+    if let branch = context.state.branchName, !branch.isEmpty {
+      return "\(lineDisplayName) (\(branch))"
     }
     return lineDisplayName
   }
@@ -567,7 +475,8 @@ private struct LockScreenView: View {
         Circle()
           .fill(LineColor.color(for: context.attributes.lineId))
           .frame(width: 8, height: 8)
-        Text("\(lineDisplayName) Line · Live Commute")
+        let branchSuffix = (context.state.branchName != nil && !context.state.branchName!.isEmpty) ? " · \(context.state.branchName!)" : ""
+        Text("\(lineDisplayName) Line\(branchSuffix) · Live Commute")
           .font(.system(size: 11, weight: .semibold))
           .foregroundColor(.white.opacity(0.7))
         Spacer()

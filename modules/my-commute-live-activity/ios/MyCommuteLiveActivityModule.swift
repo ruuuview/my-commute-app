@@ -224,6 +224,7 @@ public class MyCommuteLiveActivityModule: Module {
     let phase = payload["phase"] as? String ?? "approaching"
     let selectedEndpoint = payload["selectedEndpoint"] as? String
     let availableEndpoints = payload["availableEndpoints"] as? [String]
+    let branchName = payload["branchName"] as? String
     let sessionStartTime = payload["sessionStartTime"] as? Int ?? 0
     let currentStationName = payload["currentStationName"] as? String
     let destinationStationName = payload["destinationStationName"] as? String
@@ -233,11 +234,15 @@ public class MyCommuteLiveActivityModule: Module {
       for (idx, item) in raw.prefix(3).enumerated() {
         let dest = item["destinationName"] as? String ?? ""
         let tts = item["timeToStationSeconds"] as? Int ?? 0
+        let via = item["via"] as? String
+        let branch = item["branch"] as? String
         arrivals.append(
           Arrival(
             destinationName: dest,
             timeToStationSeconds: tts,
-            isHero: idx == 0
+            isHero: idx == 0,
+            via: via,
+            branch: branch
           )
         )
       }
@@ -265,6 +270,7 @@ public class MyCommuteLiveActivityModule: Module {
       phase: phase,
       selectedEndpoint: selectedEndpoint,
       availableEndpoints: availableEndpoints,
+      branchName: branchName,
       sessionStartTime: sessionStartTime,
       currentStationName: currentStationName,
       destinationStationName: destinationStationName
@@ -294,6 +300,7 @@ public class MyCommuteLiveActivityModule: Module {
       phase: "approaching",
       selectedEndpoint: nil,
       availableEndpoints: nil,
+      branchName: nil,
       sessionStartTime: 0,
       currentStationName: nil,
       destinationStationName: nil

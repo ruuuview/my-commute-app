@@ -62,6 +62,8 @@ import {
   resolveRerouteMode,
   buildRerouteLinks,
   normalizeLineId,
+  isBranchMentioned,
+  isLineWideDisruption,
 } from './rerouteHelpers';
 
 
@@ -90,13 +92,42 @@ interface DashboardData {
 // Branch destinations per line — expanded to support 2x2 grid for 4-branch lines.
 // (Mirror of StationCard.LINE_TERMINALS; kept local because that map isn't exported.)
 // Lines with 4 branches get a 2x2 grid in RerouteScreen; 2-branch lines keep the old flow.
-const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
-  central: ['Epping', 'Hainault via Newbury Park', 'Ealing Broadway', 'West Ruislip'],
-  northern: ['Edgware', 'High Barnet', 'Morden', 'Battersea'],
-  piccadilly: ['Cockfosters', 'Arnos Grove', 'Uxbridge', 'Heathrow T5'],
-  district: ['Richmond', 'Wimbledon', 'Ealing Broadway', 'Upminster'],
-  metropolitan: ['Amersham', 'Watford', 'Uxbridge', 'Aldgate'],
-  elizabeth: ['Reading', 'Heathrow T5', 'Shenfield', 'Abbey Wood'],
+export const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
+  central: [
+    'Epping branch',
+    'Hainault (via Newbury Park) branch',
+    'Hainault (via Woodford) branch',
+    'West Ruislip branch',
+    'Ealing Broadway branch',
+  ],
+  northern: [
+    'Bank branch',
+    'Charing Cross branch',
+    'Edgware branch',
+    'High Barnet branch',
+    'Mill Hill East branch',
+    'Battersea Power Station branch',
+  ],
+  piccadilly: ['Heathrow branch', 'Uxbridge branch'],
+  district: [
+    'Upminster branch',
+    'Wimbledon branch',
+    'Richmond branch',
+    'Ealing Broadway branch',
+    'Edgware Road branch',
+  ],
+  metropolitan: [
+    'Amersham branch',
+    'Chesham branch',
+    'Watford branch',
+    'Uxbridge branch',
+  ],
+  elizabeth: [
+    'Reading branch',
+    'Heathrow branch',
+    'Shenfield branch',
+    'Abbey Wood branch',
+  ],
   victoria: ['Walthamstow Central', 'Brixton'],
   jubilee: ['Stanmore', 'Stratford'],
   bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
@@ -1079,40 +1110,81 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
     result.branch && !('possibleBranches' in result.branch)
       ? (result.branch as ResolvedBranch)
       : null;
-  // Fallback: the line's default terminus (branches[0]) — the same default
-  // resolveRerouteMode treats as confirmedTerminus. The grid is ALWAYS
-  // pre-highlighted (plan: no hidden auto-resolution, no "Change" step).
-  const resolvedTerminus = engineBranch?.terminus ?? defaultTerminus;
+
+  // Match the engine's resolved route, branchId, or terminus to our grid tiles
+  const matchedEngineBranch = engineBranch
+    ? branches.find((b) => {
+        const bLower = b.toLowerCase().replace(/\bbranch\b/g, '').trim();
+        // 1. Direct or substring match with terminus
+        if (
+          engineBranch.terminus &&
+          (b.toLowerCase() === engineBranch.terminus.toLowerCase() ||
+            bLower === engineBranch.terminus.toLowerCase() ||
+            engineBranch.terminus.toLowerCase().includes(bLower) ||
+            bLower.includes(engineBranch.terminus.toLowerCase()))
+        ) {
+          return true;
+        }
+        // 2. Check routeName / branchId (e.g. "Edgware ↔ Morden via Bank" or "edgware-via-bank" -> "Bank branch")
+        if (
+          engineBranch.routeName &&
+          bLower.length >= 3 &&
+          engineBranch.routeName.toLowerCase().includes(bLower)
+        ) {
+          return true;
+        }
+        if (
+          engineBranch.branchId &&
+          bLower.length >= 3 &&
+          engineBranch.branchId.toLowerCase().includes(bLower)
+        ) {
+          return true;
+        }
+        return false;
+      })
+    : null;
+
+  // Fallback: the line's default terminus (branches[0])
+  const resolvedTerminus =
+    matchedEngineBranch ??
+    (branches.includes(engineBranch?.terminus ?? '')
+      ? engineBranch!.terminus
+      : defaultTerminus);
   const resolvedSource = engineBranch ? result.source : 'manual';
   const resolvedConfidence = engineBranch ? result.confidence : 'low';
 
-  // Per-branch status: parse disruption reason to mark which branches are affected.
-  const reasonLower = (rerouteLine.reason || '').toLowerCase();
+  // Per-branch status: parse disruption reason with stopword-safe matching.
+  const reasonText = rerouteLine.reason || rerouteLine.status || '';
+  const lineWide = isLineWideDisruption(reasonText, rerouteLine.status);
+
   const hasMentionedBranch = branches.some((branch: string) =>
-    branch.toLowerCase().split(' ').some(word =>
-      word.length > 3 && reasonLower.includes(word)
-    )
+    isBranchMentioned(branch, reasonText)
   );
-  const branchStatuses = branches.reduce((acc: any, branch: string) => {
-    const isMentioned = branch.toLowerCase().split(' ').some(word =>
-      word.length > 3 && reasonLower.includes(word)
-    );
-    acc[branch] =
-      isMentioned || (!hasMentionedBranch && branch === defaultTerminus)
-        ? 'affected'
-        : 'unaffected';
+
+  const branchStatuses = branches.reduce((acc: Record<string, 'affected' | 'unaffected'>, branch: string) => {
+    if (lineWide) {
+      acc[branch] = 'affected';
+    } else {
+      const isMentioned = isBranchMentioned(branch, reasonText);
+      // If specific branch is mentioned, mark affected.
+      // If no branch mentioned at all (and not line-wide), default resolved tile to affected (never false calm).
+      acc[branch] =
+        isMentioned || (!hasMentionedBranch && branch === resolvedTerminus)
+          ? 'affected'
+          : 'unaffected';
+    }
     return acc;
   }, {} as Record<string, 'affected' | 'unaffected'>);
 
   const resolution = resolveRerouteMode({
     stationId,
-    confirmedTerminus: defaultTerminus,
+    confirmedTerminus: resolvedTerminus,
     otherTerminus,
     expectedLineId: rerouteLine.id,
     fallbackStatusType: getDashboardSeverity(rerouteLine.status, rerouteLine.status_severity),
     fallbackReason: rerouteLine.reason || rerouteLine.status,
   });
-  const links = buildRerouteLinks(defaultTerminus);
+  const links = buildRerouteLinks(resolvedTerminus);
 
   const isCleared =
     Boolean(rerouteLine.status?.toLowerCase().includes('good service')) ||

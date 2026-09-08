@@ -70,7 +70,7 @@ import type { DetectionSource } from '../hooks/useAutoDetectBranch';
 import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
-import { getBranchSuggestedRoute } from './rerouteHelpers';
+import { getBranchSuggestedRoute, buildRerouteLinks } from './rerouteHelpers';
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
   back: CaretLeft,
@@ -297,18 +297,23 @@ export default function RerouteScreen({
           ? 'From your last tap'
           : 'Usual route';
 
+  // Dynamic links updated to the currently active branch
+  const dynamicLinks = buildRerouteLinks(activeTerminus);
+  const effectiveGoogleMapsUrl = internalBranch ? dynamicLinks.googleMapsUrl : (googleMapsUrl || dynamicLinks.googleMapsUrl);
+  const effectiveCitymapperUrl = internalBranch ? dynamicLinks.citymapperUrl : (citymapperUrl || dynamicLinks.citymapperUrl);
+
   // ── Citymapper availability (canOpenURL gate) ─────────────────
   // Rule 11: the Citymapper button is ABSENT (not greyed) when not installed.
   const [citymapperAvailable, setCitymapperAvailable] = useState(false);
   useEffect(() => {
     if (visible && effectiveMode === 'affected') {
-      Linking.canOpenURL(citymapperUrl)
+      Linking.canOpenURL(effectiveCitymapperUrl)
         .then(setCitymapperAvailable)
         .catch(() => setCitymapperAvailable(false));
     } else {
       setCitymapperAvailable(false);
     }
-  }, [visible, effectiveMode, citymapperUrl]);
+  }, [visible, effectiveMode, effectiveCitymapperUrl]);
 
   // ── Scroll affordance — persistent track + animated bouncing chevron ──
   const scrollRef = useRef<ScrollView>(null);
@@ -358,13 +363,13 @@ export default function RerouteScreen({
   // ── Open handlers ─────────────────────────────────────────────
   const handleOpenGoogleMaps = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Linking.openURL(googleMapsUrl).catch(() => {});
+    Linking.openURL(effectiveGoogleMapsUrl).catch(() => {});
     onClose();
   };
   const handleOpenCitymapper = () => {
     if (!citymapperAvailable) return; // gated — absent, never greyed
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Linking.openURL(citymapperUrl).catch(() => {});
+    Linking.openURL(effectiveCitymapperUrl).catch(() => {});
     onClose();
   };
 

@@ -28,7 +28,10 @@
         "NSLocationAlwaysUsageDescription": "Allow My Commute to use your location in the background to detect station arrival and automate delay repay.",
         "NSLocationWhenInUseUsageDescription": "Allow My Commute to use your location to show nearby stations and departures.",
         "ITSAppUsesNonExemptEncryption": false,
-        "LSApplicationQueriesSchemes": ["citymapper", "tfl-go"],
+        "LSApplicationQueriesSchemes": [
+          "citymapper",
+          "tfl-go"
+        ],
         "NSSupportsLiveActivities": true,
         "NSSupportsLiveActivitiesFrequentUpdates": true
       },
@@ -48,7 +51,9 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -122,9 +127,9 @@
             }
           }
         },
-        "projectId": "7c3dff01-759d-48db-b1ec-50df46a7f614"
+        "projectId": "1efee0b5-6e68-4c91-830a-fde4f951c1f0"
       }
     },
-    "owner": "rudra1998"
+    "owner": "rudrakay"
   }
 }

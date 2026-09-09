@@ -1,11 +1,14 @@
 import { estimateFare, isPeakTime } from '../services/fareTable';
 import {
+  SessionManager,
   validateArrival,
   STATION_COMPLEXES,
   TUNNEL_SEGMENTS,
   GEOFENCE_CONFIG,
 } from '../services/SessionManager';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { LiveActivityService } from '../services/LiveActivityService';
+import { computeDetour } from '../services/detourComputer';
 
 describe('Shush Mode Production Specification v2.0 Tests', () => {
   describe('March 2026 Fare Table & Estimate Fare', () => {
@@ -112,7 +115,6 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
 
   describe('Bidirectional Commute Geofence Invariant (Rule 10)', () => {
     it('rejects "other" role geofences from starting autonomous sessions', async () => {
-      const { SessionManager } = require('../services/SessionManager');
       const store = useUserPreferencesStore.getState();
       
       // Pin home, work, and other
@@ -137,7 +139,6 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
     });
 
     it('suppresses start when delivery mode is OFF', async () => {
-      const { LiveActivityService } = require('../services/LiveActivityService');
       const store = useUserPreferencesStore.getState();
       store.setAlertDeliveryMode('off');
 
@@ -146,7 +147,6 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
     });
 
     it('runs preview activity and respects active queries', async () => {
-      const { LiveActivityService } = require('../services/LiveActivityService');
       const store = useUserPreferencesStore.getState();
       store.setAlertDeliveryMode('shush');
 
@@ -162,21 +162,28 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
       const active = await LiveActivityService.isActive();
       expect(active).toBe(false);
     });
+
+    it('runs simulated Northern commute with Bank & Charing Cross endpoints without crashing', async () => {
+      const id = await LiveActivityService.startSimulatedNorthernCommute();
+      expect(id === null || typeof id === 'string').toBe(true);
+
+      await LiveActivityService.stopSimulatedCommute();
+      const active = await LiveActivityService.isActive();
+      expect(active).toBe(false);
+    });
   });
 
   describe('Detour Computation (Section 14 & Edge Case 16)', () => {
-    const { computeDetour } = require('../services/detourComputer');
-
     it('computes detour alternative avoiding self-line recommendation', () => {
       const victoriaDetour = computeDetour('victoria');
       expect(victoriaDetour).toBeDefined();
-      expect(victoriaDetour.detourLine).not.toBe('victoria');
-      expect(victoriaDetour.detourLine).toBe('northern');
-      expect(victoriaDetour.detourStatus).toBe('good');
+      expect(victoriaDetour!.detourLine).not.toBe('victoria');
+      expect(victoriaDetour!.detourLine).toBe('northern');
+      expect(victoriaDetour!.detourStatus).toBe('good');
 
       const northernDetour = computeDetour('northern');
-      expect(northernDetour.detourLine).toBe('victoria');
-      expect(northernDetour.transferStation).toBe('Euston');
+      expect(northernDetour!.detourLine).toBe('victoria');
+      expect(northernDetour!.transferStation).toBe('Euston');
     });
 
     it('bypasses delayed line if on-time candidate exists', () => {
@@ -185,8 +192,8 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
         piccadilly: 'good',
         elizabeth: 'good',
       });
-      expect(centralDetour.detourLine).toBe('piccadilly');
-      expect(centralDetour.detourStatus).toBe('good');
+      expect(centralDetour!.detourLine).toBe('piccadilly');
+      expect(centralDetour!.detourStatus).toBe('good');
     });
   });
 });

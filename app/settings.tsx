@@ -175,6 +175,8 @@ export default function SettingsScreen() {
   const [showAlertHoursSheet, setShowAlertHoursSheet] = useState(false);
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [showTflConnectSheet, setShowTflConnectSheet] = useState(false);
+  const [versionTaps, setVersionTaps] = useState(0);
+  const [developerUnlocked, setDeveloperUnlocked] = useState(false);
 
   // ── Real OS Permission States (System Truth - Layer 1) ───────────
   const [osNotificationsGranted, setOsNotificationsGranted] = useState(false);
@@ -1018,13 +1020,28 @@ export default function SettingsScreen() {
 
               <View style={styles.divider} />
 
-              {/* App Version */}
-              <View style={styles.actionRow}>
+              {/* App Version (Tap 5 times to reveal Diagnostics) */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={() => {
+                  const next = versionTaps + 1;
+                  setVersionTaps(next);
+                  if (next >= 5 && !developerUnlocked) {
+                    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    setDeveloperUnlocked(true);
+                    Alert.alert('Developer Menu Unlocked', 'Diagnostics & Sensor Health is now available below.');
+                  }
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="App Version"
+              >
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowLabel}>Version</Text>
-                  <Text style={styles.rowSubtitle}>1.0.3 · Powered by TfL Open Data</Text>
+                  <Text style={styles.rowSubtitle}>
+                    1.0.3 · Powered by TfL Open Data{developerUnlocked ? ' · Dev Unlocked' : ''}
+                  </Text>
                 </View>
-              </View>
+              </Pressable>
 
               <View style={styles.divider} />
 
@@ -1062,8 +1079,11 @@ export default function SettingsScreen() {
             </LiquidGlassView>
           </View>
 
-          {/* ── ADVANCED & DIAGNOSTICS (__DEV__ / TestFlight Only) ─────── */}
-          {(__DEV__ || process.env.NODE_ENV !== 'production') && (
+          {/* ── ADVANCED & DIAGNOSTICS (__DEV__ / Preview / Developer Unlocked) ─────── */}
+          {(__DEV__ ||
+            process.env.NODE_ENV !== 'production' ||
+            process.env.EXPO_PUBLIC_BUILD_PROFILE === 'preview' ||
+            developerUnlocked) && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>ADVANCED</Text>
               <LiquidGlassView

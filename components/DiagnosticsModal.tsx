@@ -38,6 +38,7 @@ import { checkGeofenceHealthAsync } from '../services/backgroundTask';
 import { LineId } from '../services/notifications/payload';
 import { CANONICAL_ALTERNATIVES } from '../services/notifications/intent';
 import { GLASS } from '../theme/colors';
+import { LiveActivityService } from '../services/LiveActivityService';
 
 interface Props {
   visible: boolean;
@@ -65,10 +66,12 @@ export const DiagnosticsModal: React.FC<Props> = ({
     regionCount: number;
     taskRegistered: boolean;
   }>({ active: false, regionCount: 0, taskRegistered: false });
+  const [isSimulatingLiveActivity, setIsSimulatingLiveActivity] = useState(false);
 
   useEffect(() => {
     if (visible) {
       checkGeofenceHealthAsync().then(setGeofenceInfo).catch(() => {});
+      LiveActivityService.isActive().then(setIsSimulatingLiveActivity).catch(() => {});
     }
   }, [visible]);
 
@@ -176,6 +179,32 @@ export const DiagnosticsModal: React.FC<Props> = ({
     } catch (err) {
       console.warn('[SimulateReroute] Push schedule error:', err);
       Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
+    }
+  };
+
+  const handleToggleSimulateCommute = async () => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (isSimulatingLiveActivity) {
+      await LiveActivityService.stopSimulatedCommute();
+      setIsSimulatingLiveActivity(false);
+      Alert.alert('Simulated Commute Stopped', 'The Northern Line Live Activity has ended.');
+      return;
+    }
+
+    const activityId = await LiveActivityService.startSimulatedNorthernCommute();
+    if (activityId) {
+      setIsSimulatingLiveActivity(true);
+      Alert.alert(
+        '🚇 Northern Line Live Activity Started!',
+        'Swipe to your Home Screen or Lock Screen now.\n\n• Lock Screen Card: Shows Euston → Morden journey progress and live countdown.\n• 1-Tap Switching: Tap "Morden (via Bank)" vs "Morden (via Charing Cross)" to test endpoint switching live outside of London.',
+        [{ text: 'OK, Locking Phone' }]
+      );
+    } else {
+      Alert.alert(
+        'Live Activity Unavailable',
+        'Could not start Live Activity. Note: Live Activities require an EAS development build installed on a physical iPhone (they do not run in standard Expo Go).'
+      );
     }
   };
 
@@ -318,6 +347,27 @@ export const DiagnosticsModal: React.FC<Props> = ({
             {/* Test Actions */}
             <Text style={styles.sectionHeader}>SIMULATION & OVERRIDES</Text>
             <View style={styles.card}>
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={handleToggleSimulateCommute}
+                accessibilityRole="button"
+                accessibilityLabel="Simulate Northern Line Commute"
+              >
+                <Train size={20} color={isSimulatingLiveActivity ? '#FF453A' : '#FFFFFF'} weight="bold" />
+                <View style={styles.actionInfo}>
+                  <Text style={[styles.actionTitle, { color: isSimulatingLiveActivity ? '#FF453A' : '#FFFFFF' }]}>
+                    {isSimulatingLiveActivity ? 'Stop Northern Line Live Activity' : 'Simulate Northern Line Commute'}
+                  </Text>
+                  <Text style={styles.actionSubtitle}>
+                    {isSimulatingLiveActivity
+                      ? 'Live on Dynamic Island / Lockscreen · Tap to stop'
+                      : 'Persistent Live Activity · Tests Bank vs Charing Cross pills'}
+                  </Text>
+                </View>
+              </Pressable>
+
+              <View style={styles.divider} />
+
               <Pressable
                 style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                 onPress={handleSimulatePush}

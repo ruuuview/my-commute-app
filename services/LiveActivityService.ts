@@ -555,6 +555,68 @@ export class LiveActivityService {
     await this.end('manual_preview_stop');
   }
 
+  /**
+   * Starts a persistent simulated Northern Line commute Live Activity (Euston -> Morden).
+   * Injects real branch endpoints ('Morden (via Bank)' and 'Morden (via Charing Cross)')
+   * so developers/testers outside of London can test interactive pill switching on iOS 17+.
+   */
+  static async startSimulatedNorthernCommute(): Promise<string | null> {
+    if (Platform.OS !== 'ios') return null;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+      return null;
+    }
+
+    const payload: LiveActivityBridgePayload = {
+      journeyId: `sim_northern_${Math.floor(Date.now() / 1000)}`,
+      originStation: '940GZZLUEUS',
+      destinationStation: 'Morden',
+      stationId: '940GZZLUEUS',
+      lineId: 'northern',
+      lineName: 'Northern',
+      branchKnown: true,
+      branchName: 'Bank',
+      arrivals: [
+        { destinationName: 'Morden', timeToStationSeconds: 90, via: 'via Bank', branch: 'Bank' },
+        { destinationName: 'Morden', timeToStationSeconds: 210, via: 'via Charing Cross', branch: 'Charing Cross' },
+        { destinationName: 'Battersea Power Station', timeToStationSeconds: 360, via: 'via Charing Cross', branch: 'Charing Cross' },
+      ],
+      statusSeverity: 'good',
+      statusText: 'Good Service',
+      severityTier: 0,
+      nextTrainMinutes: 2,
+      etaTimestamp: Math.floor(Date.now() / 1000) + 1200,
+      etaDelta: 'On time',
+      isDisrupted: false,
+      isEscalated: false,
+      delayRepayEligible: false,
+      delayMinutes: 0,
+      tunnelState: 'normal',
+      progress: 0.35,
+      segmentMaxDuration: 300,
+      signalState: 'ok',
+      phase: 'in_transit',
+      availableEndpoints: ['Morden (via Bank)', 'Morden (via Charing Cross)'],
+      selectedEndpoint: 'Morden (via Bank)',
+      sessionStartTime: Math.floor(Date.now() / 1000),
+      currentStationName: 'Euston',
+      destinationStationName: 'Morden',
+    };
+
+    try {
+      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(payload);
+      console.log(`[LiveActivityService] Started simulated Northern commute activity ${activityId}`);
+      track('shush_session_started', { trigger: 'simulate_northern', mode: 'shush' });
+      return activityId;
+    } catch (e) {
+      console.error('[LiveActivityService] Failed to start simulated Northern commute:', e);
+      return null;
+    }
+  }
+
+  static async stopSimulatedCommute(): Promise<void> {
+    await this.end('manual_sim_stop');
+  }
+
   static async end(reason = 'destination_reached'): Promise<void> {
     if (Platform.OS !== 'ios') return;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.endCommuteActivity !== 'function') {

@@ -18,6 +18,9 @@
         "simulator": false,
         "buildConfiguration": "Release",
         "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_BUILD_PROFILE": "preview"
       }
     },
     "production": {

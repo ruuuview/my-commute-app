@@ -254,9 +254,13 @@ struct CommuteProvider: TimelineProvider {
         } catch {
             // Fail-open: return pre-warmed snapshot immediately with failure state
             if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
-                return (cached, true, "Offline. Cached data shown")
+                return (cached, true, "Offline · Cached data shown")
             }
-            return ([], true, "Offline. Tap to retry")
+            // Airplane-safe first run: fallback to saved/default lines with offline badge
+            let fallbackLines = savedLines.map {
+                CommuteLine(id: $0.id, name: $0.name, status: "Offline · Tap ↻ to check", severity: 10)
+            }
+            return (fallbackLines, true, "Offline · Tap ↻ to check")
         }
     }
 
@@ -361,11 +365,12 @@ struct WidgetFooterView: View {
                 if let fetchDate = entry.fetchDate {
                     (Text("Updated ") + Text(fetchDate, style: .relative) + Text(" ago"))
                         .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
+                        .monospacedDigit()
                         .foregroundColor(.white.opacity(0.8))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 } else {
-                    Text("Tap ↻ to sync")
+                    Text("Tap ↻ to check")
                         .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
                         .foregroundColor(.white.opacity(0.8))
                         .lineLimit(1)
@@ -383,8 +388,8 @@ struct WidgetFooterView: View {
                     }
                     .padding(.horizontal, isStale ? 10 : 8)
                     .padding(.vertical, isStale ? 6 : 5)
-                    .background(pillBackground)
-                    .clipShape(Capsule())
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 0.5))
                     .foregroundColor(pillForeground)
                 }
                 .buttonStyle(.plain)
@@ -440,9 +445,10 @@ struct DashboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            HStack(spacing: 4) {
                 if let worst = entry.worstLine {
                     PriorityView(line: worst, theme: theme)
+                        .background(ContainerRelativeShape().fill(Color.white.opacity(0.04)))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
 
@@ -452,6 +458,7 @@ struct DashboardView: View {
                     .padding(.top, 6)
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
+                    .background(ContainerRelativeShape().fill(Color.white.opacity(0.02)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
@@ -464,6 +471,7 @@ struct DashboardView: View {
                 .layoutPriority(1)
         }
         .padding(.horizontal, 4)
+        .widgetURL(URL(string: "mycommute://lines"))
     }
 }
 
@@ -569,6 +577,7 @@ struct SmallPriorityView: View {
                 .layoutPriority(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .widgetURL(URL(string: "mycommute://lines"))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(line.name + " line priority: " + line.status)
     }
@@ -641,13 +650,19 @@ struct DebugView: View {
 struct EmptyStateView: View {
     let theme: SeverityLevel
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "tram.fill").font(.title2).foregroundColor(theme.secondaryTextColor)
-            Text("Tap to sync lines")
-                .font(.system(size: 11, weight: .medium))
+        VStack(spacing: 6) {
+            Image(systemName: "tram.fill.tunnel")
+                .font(.title2)
+                .foregroundColor(theme.secondaryTextColor)
+            Text("Tap to select commute lines")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(theme.textColor)
+            Text("Select corridors for live delay alerts")
+                .font(.system(size: 9, weight: .medium))
                 .foregroundColor(theme.secondaryTextColor)
                 .multilineTextAlignment(.center)
         }
+        .widgetURL(URL(string: "mycommute://lines"))
     }
 }
 
@@ -726,11 +741,12 @@ struct AccessoryRectangularView: View {
                     }
                 }
             } else {
-                Text("Open My Commute to add lines.")
-                    .font(.system(size: 9))
+                Text("Tap to select commute lines")
+                    .font(.system(size: 9, weight: .medium))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .widgetURL(URL(string: "mycommute://lines"))
     }
 }
 

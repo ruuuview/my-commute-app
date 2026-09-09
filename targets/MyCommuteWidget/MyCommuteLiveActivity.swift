@@ -120,6 +120,7 @@ private struct ArrivalRow: View {
       Text("\(softened ? "~" : "")\(minutes) min")
         .font(.mcBody)
         .fontWeight(arrival.isHero ? .bold : .regular)
+        .monospacedDigit()
         .foregroundColor(arrival.isHero ? .white : .white.opacity(0.65))
     }
   }
@@ -203,7 +204,8 @@ private struct CompactIslandView: View {
       } else if context.state.phase == "in_transit" && context.state.sessionStartTime > 0 {
         let startDate = Date(timeIntervalSince1970: TimeInterval(context.state.sessionStartTime))
         Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
-          .font(.system(size: 13, weight: .bold, design: .monospaced))
+          .font(.system(size: 13, weight: .bold))
+          .monospacedDigit()
           .foregroundColor(.white)
           .accessibilityLabel("Elapsed travel time")
       } else if signalDegraded {
@@ -214,11 +216,13 @@ private struct CompactIslandView: View {
       } else if context.state.isDisrupted {
         Text("🟡 \(minutesAway)m")
           .font(.mcHeadline)
+          .monospacedDigit()
           .foregroundColor(Color(hex: 0xFFB000))
           .accessibilityLabel("Disrupted, next train in \(minutesAway) minutes")
       } else {
         Text("\(minutesAway == 0 ? "Due" : "\(minutesAway)m")")
           .font(.mcHeadline)
+          .monospacedDigit()
           .foregroundColor(.white)
           .accessibilityLabel(minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes")
       }
@@ -557,8 +561,8 @@ private struct LockScreenView: View {
       DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
     }
     .padding(16)
-    .background(.ultraThinMaterial)
-    .cornerRadius(20)
+    .background(.ultraThinMaterial, in: ContainerRelativeShape())
+    .overlay(ContainerRelativeShape().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
     .padding(10)
   }
 }

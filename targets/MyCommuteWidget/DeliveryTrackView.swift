@@ -124,7 +124,8 @@ public struct DeliveryTrackView: View {
       HStack {
         let targetDate = max(now, etaDate)
         Text(timerInterval: now...targetDate, countsDown: true)
-          .font(.system(size: 15, weight: .bold, design: .monospaced))
+          .font(.system(size: 15, weight: .bold))
+          .monospacedDigit()
           .foregroundColor(.white)
           .contentTransition(.numericText())
 
@@ -133,6 +134,7 @@ public struct DeliveryTrackView: View {
         if state.etaDelta != "N/A" && !state.etaDelta.isEmpty {
           Text(state.etaDelta)
             .font(.system(size: 12, weight: .semibold))
+            .monospacedDigit()
             .foregroundColor(state.isEscalated ? Color(hex: 0xFF3B30) : .white.opacity(0.8))
         }
       }
@@ -170,7 +172,8 @@ public struct DeliveryTrackView: View {
             .font(.system(size: 12))
             .foregroundColor(LineColor.color(for: lineId))
           Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
-            .font(.system(size: 16, weight: .bold, design: .monospaced))
+            .font(.system(size: 16, weight: .bold))
+            .monospacedDigit()
             .foregroundColor(.white)
         }
 
@@ -216,8 +219,7 @@ public struct DeliveryTrackView: View {
       .foregroundColor(isSelected ? .black : .white.opacity(0.85))
       .padding(.horizontal, 8)
       .padding(.vertical, 3)
-      .background(isSelected ? Color.white : Color.white.opacity(0.14))
-      .cornerRadius(6)
+      .background(isSelected ? Color.white : Color.white.opacity(0.14), in: ContainerRelativeShape())
   }
 
   @ViewBuilder
@@ -275,7 +277,6 @@ public struct DeliveryTrackView: View {
     }
     .padding(.horizontal, 8)
     .padding(.vertical, 4)
-    .background(Color.white.opacity(0.08))
-    .cornerRadius(6)
+    .background(Color.white.opacity(0.08), in: ContainerRelativeShape())
   }
 }

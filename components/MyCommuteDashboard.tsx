@@ -418,12 +418,12 @@ const MyCommuteDashboard: React.FC = () => {
   const [rerouteInitialSection, setRerouteInitialSection] = useState<'overview' | 'alternatives'>('overview');
   const lastConsumedNonceRef = useRef<string | null>(null);
   const lastConsumedLegacyLineRef = useRef<string | null>(null);
-  const lastConsumedManageLinesRef = useRef<boolean>(false);
+  const lastConsumedManageLinesNonceRef = useRef<string | null>(null);
 
   // Auto-open manage lines modal or unified disruption briefing when navigated via deep link/intent
   useEffect(() => {
-    if (searchParams.manageLines === 'true' && !lastConsumedManageLinesRef.current) {
-      lastConsumedManageLinesRef.current = true;
+    if (searchParams.manageLines && searchParams.manageLines !== lastConsumedManageLinesNonceRef.current) {
+      lastConsumedManageLinesNonceRef.current = searchParams.manageLines;
       setModalVisible(true);
     }
 

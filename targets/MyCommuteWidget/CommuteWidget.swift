@@ -302,7 +302,7 @@ struct CommuteProvider: TimelineProvider {
         let (data, _) = try await URLSession.shared.data(for: request)
         let response = try JSONDecoder().decode([TfLLine].self, from: data)
         return response.compactMap { tflLine in
-            guard let saved = savedLines.first(where: { $0.id == tflLine.id }),
+            guard let saved = savedLines.first(where: { $0.id.caseInsensitiveCompare(tflLine.id) == .orderedSame }),
                   let status = tflLine.lineStatuses.max(by: { getSeverityRank($0.statusSeverity) < getSeverityRank($1.statusSeverity) }) else { return nil }
             return CommuteLine(id: tflLine.id, name: saved.name, status: status.statusSeverityDescription, severity: status.statusSeverity)
         }

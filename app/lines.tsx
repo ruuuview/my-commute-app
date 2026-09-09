@@ -17,7 +17,7 @@ export default function LinesRoute() {
       router.replace(getOnboardingRedirectPath(onboardingStep) as any);
       return;
     }
-    router.replace('/(tabs)?manageLines=true' as any);
+    router.replace(`/(tabs)?manageLines=${Date.now()}` as any);
   }, [hasCompletedOnboarding, onboardingStep, router]);
 
   return <View style={{ flex: 1, backgroundColor: '#0A0A0F' }} />;

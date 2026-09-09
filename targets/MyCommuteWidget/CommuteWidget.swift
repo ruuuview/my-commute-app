@@ -349,7 +349,7 @@ struct WidgetFooterView: View {
         HStack(alignment: .center, spacing: 0) {
             HStack(spacing: 4) {
                 if entry.isFailure {
-                    Image(systemName: "wifi.slash")
+                    Image(systemName: "exclamationmark.circle")
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundColor(.white.opacity(0.9))
                 } else if entry.isStale {
@@ -365,7 +365,7 @@ struct WidgetFooterView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 } else {
-                    Text("Open app to sync")
+                    Text("Tap ↻ to sync")
                         .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
                         .foregroundColor(.white.opacity(0.8))
                         .lineLimit(1)
@@ -632,7 +632,7 @@ struct DebugView: View {
     let theme: SeverityLevel
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "wifi.slash").foregroundColor(.white.opacity(0.85)).font(.title3)
+            Image(systemName: "exclamationmark.circle").foregroundColor(.white.opacity(0.85)).font(.title3)
             Text(message).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(theme.textColor).multilineTextAlignment(.center).padding(.horizontal, 10)
         }
     }
@@ -643,7 +643,10 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "tram.fill").font(.title2).foregroundColor(theme.secondaryTextColor)
-            Text("Open My Commute to\nsync your saved lines").font(.system(size: 11)).foregroundColor(theme.secondaryTextColor).multilineTextAlignment(.center)
+            Text("Tap to sync lines")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(theme.secondaryTextColor)
+                .multilineTextAlignment(.center)
         }
     }
 }

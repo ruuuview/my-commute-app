@@ -348,10 +348,14 @@ struct WidgetFooterView: View {
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             HStack(spacing: 4) {
-                if isStale {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(Color(red: 255.0/255.0, green: 176.0/255.0, blue: 0.0/255.0))
+                if entry.isFailure {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9))
+                } else if entry.isStale {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
                 }
 
                 if let fetchDate = entry.fetchDate {
@@ -628,7 +632,7 @@ struct DebugView: View {
     let theme: SeverityLevel
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.yellow).font(.title3)
+            Image(systemName: "wifi.slash").foregroundColor(.white.opacity(0.85)).font(.title3)
             Text(message).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(theme.textColor).multilineTextAlignment(.center).padding(.horizontal, 10)
         }
     }

@@ -497,7 +497,7 @@ const MyCommuteDashboard: React.FC = () => {
         openRerouteLineId: '',
       });
     }
-  }, [searchParams.notificationIntent, searchParams.notificationNonce, searchParams.openRerouteLineId, data.lines, router]);
+  }, [searchParams.manageLines, searchParams.notificationIntent, searchParams.notificationNonce, searchParams.openRerouteLineId, data.lines, router]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);

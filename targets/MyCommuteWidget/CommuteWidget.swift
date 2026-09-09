@@ -448,8 +448,8 @@ struct DashboardView: View {
             HStack(spacing: 4) {
                 if let worst = entry.worstLine {
                     PriorityView(line: worst, theme: theme)
-                        .background(ContainerRelativeShape().fill(Color.white.opacity(0.04)))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(ContainerRelativeShape().fill(Color.white.opacity(0.04)))
                 }
 
                 Rectangle()
@@ -458,8 +458,8 @@ struct DashboardView: View {
                     .padding(.top, 6)
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
-                    .background(ContainerRelativeShape().fill(Color.white.opacity(0.02)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(ContainerRelativeShape().fill(Color.white.opacity(0.02)))
             }
 
             Rectangle()

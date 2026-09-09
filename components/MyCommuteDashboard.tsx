@@ -409,6 +409,7 @@ const MyCommuteDashboard: React.FC = () => {
     openRerouteLineId?: string;
     notificationIntent?: string;
     notificationNonce?: string;
+    manageLines?: string;
   }>();
   const [modalVisible, setModalVisible] = useState(false);
   const [stationModalVisible, setStationModalVisible] = useState(false);
@@ -417,9 +418,15 @@ const MyCommuteDashboard: React.FC = () => {
   const [rerouteInitialSection, setRerouteInitialSection] = useState<'overview' | 'alternatives'>('overview');
   const lastConsumedNonceRef = useRef<string | null>(null);
   const lastConsumedLegacyLineRef = useRef<string | null>(null);
+  const lastConsumedManageLinesRef = useRef<boolean>(false);
 
-  // Auto-open unified disruption briefing when navigated from a notification intent
+  // Auto-open manage lines modal or unified disruption briefing when navigated via deep link/intent
   useEffect(() => {
+    if (searchParams.manageLines === 'true' && !lastConsumedManageLinesRef.current) {
+      lastConsumedManageLinesRef.current = true;
+      setModalVisible(true);
+    }
+
     // 1. Guard against replay of already-consumed notification nonce or legacy line param
     if (searchParams.notificationNonce && searchParams.notificationNonce === lastConsumedNonceRef.current) {
       return;

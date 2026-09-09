@@ -219,7 +219,7 @@ public struct DeliveryTrackView: View {
       .foregroundColor(isSelected ? .black : .white.opacity(0.85))
       .padding(.horizontal, 8)
       .padding(.vertical, 3)
-      .background(isSelected ? Color.white : Color.white.opacity(0.14), in: ContainerRelativeShape())
+      .background(isSelected ? Color.white : Color.white.opacity(0.14), in: Capsule())
   }
 
   @ViewBuilder
@@ -237,9 +237,7 @@ public struct DeliveryTrackView: View {
         }
         .buttonStyle(.plain)
       } else {
-        Link(destination: URL(string: "mycommute://reroute?line=\(detour)")!) {
-          detourBanner(detour: detour)
-        }
+        detourBanner(detour: detour)
       }
     }
 
@@ -254,12 +252,14 @@ public struct DeliveryTrackView: View {
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.white.opacity(0.9))
         }
-        .padding(.top, 2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Color(hex: 0x30D158).opacity(0.15), in: Capsule())
+        .overlay(Capsule().stroke(Color(hex: 0x30D158).opacity(0.3), lineWidth: 0.5))
       }
     }
   }
 
-  @ViewBuilder
   private func detourBanner(detour: String) -> some View {
     HStack(spacing: 6) {
       Image(systemName: "arrow.triangle.swap")
@@ -277,6 +277,6 @@ public struct DeliveryTrackView: View {
     }
     .padding(.horizontal, 8)
     .padding(.vertical, 4)
-    .background(Color.white.opacity(0.08), in: ContainerRelativeShape())
+    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
   }
 }

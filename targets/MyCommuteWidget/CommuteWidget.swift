@@ -1,18 +1,21 @@
 import WidgetKit
 import SwiftUI
 import AppIntents
+import os
+
+private let logger = Logger(subsystem: "com.mycommute.app", category: "WidgetTimeline")
 
 struct WidgetMetrics {
-    static let headerFontSize: CGFloat  = 9
-    static let footerFontSize: CGFloat  = 8
-    static let lineNameMedium: CGFloat  = 18
-    static let lineStatusMedium: CGFloat = 12
-    static let lineNameSmall: CGFloat   = 16
-    static let lineStatusSmall: CGFloat = 11
-    static let iconSizeMedium: CGFloat  = 42
-    static let iconSizeSmall: CGFloat   = 38
-    static let iconLineRow: CGFloat     = 20
-    static let staleThreshold: TimeInterval = 120
+    static let headerFontSize: CGFloat   = 9
+    static let footerFontSize: CGFloat   = 8
+    static let lineNameMedium: CGFloat   = 16
+    static let lineStatusMedium: CGFloat = 11
+    static let lineNameSmall: CGFloat    = 16
+    static let lineStatusSmall: CGFloat  = 11
+    static let iconSizeMedium: CGFloat   = 38
+    static let iconSizeSmall: CGFloat    = 36
+    static let iconLineRow: CGFloat      = 16
+    static let staleBackstop: TimeInterval = 3 * 3600
 }
 
 struct SavedLine: Codable {
@@ -105,13 +108,11 @@ struct TfLStatus: Decodable {
 
 struct CommuteEntry: TimelineEntry {
     let date: Date
-    let fetchDate: Date
+    let fetchDate: Date?
     let lines: [CommuteLine]
     let debugMessage: String?
-
-    var isStale: Bool {
-        date.timeIntervalSince(fetchDate) >= WidgetMetrics.staleThreshold
-    }
+    let isStale: Bool
+    let isFailure: Bool
 
     var worstLine: CommuteLine? {
         lines.max(by: { $0.level.rank < $1.level.rank })
@@ -142,50 +143,85 @@ struct CommuteProvider: TimelineProvider {
     ]
 
     func placeholder(in context: Context) -> CommuteEntry {
-        CommuteEntry(date: Date(), fetchDate: Date(), lines: [], debugMessage: nil)
+        CommuteEntry(date: Date(), fetchDate: nil, lines: [], debugMessage: nil, isStale: false, isFailure: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CommuteEntry) -> Void) {
         let savedLines = (try? readSavedLines()) ?? Self.defaultLines
+        let lastFetch = readLastFetchDate()
         if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
-            completion(CommuteEntry(date: Date(), fetchDate: Date(), lines: cached, debugMessage: nil))
+            completion(CommuteEntry(date: Date(), fetchDate: lastFetch, lines: cached, debugMessage: nil, isStale: false, isFailure: false))
             return
         }
         Task {
-            let (lines, msg) = await fetchRawData()
-            completion(CommuteEntry(date: Date(), fetchDate: Date(), lines: lines, debugMessage: msg))
+            let (lines, isFailure, msg) = await fetchRawData()
+            let fetchDate = readLastFetchDate()
+            completion(CommuteEntry(date: Date(), fetchDate: fetchDate, lines: lines, debugMessage: msg, isStale: isFailure, isFailure: isFailure))
         }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CommuteEntry>) -> Void) {
         Task {
-            let (lines, msg) = await fetchRawData()
             let now = Date()
+            let (lines, isFailure, msg) = await fetchRawData()
+            let lastFetchDate = readLastFetchDate()
 
-            let freshEntry = CommuteEntry(date: now, fetchDate: now, lines: lines, debugMessage: msg)
-            let staleTime = now.addingTimeInterval(WidgetMetrics.staleThreshold)
-            let staleEntry = CommuteEntry(date: staleTime, fetchDate: now, lines: lines, debugMessage: msg)
-
-            // 15-minute fallback entry
-            let fallbackTime = now.addingTimeInterval(15 * 60)
-            let fallbackEntry = CommuteEntry(date: fallbackTime, fetchDate: now, lines: lines, debugMessage: lines.isEmpty ? (msg ?? "Still offline. Tap again when clear") : msg)
-
-            // 2-hour deep freeze entry
-            let deepFreezeTime = now.addingTimeInterval(7200)
-            let deepFreezeEntry = CommuteEntry(date: deepFreezeTime, fetchDate: now, lines: lines, debugMessage: lines.isEmpty ? "Tap to refresh" : msg)
-
-            let hour = Calendar.current.component(.hour, from: now)
-            let refreshMinutes: Int
-            if hour < 7 || hour > 20 {
-                refreshMinutes = 5
+            if let lastFetch = lastFetchDate {
+                let gap = now.timeIntervalSince(lastFetch)
+                logger.info("Widget getTimeline executed. Age since last successful fetch: \(gap)s. isFailure: \(isFailure)")
             } else {
-                refreshMinutes = 2
+                logger.info("Widget getTimeline executed. No previous successful fetch recorded (first run). isFailure: \(isFailure)")
             }
 
-            let nextRefresh = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: now)!
+            if isFailure {
+                // Immediate warning emission on failure with historical cache age
+                let failedEntry = CommuteEntry(
+                    date: now,
+                    fetchDate: lastFetchDate,
+                    lines: lines,
+                    debugMessage: msg,
+                    isStale: true,
+                    isFailure: true
+                )
+                let retryDate = now.addingTimeInterval(300)
+                completion(Timeline(entries: [failedEntry], policy: .after(retryDate)))
+                return
+            }
 
-            completion(Timeline(entries: [freshEntry, staleEntry, fallbackEntry, deepFreezeEntry], policy: .after(nextRefresh)))
+            // Exactly two entries on success:
+            // 1. Healthy at now
+            let freshEntry = CommuteEntry(
+                date: now,
+                fetchDate: now,
+                lines: lines,
+                debugMessage: nil,
+                isStale: false,
+                isFailure: false
+            )
+
+            // 2. Secondary age backstop entry at now + backstop (author declared, zero floating-point comparison)
+            let backstopEntry = CommuteEntry(
+                date: now.addingTimeInterval(WidgetMetrics.staleBackstop),
+                fetchDate: now,
+                lines: lines,
+                debugMessage: nil,
+                isStale: true,
+                isFailure: false
+            )
+
+            let hour = Calendar.current.component(.hour, from: now)
+            let refreshInterval: TimeInterval = (hour < 7 || hour > 20) ? 300 : 120
+            let nextRefresh = now.addingTimeInterval(refreshInterval)
+
+            completion(Timeline(entries: [freshEntry, backstopEntry], policy: .after(nextRefresh)))
         }
+    }
+
+    private func readLastFetchDate() -> Date? {
+        guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else { return nil }
+        let epoch = userDefaults.double(forKey: "lastSuccessfulFetchEpoch")
+        guard epoch > 0 else { return nil }
+        return Date(timeIntervalSince1970: epoch)
     }
 
     private func readPreWarmedCache(for savedLines: [SavedLine]) -> [CommuteLine]? {
@@ -200,25 +236,27 @@ struct CommuteProvider: TimelineProvider {
         return filtered.isEmpty ? cachedLines : filtered
     }
 
-    private func fetchRawData() async -> ([CommuteLine], String?) {
+    private func fetchRawData() async -> ([CommuteLine], Bool, String?) {
         let savedLines = (try? readSavedLines()) ?? Self.defaultLines
         
         do {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
-            // Cache the successfully fetched lines
-            if let userDefaults = UserDefaults(suiteName: kAppGroupID),
-               let encoded = try? JSONEncoder().encode(commuteLines),
-               let jsonString = String(data: encoded, encoding: .utf8) {
-                userDefaults.set(jsonString, forKey: "cachedTfLStatus")
-                userDefaults.set(jsonString, forKey: "cachedLineStatuses")
+            // Cache successfully fetched lines and record the successful fetch epoch
+            if let userDefaults = UserDefaults(suiteName: kAppGroupID) {
+                userDefaults.set(Date().timeIntervalSince1970, forKey: "lastSuccessfulFetchEpoch")
+                if let encoded = try? JSONEncoder().encode(commuteLines),
+                   let jsonString = String(data: encoded, encoding: .utf8) {
+                    userDefaults.set(jsonString, forKey: "cachedTfLStatus")
+                    userDefaults.set(jsonString, forKey: "cachedLineStatuses")
+                }
             }
-            return (commuteLines, nil)
+            return (commuteLines, false, nil)
         } catch {
-            // Fail-open: return pre-warmed snapshot immediately
+            // Fail-open: return pre-warmed snapshot immediately with failure state
             if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
-                return (cached, "Still offline. Tap again when clear")
+                return (cached, true, "Offline. Cached data shown")
             }
-            return ([], "Still offline. Tap again when clear")
+            return ([], true, "Offline. Tap to retry")
         }
     }
 
@@ -292,12 +330,6 @@ struct RefreshCommuteIntent: AppIntent {
     }
 }
 
-func getAbsoluteTime(from date: Date) -> String {
-    let f = DateFormatter()
-    f.dateFormat = "HH:mm"
-    return "Updated " + f.string(from: date)
-}
-
 struct WidgetFooterView: View {
     let entry: CommuteEntry
     let theme: SeverityLevel
@@ -306,24 +338,36 @@ struct WidgetFooterView: View {
     private var isStale: Bool { entry.isStale }
 
     private var pillBackground: Color {
-        isStale ? .white : theme.textColor.opacity(0.12)
+        isStale ? Color.white.opacity(0.25) : theme.textColor.opacity(0.12)
     }
 
     private var pillForeground: Color {
-        isStale ? Color(white: 0.12) : theme.secondaryTextColor
-    }
-
-    private var timestampColor: Color {
-        isStale ? .white.opacity(0.9) : theme.secondaryTextColor.opacity(0.8)
+        isStale ? .white : theme.secondaryTextColor
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
-            Text(getAbsoluteTime(from: entry.fetchDate))
-                .font(.system(size: WidgetMetrics.footerFontSize, weight: .bold))
-                .foregroundColor(timestampColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            HStack(spacing: 4) {
+                if isStale {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(Color(red: 255.0/255.0, green: 176.0/255.0, blue: 0.0/255.0))
+                }
+
+                if let fetchDate = entry.fetchDate {
+                    (Text("Updated ") + Text(fetchDate, style: .relative) + Text(" ago"))
+                        .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                } else {
+                    Text("Open app to sync")
+                        .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+            }
 
             Spacer(minLength: 6)
 
@@ -332,25 +376,19 @@ struct WidgetFooterView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: isStale ? 10 : 9, weight: .bold))
-
-                        if isStale && family != .systemSmall {
-                            Text("WAKE UP")
-                                .font(.system(size: 9, weight: .heavy))
-                                .tracking(0.5)
-                        }
                     }
-                    .padding(.horizontal, isStale ? 12 : 8)
-                    .padding(.vertical, isStale ? 7 : 5)
+                    .padding(.horizontal, isStale ? 10 : 8)
+                    .padding(.vertical, isStale ? 6 : 5)
                     .background(pillBackground)
                     .clipShape(Capsule())
                     .foregroundColor(pillForeground)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isStale ? "Wake up widget" : "Refresh commute status")
+                .accessibilityLabel(isStale ? "Refresh commute status (warning active)" : "Refresh commute status")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
     }
 }
 
@@ -387,8 +425,6 @@ struct CommutePremiumEntryView: View {
                     }
                 }
             }
-            .grayscale(entry.isStale ? 1.0 : 0.0)
-            .opacity(entry.isStale ? 0.75 : 1.0)
             .modifier(ContainerBackgroundModifier())
         }
     }
@@ -409,7 +445,7 @@ struct DashboardView: View {
                 Rectangle()
                     .fill(theme.dividerColor)
                     .frame(width: 1)
-                    .padding(.top, 12)
+                    .padding(.top, 6)
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -421,6 +457,7 @@ struct DashboardView: View {
                 .padding(.horizontal, 10)
 
             WidgetFooterView(entry: entry, theme: theme)
+                .layoutPriority(1)
         }
         .padding(.horizontal, 4)
     }
@@ -437,9 +474,9 @@ struct PriorityView: View {
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
 
-            Spacer()
+            Spacer(minLength: 4)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 StatusIcon(level: line.level, size: WidgetMetrics.iconSizeMedium)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(line.name)
@@ -454,9 +491,9 @@ struct PriorityView: View {
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 4)
         }
-        .padding(.leading, 14).padding(.top, 14).padding(.bottom, 10)
+        .padding(.leading, 12).padding(.top, 6).padding(.bottom, 6)
         .frame(maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(line.name + " line priority: " + line.status)
@@ -473,16 +510,18 @@ struct OtherLinesPanelView: View {
                 .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
-                .padding(.top, 14)
-                .padding(.leading, 12)
+                .padding(.top, 6)
+                .padding(.leading, 10)
 
-            Spacer()
+            Spacer(minLength: 2)
 
-            VStack(alignment: .leading, spacing: 8) {
+            // Without severity sorting, a cap can hide the disrupted line behind three good-service
+            // rows — the tightening keeps all 4 lines visible. The cap arrives only with the sort, in the deferred cycle.
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(lines.prefix(4)) { line in LineRowView(line: line, theme: theme) }
             }
-            .padding(.leading, 12)
-            .padding(.bottom, 10)
+            .padding(.leading, 10)
+            .padding(.bottom, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -501,9 +540,9 @@ struct SmallPriorityView: View {
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
                 .padding(.horizontal, 14)
-                .padding(.top, 14)
+                .padding(.top, 10)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             HStack(spacing: 10) {
                 StatusIcon(level: line.level, size: WidgetMetrics.iconSizeSmall)
@@ -520,9 +559,10 @@ struct SmallPriorityView: View {
             }
             .padding(.horizontal, 14)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             WidgetFooterView(entry: entry, theme: theme)
+                .layoutPriority(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -535,11 +575,11 @@ struct LineRowView: View {
     let theme: SeverityLevel
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             StatusIcon(level: line.level, size: WidgetMetrics.iconLineRow)
             VStack(alignment: .leading, spacing: 1) {
-                Text(line.name).font(.system(size: 12, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1)
-                Text(line.status).font(.system(size: 10, weight: .medium)).foregroundColor(theme.secondaryTextColor).lineLimit(1)
+                Text(line.name).font(.system(size: 11, weight: .bold)).foregroundColor(theme.textColor).lineLimit(1)
+                Text(line.status).font(.system(size: 9, weight: .medium)).foregroundColor(theme.secondaryTextColor).lineLimit(1)
             }
         }
         .accessibilityElement(children: .combine)

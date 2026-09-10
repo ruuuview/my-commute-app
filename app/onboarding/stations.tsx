@@ -227,19 +227,37 @@ export default function StationsScreen() {
             zone: station.zone,
           });
         }
+
+        // Auto-dismiss search sheet: clear query and exit search mode smoothly
+        setQuery('');
+        setIsSearching(false);
+        setIsFocused(false);
       }
     },
     [isStationPinned, hasCompletedOnboarding]
   );
 
+  const handleCancelSearch = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'ios' || (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)) {
+      try {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      } catch {
+        // ignore layout anim fallback
+      }
+    }
+    setQuery('');
+    setIsSearching(false);
+    setIsFocused(false);
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+  }, []);
+
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     playSound('pop', 0.32);
-    if (query.trim() !== '' || isSearching) {
-      setQuery('');
-      setIsSearching(false);
-      setIsFocused(false);
-      Keyboard.dismiss();
+    if (query.trim() !== '' || isSearching || isFocused) {
+      handleCancelSearch();
       return;
     }
     if (hasCompletedOnboarding) {
@@ -337,21 +355,32 @@ export default function StationsScreen() {
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = isStationPinned(item);
+    const isSearchingMode = query.trim() !== '';
 
-    const rightElement = isPinned ? (
-      <View style={styles.addedCircle}>
-        <Ionicons
-          name="checkmark"
-          size={12}
-          color="#0044EE"
-        />
-      </View>
+    const rightElement = isSearchingMode ? (
+      isPinned ? (
+        <View style={styles.addedCircle}>
+          <Ionicons
+            name="checkmark"
+            size={12}
+            color="#0044EE"
+          />
+        </View>
+      ) : (
+        <View style={styles.addCircle}>
+          <Ionicons
+            name="add"
+            size={14}
+            color="#FFFFFF"
+          />
+        </View>
+      )
     ) : (
-      <View style={styles.addCircle}>
+      <View style={styles.removeCircle}>
         <Ionicons
-          name="add"
+          name="close"
           size={14}
-          color="#FFFFFF"
+          color="rgba(255, 255, 255, 0.70)"
         />
       </View>
     );
@@ -366,7 +395,7 @@ export default function StationsScreen() {
         showLedger={true}
       />
     );
-  }, [isStationPinned, handleToggleStation]);
+  }, [isStationPinned, handleToggleStation, query]);
 
   const searchFocusedStyle = isFocused
     ? { borderWidth: 1.25, borderColor: '#0066CC', backgroundColor: 'rgba(0, 102, 204, 0.08)' }
@@ -415,39 +444,59 @@ export default function StationsScreen() {
             </Text>
           </View>
 
-          {/* Search Bar element */}
-          <View style={[styles.searchBarContainer, searchFocusedStyle]}>
-            <Ionicons name="search-outline" size={16} style={styles.searchIcon} />
-            <TextInput
-              ref={inputRef}
-              value={query}
-              onFocus={() => {
-                setIsFocused(true);
-                if (query.trim() !== '') {
+          {/* Search Row element */}
+          <View style={styles.searchRow}>
+            <View style={[styles.searchBarContainer, searchFocusedStyle]}>
+              <Ionicons name="search-outline" size={16} style={styles.searchIcon} />
+              <TextInput
+                ref={inputRef}
+                value={query}
+                onFocus={() => {
+                  setIsFocused(true);
                   setIsSearching(true);
-                }
-              }}
-              onBlur={() => {
-                setIsFocused(false);
-                if (query.trim() === '') {
-                  setIsSearching(false);
-                }
-              }}
-              onChangeText={(text) => {
-                setQuery(text);
-                setIsSearching(text.trim() !== '');
-              }}
-              placeholder={`Search ${cleanFullStations.length} stations...`}
-              placeholderTextColor="rgba(255, 255, 255, 0.30)"
-              autoCorrect={false}
-              autoCapitalize="none"
-              style={styles.searchInput}
-              returnKeyType="search"
-              accessibilityLabel="Search stations"
-            />
-            {query.length > 0 && (
-              <Pressable onPress={() => { setQuery(''); setIsSearching(false); Keyboard.dismiss(); }} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} style={styles.clearIcon} />
+                }}
+                onBlur={() => {
+                  setIsFocused(false);
+                  if (query.trim() === '') {
+                    setIsSearching(false);
+                  }
+                }}
+                onChangeText={(text) => {
+                  setQuery(text);
+                  setIsSearching(true);
+                }}
+                placeholder={`Search ${cleanFullStations.length} stations...`}
+                placeholderTextColor="rgba(255, 255, 255, 0.30)"
+                autoCorrect={false}
+                autoCapitalize="none"
+                style={styles.searchInput}
+                returnKeyType="search"
+                accessibilityLabel="Search stations"
+              />
+              {query.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    setQuery('');
+                    inputRef.current?.focus();
+                  }}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search text"
+                >
+                  <Ionicons name="close-circle" size={16} style={styles.clearIcon} />
+                </Pressable>
+              )}
+            </View>
+
+            {(isSearching || isFocused || query.length > 0) && (
+              <Pressable
+                onPress={handleCancelSearch}
+                hitSlop={8}
+                style={styles.searchCancelBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel search"
+              >
+                <Text style={styles.searchCancelText}>Cancel</Text>
               </Pressable>
             )}
           </View>
@@ -506,6 +555,54 @@ export default function StationsScreen() {
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                  !isSearching && query.trim() === '' && pinnedStations.length > 0 ? (
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionHeaderText}>
+                        YOUR PINNED STATIONS ({pinnedStations.length})
+                      </Text>
+                    </View>
+                  ) : null
+                }
+                ListFooterComponent={
+                  !isSearching && query.trim() === '' && pinnedStations.length > 0 && pinnedStations.length < 5 ? (
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        if (Platform.OS === 'ios' || (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)) {
+                          try {
+                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                          } catch {}
+                        }
+                        setIsSearching(true);
+                        setIsFocused(true);
+                        InteractionManager.runAfterInteractions(() => {
+                          inputRef.current?.focus();
+                        });
+                      }}
+                      style={({ pressed }) => [
+                        styles.addAnotherCard,
+                        pressed && styles.addAnotherCardPressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={pinnedStations.length === 1 ? 'Add destination station' : 'Add another station'}
+                    >
+                      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+                      <View style={styles.addAnotherIconCircle}>
+                        <Ionicons name="add" size={16} color="#FFFFFF" />
+                      </View>
+                      <View style={styles.addAnotherTextContainer}>
+                        <Text style={styles.addAnotherTitle}>
+                          {pinnedStations.length === 1 ? 'Add destination (e.g. Work)' : 'Add another station'}
+                        </Text>
+                        <Text style={styles.addAnotherSubtitle}>
+                          {pinnedStations.length === 1 ? 'Pair with home station for automatic delay repay' : 'Up to 5 stations'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+                    </Pressable>
+                  ) : null
+                }
                 ListEmptyComponent={() => {
                   if (query.trim() !== '') {
                     return (
@@ -518,7 +615,9 @@ export default function StationsScreen() {
                   }
                   return (
                     <View style={styles.emptyState}>
+                      <Ionicons name="train-outline" size={36} color="rgba(255,255,255,0.20)" />
                       <Text style={styles.emptyText}>Search for stations above</Text>
+                      <Text style={styles.emptySubText}>Add your home or work station to track delays</Text>
                     </View>
                   );
                 }}
@@ -605,15 +704,30 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     marginTop: 2,
   },
-  searchBarContainer: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
+    paddingHorizontal: 16,
     marginTop: -1,
     marginBottom: 6,
+  },
+  searchBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     height: 44,
     borderRadius: 14,
     paddingHorizontal: 14,
+  },
+  searchCancelBtn: {
+    paddingLeft: 12,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  searchCancelText: {
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   searchIcon: {
     marginRight: 8,
@@ -693,6 +807,68 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_BUTTON.background,
     shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
     shadowRadius: PREMIUM_BUTTON.shadowRadius,
+  },
+  removeCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeader: {
+    paddingBottom: 8,
+    paddingTop: 4,
+  },
+  sectionHeaderText: {
+    fontSize: 10,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: 1.2,
+    color: 'rgba(255, 255, 255, 0.45)',
+  },
+  addAnotherCard: {
+    height: 60,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1.25,
+    borderColor: 'rgba(0, 102, 204, 0.40)',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(0, 102, 204, 0.06)',
+  },
+  addAnotherCardPressed: {
+    backgroundColor: 'rgba(0, 102, 204, 0.14)',
+  },
+  addAnotherIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 102, 204, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 102, 204, 0.60)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  addAnotherTextContainer: {
+    flex: 1,
+  },
+  addAnotherTitle: {
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    color: '#FFFFFF',
+  },
+  addAnotherSubtitle: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginTop: 1,
   },
   recentsContainer: {
     flex: 1,

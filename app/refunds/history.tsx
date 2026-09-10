@@ -36,7 +36,7 @@ import {
 } from '../../services/refundSlaService'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
-import { GLASS } from '../../theme/colors'
+import { GLASS, CANVAS_LONDON_NIGHT } from '../../theme/colors'
 import {
   loopStateOf,
   daysLeftUntil,
@@ -352,7 +352,7 @@ export default function RefundsHistoryScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A0F3C',
+    backgroundColor: CANVAS_LONDON_NIGHT,
   },
   flex1: {
     flex: 1,

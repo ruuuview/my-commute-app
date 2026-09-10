@@ -59,7 +59,7 @@ import {
 } from '../../services/refundSlaService'
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
-import { GLASS } from '../../theme/colors'
+import { GLASS, CANVAS_LONDON_NIGHT } from '../../theme/colors'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
 import {
   COLOR_EMERALD,
@@ -772,7 +772,7 @@ async function patchClaim(
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#0A0F3C',
+    backgroundColor: CANVAS_LONDON_NIGHT,
   },
   list: {
     flex: 1,

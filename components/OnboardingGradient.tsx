@@ -1,17 +1,25 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MASTER_CANVAS } from '../theme/colors';
+import { ONBOARDING_RADAR_GRADIENT } from '../theme/colors';
 
 export function OnboardingGradient() {
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {/* Vault / Settings unified deep dark gradient */}
+      {/* 1. Primary luminous royal sapphire vertical flow */}
       <LinearGradient
-        colors={MASTER_CANVAS.VAULT_SETTINGS_GRADIENT}
-        locations={[0, 0.50, 1.0]}
+        colors={ONBOARDING_RADAR_GRADIENT.colors}
+        locations={ONBOARDING_RADAR_GRADIENT.locations}
+        start={ONBOARDING_RADAR_GRADIENT.start}
+        end={ONBOARDING_RADAR_GRADIENT.end}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* 2. Top-centered atmospheric sapphire optical bloom for specular glass card refraction */}
+      <LinearGradient
+        colors={['rgba(0, 102, 204, 0.24)', 'rgba(0, 51, 128, 0.08)', 'transparent']}
+        locations={[0, 0.45, 0.90]}
         start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+        end={{ x: 0.5, y: 0.70 }}
         style={StyleSheet.absoluteFillObject}
       />
     </View>

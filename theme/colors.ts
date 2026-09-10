@@ -30,20 +30,23 @@ export const UNIFIED_DARK_GRADIENT = {
   start: { x: 0, y: 0 },
   end: { x: 0, y: 1 },
 };
-export const ONBOARDING_GRADIENT = {
-  colors: ['#07103a', '#07103a', '#040810'] as const,
-  locations: [0, 0.35, 1.0] as const,
+export const ONBOARDING_RADAR_GRADIENT = {
+  // Luminous Royal Sapphire crown tapering smoothly into deep midnight navy and OLED black floor
+  colors: ['#003380', '#001C52', '#070E24', '#02040A'] as const,
+  locations: [0, 0.28, 0.65, 1.0] as const,
   start: { x: 0.5, y: 0 },
   end: { x: 0.5, y: 1 },
 };
+
+export const ONBOARDING_GRADIENT = ONBOARDING_RADAR_GRADIENT;
 export const IMMINENT_BLUE = '#60A5FA';
 
 export const CANVAS_LONDON_NIGHT = '#030818';
 
 export const MASTER_CANVAS = {
   // Base Fixed Canvas for Vault (Radar) & Switchboard (Settings)
-  VAULT_SETTINGS_BASE: '#070C1C',
-  VAULT_SETTINGS_GRADIENT: ['#0A163A', '#070C1C', '#030818'] as const,
+  VAULT_SETTINGS_BASE: '#070E24',
+  VAULT_SETTINGS_GRADIENT: ['#002D7A', '#070E24', '#02040A'] as const,
 
   // Atmospheric Dynamic Washes for Dashboard (Worst-Line Driven)
   DASHBOARD_GOOD: ['#0B1B3A', '#07162C', '#030818'] as const, // Deep Royal Navy

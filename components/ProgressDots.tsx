@@ -55,19 +55,20 @@ const styles = StyleSheet.create({
   dotActive: {
     width: DOT_ACTIVE_WIDTH,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#FFFFFF',
+    shadowColor: '#0066CC',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
+    shadowOpacity: 0.85,
+    shadowRadius: 6,
+    elevation: 4,
   },
   dotComplete: {
     width: DOT_INACTIVE_WIDTH,
-    backgroundColor: 'rgba(255,255,255,0.90)',
+    backgroundColor: 'rgba(255, 255, 255, 0.90)',
   },
   dotPending: {
     width: DOT_INACTIVE_WIDTH,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
 });

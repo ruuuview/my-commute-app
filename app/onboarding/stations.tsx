@@ -369,7 +369,7 @@ export default function StationsScreen() {
   }, [isStationPinned, handleToggleStation]);
 
   const searchFocusedStyle = isFocused
-    ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: GLASS.background }
+    ? { borderWidth: 1.25, borderColor: '#0066CC', backgroundColor: 'rgba(0, 102, 204, 0.08)' }
     : { borderWidth: 1, borderColor: GLASS.borderSide, backgroundColor: GLASS.background };
 
   const isShowRecents = query === '' && isFocused && recentStations.length > 0;

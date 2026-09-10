@@ -1,4 +1,10 @@
-import { ONBOARDING_RADAR_GRADIENT, ONBOARDING_GRADIENT, MASTER_CANVAS, SETTINGS_BACKGROUND_GRADIENT } from '../theme/colors';
+import {
+  ONBOARDING_RADAR_GRADIENT,
+  ONBOARDING_GRADIENT,
+  MASTER_CANVAS,
+  SETTINGS_BACKGROUND_GRADIENT,
+  SAPPHIRE_ATMOSPHERIC_BLOOM,
+} from '../theme/colors';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -23,6 +29,9 @@ describe('Onboarding & Canvas Luminous Sapphire Invariants', () => {
 
     // ONBOARDING_GRADIENT alias points to ONBOARDING_RADAR_GRADIENT
     expect(ONBOARDING_GRADIENT).toEqual(ONBOARDING_RADAR_GRADIENT);
+
+    // SAPPHIRE_ATMOSPHERIC_BLOOM defines specular sapphire optical bloom
+    expect(SAPPHIRE_ATMOSPHERIC_BLOOM.colors[0]).toBe('rgba(0, 102, 204, 0.24)');
   });
 
   test('VAULT_SETTINGS_GRADIENT and SETTINGS_BACKGROUND_GRADIENT use luminous sapphire crown', () => {
@@ -35,8 +44,9 @@ describe('Onboarding & Canvas Luminous Sapphire Invariants', () => {
     expect(fs.existsSync(compPath)).toBe(true);
     const content = fs.readFileSync(compPath, 'utf8');
 
-    // Must import ONBOARDING_RADAR_GRADIENT
+    // Must import ONBOARDING_RADAR_GRADIENT and SAPPHIRE_ATMOSPHERIC_BLOOM
     expect(content).toContain('ONBOARDING_RADAR_GRADIENT');
+    expect(content).toContain('SAPPHIRE_ATMOSPHERIC_BLOOM');
 
     // Must render dual LinearGradient layers (base flow + atmospheric bloom)
     const matches = content.match(/<LinearGradient/g);

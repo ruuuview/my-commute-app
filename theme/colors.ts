@@ -39,6 +39,15 @@ export const ONBOARDING_RADAR_GRADIENT = {
 };
 
 export const ONBOARDING_GRADIENT = ONBOARDING_RADAR_GRADIENT;
+
+export const SAPPHIRE_ATMOSPHERIC_BLOOM = {
+  // Top-centered atmospheric sapphire optical bloom for specular glass card refraction
+  colors: ['rgba(0, 102, 204, 0.24)', 'rgba(0, 51, 128, 0.08)', 'transparent'] as const,
+  locations: [0, 0.45, 0.90] as const,
+  start: { x: 0.5, y: 0 },
+  end: { x: 0.5, y: 0.70 },
+};
+
 export const IMMINENT_BLUE = '#60A5FA';
 
 export const CANVAS_LONDON_NIGHT = '#030818';

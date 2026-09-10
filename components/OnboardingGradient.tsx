@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ONBOARDING_RADAR_GRADIENT } from '../theme/colors';
+import { ONBOARDING_RADAR_GRADIENT, SAPPHIRE_ATMOSPHERIC_BLOOM } from '../theme/colors';
 
 export function OnboardingGradient() {
   return (
@@ -16,10 +16,10 @@ export function OnboardingGradient() {
       />
       {/* 2. Top-centered atmospheric sapphire optical bloom for specular glass card refraction */}
       <LinearGradient
-        colors={['rgba(0, 102, 204, 0.24)', 'rgba(0, 51, 128, 0.08)', 'transparent']}
-        locations={[0, 0.45, 0.90]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.70 }}
+        colors={SAPPHIRE_ATMOSPHERIC_BLOOM.colors}
+        locations={SAPPHIRE_ATMOSPHERIC_BLOOM.locations}
+        start={SAPPHIRE_ATMOSPHERIC_BLOOM.start}
+        end={SAPPHIRE_ATMOSPHERIC_BLOOM.end}
         style={StyleSheet.absoluteFillObject}
       />
     </View>

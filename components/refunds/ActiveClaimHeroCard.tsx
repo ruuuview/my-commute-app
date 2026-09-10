@@ -25,7 +25,7 @@ import {
   daysLeftUntil,
 } from '../../components/refunds/types';
 import { formatPence } from '../../services/refundSlaService';
-import { LINE_IDENTITY_COLORS, LINE_NAMES } from '../../constants/lineColors';
+import { LINE_IDENTITY_COLORS, LINE_NAMES, NORTHERN_SHADES } from '../../constants/lineColors';
 import { GLASS } from '../../theme/colors';
 
 export interface ActiveClaimHeroCardProps {
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   northernDotBorder: {
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: NORTHERN_SHADES.highlightBorder,
   },
   lineBadgeText: {
     fontFamily: 'SpaceGrotesk_700Bold',

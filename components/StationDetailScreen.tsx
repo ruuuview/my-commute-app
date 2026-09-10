@@ -287,7 +287,16 @@ export default function StationDetailScreen({
 
           {/* Line header: color bar + name in small caps */}
           <View style={s.lineHeader}>
-            <View style={[s.lineColorBar, { backgroundColor: group.lineColor }]} />
+            <View
+              style={[
+                s.lineColorBar,
+                { backgroundColor: group.lineColor },
+                group.lineColor === '#000000' && {
+                  borderWidth: 0.5,
+                  borderColor: '#3A3A42',
+                },
+              ]}
+            />
             <Text style={s.lineHeaderName}>{group.lineName.toUpperCase()}</Text>
             {isNightTube && <Text style={s.nightTubeBadge}>24hr Service</Text>}
           </View>

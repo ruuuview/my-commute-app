@@ -441,7 +441,16 @@ export function LineDetailModal({
               {/* ── Header: line name left, status pill right ── */}
               <View style={styles.heroHeader}>
                 <View style={styles.heroLeft}>
-                  <View style={[styles.colorBar, { backgroundColor: line.color }]} />
+                  <View
+                    style={[
+                      styles.colorBar,
+                      { backgroundColor: line.color },
+                      line.id === 'northern' && {
+                        borderWidth: 0.5,
+                        borderColor: '#3A3A42',
+                      },
+                    ]}
+                  />
                   <Text style={styles.lineName} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
                     {displayLineName}
                   </Text>

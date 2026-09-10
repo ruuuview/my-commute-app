@@ -22,6 +22,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBezel } from './StatusBezel';
 import { GLASS } from '../theme/colors';
+import { NORTHERN_SHADES } from '../constants/lineColors';
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -193,13 +194,17 @@ export const LineCard = memo(function LineCard({
   if (statusType === 'error') statusTextColor = '#FF3B30';
   else if (statusType === 'offline' || statusType === 'unknown') statusTextColor = 'rgba(255, 255, 255, 0.55)';
 
-  // Selection glow shadow configuration (Apple pill design)
+  const isNorthern = line.id === 'northern';
+
+  // Selection glow shadow configuration (Apple pill design).
+  // For Northern line, use a deep true black shadow (NORTHERN_SHADES.shadowColor: #000000)
+  // to physically ground and elevate the card with dark depth — NEVER white.
   const selectedShadowStyle = (mode === 'select' && selected) ? {
-    shadowColor: line.id === 'northern' ? 'rgba(255, 255, 255, 0.55)' : line.color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: shadowOpacityBase,
-    shadowRadius: shadowRadiusBase,
-    elevation: elevationBase,
+    shadowColor: isNorthern ? NORTHERN_SHADES.shadowColor : line.color,
+    shadowOffset: isNorthern ? { width: 0, height: 4 } : { width: 0, height: 0 },
+    shadowOpacity: isNorthern ? 0.90 : shadowOpacityBase,
+    shadowRadius: isNorthern ? 10 : shadowRadiusBase,
+    elevation: isNorthern ? 6 : elevationBase,
   } : null;
 
   return (
@@ -218,9 +223,9 @@ export const LineCard = memo(function LineCard({
             borderRadius: cardRadius,
             backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
             overflow: 'hidden',
-            borderWidth: mode === 'select' && selected ? 1.5 : 1.25,
+            borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : 1.25,
             borderColor: mode === 'select' && selected
-              ? (line.id === 'northern' ? 'rgba(255, 255, 255, 0.70)' : withAlpha(line.color, 'E6'))
+              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
               : GLASS.borderColor,
           },
           pressAnim.animatedStyle,
@@ -242,7 +247,16 @@ export const LineCard = memo(function LineCard({
         />
 
         {mode === 'select' && selected && (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: withAlpha(line.color, '1A') }]} />
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                backgroundColor: isNorthern
+                  ? NORTHERN_SHADES.highlightWash
+                  : withAlpha(line.color, '1A'),
+              },
+            ]}
+          />
         )}
 
         <View
@@ -253,6 +267,10 @@ export const LineCard = memo(function LineCard({
               left: leftAccentBarPosition,
               height: isSlim ? (cardHeight - 16) : 36,
               top: (cardHeight - (isSlim ? (cardHeight - 16) : 36)) / 2,
+            },
+            isNorthern && {
+              borderWidth: 0.5,
+              borderColor: NORTHERN_SHADES.highlightBorder,
             },
           ]}
         />

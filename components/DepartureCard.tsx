@@ -243,7 +243,16 @@ const DepartureCard = memo(function DepartureCard({
 
               return (
                 <View key={`${arr.lineId}-${idx}`} style={styles.arrivalRow} testID={`departure-row-${idx}`}>
-                  <View style={[styles.lineBar, { backgroundColor: arr.lineColor }]} />
+                  <View
+                    style={[
+                      styles.lineBar,
+                      { backgroundColor: arr.lineColor },
+                      (arr.lineId === 'northern' || arr.lineColor === '#000000') && {
+                        borderWidth: 0.5,
+                        borderColor: '#3A3A42',
+                      },
+                    ]}
+                  />
                   <Text style={styles.arrLineName} numberOfLines={1}>
                     {arr.lineName}
                   </Text>

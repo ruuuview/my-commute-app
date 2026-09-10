@@ -40,6 +40,7 @@ import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { NORTHERN_SHADES } from '../constants/lineColors';
 import { useShallow } from 'zustand/react/shallow';
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -249,7 +250,7 @@ const DepartureCard = memo(function DepartureCard({
                       { backgroundColor: arr.lineColor },
                       (arr.lineId === 'northern' || arr.lineColor === '#000000') && {
                         borderWidth: 0.5,
-                        borderColor: '#3A3A42',
+                        borderColor: NORTHERN_SHADES.highlightBorder,
                       },
                     ]}
                   />

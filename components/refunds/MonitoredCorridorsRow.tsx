@@ -5,6 +5,7 @@ import {
   RADAR_LINE_NAMES,
   lineChipBorderColor,
 } from '../../theme/radarTheme';
+import { NORTHERN_SHADES } from '../../constants/lineColors';
 
 export interface MonitoredCorridorsRowProps {
   lineIds: string[];
@@ -27,12 +28,21 @@ const MonitoredCorridorsRow: React.FC<MonitoredCorridorsRowProps> = ({
           const brandColor = RADAR_LINE_BRAND[lineId] ?? '#0098D4';
           const lineName = RADAR_LINE_NAMES[lineId] ?? lineId.charAt(0).toUpperCase() + lineId.slice(1);
           const borderColor = lineChipBorderColor(lineId);
+          const isNorthern = lineId === 'northern' || brandColor === '#000000';
           return (
             <View
               key={lineId}
               style={chipStyle(brandColor, borderColor)}
             >
-              <View style={dotStyle(brandColor)} />
+              <View
+                style={[
+                  dotStyle(brandColor),
+                  isNorthern && {
+                    borderWidth: 1,
+                    borderColor: NORTHERN_SHADES.highlightBorder,
+                  },
+                ]}
+              />
               <Text style={labelStyle}>{lineName}</Text>
             </View>
           );

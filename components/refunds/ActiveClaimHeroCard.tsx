@@ -169,7 +169,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
 
         {/* Integrated Proof Capsule */}
         <View style={styles.proofCapsule}>
-          <Info size={13} color={lineColor} weight="fill" style={styles.proofIcon} />
+          <Info size={13} color={isNorthern ? NORTHERN_SHADES.highlightBorder : lineColor} weight="fill" style={styles.proofIcon} />
           <Text style={styles.proofText} numberOfLines={2}>
             <Text style={styles.proofMetrics}>
               {actualDurationMin}m actual vs {baselineMin}m baseline (+{delayMin}m delay)

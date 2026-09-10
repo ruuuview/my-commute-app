@@ -29,6 +29,7 @@ import { DashboardGradient } from './DashboardGradient';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore, LineStatus } from '../store/lineDataStore';
 import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
+import { NORTHERN_SHADES } from '../constants/lineColors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { getSeverityColor } from '../utils/getSeverityColor';
@@ -293,7 +294,7 @@ export default function StationDetailScreen({
                 { backgroundColor: group.lineColor },
                 group.lineColor === '#000000' && {
                   borderWidth: 0.5,
-                  borderColor: '#3A3A42',
+                  borderColor: NORTHERN_SHADES.highlightBorder,
                 },
               ]}
             />

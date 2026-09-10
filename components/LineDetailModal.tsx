@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
+import { NORTHERN_SHADES } from '../constants/lineColors';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
 import { CaretRight, CaretDown, X } from 'phosphor-react-native';
@@ -447,7 +448,7 @@ export function LineDetailModal({
                       { backgroundColor: line.color },
                       line.id === 'northern' && {
                         borderWidth: 0.5,
-                        borderColor: '#3A3A42',
+                        borderColor: NORTHERN_SHADES.highlightBorder,
                       },
                     ]}
                   />

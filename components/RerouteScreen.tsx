@@ -57,6 +57,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyPressable from './BouncyPressable';
 import { BlurView } from 'expo-blur';
 import { GLASS } from '../theme/colors';
+import { NORTHERN_SHADES } from '../constants/lineColors';
 import type { DetectionSource } from '../hooks/useAutoDetectBranch';
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -408,7 +409,14 @@ export default function RerouteScreen({
       {/* Line header with 4px LINE_COLORS accent bar */}
       <View style={s.lineHeaderRow}>
         <View
-          style={[s.lineColorBar, { backgroundColor: lineColor, height: ACCENT_BAR_HEIGHT }]}
+          style={[
+            s.lineColorBar,
+            { backgroundColor: lineColor, height: ACCENT_BAR_HEIGHT },
+            (lineId === 'northern' || lineColor === '#000000') && {
+              borderWidth: 0.5,
+              borderColor: NORTHERN_SHADES.highlightBorder,
+            },
+          ]}
         />
         <Text style={s.lineHeaderName}>{lineName.toUpperCase()}</Text>
       </View>

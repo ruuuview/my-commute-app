@@ -12,7 +12,7 @@ import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
 import { GLASS } from '../theme/colors';
 import { fetchNormalizedStationArrivals } from '../services/apiService';
-import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
+import { LINE_IDENTITY_COLORS, NORTHERN_SHADES } from '../constants/lineColors';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
@@ -293,7 +293,16 @@ export function StationCard({
                   return (
                     <View key={idx} style={styles.ledgerRow}>
                       <View style={styles.columnIdentity}>
-                        <View style={[styles.ledgerBar, { backgroundColor: dep.lineColor }]} />
+                        <View
+                          style={[
+                            styles.ledgerBar,
+                            { backgroundColor: dep.lineColor },
+                            (dep.lineId === 'northern' || dep.lineColor === '#000000') && {
+                              borderWidth: 0.5,
+                              borderColor: NORTHERN_SHADES.highlightBorder,
+                            },
+                          ]}
+                        />
                         <Text style={styles.ledgerLineText} numberOfLines={1}>{dep.lineName}</Text>
                       </View>
                       <View style={styles.columnDestination}>

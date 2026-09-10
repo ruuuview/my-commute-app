@@ -60,4 +60,43 @@ describe('Onboarding & Canvas Luminous Sapphire Invariants', () => {
       expect(content).toContain('<OnboardingGradient');
     });
   });
+
+  test('SettingsScreen binds to SETTINGS_BACKGROUND_GRADIENT and CANVAS_LONDON_NIGHT', () => {
+    const settingsPath = path.resolve(__dirname, '../app/settings.tsx');
+    expect(fs.existsSync(settingsPath)).toBe(true);
+    const content = fs.readFileSync(settingsPath, 'utf8');
+
+    expect(content).toContain('SETTINGS_BACKGROUND_GRADIENT');
+    expect(content).toContain('CANVAS_LONDON_NIGHT');
+    expect(content).toContain('backgroundColor: CANVAS_LONDON_NIGHT');
+  });
+
+  test('SafariClaimAssistant binds toolbarColor to CANVAS_LONDON_NIGHT', () => {
+    const compPath = path.resolve(__dirname, '../components/refunds/SafariClaimAssistant.tsx');
+    expect(fs.existsSync(compPath)).toBe(true);
+    const content = fs.readFileSync(compPath, 'utf8');
+
+    expect(content).toContain('toolbarColor: CANVAS_LONDON_NIGHT');
+    expect(content).not.toContain("toolbarColor: '#0A0F3C'");
+  });
+
+  test('Poka-Yoke: Zero raw legacy background hexes (#0A0F3C, #0A163A, #030818) in styles across app and refund components', () => {
+    const filesToAudit = [
+      path.resolve(__dirname, '../app/settings.tsx'),
+      path.resolve(__dirname, '../app/(tabs)/refunds.tsx'),
+      path.resolve(__dirname, '../app/refunds/history.tsx'),
+      path.resolve(__dirname, '../app/onboarding/lines.tsx'),
+      path.resolve(__dirname, '../app/onboarding/stations.tsx'),
+      path.resolve(__dirname, '../app/onboarding/tfl-registration.tsx'),
+      path.resolve(__dirname, '../components/refunds/SafariClaimAssistant.tsx'),
+    ];
+
+    filesToAudit.forEach((filePath) => {
+      const content = fs.readFileSync(filePath, 'utf8');
+      // Must never use legacy backgrounds
+      expect(content).not.toMatch(/backgroundColor:\s*['"]#0A0F3C['"]/i);
+      expect(content).not.toMatch(/backgroundColor:\s*['"]#0A163A['"]/i);
+      expect(content).not.toMatch(/backgroundColor:\s*['"]#030818['"]/i);
+    });
+  });
 });

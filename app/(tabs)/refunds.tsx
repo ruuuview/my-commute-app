@@ -449,7 +449,7 @@ export default function RefundsScreen() {
           await Linking.openURL(TFL_CLAIM_URL)
         } else {
           await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
-            toolbarColor: '#0A0F3C',
+            toolbarColor: CANVAS_LONDON_NIGHT,
             controlsColor: '#0098D4',
           })
         }

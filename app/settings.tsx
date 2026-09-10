@@ -38,7 +38,7 @@ import { DiagnosticsModal } from '../components/DiagnosticsModal';
 import { LiquidGlassView } from '../components/LiquidGlassView';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { SETTINGS_BACKGROUND_GRADIENT } from '../theme/colors';
+import { SETTINGS_BACKGROUND_GRADIENT, CANVAS_LONDON_NIGHT } from '../theme/colors';
 
 const TFL_CONTACTLESS_PORTAL_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account';
 
@@ -1179,7 +1179,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030818',
+    backgroundColor: CANVAS_LONDON_NIGHT,
   },
   mainWrapper: {
     flex: 1,

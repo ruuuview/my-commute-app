@@ -28,6 +28,7 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
 import { LINE_NAMES } from '../../constants/lineColors';
+import { CANVAS_LONDON_NIGHT } from '../../theme/colors';
 
 const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds-and-replacements';
 
@@ -124,7 +125,7 @@ export default function SafariClaimAssistant({
         await Linking.openURL(TFL_CLAIM_URL);
       } else {
         await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
-          toolbarColor: '#0A0F3C',
+          toolbarColor: CANVAS_LONDON_NIGHT,
           controlsColor: '#0098D4',
         });
       }
@@ -132,7 +133,7 @@ export default function SafariClaimAssistant({
       console.warn('[SafariClaimAssistant] Failed to launch Safari:', err);
       try {
         await WebBrowser.openBrowserAsync(TFL_CLAIM_URL, {
-          toolbarColor: '#0A0F3C',
+          toolbarColor: CANVAS_LONDON_NIGHT,
           controlsColor: '#0098D4',
         });
       } catch (browserErr) {

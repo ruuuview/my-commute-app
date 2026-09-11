@@ -88,6 +88,7 @@ export default function SettingsScreen() {
     completedJourneys,
     pinnedStations,
     resetOnboarding,
+    alertHoursMode,
     alertWindowStart,
     alertWindowEnd,
     severeBypassAlertHours,
@@ -110,6 +111,7 @@ export default function SettingsScreen() {
       completedJourneys: s.completedJourneys,
       pinnedStations: s.pinnedStations || [],
       resetOnboarding: s.resetOnboarding,
+      alertHoursMode: s.alertHoursMode || (s.alertWindowStart === '00:00' && s.alertWindowEnd === '23:59' ? '24h' : 'custom'),
       alertWindowStart: s.alertWindowStart || '06:00',
       alertWindowEnd: s.alertWindowEnd || '22:00',
       severeBypassAlertHours: s.severeBypassAlertHours !== false,
@@ -787,7 +789,11 @@ export default function SettingsScreen() {
                 style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                 onPress={() => setShowAlertHoursSheet(true)}
                 accessibilityRole="button"
-                accessibilityLabel={`Alert hours, current window: ${alertWindowStart} to ${alertWindowEnd}`}
+                accessibilityLabel={
+                  alertHoursMode === '24h'
+                    ? 'Alert hours: 24/7 Always on'
+                    : `Alert hours, current window: ${alertWindowStart} to ${alertWindowEnd}`
+                }
                 accessibilityHint="Opens sheet to adjust notification hours"
               >
                 <View style={styles.rowInfo}>
@@ -800,8 +806,9 @@ export default function SettingsScreen() {
                     <Text style={styles.rowLabel}>Alert hours</Text>
                   </View>
                   <Text style={styles.rowSubtitle}>
-                    {alertWindowStart} – {alertWindowEnd}
-                    {severeBypassAlertHours ? ' · Severe always on' : ' · Strict'}
+                    {alertHoursMode === '24h'
+                      ? '24/7 (Always on)'
+                      : `${alertWindowStart} – ${alertWindowEnd}${severeBypassAlertHours ? ' · Severe always on' : ' · Strict'}`}
                   </Text>
                 </View>
                 <CaretRight size={18} color="rgba(255,255,255,0.35)" />

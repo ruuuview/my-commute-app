@@ -1,7 +1,6 @@
 import { NativeModules } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
-import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -15,7 +14,7 @@ import {
   presentServiceRecoveryNotification,
   presentServiceImprovingNotification,
 } from './notifications/dispatch';
-import { isLineId, LineId } from './notifications/payload';
+import { isLineId } from './notifications/payload';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
@@ -222,11 +221,24 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         // Commute alert hours filter
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const [startH, startM] = (state.alertWindowStart || '06:00').split(':').map(Number);
-        const [endH, endM] = (state.alertWindowEnd || '22:00').split(':').map(Number);
-        const startMinutes = (startH || 6) * 60 + (startM || 0);
-        const endMinutes = (endH || 22) * 60 + (endM || 0);
-        const isWithinAlertHours = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+        const is24HourMode = state.alertHoursMode === '24h' ||
+          (state.alertWindowStart === '00:00' && state.alertWindowEnd === '23:59');
+
+        let isWithinAlertHours = false;
+        if (is24HourMode) {
+          isWithinAlertHours = true;
+        } else {
+          const [startH, startM] = (state.alertWindowStart || '06:00').split(':').map(Number);
+          const [endH, endM] = (state.alertWindowEnd || '22:00').split(':').map(Number);
+          const startMinutes = (startH || 6) * 60 + (startM || 0);
+          const endMinutes = (endH || 22) * 60 + (endM || 0);
+
+          // Support overnight shifts (e.g. 21:00 -> 06:00) where startMinutes > endMinutes
+          isWithinAlertHours = startMinutes <= endMinutes
+            ? currentMinutes >= startMinutes && currentMinutes <= endMinutes
+            : currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+        }
+
         const isSevere = currentSeverity <= 6;
         const bypassWindow = Boolean(state.severeBypassAlertHours && isSevere);
         const shouldDeliverAlert = isWithinAlertHours || bypassWindow;
@@ -271,7 +283,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         } else if (!canScheduleNotifications) {
           console.log(`🔕 Notifications not granted for ${lineData.name} line (${lineId})`);
         } else if (!shouldDeliverAlert) {
-          console.log(`🔕 Alert suppressed outside commute hours (${state.alertWindowStart || '06:00'}-${state.alertWindowEnd || '22:00'}) for ${lineData.name}`);
+          console.log(`🔕 Alert suppressed outside commute hours (${is24HourMode ? '24/7' : `${state.alertWindowStart || '06:00'}-${state.alertWindowEnd || '22:00'}`}) for ${lineData.name}`);
         } else {
           console.log(`🔕 Disruption alerts disabled for ${lineData.name} line (${lineId})`);
         }

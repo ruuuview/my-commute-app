@@ -28,7 +28,7 @@ export interface ShushPreferences {
   shushActivation: 'smart' | 'schedule' | 'always';
   shushSchedule: {
     weekdays: number[];
-    windows: Array<{ start: string; end: string }>; // DateComponents, no TZ
+    windows: { start: string; end: string }[]; // DateComponents, no TZ
   };
   timeSensitiveGranted: boolean;
   hasCompletedShushOnboarding: boolean;
@@ -80,6 +80,7 @@ export interface UserPreferencesState {
   // Claim IDs hidden via optimistic offline dismissal (MMKV-persisted).
   dismissedClaims: string[];
   // Alert hours (allowed window semantics) + severe bypass policy
+  alertHoursMode: 'custom' | '24h';
   alertWindowStart: string; // HH:MM format (default: '06:00')
   alertWindowEnd: string;   // HH:MM format (default: '22:00')
   severeBypassAlertHours: boolean; // default: true
@@ -94,6 +95,7 @@ export interface UserPreferencesState {
   setHasCompletedShushOnboarding: (completed: boolean) => void;
   updateShushRuntimeState: (patch: Partial<ShushRuntimeState>) => void;
   setDeviceCapabilities: (caps: Partial<DeviceCapabilities>) => void;
+  setAlertHoursMode: (mode: 'custom' | '24h') => void;
   setAlertHours: (start: string, end: string) => void;
   setSevereBypassAlertHours: (bypass: boolean) => void;
   setHasHydrated: (state: boolean) => void;
@@ -135,7 +137,7 @@ export interface UserPreferencesState {
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -161,6 +163,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   tflAccountStatus: 'NOT_SET',
   submittedClaims: {},
   dismissedClaims: [],
+  alertHoursMode: 'custom',
   alertWindowStart: '06:00',
   alertWindowEnd: '22:00',
   severeBypassAlertHours: true,
@@ -404,6 +407,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         });
       },
       setSimulatedClaimActive: (active) => set({ simulatedClaimActive: active }),
+      setAlertHoursMode: (mode: 'custom' | '24h') => set({ alertHoursMode: mode }),
       setAlertHours: (start: string, end: string) => set({ alertWindowStart: start, alertWindowEnd: end }),
       setSevereBypassAlertHours: (bypass: boolean) => set({ severeBypassAlertHours: bypass }),
       setAlertDeliveryMode: (mode) => set((state) => ({ shushPreferences: { ...state.shushPreferences, alertDeliveryMode: mode } })),
@@ -420,7 +424,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHours, setSevereBypassAlertHours, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {
@@ -437,6 +441,13 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
             if (state.tflAccountStatus === 'NOT_SET' && state.tflRegistered) {
               setTimeout(() => {
                 useUserPreferencesStore.setState({ tflAccountStatus: 'REGISTERED_28_DAY' });
+              }, 0);
+            }
+            // Backfill alertHoursMode for existing stores
+            if (!state.alertHoursMode) {
+              const inferredMode = (state.alertWindowStart === '00:00' && state.alertWindowEnd === '23:59') ? '24h' : 'custom';
+              setTimeout(() => {
+                useUserPreferencesStore.setState({ alertHoursMode: inferredMode });
               }, 0);
             }
           }

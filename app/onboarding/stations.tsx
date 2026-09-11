@@ -18,6 +18,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  interpolateColor,
   Easing,
 } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
@@ -39,6 +40,14 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
+
+// ─── Module-level constants ─────────────────────────────────────────────────
+const MAJOR_INTERCHANGE_IDS = new Set([
+  'victoria', 'kings-cross', 'oxford-circus', 'london-bridge',
+  'green-park', 'london-waterloo', 'bank', 'paddington',
+  'liverpool-street', 'stratford', 'canary-wharf', 'euston',
+  'baker-street', 'farringdon', 'whitechapel',
+]);
 
 export default function StationsScreen() {
   const router = useRouter();
@@ -95,6 +104,33 @@ export default function StationsScreen() {
   const canContinue = pinnedStations.length > 0;
   const backAnim = usePressAnimation('back_btn');
   const ctaBtnAnim = usePressAnimation('continue_btn', !canContinue);
+
+  // ─── Luminous Focus Brightening (search bar glow on tap) ───────────────
+  const searchFocusProgress = useSharedValue(0);
+  useEffect(() => {
+    searchFocusProgress.value = withTiming(isFocused ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+    });
+  }, [isFocused, searchFocusProgress]);
+
+  const luminousSearchStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      searchFocusProgress.value,
+      [0, 1],
+      ['rgba(255, 255, 255, 0.06)', 'rgba(255, 255, 255, 0.15)']
+    ),
+    borderColor: interpolateColor(
+      searchFocusProgress.value,
+      [0, 1],
+      ['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.45)']
+    ),
+    borderWidth: 1.25,
+  }));
+
+  const luminousIconColor = isFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.35)';
+
+
 
   const ctaOpacity = useSharedValue(canContinue ? 1 : 0.35);
 
@@ -167,6 +203,24 @@ export default function StationsScreen() {
       );
     });
   }, [pinnedStations]);
+
+  // ─── Line-Smart Recommendations (zero-typing station suggestions) ──────
+  const lineRecommendedStations = useMemo(() => {
+    if (!selectedLines || selectedLines.length === 0) return [];
+    const lineSet = new Set(selectedLines.map((l: string) => l.toLowerCase()));
+    const matching = cleanFullStations.filter(st =>
+      st.lines.some(l => lineSet.has(l.toLowerCase())) &&
+      !isStationPinned(st)
+    );
+    // Sort: major interchanges first, then alphabetical
+    matching.sort((a, b) => {
+      const aHub = MAJOR_INTERCHANGE_IDS.has(a.id) ? 0 : 1;
+      const bHub = MAJOR_INTERCHANGE_IDS.has(b.id) ? 0 : 1;
+      if (aHub !== bHub) return aHub - bHub;
+      return a.name.localeCompare(b.name);
+    });
+    return matching.slice(0, 30); // Cap visual list at 30 for performance
+  }, [selectedLines, cleanFullStations, isStationPinned]);
 
   const recentStations = useMemo(() => {
     const searchIds = recentSearchIds || [];
@@ -397,9 +451,7 @@ export default function StationsScreen() {
     );
   }, [isStationPinned, handleToggleStation, query]);
 
-  const searchFocusedStyle = isFocused
-    ? { borderWidth: 1.25, borderColor: '#0066CC', backgroundColor: 'rgba(0, 102, 204, 0.08)' }
-    : { borderWidth: 1, borderColor: GLASS.borderSide, backgroundColor: GLASS.background };
+  // searchFocusedStyle replaced by luminousSearchStyle Reanimated value above
 
   const isShowRecents = query === '' && isFocused && recentStations.length > 0;
 
@@ -446,8 +498,8 @@ export default function StationsScreen() {
 
           {/* Search Row element */}
           <View style={styles.searchRow}>
-            <View style={[styles.searchBarContainer, searchFocusedStyle]}>
-              <Ionicons name="search-outline" size={16} style={styles.searchIcon} />
+            <Animated.View style={[styles.searchBarContainer, luminousSearchStyle]}>
+              <Ionicons name="search-outline" size={16} color={luminousIconColor} style={styles.searchIconBase} />
               <TextInput
                 ref={inputRef}
                 value={query}
@@ -486,7 +538,7 @@ export default function StationsScreen() {
                   <Ionicons name="close-circle" size={16} style={styles.clearIcon} />
                 </Pressable>
               )}
-            </View>
+            </Animated.View>
 
             {(isSearching || isFocused || query.length > 0) && (
               <Pressable
@@ -543,6 +595,24 @@ export default function StationsScreen() {
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
+            ) : isSearching && query.trim() === '' && lineRecommendedStations.length > 0 ? (
+              /* Line-Smart Recommendations (zero-typing) */
+              <View style={styles.lineRecsContainer}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionHeaderText}>STATIONS ON YOUR LINES</Text>
+                </View>
+                <FlatList
+                  data={lineRecommendedStations}
+                  renderItem={renderStationItem}
+                  keyExtractor={(item) => `rec-${item.id}`}
+                  initialNumToRender={12}
+                  windowSize={5}
+                  contentContainerStyle={styles.lineRecsListContent}
+                  showsVerticalScrollIndicator={false}
+                  keyboardDismissMode="on-drag"
+                  keyboardShouldPersistTaps="handled"
+                />
+              </View>
             ) : (
               /* Pinned / Search Results Main Timetable */
               <FlatList
@@ -565,7 +635,7 @@ export default function StationsScreen() {
                   ) : null
                 }
                 ListFooterComponent={
-                  !isSearching && query.trim() === '' && pinnedStations.length > 0 && pinnedStations.length < 5 ? (
+                  !isSearching && query.trim() === '' && pinnedStations.length > 0 ? (
                     <Pressable
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -596,7 +666,7 @@ export default function StationsScreen() {
                           {pinnedStations.length === 1 ? 'Add destination (e.g. Work)' : 'Add another station'}
                         </Text>
                         <Text style={styles.addAnotherSubtitle}>
-                          {pinnedStations.length === 1 ? 'Pair with home station for automatic delay repay' : 'Up to 5 stations'}
+                          {pinnedStations.length === 1 ? 'Pair with home station for automatic delay repay' : 'Pro Unlimited · Full corridor & disruption surveillance'}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
@@ -729,9 +799,8 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.85)',
   },
-  searchIcon: {
+  searchIconBase: {
     marginRight: 8,
-    color: 'rgba(255, 255, 255, 0.35)',
   },
   clearIcon: {
     marginLeft: 8,
@@ -925,18 +994,13 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     overflow: 'hidden',
   },
-  maxPinsToast: {
-    backgroundColor: 'rgba(220, 38, 38, 0.12)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginBottom: 10,
-    alignSelf: 'flex-start',
+  lineRecsContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  maxPinsToastText: {
-    fontSize: 11,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#DC2626',
+  lineRecsListContent: {
+    paddingBottom: 130,
   },
   ctaPressable: {
     width: '100%',

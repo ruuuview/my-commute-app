@@ -521,12 +521,6 @@ export class SessionManager {
       return;
     }
 
-    // Rule 10: Bidirectional Commute Geofence Invariant
-    if (currentState === 'idle' && role !== 'home' && role !== 'work') {
-      console.log(`[SessionManager] Geofence entered for role '${role}' — ignoring for autonomous commute dispatch.`);
-      return;
-    }
-
     const targetStation = (prefState.pinnedStations || []).find((s) => s.id === stationId);
     const lineId = targetStation?.lines?.[0] || prefState.selectedLines?.[0] || 'unknown';
     triggerTier2Grab(stationId, lineId);
@@ -594,17 +588,14 @@ export class SessionManager {
     const pinnedStations = prefState.pinnedStations || [];
 
     if (currentState === 'idle') {
-      // Rule 10: Bidirectional Commute Geofence Invariant
-      if (role !== 'home' && role !== 'work') {
-        console.log(`[SessionManager] Geofence entered for role '${role}' — ignoring for autonomous commute dispatch.`);
-        return;
-      }
-
       let destStation = null;
       if (role === 'home') {
         destStation = pinnedStations.find(s => s.role === 'work');
       } else if (role === 'work') {
         destStation = pinnedStations.find(s => s.role === 'home');
+      } else {
+        // Universal Dashboard Geofencing: target another pinned station
+        destStation = pinnedStations.find(s => s.id !== stationId);
       }
 
       if (destStation && destStation.id !== stationId) {
@@ -624,7 +615,7 @@ export class SessionManager {
 
     if (currentState === 'active') {
       const destId = this.getCommuteDestinationId();
-      if ((role === 'home' || role === 'work') && stationId === destId) {
+      if (stationId === destId) {
         const prefs = useUserPreferencesStore.getState();
         if (!prefs.labelsConfirmed) {
           console.log(`[SessionManager] Home not confirmed — closing session without arrival notification.`);

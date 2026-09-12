@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { createMMKV } from 'react-native-mmkv';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { APP_CONFIG } from '../config/app.config';
-import { SessionManager } from './SessionManager';
+import { SessionManager, GEOFENCE_CONFIG } from './SessionManager';
 import { LiveActivityService } from './LiveActivityService';
 import { getSeverityRank } from '../utils/getSeverityColor';
 import { fetchWithTimeout } from '../utils/network';
@@ -355,18 +355,16 @@ export async function syncGeofencesAsync(pinnedStations: any[]) {
     }
 
     const regions: Location.LocationRegion[] = [];
+    const radiusMeters = GEOFENCE_CONFIG?.ORIGIN_RADIUS_METERS || 150;
     pinnedStations.forEach((station) => {
-      // Locked decision: geofence circles ONLY home + work (200m). 'other'
-      // stations get no circle — the permission copy promises exactly this,
-      // so anything else would be a lie to the user.
-      if (station.role !== 'home' && station.role !== 'work') return;
+      // Universal Dashboard Geofencing: all pinned stations register a geofence circle
       const coord = stationCoordinates[station.id];
       if (coord && typeof coord.lat === 'number' && typeof coord.lon === 'number') {
         regions.push({
           identifier: station.id,
           latitude: coord.lat,
           longitude: coord.lon,
-          radius: 200,
+          radius: radiusMeters,
           notifyOnEnter: true,
           notifyOnExit: true,
         });

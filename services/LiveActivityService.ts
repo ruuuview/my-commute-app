@@ -38,7 +38,6 @@ import {
 import { track } from './analyticsService';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
-import { estimateFare } from './fareTable';
 import { computeDetour } from './detourComputer';
 
 // Re-use the same background MMKV the SessionManager uses (single store).
@@ -50,6 +49,15 @@ const MyCommuteLiveActivityModule =
   requireOptionalNativeModule('MyCommuteLiveActivity');
 
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
+
+export interface ApproachingEndpointPayload {
+  destinationName: string;
+  branchText?: string;
+  minutesToArrival: number;
+  previousStationName?: string;
+  stopsAway: number;
+  etaTimestamp?: number;
+}
 
 export interface LiveActivityBridgePayload {
   journeyId?: string;
@@ -80,12 +88,19 @@ export interface LiveActivityBridgePayload {
   progress?: number;
   segmentMaxDuration?: number;
   signalState: LiveActivitySignalState;
-  phase?: 'approaching' | 'in_transit' | 'arrived';
+  phase?: 'line_picker' | 'approaching' | 'in_transit' | 'arrived';
   selectedEndpoint?: string;
   availableEndpoints?: string[];
   sessionStartTime?: number;
   currentStationName?: string;
   destinationStationName?: string;
+  availableLines?: string[];
+  availableLineNames?: string[];
+  approachingEndpoints?: ApproachingEndpointPayload[];
+  nextStationName?: string;
+  nextStationEtaMinutes?: number;
+  nextStationEtaTimestamp?: number;
+  isStaleEta?: boolean;
 }
 
 const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
@@ -230,9 +245,9 @@ export class LiveActivityService {
     const delayMinutes = isDisrupted ? (severityTier === 3 ? 20 : severityTier === 2 ? 10 : 4) : 0;
     const etaDelta = delayMinutes > 0 ? `+${delayMinutes}m` : 'On time';
 
-    // Delay Repay Eligibility (delay >= 15 min on TfL operated routes)
-    const delayRepayEligible = delayMinutes >= 15;
-    const estimatedFare = delayRepayEligible ? estimateFare(1, 2) : null;
+    // Delay Repay Eligibility: Live Activity strictly displays transit tracking (Rule 16: Refund drafts live exclusively on Refund Radar page)
+    const delayRepayEligible = false;
+    const estimatedFare = null;
 
     // Branch known when the session has resolved a destination (Priority 1-3).
     const destId = backgroundStorage.getString('commute_destination_id');
@@ -294,6 +309,7 @@ export class LiveActivityService {
       backgroundStorage.getNumber('commute_session_start_time') || nowUnix;
     const phase =
       (backgroundStorage.getString('commute_phase') as
+        | 'line_picker'
         | 'approaching'
         | 'in_transit'
         | 'arrived'
@@ -302,6 +318,41 @@ export class LiveActivityService {
       backgroundStorage.getString('commute_origin_name') || undefined;
     const destinationStationName =
       backgroundStorage.getString('commute_destination_name') || undefined;
+
+    // Build approaching endpoints for Phase 1 delivery track (up to 2 distinct endpoints)
+    const distinctEndpointsMap = new Map<string, ApproachingEndpointPayload>();
+    for (const arr of arrivals) {
+      const dest = arr.destinationName;
+      if (!dest) continue;
+      const key = `${dest}_${arr.via || ''}`;
+      if (!distinctEndpointsMap.has(key) && distinctEndpointsMap.size < 2) {
+        const mins = Math.max(0, Math.round(arr.timeToStationSeconds / 60));
+        const viaClean = arr.via ? arr.via.replace(/^via\s+/i, '').trim() : undefined;
+        distinctEndpointsMap.set(key, {
+          destinationName: dest,
+          branchText: viaClean,
+          minutesToArrival: mins,
+          previousStationName: 'Approaching',
+          stopsAway: mins <= 1 ? 1 : Math.min(5, Math.max(1, Math.round(mins / 2))),
+          etaTimestamp: nowUnix + arr.timeToStationSeconds,
+        });
+      }
+    }
+    const approachingEndpoints = Array.from(distinctEndpointsMap.values());
+
+    const nextStationName = backgroundStorage.getString('commute_next_station_name') || undefined;
+    const nextStationEtaTimestamp = backgroundStorage.getNumber('commute_next_station_eta_timestamp') || undefined;
+    let nextStationEtaMinutes: number | undefined = undefined;
+    let isStaleEta = false;
+    if (nextStationEtaTimestamp) {
+      const diffSec = nextStationEtaTimestamp - nowUnix;
+      nextStationEtaMinutes = Math.max(0, Math.round(diffSec / 60));
+      if (diffSec < -120) {
+        isStaleEta = true;
+      }
+    } else if (phase === 'in_transit') {
+      nextStationEtaMinutes = 2;
+    }
 
     return {
       journeyId,
@@ -338,6 +389,11 @@ export class LiveActivityService {
       sessionStartTime,
       currentStationName,
       destinationStationName,
+      approachingEndpoints,
+      nextStationName,
+      nextStationEtaMinutes,
+      nextStationEtaTimestamp,
+      isStaleEta,
     };
   }
 
@@ -347,9 +403,80 @@ export class LiveActivityService {
   }
 
   /**
-   * Start the Live Activity. Reads the Tier 2 cache for `stationId`.
-   * Respects Shush Mode delivery mode ('loud' | 'shush' | 'off').
+   * Start Live Activity in Phase 0 (multi-line station hub picker chips).
    */
+  static async startLinePicker(
+    stationId: string,
+    stationName: string,
+    availableLines: string[]
+  ): Promise<string | null> {
+    if (Platform.OS !== 'ios') return null;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+      return null;
+    }
+
+    backgroundStorage.set('commute_phase', 'line_picker');
+    backgroundStorage.set('commute_origin_id', stationId);
+    backgroundStorage.set('commute_origin_name', stationName);
+
+    const availableLineNames = availableLines.map((l) => tflCapitalise(l));
+    const defaultLine = availableLines[0] || 'victoria';
+
+    const payload: LiveActivityBridgePayload = {
+      journeyId: `hub_${Math.floor(Date.now() / 1000)}`,
+      backendUrl: APP_CONFIG.BACKEND_API_URL,
+      stationId,
+      lineId: defaultLine,
+      lineName: tflCapitalise(defaultLine),
+      branchKnown: false,
+      arrivals: [],
+      statusSeverity: 'good',
+      statusText: `${availableLines.length} lines available`,
+      severityTier: 0,
+      isDisrupted: false,
+      signalState: 'ok',
+      phase: 'line_picker',
+      currentStationName: stationName,
+      availableLines,
+      availableLineNames,
+      sessionStartTime: Math.floor(Date.now() / 1000),
+      delayRepayEligible: false,
+      estimatedFare: null,
+    };
+
+    try {
+      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(payload);
+      console.log(`[LiveActivityService] Started line picker activity ${activityId} at ${stationName}`);
+      track('shush_session_started', { trigger: 'multi_line_hub', mode: 'shush' });
+      return activityId;
+    } catch (e) {
+      console.error('[LiveActivityService] Failed to start line picker activity:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Transition Live Activity into Phase 2 (In-Transit) upon downstream beacon fix.
+   */
+  static async transitionToInTransit(
+    originStationName: string,
+    nextStationName: string,
+    etaMinutes: number = 2
+  ): Promise<void> {
+    const nowUnix = Math.floor(Date.now() / 1000);
+    const etaTimestamp = nowUnix + etaMinutes * 60;
+
+    backgroundStorage.set('commute_phase', 'in_transit');
+    backgroundStorage.set('commute_next_station_name', nextStationName);
+    backgroundStorage.set('commute_next_station_eta_timestamp', etaTimestamp);
+
+    const originId = backgroundStorage.getString('commute_origin_id');
+    const lineId = backgroundStorage.getString('commute_line_id');
+
+    if (originId && lineId) {
+      await this.update(originId, lineId);
+    }
+  }
   static async start(stationId: string, lineId: string, trigger = 'geofence'): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
 

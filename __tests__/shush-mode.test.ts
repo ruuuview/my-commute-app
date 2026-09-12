@@ -113,8 +113,10 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
     });
   });
 
-  describe('Bidirectional Commute Geofence Invariant (Rule 10)', () => {
-    it('rejects "other" role geofences from starting autonomous sessions', async () => {
+  describe('Universal Dashboard Geofence & Station-Fix Invariant (Rule 10)', () => {
+    it('initiates origin detection for ANY pinned dashboard station including "other" role', async () => {
+      const startSpy = jest.spyOn(LiveActivityService, 'start').mockResolvedValue('mock-activity-id');
+      const updateSpy = jest.spyOn(LiveActivityService, 'update').mockResolvedValue(undefined);
       const store = useUserPreferencesStore.getState();
       
       // Pin home, work, and other
@@ -122,9 +124,12 @@ describe('Shush Mode Production Specification v2.0 Tests', () => {
       store.pinStation({ id: '940GZZLUVIC', name: 'Victoria', lines: ['victoria'], zone: 1 }, 'work');
       store.pinStation({ id: '940GZZLUOXC', name: 'Oxford Circus', lines: ['victoria'], zone: 1 }, 'other');
 
-      // Geofence enter for 'other' role
+      // Geofence enter for 'other' role initiates session per Rule 10
       await SessionManager.handleGeofenceEnter('940GZZLUOXC', 'other', 'Oxford Circus');
-      expect(SessionManager.getSessionState()).toBe('idle');
+      expect(SessionManager.getSessionState()).toBe('active');
+      await SessionManager.closeSession(true);
+      startSpy.mockRestore();
+      updateSpy.mockRestore();
     });
   });
 

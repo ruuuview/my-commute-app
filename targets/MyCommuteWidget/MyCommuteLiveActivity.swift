@@ -196,23 +196,42 @@ private struct CompactIslandView: View {
 
   var body: some View {
     if trailing {
-      if context.state.phase == "arrived" {
+      if context.state.phase == "line_picker" {
+        let count = context.state.availableLines?.count ?? 0
+        Text("\(count) lines")
+          .font(.system(size: 11, weight: .bold))
+          .foregroundColor(Color(hex: 0x007AFF))
+          .accessibilityLabel("\(count) lines available")
+      } else if context.state.phase == "arrived" {
         Text("Arrived")
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(Color(hex: 0x30D158))
           .accessibilityLabel("Arrived at destination")
-      } else if context.state.phase == "in_transit" && context.state.sessionStartTime > 0 {
-        let startDate = Date(timeIntervalSince1970: TimeInterval(context.state.sessionStartTime))
-        Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
+      } else if context.state.phase == "in_transit" {
+        let nextMins = context.state.nextStationEtaMinutes ?? 2
+        let text = (context.state.isStaleEta == true) ? "—" : (nextMins <= 0 ? "Due" : "\(nextMins)m")
+        Text(text)
           .font(.system(size: 13, weight: .bold))
           .monospacedDigit()
           .foregroundColor(.white)
-          .accessibilityLabel("Elapsed travel time")
+          .accessibilityLabel("Next stop in \(nextMins) minutes")
       } else if signalDegraded {
         Text("...")
           .font(.mcHeadline)
           .foregroundColor(.white.opacity(0.7))
           .accessibilityLabel("Reconnecting")
+      } else if let eps = context.state.approachingEndpoints, eps.count >= 2 {
+        // Split pill: right side shows second soonest endpoint
+        let ep2 = eps[1]
+        let ep2Min = ep2.minutesToArrival <= 0 ? "Due" : "\(ep2.minutesToArrival)m"
+        HStack(spacing: 2) {
+          Rectangle()
+            .fill(LineColor.color(for: context.attributes.lineId))
+            .frame(width: 3, height: 11)
+          Text("\(String(ep2.destinationName.prefix(4))) \(ep2Min)")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(.white)
+        }
       } else if context.state.isDisrupted {
         Text("🟡 \(minutesAway)m")
           .font(.mcHeadline)
@@ -227,20 +246,49 @@ private struct CompactIslandView: View {
           .accessibilityLabel(minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes")
       }
     } else {
-      HStack(spacing: 4) {
-        AccentBar(lineId: context.attributes.lineId)
-        let leadingText: String = {
-          if let short = shortBranch {
-            return "\(lineShortCode) · \(short)"
-          }
-          return context.state.selectedEndpoint ?? lineShortCode
-        }()
-        Text(leadingText)
-          .font(.system(size: 13, weight: .bold))
-          .foregroundColor(.white)
-          .lineLimit(1)
+      if context.state.phase == "line_picker" {
+        HStack(spacing: 3) {
+          Circle().fill(Color(hex: 0x007AFF)).frame(width: 6, height: 6)
+          Text(context.state.currentStationName ?? "Station")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+        }
+      } else if context.state.phase == "in_transit" {
+        HStack(spacing: 4) {
+          AccentBar(lineId: context.attributes.lineId)
+          Text(context.state.nextStationName ?? "Next stop")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+        }
+      } else if let eps = context.state.approachingEndpoints, eps.count >= 2 {
+        // Split pill: left side shows first soonest endpoint
+        let ep1 = eps[0]
+        let ep1Min = ep1.minutesToArrival <= 0 ? "Due" : "\(ep1.minutesToArrival)m"
+        HStack(spacing: 3) {
+          AccentBar(lineId: context.attributes.lineId)
+          Text("\(String(ep1.destinationName.prefix(4))) \(ep1Min)")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+        }
+      } else {
+        HStack(spacing: 4) {
+          AccentBar(lineId: context.attributes.lineId)
+          let leadingText: String = {
+            if let short = shortBranch {
+              return "\(lineShortCode) · \(short)"
+            }
+            return context.state.selectedEndpoint ?? lineShortCode
+          }()
+          Text(leadingText)
+            .font(.system(size: 13, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+        }
+        .accessibilityLabel("\(context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
       }
-      .accessibilityLabel("\(context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
     }
   }
 
@@ -529,7 +577,7 @@ private struct LockScreenView: View {
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(.white.opacity(0.65))
         } else if !hasArrival {
-          Text("First morning train departs at 05:28 AM")
+          Text("No scheduled departures")
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(.white.opacity(0.65))
         } else if context.state.isDisrupted {

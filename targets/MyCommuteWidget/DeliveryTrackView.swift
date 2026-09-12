@@ -1,7 +1,11 @@
 // frontend/targets/MyCommuteWidget/DeliveryTrackView.swift
 // SpringBoard-native countdown timer and Delivery Track progress bar.
-// No if/else branching on timer. SpringBoard ticks this natively, stops at 0:00, never negative.
-// iOS dims the entire Live Activity automatically when staleDate passes.
+// Delivery Architecture:
+// Phase 0: Line Picker (Multi-line hubs)
+// Phase 1: Approaching Platform (Train coming to your station)
+// Phase 2: In-Transit (Your ride to next stop)
+// Phase 3: Arrived Summary (Auto-dismissing)
+// Zero wall-clock timestamps (08:36), zero stopwatches (08:24), zero compass text.
 
 import SwiftUI
 import ActivityKit
@@ -47,7 +51,9 @@ public struct DeliveryTrackView: View {
 
   public var body: some View {
     VStack(spacing: 10) {
-      if state.phase == "arrived" {
+      if state.phase == "line_picker" {
+        linePickerView
+      } else if state.phase == "arrived" {
         arrivedView
       } else if state.phase == "in_transit" {
         inTransitView
@@ -58,23 +64,78 @@ public struct DeliveryTrackView: View {
     .padding(12)
   }
 
-  // MARK: - Phase 1: Approaching Platform
-  private var approachingView: some View {
-    let etaDate = state.etaTimestamp > 0
-      ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp))
-      : Date().addingTimeInterval(300)
-    let now = Date()
+  // MARK: - Phase 0: Line Picker (Multi-Line Hub)
+  private var linePickerView: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(spacing: 6) {
+        Circle()
+          .fill(Color(hex: 0x007AFF))
+          .frame(width: 8, height: 8)
+        Text("\(state.currentStationName ?? "Station") · Choose Line")
+          .font(.system(size: 13, weight: .bold))
+          .foregroundColor(.white)
+        Spacer()
+      }
 
-    return VStack(spacing: 8) {
-      // Line & Destination Header
+      if let lines = state.availableLines, !lines.isEmpty {
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 8) {
+            ForEach(lines, id: \.self) { line in
+              if #available(iOS 17.0, *) {
+                Button(intent: SelectLineIntent(lineId: line)) {
+                  lineChip(lineId: line)
+                }
+                .buttonStyle(.plain)
+              } else {
+                Link(destination: URL(string: "mycommute://line-select?line=\(line)")!) {
+                  lineChip(lineId: line)
+                }
+              }
+            }
+          }
+        }
+      } else {
+        HStack(spacing: 6) {
+          ProgressView()
+            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            .scaleEffect(0.8)
+          Text("Fetching departures…")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.white.opacity(0.75))
+        }
+        .padding(.vertical, 4)
+      }
+    }
+  }
+
+  private func lineChip(lineId: String) -> some View {
+    HStack(spacing: 6) {
+      Rectangle()
+        .fill(LineColor.color(for: lineId))
+        .frame(width: 4, height: 14)
+        .cornerRadius(1)
+      Text(lineId.capitalized)
+        .font(.system(size: 12, weight: .bold))
+        .foregroundColor(.white)
+    }
+    .padding(.horizontal, 10)
+    .padding(.vertical, 6)
+    .background(Color.white.opacity(0.12), in: Capsule())
+    .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.5))
+  }
+
+  // MARK: - Phase 1: Approaching Platform (Train Approaching You)
+  private var approachingView: some View {
+    VStack(spacing: 10) {
+      // Header: Line Name + Station
       HStack {
         DeliveryStatusIcon(severity: state.severityTier)
         Text(state.lineName)
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
-        if let branch = state.branchName, !branch.isEmpty {
-          Text("· \(branch)")
-            .font(.system(size: 11, weight: .semibold))
+        if let stName = state.currentStationName, !stName.isEmpty {
+          Text("· \(stName)")
+            .font(.system(size: 12, weight: .semibold))
             .foregroundColor(.white.opacity(0.85))
         }
         Spacer()
@@ -84,71 +145,138 @@ public struct DeliveryTrackView: View {
           .lineLimit(1)
       }
 
-      // 1-Tap Endpoint Selection Pills (iOS 17+)
-      if let endpoints = state.availableEndpoints, !endpoints.isEmpty {
-        HStack(spacing: 6) {
-          Text("Towards:")
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundColor(.white.opacity(0.6))
-          
-          ForEach(endpoints, id: \.self) { endpoint in
-            let isSelected = (state.selectedEndpoint == endpoint)
-            if #available(iOS 17.0, *) {
-              Button(intent: SwitchEndpointIntent(endpointName: endpoint, lineId: lineId)) {
-                endpointPill(endpoint: endpoint, isSelected: isSelected)
-              }
-              .buttonStyle(.plain)
-            } else {
-              endpointPill(endpoint: endpoint, isSelected: isSelected)
-            }
+      // Stacked Delivery Tracks for Approaching Endpoints
+      if let endpoints = state.approachingEndpoints, !endpoints.isEmpty {
+        VStack(spacing: 12) {
+          ForEach(endpoints.prefix(2), id: \.destinationName) { ep in
+            approachingEndpointTrack(endpoint: ep)
           }
-          Spacer()
         }
+      } else {
+        // Fallback: Single delivery track from top arrival
+        fallbackApproachingTrack
       }
 
-      // Delivery Track progress bar
+      // Detour Alternative (if service is disrupted/escalated)
+      detourSlot
+    }
+  }
+
+  private func approachingEndpointTrack(endpoint: ApproachingEndpoint) -> some View {
+    VStack(alignment: .leading, spacing: 5) {
+      HStack {
+        let branchStr = (endpoint.branchText != nil && !endpoint.branchText!.isEmpty) ? " (\(endpoint.branchText!))" : ""
+        Text("To \(endpoint.destinationName)\(branchStr)")
+          .font(.system(size: 12, weight: .bold))
+          .foregroundColor(.white)
+        Spacer()
+        let minText = endpoint.minutesToArrival <= 0 ? "Due" : "\(endpoint.minutesToArrival)m"
+        Text(minText)
+          .font(.system(size: 13, weight: .bold))
+          .monospacedDigit()
+          .foregroundColor(endpoint.minutesToArrival <= 1 ? Color(hex: 0x30D158) : .white)
+      }
+
+      // Track graphic: [Origin] ─────●───── [CurrentStation] 🏁
+      HStack(spacing: 4) {
+        Text(endpoint.previousStationName ?? "Approaching")
+          .font(.system(size: 10, weight: .medium))
+          .foregroundColor(.white.opacity(0.6))
+          .lineLimit(1)
+        
+        GeometryReader { geo in
+          ZStack(alignment: .leading) {
+            Capsule()
+              .fill(Color.white.opacity(0.18))
+              .frame(height: 4)
+
+            // Progress position (1 stop away = 0.5, arriving now = 0.9)
+            let progressRatio: CGFloat = endpoint.minutesToArrival <= 0 ? 0.95 : (endpoint.stopsAway <= 1 ? 0.65 : 0.35)
+            Circle()
+              .fill(LineColor.color(for: lineId))
+              .frame(width: 8, height: 8)
+              .offset(x: max(0, min(geo.size.width - 8, geo.size.width * progressRatio)))
+          }
+        }
+        .frame(height: 8)
+
+        HStack(spacing: 2) {
+          Text(state.currentStationName ?? "Station")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white.opacity(0.9))
+            .lineLimit(1)
+          Text("🏁")
+            .font(.system(size: 9))
+        }
+      }
+    }
+    .padding(8)
+    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+  }
+
+  private var fallbackApproachingTrack: some View {
+    let etaDate = state.etaTimestamp > 0
+      ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp))
+      : Date().addingTimeInterval(180)
+    let now = Date()
+
+    return VStack(alignment: .leading, spacing: 6) {
+      HStack {
+        let dest = state.destinationStationName ?? state.selectedEndpoint ?? "Destination"
+        let branchStr = (state.branchName != nil && !state.branchName!.isEmpty) ? " (\(state.branchName!))" : ""
+        Text("To \(dest)\(branchStr)")
+          .font(.system(size: 12, weight: .bold))
+          .foregroundColor(.white)
+        Spacer()
+        let minText = state.nextTrainMinutes <= 0 ? "Due" : "\(state.nextTrainMinutes)m"
+        Text(minText)
+          .font(.system(size: 13, weight: .bold))
+          .monospacedDigit()
+          .foregroundColor(.white)
+      }
+
       GeometryReader { geo in
         ZStack(alignment: .leading) {
           Capsule()
             .fill(Color.white.opacity(0.18))
-            .frame(height: 6)
+            .frame(height: 4)
 
           Capsule()
             .fill(LineColor.color(for: lineId))
-            .frame(width: max(8, min(geo.size.width, geo.size.width * CGFloat(state.progress))), height: 6)
+            .frame(width: max(8, min(geo.size.width, geo.size.width * CGFloat(state.progress))), height: 4)
         }
       }
-      .frame(height: 6)
+      .frame(height: 4)
 
-      // Live Countdown to Platform
       HStack {
+        Text("Approaching platform")
+          .font(.system(size: 10))
+          .foregroundColor(.white.opacity(0.6))
+        Spacer()
         let targetDate = max(now, etaDate)
         Text(timerInterval: now...targetDate, countsDown: true)
-          .font(.system(size: 15, weight: .bold))
+          .font(.system(size: 12, weight: .bold))
           .monospacedDigit()
           .foregroundColor(.white)
-          .contentTransition(.numericText())
-
-        Spacer()
-
-        if state.etaDelta != "N/A" && !state.etaDelta.isEmpty {
-          Text(state.etaDelta)
-            .font(.system(size: 12, weight: .semibold))
-            .monospacedDigit()
-            .foregroundColor(state.isEscalated ? Color(hex: 0xFF3B30) : .white.opacity(0.8))
-        }
       }
-
-      // Detour & Delay Repay slots
-      detourAndRepaySlots
     }
   }
 
-  // MARK: - Phase 2: In-Transit (Underground Stopwatch)
+  // MARK: - Phase 2: In-Transit (Your Ride to Next Stop)
   private var inTransitView: some View {
-    VStack(spacing: 8) {
+    let now = Date()
+    let etaSec = (state.nextStationEtaMinutes ?? 2) * 60
+    let etaDate = state.nextStationEtaTimestamp != nil && state.nextStationEtaTimestamp! > 0
+      ? Date(timeIntervalSince1970: TimeInterval(state.nextStationEtaTimestamp!))
+      : now.addingTimeInterval(TimeInterval(etaSec))
+    let isStale = state.isStaleEta ?? false
+
+    return VStack(spacing: 10) {
       HStack {
-        AccentBar(lineId: lineId)
+        Rectangle()
+          .fill(LineColor.color(for: lineId))
+          .frame(width: 4, height: 14)
+          .cornerRadius(1)
         Text("\(state.lineName) · In Transit")
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
@@ -161,30 +289,66 @@ public struct DeliveryTrackView: View {
         }
       }
 
-      // Native Elapsed Stopwatch (zero JS wakes)
-      HStack {
-        let startDate = state.sessionStartTime > 0
-          ? Date(timeIntervalSince1970: TimeInterval(state.sessionStartTime))
-          : Date().addingTimeInterval(-180)
+      // Delivery Track: [PrevStation] ─────●───── [NextStation] 🏁
+      HStack(spacing: 6) {
+        Text(state.currentStationName ?? "Origin")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundColor(.white.opacity(0.7))
+          .lineLimit(1)
 
-        HStack(spacing: 6) {
-          Image(systemName: "stopwatch.fill")
-            .font(.system(size: 12))
-            .foregroundColor(LineColor.color(for: lineId))
-          Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
-            .font(.system(size: 16, weight: .bold))
-            .monospacedDigit()
+        GeometryReader { geo in
+          ZStack(alignment: .leading) {
+            Capsule()
+              .fill(Color.white.opacity(0.18))
+              .frame(height: 6)
+
+            Circle()
+              .fill(LineColor.color(for: lineId))
+              .frame(width: 10, height: 10)
+              .offset(x: max(0, min(geo.size.width - 10, geo.size.width * 0.55)))
+          }
+        }
+        .frame(height: 10)
+
+        HStack(spacing: 2) {
+          Text(state.nextStationName ?? "Next Stop")
+            .font(.system(size: 11, weight: .bold))
             .foregroundColor(.white)
+            .lineLimit(1)
+          Text("🏁")
+            .font(.system(size: 10))
+        }
+      }
+      .padding(8)
+      .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+      // Next Stop Status and Native SpringBoard Countdown
+      HStack {
+        HStack(spacing: 4) {
+          Text("Next stop ·")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(.white.opacity(0.85))
+          if isStale {
+            Text("—")
+              .font(.system(size: 13, weight: .bold))
+              .foregroundColor(.white.opacity(0.6))
+          } else {
+            let targetDate = max(now, etaDate)
+            Text(timerInterval: now...targetDate, countsDown: true)
+              .font(.system(size: 14, weight: .bold))
+              .monospacedDigit()
+              .foregroundColor(.white)
+          }
         }
 
         Spacer()
 
-        Text(state.statusSeverity == "good" ? "On Schedule" : state.statusText)
+        Text(state.statusSeverity == "good" ? "On time" : state.statusText)
           .font(.system(size: 11, weight: .semibold))
           .foregroundColor(state.isDisrupted ? Color(hex: 0xFFB000) : Color(hex: 0x30D158))
       }
 
-      detourAndRepaySlots
+      detourSlot
     }
   }
 
@@ -207,24 +371,12 @@ public struct DeliveryTrackView: View {
           .foregroundColor(.white.opacity(0.7))
         Spacer()
       }
-
-      detourAndRepaySlots
     }
   }
 
-  // MARK: - Subviews & Helpers
-  private func endpointPill(endpoint: String, isSelected: Bool) -> some View {
-    Text(endpoint)
-      .font(.system(size: 10, weight: isSelected ? .bold : .medium))
-      .foregroundColor(isSelected ? .black : .white.opacity(0.85))
-      .padding(.horizontal, 8)
-      .padding(.vertical, 3)
-      .background(isSelected ? Color.white : Color.white.opacity(0.14), in: Capsule())
-  }
-
+  // MARK: - Detour Slot (Alternative lines during disruption)
   @ViewBuilder
-  private var detourAndRepaySlots: some View {
-    // Detour Banner
+  private var detourSlot: some View {
     if state.isEscalated, let detour = state.detourLine, !detour.isEmpty {
       if #available(iOS 17.0, *) {
         Button(intent: SwitchCommuteRouteIntent(
@@ -238,24 +390,6 @@ public struct DeliveryTrackView: View {
         .buttonStyle(.plain)
       } else {
         detourBanner(detour: detour)
-      }
-    }
-
-    // Delay Repay Slot
-    if state.delayRepayEligible, let fare = state.estimatedFare {
-      Link(destination: URL(string: "https://tfl.gov.uk/fares/refunds-and-replacements/delay-repay")!) {
-        HStack(spacing: 5) {
-          Image(systemName: "sterlingsign.circle.fill")
-            .foregroundColor(Color(hex: 0x30D158))
-            .font(.system(size: 12))
-          Text("~£\(fare) potential refund · \(state.delayMinutes)m delay tracked")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.9))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color(hex: 0x30D158).opacity(0.15), in: Capsule())
-        .overlay(Capsule().stroke(Color(hex: 0x30D158).opacity(0.3), lineWidth: 0.5))
       }
     }
   }

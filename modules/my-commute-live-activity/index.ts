@@ -14,6 +14,7 @@ const mockFallbackModule = {
   hasDynamicIsland: async () => false,
   checkTimeSensitivePermission: async () => false,
   requestTimeSensitivePermission: async () => false,
+  areActivitiesEnabled: async () => false,
   addListener: () => ({ remove: () => {} }),
   removeListeners: () => {},
 };
@@ -87,6 +88,7 @@ export interface MyCommuteLiveActivity {
   hasDynamicIsland(): Promise<boolean>;
   checkTimeSensitivePermission(): Promise<boolean>;
   requestTimeSensitivePermission(): Promise<boolean>;
+  areActivitiesEnabled(): Promise<boolean>;
 }
 
 export function addPushToStartListener(listener: (event: { token: string }) => void): EventSubscription {

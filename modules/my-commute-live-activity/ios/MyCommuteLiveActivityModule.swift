@@ -140,6 +140,11 @@ public class MyCommuteLiveActivityModule: Module {
       return !Activity<MyCommuteLiveActivityAttributes>.activities.isEmpty
     }
 
+    AsyncFunction("areActivitiesEnabled") { () -> Bool in
+      guard #available(iOS 16.2, *) else { return false }
+      return ActivityAuthorizationInfo().areActivitiesEnabled
+    }
+
     AsyncFunction("syncWidgetCache") { (linesJson: String, statusesJson: String) -> Void in
       guard let userDefaults = UserDefaults(suiteName: self.appGroupId) else { return }
       if !linesJson.isEmpty {

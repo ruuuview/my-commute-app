@@ -90,6 +90,7 @@ export default function SettingsScreen() {
     alertWindowStart,
     alertWindowEnd,
     severeBypassAlertHours,
+    setSevereBypassAlertHours,
     shushPreferences,
     setAlertDeliveryMode,
     setShushActivation,
@@ -111,6 +112,7 @@ export default function SettingsScreen() {
       alertWindowStart: s.alertWindowStart || '06:00',
       alertWindowEnd: s.alertWindowEnd || '22:00',
       severeBypassAlertHours: s.severeBypassAlertHours !== false,
+      setSevereBypassAlertHours: s.setSevereBypassAlertHours,
       shushPreferences: s.shushPreferences,
       setAlertDeliveryMode: s.setAlertDeliveryMode,
       setShushActivation: s.setShushActivation,
@@ -153,20 +155,41 @@ export default function SettingsScreen() {
   );
 
   const handleTestShushDemo = useCallback(async () => {
+    if (isTestingShush) {
+      if (hapticsEnabled) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+      await LiveActivityService.stopPreviewActivity();
+      setIsTestingShush(false);
+      return;
+    }
+
+    const enabled = await LiveActivityService.areActivitiesEnabled();
+    if (!enabled) {
+      Alert.alert(
+        'Live Activities Disabled',
+        'Live Activities are turned off for My Commute in iOS Settings. Enable them to preview Shush Mode on your Dynamic Island and Lock Screen.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+        ]
+      );
+      return;
+    }
+
     if (hapticsEnabled) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
     setIsTestingShush(true);
-    await LiveActivityService.startPreviewActivity();
-    setTimeout(() => {
+    const activityId = await LiveActivityService.startPreviewActivity();
+    if (!activityId) {
       setIsTestingShush(false);
-    }, 5200);
-  }, [hapticsEnabled]);
-
-  // ── Local Disruption Alerts Content Toggle (Layer 2) ──────────────
-  const [disruptionAlertsEnabled, setDisruptionAlertsEnabled] = useState(true);
-  const [severeAlertsEnabled, setSevereAlertsEnabled] = useState(true);
-  const [minorAlertsEnabled, setMinorAlertsEnabled] = useState(true);
+      Alert.alert(
+        'Unable to Start Preview',
+        'Could not start the Live Activity. Ensure your device is running iOS 16.2+ and Live Activities are permitted in Settings.'
+      );
+    }
+  }, [hapticsEnabled, isTestingShush]);
 
   // ── Modals & Sheets ───────────────────────────────────────────────
   const [showFixItSheet, setShowFixItSheet] = useState(false);
@@ -211,7 +234,6 @@ export default function SettingsScreen() {
       setOsNotifStatus(res.status);
       setOsNotifCanAskAgain(res.canAskAgain);
       if (granted) {
-        setDisruptionAlertsEnabled(true);
         usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
       } else if (res.status === Notifications.PermissionStatus.DENIED && !res.canAskAgain) {
         usePermissionOrchestrator.getState().recordDecision('notifications', 'denied');
@@ -267,8 +289,8 @@ export default function SettingsScreen() {
 
   // ── Priority Attention Row (Max 1) ────────────────────────────────
   const attentionRow = useMemo(() => {
-    // Priority 1: Notifications
-    if (!osNotificationsGranted) {
+    // Priority 1: Notifications (suppressed if user explicitly picked Off)
+    if (shushPreferences.alertDeliveryMode !== 'off' && !osNotificationsGranted) {
       // Truly blocked in iOS Settings (status === 'denied' and OS won't allow re-asking in-app)
       if (osNotifStatus === Notifications.PermissionStatus.DENIED && !osNotifCanAskAgain) {
         return {
@@ -322,6 +344,7 @@ export default function SettingsScreen() {
     }
     return null;
   }, [
+    shushPreferences.alertDeliveryMode,
     osNotificationsGranted,
     osNotifStatus,
     osNotifCanAskAgain,
@@ -332,49 +355,6 @@ export default function SettingsScreen() {
   ]);
 
   // ── Toggle Handlers ───────────────────────────────────────────────
-  const handleToggleDisruptionAlerts = async (val: boolean) => {
-    if (hapticsEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    if (val && !osNotificationsGranted) {
-      try {
-        const current = await Notifications.getPermissionsAsync();
-        if (current.status === 'granted') {
-          setOsNotificationsGranted(true);
-          setOsNotifStatus(current.status);
-          setDisruptionAlertsEnabled(true);
-          return;
-        }
-        if (current.canAskAgain || current.status === Notifications.PermissionStatus.UNDETERMINED) {
-          const res = await Notifications.requestPermissionsAsync({
-            ios: { allowAlert: true, allowBadge: true, allowSound: true },
-          });
-          const granted = res.status === 'granted';
-          setOsNotificationsGranted(granted);
-          setOsNotifStatus(res.status);
-          setOsNotifCanAskAgain(res.canAskAgain);
-          if (granted) {
-            setDisruptionAlertsEnabled(true);
-            usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
-            return;
-          }
-        }
-        Alert.alert(
-          'Notifications Required',
-          'Please enable notifications in Settings to receive real-time alerts.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-      } catch (err) {
-        console.warn('[Settings] Failed to toggle disruption alerts:', err);
-      }
-      return;
-    }
-    setDisruptionAlertsEnabled(val);
-  };
-
   const handleToggleNearbyDetection = async (val: boolean) => {
     if (hapticsEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -635,9 +615,9 @@ export default function SettingsScreen() {
                     <View style={styles.shushWarningBox}>
                       <Warning size={18} color="#FF9F0A" weight="fill" />
                       <View style={{ flex: 1, marginHorizontal: 8 }}>
-                        <Text style={styles.shushWarningTitle}>Time-Sensitive Alert Needed</Text>
+                        <Text style={styles.shushWarningTitle}>Urgent Closure Alerts</Text>
                         <Text style={styles.shushWarningSub}>
-                          Tier 3 line closures cannot break silence without Time-Sensitive permission.
+                          Allow urgent closure alerts so you&apos;re notified when a Tube line is suspended.
                         </Text>
                       </View>
                       <Pressable
@@ -649,23 +629,23 @@ export default function SettingsScreen() {
                           }
                         }}
                       >
-                        <Text style={styles.shushEnableBtnText}>Enable</Text>
+                        <Text style={styles.shushEnableBtnText}>Allow</Text>
                       </Pressable>
                     </View>
                   )}
 
-                  {/* 1-Tap 5-second Demo (Section 19) */}
+                  {/* 1-Tap Demo / Toggle */}
                   <Pressable
                     style={({ pressed }) => [
                       styles.shushDemoBtn,
+                      isTestingShush && styles.shushDemoBtnTesting,
                       pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
                     ]}
                     onPress={handleTestShushDemo}
-                    disabled={isTestingShush}
                   >
                     <Sparkle size={16} color="#FFFFFF" weight="bold" />
                     <Text style={styles.shushDemoBtnText}>
-                      {isTestingShush ? 'Live Activity Preview Running (5s)...' : 'Test Shush Mode (5s Live Activity)'}
+                      {isTestingShush ? '⏹ End Preview (Lock screen to view)' : 'Test Shush Mode (Preview on Lock Screen)'}
                     </Text>
                   </Pressable>
                 </>
@@ -677,131 +657,128 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>ALERTS</Text>
 
-            <LiquidGlassView
-              borderRadius={16}
-              style={styles.cardOuter}
-              contentStyle={styles.cardInner}
-            >
-              {/* Master Switch: Disruption Alerts */}
-              <View style={styles.row}>
-                <View style={styles.rowInfo}>
-                  <View style={styles.labelRow}>
-                    <IconBadge
-                      icon={<Bell size={18} color="#30D158" weight="fill" />}
-                      backgroundColor="rgba(48, 209, 88, 0.18)"
-                      borderColor="rgba(48, 209, 88, 0.35)"
-                    />
-                    <Text style={styles.rowLabel}>Disruption Alerts</Text>
-                  </View>
-                  <Text style={styles.rowSubtitle}>
-                    Alerts for disruptions on your saved lines & stations
-                  </Text>
-                </View>
-                <Switch
-                  value={osNotificationsGranted && disruptionAlertsEnabled}
-                  onValueChange={handleToggleDisruptionAlerts}
-                  trackColor={{ false: '#3A3A3C', true: '#30D158' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              {/* Child 1: Severe Disruptions (Dimmed if Master OFF) */}
-              <View style={[styles.childRow, !disruptionAlertsEnabled && styles.dimmedRow]}>
-                <View style={styles.rowInfo}>
-                  <Text style={styles.childLabel}>Severe Disruptions</Text>
-                  <Text style={styles.rowSubtitle}>Closures, suspensions, and major delays</Text>
-                </View>
-                <Switch
-                  disabled={!disruptionAlertsEnabled}
-                  value={severeAlertsEnabled}
-                  onValueChange={setSevereAlertsEnabled}
-                  trackColor={{ false: '#3A3A3C', true: '#DC3545' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              {/* Child 2: Minor Delays (Dimmed if Master OFF) */}
-              <View style={[styles.childRow, !disruptionAlertsEnabled && styles.dimmedRow]}>
-                <View style={styles.rowInfo}>
-                  <Text style={styles.childLabel}>Minor Delays</Text>
-                  <Text style={styles.rowSubtitle}>Part-closures, reduced service, and delays</Text>
-                </View>
-                <Switch
-                  disabled={!disruptionAlertsEnabled}
-                  value={minorAlertsEnabled}
-                  onValueChange={setMinorAlertsEnabled}
-                  trackColor={{ false: '#3A3A3C', true: '#FFA500' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              <View style={styles.divider} />
-
-              {/* Alert Hours (Allowed Window) */}
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={() => setShowAlertHoursSheet(true)}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  alertHoursMode === '24h'
-                    ? 'Alert hours: 24/7 Always on'
-                    : `Alert hours, current window: ${alertWindowStart} to ${alertWindowEnd}`
-                }
-                accessibilityHint="Opens sheet to adjust notification hours"
+            {shushPreferences.alertDeliveryMode === 'off' ? (
+              <LiquidGlassView
+                borderRadius={16}
+                style={styles.cardOuter}
+                contentStyle={styles.cardInner}
               >
-                <View style={styles.rowInfo}>
-                  <View style={styles.labelRow}>
-                    <IconBadge
-                      icon={<Clock size={18} color="#5E5CE6" weight="bold" />}
-                      backgroundColor="rgba(94, 92, 230, 0.18)"
-                      borderColor="rgba(94, 92, 230, 0.35)"
-                    />
-                    <Text style={styles.rowLabel}>Alert hours</Text>
+                <View style={styles.collapsedOffRow}>
+                  <IconBadge
+                    icon={<BellSlash size={18} color="#8E8E93" weight="fill" />}
+                    backgroundColor="rgba(142, 142, 147, 0.18)"
+                    borderColor="rgba(142, 142, 147, 0.35)"
+                  />
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.collapsedOffTitle}>All notifications paused</Text>
+                    <Text style={styles.collapsedOffSubtitle}>
+                      Tap Loud or Shush above to configure alerts
+                    </Text>
                   </View>
-                  <Text style={styles.rowSubtitle}>
-                    {alertHoursMode === '24h'
-                      ? '24/7 (Always on)'
-                      : `${alertWindowStart} – ${alertWindowEnd}${severeBypassAlertHours ? ' · Severe always on' : ' · Strict'}`}
-                  </Text>
                 </View>
-                <CaretRight size={18} color="rgba(255,255,255,0.35)" />
-              </Pressable>
-
-              <View style={styles.divider} />
-
-              {/* Calendar Commute Auto-Detect */}
-              <View style={styles.row}>
-                <View style={styles.rowInfo}>
-                  <View style={styles.labelRow}>
-                    <IconBadge
-                      icon={<Clock size={18} color="#0A84FF" weight="bold" />}
-                      backgroundColor="rgba(10, 132, 255, 0.18)"
-                      borderColor="rgba(10, 132, 255, 0.35)"
-                    />
-                    <Text style={styles.rowLabel}>Auto-detect commute from calendar</Text>
+              </LiquidGlassView>
+            ) : (
+              <LiquidGlassView
+                borderRadius={16}
+                style={styles.cardOuter}
+                contentStyle={styles.cardInner}
+              >
+                {/* Alert Hours (Allowed Window) */}
+                <Pressable
+                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                  onPress={() => setShowAlertHoursSheet(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    alertHoursMode === '24h'
+                      ? 'Alert hours: 24/7 Always on'
+                      : `Alert hours, current window: ${alertWindowStart} to ${alertWindowEnd}`
+                  }
+                  accessibilityHint="Opens sheet to adjust notification hours"
+                >
+                  <View style={styles.rowInfo}>
+                    <View style={styles.labelRow}>
+                      <IconBadge
+                        icon={<Clock size={18} color="#5E5CE6" weight="bold" />}
+                        backgroundColor="rgba(94, 92, 230, 0.18)"
+                        borderColor="rgba(94, 92, 230, 0.35)"
+                      />
+                      <Text style={styles.rowLabel}>Alert hours</Text>
+                    </View>
+                    <Text style={styles.rowSubtitle}>
+                      {alertHoursMode === '24h'
+                        ? '24/7 (Always on)'
+                        : `${alertWindowStart} – ${alertWindowEnd}${severeBypassAlertHours ? ' · Severe always on' : ' · Strict'}`}
+                    </Text>
                   </View>
-                  <Text style={styles.rowSubtitle}>
-                    Reads event start times to alert you before you travel
-                  </Text>
+                  <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                </Pressable>
+
+                <View style={styles.divider} />
+
+                {/* Severe Suspension Bypass */}
+                <View style={styles.row}>
+                  <View style={styles.rowInfo}>
+                    <View style={styles.labelRow}>
+                      <IconBadge
+                        icon={<WarningCircle size={18} color="#FF453A" weight="bold" />}
+                        backgroundColor="rgba(255, 69, 58, 0.18)"
+                        borderColor="rgba(255, 69, 58, 0.35)"
+                      />
+                      <Text style={styles.rowLabel}>Severe Suspension Bypass</Text>
+                    </View>
+                    <Text style={styles.rowSubtitle}>
+                      Always notify immediately for suspensions, even outside alert hours
+                    </Text>
+                  </View>
+                  <Switch
+                    value={severeBypassAlertHours}
+                    onValueChange={(val) => {
+                      if (hapticsEnabled) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      }
+                      setSevereBypassAlertHours(val);
+                    }}
+                    trackColor={{ false: '#3A3A3C', true: '#FF453A' }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
-                <Switch
-                  value={calendarGranted}
-                  onValueChange={async (v) => {
-                    if (hapticsEnabled) {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    }
-                    if (v) {
-                      const res = await requestPermission('calendar', 'auto_detect');
-                      setCalendarGranted(res === 'granted');
-                    } else {
-                      setCalendarGranted(false);
-                    }
-                  }}
-                  trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-            </LiquidGlassView>
+
+                <View style={styles.divider} />
+
+                {/* Calendar Commute Auto-Detect */}
+                <View style={styles.row}>
+                  <View style={styles.rowInfo}>
+                    <View style={styles.labelRow}>
+                      <IconBadge
+                        icon={<Clock size={18} color="#0A84FF" weight="bold" />}
+                        backgroundColor="rgba(10, 132, 255, 0.18)"
+                        borderColor="rgba(10, 132, 255, 0.35)"
+                      />
+                      <Text style={styles.rowLabel}>Auto-detect commute from calendar</Text>
+                    </View>
+                    <Text style={styles.rowSubtitle}>
+                      Reads event start times to alert you before you travel
+                    </Text>
+                  </View>
+                  <Switch
+                    value={calendarGranted}
+                    onValueChange={async (v) => {
+                      if (hapticsEnabled) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      }
+                      if (v) {
+                        const res = await requestPermission('calendar', 'auto_detect');
+                        setCalendarGranted(res === 'granted');
+                      } else {
+                        setCalendarGranted(false);
+                      }
+                    }}
+                    trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              </LiquidGlassView>
+            )}
           </View>
 
           {/* ── HUB 2: MY COMMUTE (Spatial Intelligence) ──────────────── */}
@@ -1221,15 +1198,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
   },
-  childRow: {
+  collapsedOffRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingLeft: 44,
+    paddingVertical: 14,
   },
-  dimmedRow: {
-    opacity: 0.35,
+  collapsedOffTitle: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  collapsedOffSubtitle: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.50)',
+    marginTop: 2,
+    lineHeight: 16,
   },
   actionRow: {
     flexDirection: 'row',
@@ -1406,6 +1390,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(191, 90, 242, 0.45)',
     marginVertical: 10,
+  },
+  shushDemoBtnTesting: {
+    backgroundColor: 'rgba(255, 69, 58, 0.22)',
+    borderColor: 'rgba(255, 69, 58, 0.45)',
   },
   shushDemoBtnText: {
     fontFamily: 'SpaceGrotesk_700Bold',

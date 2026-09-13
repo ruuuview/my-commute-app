@@ -622,14 +622,22 @@ export class LiveActivityService {
     }
   }
 
+  private static previewTimeout: ReturnType<typeof setTimeout> | null = null;
+
   /**
    * 1-Tap Preview trigger for instant on-device testing of Dynamic Island & Lock Screen Live Activity.
-   * Auto-terminates after 5 seconds per Shush Onboarding spec (Section 19).
+   * Keeps preview active so user can lock their phone to view the Lock Screen card,
+   * backed by a 60s safety timeout.
    */
   static async startPreviewActivity(): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
       return null;
+    }
+
+    if (this.previewTimeout) {
+      clearTimeout(this.previewTimeout);
+      this.previewTimeout = null;
     }
 
     const state = useUserPreferencesStore.getState();
@@ -676,10 +684,11 @@ export class LiveActivityService {
       console.log(`[LiveActivityService] Started preview activity ${activityId}`);
       track('shush_session_started', { trigger: 'preview', mode: 'shush' });
 
-      // Auto-terminate after 5 seconds
-      setTimeout(() => {
+      // Generous 60s backstop so user has ample time to lock screen and inspect card
+      this.previewTimeout = setTimeout(() => {
         void this.end('demo_timeout');
-      }, 5000);
+        this.previewTimeout = null;
+      }, 60000);
 
       return activityId;
     } catch (e) {
@@ -689,6 +698,10 @@ export class LiveActivityService {
   }
 
   static async stopPreviewActivity(): Promise<void> {
+    if (this.previewTimeout) {
+      clearTimeout(this.previewTimeout);
+      this.previewTimeout = null;
+    }
     await this.end('manual_preview_stop');
   }
 
@@ -814,6 +827,18 @@ export class LiveActivityService {
       const granted = await MyCommuteLiveActivityModule.requestTimeSensitivePermission();
       useUserPreferencesStore.getState().setTimeSensitiveGranted(granted);
       return granted;
+    } catch {
+      return false;
+    }
+  }
+
+  static async areActivitiesEnabled(): Promise<boolean> {
+    if (Platform.OS !== 'ios') return false;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.areActivitiesEnabled !== 'function') {
+      return false;
+    }
+    try {
+      return await MyCommuteLiveActivityModule.areActivitiesEnabled();
     } catch {
       return false;
     }

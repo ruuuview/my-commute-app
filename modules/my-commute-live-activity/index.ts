@@ -1,6 +1,8 @@
 import { requireOptionalNativeModule, EventEmitter } from 'expo-modules-core';
 import type { Tier2Cache } from '../../services/tier2Cache';
 
+export type TimeSensitiveStatus = 'not_supported' | 'disabled' | 'enabled';
+
 export interface EventSubscription {
   remove(): void;
 }
@@ -12,6 +14,7 @@ const mockFallbackModule = {
   isActivityActive: async () => false,
   syncWidgetCache: async () => {},
   hasDynamicIsland: async () => false,
+  getTimeSensitiveStatus: async (): Promise<TimeSensitiveStatus> => 'not_supported',
   checkTimeSensitivePermission: async () => false,
   requestTimeSensitivePermission: async () => false,
   areActivitiesEnabled: async () => false,
@@ -21,7 +24,7 @@ const mockFallbackModule = {
 
 // The native module is registered by ExpoModulesCore via expo-module.config.json.
 // It exposes startCommuteActivity / updateCommuteActivity / endCommuteActivity / isActivityActive /
-// syncWidgetCache / hasDynamicIsland / checkTimeSensitivePermission / requestTimeSensitivePermission.
+// syncWidgetCache / hasDynamicIsland / getTimeSensitiveStatus / checkTimeSensitivePermission / requestTimeSensitivePermission.
 const MyCommuteLiveActivityModule =
   requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
   requireOptionalNativeModule('MyCommuteLiveActivity') ??
@@ -86,6 +89,7 @@ export interface MyCommuteLiveActivity {
   isActivityActive(): Promise<boolean>;
   syncWidgetCache(linesJson: string, statusesJson: string): Promise<void>;
   hasDynamicIsland(): Promise<boolean>;
+  getTimeSensitiveStatus(): Promise<TimeSensitiveStatus>;
   checkTimeSensitivePermission(): Promise<boolean>;
   requestTimeSensitivePermission(): Promise<boolean>;
   areActivitiesEnabled(): Promise<boolean>;

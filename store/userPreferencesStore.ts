@@ -23,6 +23,8 @@ const mmkvStorageAdapter: StateStorage = {
   },
 };
 
+export type TimeSensitiveStatus = 'not_supported' | 'disabled' | 'enabled';
+
 export interface ShushPreferences {
   alertDeliveryMode: 'loud' | 'shush' | 'off';
   shushActivation: 'smart' | 'schedule' | 'always';
@@ -31,6 +33,7 @@ export interface ShushPreferences {
     windows: { start: string; end: string }[]; // DateComponents, no TZ
   };
   timeSensitiveGranted: boolean;
+  timeSensitiveStatus: TimeSensitiveStatus;
   hasCompletedShushOnboarding: boolean;
 }
 
@@ -92,6 +95,7 @@ export interface UserPreferencesState {
   setShushActivation: (activation: 'smart' | 'schedule' | 'always') => void;
   setShushSchedule: (schedule: ShushPreferences['shushSchedule']) => void;
   setTimeSensitiveGranted: (granted: boolean) => void;
+  setTimeSensitiveStatus: (status: TimeSensitiveStatus) => void;
   setHasCompletedShushOnboarding: (completed: boolean) => void;
   updateShushRuntimeState: (patch: Partial<ShushRuntimeState>) => void;
   setDeviceCapabilities: (caps: Partial<DeviceCapabilities>) => void;
@@ -137,7 +141,7 @@ export interface UserPreferencesState {
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -181,6 +185,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
       windows: [{ start: '07:30', end: '09:30' }, { start: '17:00', end: '19:00' }],
     },
     timeSensitiveGranted: false,
+    timeSensitiveStatus: 'not_supported',
     hasCompletedShushOnboarding: false,
   },
   shushRuntimeState: {
@@ -413,7 +418,22 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setAlertDeliveryMode: (mode) => set((state) => ({ shushPreferences: { ...state.shushPreferences, alertDeliveryMode: mode } })),
       setShushActivation: (activation) => set((state) => ({ shushPreferences: { ...state.shushPreferences, shushActivation: activation } })),
       setShushSchedule: (schedule) => set((state) => ({ shushPreferences: { ...state.shushPreferences, shushSchedule: schedule } })),
-      setTimeSensitiveGranted: (granted) => set((state) => ({ shushPreferences: { ...state.shushPreferences, timeSensitiveGranted: granted } })),
+      setTimeSensitiveGranted: (granted) =>
+        set((state) => ({
+          shushPreferences: {
+            ...state.shushPreferences,
+            timeSensitiveGranted: granted,
+            timeSensitiveStatus: granted ? 'enabled' : state.shushPreferences.timeSensitiveStatus,
+          },
+        })),
+      setTimeSensitiveStatus: (status) =>
+        set((state) => ({
+          shushPreferences: {
+            ...state.shushPreferences,
+            timeSensitiveStatus: status,
+            timeSensitiveGranted: status === 'enabled',
+          },
+        })),
       setHasCompletedShushOnboarding: (completed) => set((state) => ({ shushPreferences: { ...state.shushPreferences, hasCompletedShushOnboarding: completed } })),
       updateShushRuntimeState: (patch) => set((state) => ({ shushRuntimeState: { ...state.shushRuntimeState, ...patch } })),
       setDeviceCapabilities: (caps) => set((state) => ({ deviceCapabilities: { ...state.deviceCapabilities, ...caps } })),

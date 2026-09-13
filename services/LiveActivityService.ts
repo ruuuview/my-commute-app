@@ -806,6 +806,18 @@ export class LiveActivityService {
     }
   }
 
+  static async getTimeSensitiveStatus(): Promise<'not_supported' | 'disabled' | 'enabled'> {
+    if (Platform.OS !== 'ios') return 'not_supported';
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.getTimeSensitiveStatus !== 'function') {
+      return 'not_supported';
+    }
+    try {
+      return await MyCommuteLiveActivityModule.getTimeSensitiveStatus();
+    } catch {
+      return 'not_supported';
+    }
+  }
+
   static async checkTimeSensitivePermission(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.checkTimeSensitivePermission !== 'function') {
@@ -825,7 +837,8 @@ export class LiveActivityService {
     }
     try {
       const granted = await MyCommuteLiveActivityModule.requestTimeSensitivePermission();
-      useUserPreferencesStore.getState().setTimeSensitiveGranted(granted);
+      const status = await this.getTimeSensitiveStatus();
+      useUserPreferencesStore.getState().setTimeSensitiveStatus(status);
       return granted;
     } catch {
       return false;

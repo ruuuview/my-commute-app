@@ -38,7 +38,8 @@
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.mycommute.app"
-        ]
+        ],
+        "com.apple.developer.usernotifications.time-sensitive": true
       }
     },
     "android": {

@@ -42,7 +42,8 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
   test('Settings file features honest time-sensitive copy and interactive test toggle', () => {
     const content = fs.readFileSync(settingsPath, 'utf8');
 
-    // Clear and honest Time-Sensitive copy
+    // Clear and honest Time-Sensitive copy gated on tri-state disabled
+    expect(content).toContain("shushPreferences.timeSensitiveStatus === 'disabled'");
     expect(content).toContain('Urgent Closure Alerts');
     expect(content).toContain('Allow urgent closure alerts so you&apos;re notified when a Tube line is suspended.');
     expect(content).toContain('>Allow<');
@@ -52,6 +53,23 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     expect(content).toContain('Test Shush Mode (Preview on Lock Screen)');
     expect(content).toContain('areActivitiesEnabled');
     expect(content).toContain('stopPreviewActivity');
+  });
+
+  test('Store manages tri-state TimeSensitiveStatus accurately', () => {
+    const store = useUserPreferencesStore.getState();
+    expect(store.shushPreferences.timeSensitiveStatus).toBeDefined();
+
+    store.setTimeSensitiveStatus('not_supported');
+    expect(useUserPreferencesStore.getState().shushPreferences.timeSensitiveStatus).toBe('not_supported');
+    expect(useUserPreferencesStore.getState().shushPreferences.timeSensitiveGranted).toBe(false);
+
+    store.setTimeSensitiveStatus('disabled');
+    expect(useUserPreferencesStore.getState().shushPreferences.timeSensitiveStatus).toBe('disabled');
+    expect(useUserPreferencesStore.getState().shushPreferences.timeSensitiveGranted).toBe(false);
+
+    store.setTimeSensitiveStatus('enabled');
+    expect(useUserPreferencesStore.getState().shushPreferences.timeSensitiveStatus).toBe('enabled');
+    expect(useUserPreferencesStore.getState().shushPreferences.timeSensitiveGranted).toBe(true);
   });
 
   test('Store persists severeBypassAlertHours updates', () => {
@@ -65,7 +83,11 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     expect(useUserPreferencesStore.getState().severeBypassAlertHours).toBe(true);
   });
 
-  test('LiveActivityService exposes areActivitiesEnabled and stopPreviewActivity', async () => {
+  test('LiveActivityService exposes getTimeSensitiveStatus, areActivitiesEnabled, and stopPreviewActivity', async () => {
+    expect(typeof LiveActivityService.getTimeSensitiveStatus).toBe('function');
+    const status = await LiveActivityService.getTimeSensitiveStatus();
+    expect(['not_supported', 'disabled', 'enabled']).toContain(status);
+
     expect(typeof LiveActivityService.areActivitiesEnabled).toBe('function');
     const enabled = await LiveActivityService.areActivitiesEnabled();
     expect(typeof enabled).toBe('boolean');

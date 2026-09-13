@@ -172,6 +172,24 @@ public class MyCommuteLiveActivityModule: Module {
       return false
     }
 
+    AsyncFunction("getTimeSensitiveStatus") { () -> String in
+      let center = UNUserNotificationCenter.current()
+      let settings = await center.notificationSettings()
+      if #available(iOS 15.0, *) {
+        switch settings.timeSensitiveSetting {
+        case .notSupported:
+          return "not_supported"
+        case .disabled:
+          return "disabled"
+        case .enabled:
+          return "enabled"
+        @unknown default:
+          return "not_supported"
+        }
+      }
+      return settings.authorizationStatus == .authorized ? "enabled" : "disabled"
+    }
+
     AsyncFunction("checkTimeSensitivePermission") { () -> Bool in
       let center = UNUserNotificationCenter.current()
       let settings = await center.notificationSettings()

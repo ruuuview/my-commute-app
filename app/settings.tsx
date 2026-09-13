@@ -94,7 +94,7 @@ export default function SettingsScreen() {
     shushPreferences,
     setAlertDeliveryMode,
     setShushActivation,
-    setTimeSensitiveGranted,
+    setTimeSensitiveStatus,
   } = useUserPreferencesStore(
     useShallow((s) => ({
       hapticsEnabled: s.hapticsEnabled,
@@ -116,7 +116,7 @@ export default function SettingsScreen() {
       shushPreferences: s.shushPreferences,
       setAlertDeliveryMode: s.setAlertDeliveryMode,
       setShushActivation: s.setShushActivation,
-      setTimeSensitiveGranted: s.setTimeSensitiveGranted,
+      setTimeSensitiveStatus: s.setTimeSensitiveStatus,
     }))
   );
 
@@ -128,10 +128,10 @@ export default function SettingsScreen() {
     void (async () => {
       const di = await LiveActivityService.hasDynamicIsland();
       setHasDI(di);
-      const ts = await LiveActivityService.checkTimeSensitivePermission();
-      setTimeSensitiveGranted(ts);
+      const status = await LiveActivityService.getTimeSensitiveStatus();
+      setTimeSensitiveStatus(status);
     })();
-  }, [setTimeSensitiveGranted]);
+  }, [setTimeSensitiveStatus]);
 
   const handleSelectDeliveryMode = useCallback(
     async (mode: 'loud' | 'shush' | 'off') => {
@@ -141,17 +141,18 @@ export default function SettingsScreen() {
       setAlertDeliveryMode(mode);
       if (mode === 'shush') {
         track('shush_mode_enabled');
-        const ts = await LiveActivityService.checkTimeSensitivePermission();
-        setTimeSensitiveGranted(ts);
-        if (!ts) {
-          const granted = await LiveActivityService.requestTimeSensitivePermission();
-          setTimeSensitiveGranted(granted);
+        const status = await LiveActivityService.getTimeSensitiveStatus();
+        setTimeSensitiveStatus(status);
+        if (status === 'disabled') {
+          await LiveActivityService.requestTimeSensitivePermission();
+          const refreshed = await LiveActivityService.getTimeSensitiveStatus();
+          setTimeSensitiveStatus(refreshed);
         }
       } else {
         track('shush_mode_disabled', { newMode: mode });
       }
     },
-    [hapticsEnabled, setAlertDeliveryMode, setTimeSensitiveGranted]
+    [hapticsEnabled, setAlertDeliveryMode, setTimeSensitiveStatus]
   );
 
   const handleTestShushDemo = useCallback(async () => {
@@ -248,10 +249,14 @@ export default function SettingsScreen() {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void checkOsPermissions();
+        void (async () => {
+          const status = await LiveActivityService.getTimeSensitiveStatus();
+          setTimeSensitiveStatus(status);
+        })();
       }
     });
     return () => sub.remove();
-  }, [checkOsPermissions]);
+  }, [checkOsPermissions, setTimeSensitiveStatus]);
 
   // ── Station Helpers ───────────────────────────────────────────────
   const homeStation = useMemo(
@@ -610,8 +615,8 @@ export default function SettingsScreen() {
                     </Text>
                   </View>
 
-                  {/* Time-Sensitive Permission Soft Nag */}
-                  {!shushPreferences.timeSensitiveGranted && (
+                  {/* Time-Sensitive Permission Soft Nag (Tri-state: only renders if capability exists in binary and is user-disabled) */}
+                  {shushPreferences.timeSensitiveStatus === 'disabled' && (
                     <View style={styles.shushWarningBox}>
                       <Warning size={18} color="#FF9F0A" weight="fill" />
                       <View style={{ flex: 1, marginHorizontal: 8 }}>
@@ -623,8 +628,10 @@ export default function SettingsScreen() {
                       <Pressable
                         style={styles.shushEnableBtn}
                         onPress={async () => {
-                          const ok = await LiveActivityService.requestTimeSensitivePermission();
-                          if (!ok) {
+                          await LiveActivityService.requestTimeSensitivePermission();
+                          const refreshed = await LiveActivityService.getTimeSensitiveStatus();
+                          setTimeSensitiveStatus(refreshed);
+                          if (refreshed === 'disabled') {
                             Linking.openSettings().catch(() => {});
                           }
                         }}

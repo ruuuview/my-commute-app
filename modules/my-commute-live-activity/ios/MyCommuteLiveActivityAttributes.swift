@@ -97,6 +97,10 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       return severityTier > 0
     }
 
+    public var isOfflineMode: Bool {
+      return (isStaleEta == true) || tunnelState == "held" || tunnelState == "offline"
+    }
+
     public init(
       lineName: String = "",
       statusSeverity: String = "good",

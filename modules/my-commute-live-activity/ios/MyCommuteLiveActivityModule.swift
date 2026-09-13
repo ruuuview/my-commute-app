@@ -65,9 +65,11 @@ public class MyCommuteLiveActivityModule: Module {
 
       do {
         let staleTimeout = TimeInterval(state.segmentMaxDuration > 0 ? state.segmentMaxDuration : 900)
-        let staleDate = state.etaTimestamp > 0
-          ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp)).addingTimeInterval(staleTimeout)
-          : Date().addingTimeInterval(900)
+        let staleDate: Date? = state.isOfflineMode
+          ? nil
+          : (state.etaTimestamp > 0
+              ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp)).addingTimeInterval(staleTimeout)
+              : Date().addingTimeInterval(900))
 
         let content = ActivityContent(state: state, staleDate: staleDate)
 
@@ -105,9 +107,11 @@ public class MyCommuteLiveActivityModule: Module {
       guard let activity = activities.first else { return }
 
       let staleTimeout = TimeInterval(state.segmentMaxDuration > 0 ? state.segmentMaxDuration : 900)
-      let staleDate = state.etaTimestamp > 0
-        ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp)).addingTimeInterval(staleTimeout)
-        : Date().addingTimeInterval(900)
+      let staleDate: Date? = state.isOfflineMode
+        ? nil
+        : (state.etaTimestamp > 0
+            ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp)).addingTimeInterval(staleTimeout)
+            : Date().addingTimeInterval(900))
 
       let content = ActivityContent(state: state, staleDate: staleDate)
       Task {

@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   CaretLeft, Bell, Clock, CaretRight,
-  Fingerprint, House, MapTrifold, MapPin, Shield,
+  Fingerprint, MapTrifold, MapPin, Shield,
   WarningCircle, Wrench, Warning,
   SpeakerHigh, BellSlash, Sparkle
 } from 'phosphor-react-native';
@@ -81,8 +81,6 @@ export default function SettingsScreen() {
     setLocationGranted,
     calendarGranted,
     setCalendarGranted,
-    arrivalNotificationsEnabled,
-    setArrivalNotificationsEnabled,
     tflAccountStatus,
     setTflAccountStatus,
     completedJourneys,
@@ -104,8 +102,6 @@ export default function SettingsScreen() {
       setLocationGranted: s.setLocationGranted,
       calendarGranted: s.calendarGranted,
       setCalendarGranted: s.setCalendarGranted,
-      arrivalNotificationsEnabled: s.arrivalNotificationsEnabled,
-      setArrivalNotificationsEnabled: s.setArrivalNotificationsEnabled,
       tflAccountStatus: s.tflAccountStatus,
       setTflAccountStatus: s.setTflAccountStatus,
       completedJourneys: s.completedJourneys,
@@ -421,49 +417,6 @@ export default function SettingsScreen() {
       setLocationGranted(false);
       void syncGeofencesAsync([]);
     }
-  };
-
-  const handleToggleWelcomeHome = async (val: boolean) => {
-    if (hapticsEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    if (val && !osNotificationsGranted) {
-      try {
-        const current = await Notifications.getPermissionsAsync();
-        if (current.status === 'granted') {
-          setOsNotificationsGranted(true);
-          setOsNotifStatus(current.status);
-          setArrivalNotificationsEnabled(true);
-          return;
-        }
-        if (current.canAskAgain || current.status === Notifications.PermissionStatus.UNDETERMINED) {
-          const res = await Notifications.requestPermissionsAsync({
-            ios: { allowAlert: true, allowBadge: true, allowSound: true },
-          });
-          const granted = res.status === 'granted';
-          setOsNotificationsGranted(granted);
-          setOsNotifStatus(res.status);
-          setOsNotifCanAskAgain(res.canAskAgain);
-          if (granted) {
-            setArrivalNotificationsEnabled(true);
-            usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
-            return;
-          }
-        }
-        Alert.alert(
-          'Notifications Required',
-          'Welcome Home sends a local arrival summary when you reach home. Please enable notifications in Settings.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-      } catch (err) {
-        console.warn('[Settings] Failed to toggle welcome home:', err);
-      }
-      return;
-    }
-    setArrivalNotificationsEnabled(val);
   };
 
   // ── Option C "Ratchet" TfL Tap Handler ────────────────────────────
@@ -915,31 +868,6 @@ export default function SettingsScreen() {
                   value={locationGranted && osLocationAlwaysGranted && hasHomeOrWork}
                   onValueChange={handleToggleNearbyDetection}
                   trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              <View style={styles.divider} />
-
-              {/* Welcome Home Summary (Independent Layer 3 Arrival Event) */}
-              <View style={styles.row}>
-                <View style={styles.rowInfo}>
-                  <View style={styles.labelRow}>
-                    <IconBadge
-                      icon={<House size={18} color="#FF9F0A" weight="fill" />}
-                      backgroundColor="rgba(255, 159, 10, 0.18)"
-                      borderColor="rgba(255, 159, 10, 0.35)"
-                    />
-                    <Text style={styles.rowLabel}>Welcome Home Summary</Text>
-                  </View>
-                  <Text style={styles.rowSubtitle}>
-                    Notifies upon arrival at your Home station
-                  </Text>
-                </View>
-                <Switch
-                  value={arrivalNotificationsEnabled && osNotificationsGranted}
-                  onValueChange={handleToggleWelcomeHome}
-                  trackColor={{ false: '#3A3A3C', true: '#30D158' }}
                   thumbColor="#FFFFFF"
                 />
               </View>

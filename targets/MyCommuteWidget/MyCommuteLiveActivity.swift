@@ -208,13 +208,32 @@ private struct CompactIslandView: View {
           .foregroundColor(Color(hex: 0x30D158))
           .accessibilityLabel("Arrived at destination")
       } else if context.state.phase == "in_transit" {
-        let nextMins = context.state.nextStationEtaMinutes ?? 2
-        let text = (context.state.isStaleEta == true) ? "—" : (nextMins <= 0 ? "Due" : "\(nextMins)m")
-        Text(text)
-          .font(.system(size: 13, weight: .bold))
-          .monospacedDigit()
-          .foregroundColor(.white)
-          .accessibilityLabel("Next stop in \(nextMins) minutes")
+        if context.state.isOfflineMode {
+          let nowUnix = Int(Date().timeIntervalSince1970)
+          let elapsedSec = max(0, nowUnix - context.state.sessionStartTime)
+          let elapsedMins = max(1, elapsedSec / 60)
+          if context.state.delayMinutes > 0 {
+            Text("+\(context.state.delayMinutes)m")
+              .font(.system(size: 13, weight: .bold))
+              .monospacedDigit()
+              .foregroundColor(Color(hex: 0xFF9500))
+              .accessibilityLabel("Delayed by \(context.state.delayMinutes) minutes")
+          } else {
+            Text("\(elapsedMins)m")
+              .font(.system(size: 13, weight: .bold))
+              .monospacedDigit()
+              .foregroundColor(.white)
+              .accessibilityLabel("\(elapsedMins) minutes in transit")
+          }
+        } else {
+          let nextMins = context.state.nextStationEtaMinutes ?? 2
+          let text = nextMins <= 0 ? "Due" : "\(nextMins)m"
+          Text(text)
+            .font(.system(size: 13, weight: .bold))
+            .monospacedDigit()
+            .foregroundColor(.white)
+            .accessibilityLabel("Next stop in \(nextMins) minutes")
+        }
       } else if signalDegraded {
         Text("...")
           .font(.mcHeadline)
@@ -257,7 +276,10 @@ private struct CompactIslandView: View {
       } else if context.state.phase == "in_transit" {
         HStack(spacing: 4) {
           AccentBar(lineId: context.attributes.lineId)
-          Text(context.state.nextStationName ?? "Next stop")
+          let leadName = context.state.isOfflineMode
+            ? lineShortCode
+            : (context.state.nextStationName ?? lineShortCode)
+          Text(leadName)
             .font(.system(size: 12, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
@@ -331,7 +353,25 @@ private struct ExpandedStatusPill: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
   var body: some View {
-    if context.state.tunnelState == "held" {
+    if context.state.isOfflineMode {
+      if context.state.delayMinutes > 0 {
+        Text("Delayed +\(context.state.delayMinutes)m")
+          .font(.system(size: 10, weight: .bold))
+          .foregroundColor(Color(hex: 0xFF9500))
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2)
+          .background(Color(hex: 0xFF9500).opacity(0.18))
+          .cornerRadius(4)
+      } else {
+        Text("Offline")
+          .font(.system(size: 10, weight: .bold))
+          .foregroundColor(.white.opacity(0.8))
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2)
+          .background(Color.white.opacity(0.14))
+          .cornerRadius(4)
+      }
+    } else if context.state.tunnelState == "held" {
       Text("Reconnecting")
         .font(.system(size: 10, weight: .bold))
         .foregroundColor(.white.opacity(0.7))

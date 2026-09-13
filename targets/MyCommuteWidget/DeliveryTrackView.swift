@@ -277,7 +277,7 @@ public struct DeliveryTrackView: View {
           .fill(LineColor.color(for: lineId))
           .frame(width: 4, height: 14)
           .cornerRadius(1)
-        Text("\(state.lineName) · In Transit")
+        Text(state.isOfflineMode ? "\(state.lineName) · In Transit (Offline)" : "\(state.lineName) · In Transit")
           .font(.system(size: 13, weight: .bold))
           .foregroundColor(.white)
         Spacer()
@@ -325,14 +325,20 @@ public struct DeliveryTrackView: View {
       // Next Stop Status and Native SpringBoard Countdown
       HStack {
         HStack(spacing: 4) {
-          Text("Next stop ·")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.white.opacity(0.85))
-          if isStale {
-            Text("—")
+          if state.isOfflineMode {
+            let elapsedSec = max(0, Int(now.timeIntervalSince1970) - state.sessionStartTime)
+            let elapsedMins = max(1, elapsedSec / 60)
+            Text("In Transit ·")
+              .font(.system(size: 12, weight: .semibold))
+              .foregroundColor(.white.opacity(0.85))
+            Text("\(elapsedMins)m elapsed")
               .font(.system(size: 13, weight: .bold))
-              .foregroundColor(.white.opacity(0.6))
+              .monospacedDigit()
+              .foregroundColor(.white)
           } else {
+            Text("Next stop ·")
+              .font(.system(size: 12, weight: .semibold))
+              .foregroundColor(.white.opacity(0.85))
             let targetDate = max(now, etaDate)
             Text(timerInterval: now...targetDate, countsDown: true)
               .font(.system(size: 14, weight: .bold))
@@ -343,9 +349,21 @@ public struct DeliveryTrackView: View {
 
         Spacer()
 
-        Text(state.statusSeverity == "good" ? "On time" : state.statusText)
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundColor(state.isDisrupted ? Color(hex: 0xFFB000) : Color(hex: 0x30D158))
+        if state.isOfflineMode {
+          if state.delayMinutes > 0 {
+            Text("Delayed · +\(state.delayMinutes)m")
+              .font(.system(size: 11, weight: .bold))
+              .foregroundColor(Color(hex: 0xFF9500))
+          } else {
+            Text("In Tunnel · On time")
+              .font(.system(size: 11, weight: .semibold))
+              .foregroundColor(.white.opacity(0.75))
+          }
+        } else {
+          Text(state.statusSeverity == "good" ? "On time" : state.statusText)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(state.isDisrupted ? Color(hex: 0xFFB000) : Color(hex: 0x30D158))
+        }
       }
 
       detourSlot

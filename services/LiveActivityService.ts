@@ -84,7 +84,7 @@ export interface LiveActivityBridgePayload {
   delayRepayEligible?: boolean;
   estimatedFare?: string | null;
   delayMinutes?: number;
-  tunnelState?: 'normal' | 'held';
+  tunnelState?: 'normal' | 'held' | 'offline';
   progress?: number;
   segmentMaxDuration?: number;
   signalState: LiveActivitySignalState;
@@ -169,7 +169,7 @@ export class LiveActivityService {
    * Build the bridge payload from the Tier 2 cache + session context.
    * Returns null when there is nothing usable to show (honest void).
    */
-  private static buildPayload(
+  public static buildPayload(
     stationId: string,
     lineId: string,
     signalStateOverride?: LiveActivitySignalState
@@ -354,6 +354,16 @@ export class LiveActivityService {
       nextStationEtaMinutes = 2;
     }
 
+    // Physical delay accumulation: If in-transit elapsed time exceeds baseline, accumulate physical delay minutes
+    let effectiveDelayMinutes = delayMinutes;
+    if (phase === 'in_transit' && sessionStartTime > 0) {
+      const elapsedSec = nowUnix - sessionStartTime;
+      if (elapsedSec > estimatedTransitSec) {
+        const physicalDelay = Math.max(0, Math.round((elapsedSec - estimatedTransitSec) / 60));
+        effectiveDelayMinutes = Math.max(delayMinutes, physicalDelay);
+      }
+    }
+
     return {
       journeyId,
       backendUrl: APP_CONFIG.BACKEND_API_URL,
@@ -378,8 +388,8 @@ export class LiveActivityService {
       detourStatus: detour?.detourStatus ?? null,
       delayRepayEligible,
       estimatedFare,
-      delayMinutes,
-      tunnelState: 'normal',
+      delayMinutes: effectiveDelayMinutes,
+      tunnelState: isStaleEta ? 'offline' : 'normal',
       progress: 0.15,
       segmentMaxDuration: 180,
       signalState,

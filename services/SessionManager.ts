@@ -616,52 +616,9 @@ export class SessionManager {
     if (currentState === 'active') {
       const destId = this.getCommuteDestinationId();
       if (stationId === destId) {
-        const prefs = useUserPreferencesStore.getState();
-        if (!prefs.labelsConfirmed) {
-          console.log(`[SessionManager] Home not confirmed — closing session without arrival notification.`);
-          await this.closeSession(false);
-          return;
-        }
-        if (!prefs.arrivalNotificationsEnabled) {
-          console.log(`[SessionManager] Arrival notifications disabled — closing session without notification.`);
-          await this.closeSession(false);
-          return;
-        }
-
-        console.log(`[SessionManager] Entering destination geofence. Initiating ${ARRIVAL_DWELL_MINUTES}‑minute dwell check.`);
-
-        const snoozeExpiry = prefs.arrivalSnoozeExpiry;
-        if (snoozeExpiry && Date.now() < snoozeExpiry) {
-          console.log(`[SessionManager] Snoozed until ${new Date(snoozeExpiry).toISOString()} — skipping arrival.`);
-          await this.closeSession(false);
-          return;
-        }
-
-        const body = SessionManager._buildArrivalBody(
-          prefs.selectedLines || [],
-          prefs.lastKnownData || []
-        );
-
-        const expires = Date.now() + ARRIVAL_DWELL_MS;
-        backgroundStorage.set('session_state', 'closing');
-        backgroundStorage.set('dwell_timer_expires', String(expires));
-
-        await Notifications.cancelScheduledNotificationAsync('arrived-consent-prompt').catch(() => {});
-        await Notifications.scheduleNotificationAsync({
-          identifier: 'arrived-consent-prompt',
-          content: {
-            title: `Welcome home.`,
-            body: body,
-            categoryIdentifier: 'ARRIVED_ALERT',
-            sound: deliveryMode === 'loud',
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: ARRIVAL_DWELL_MINUTES * 60,
-          },
-        }).catch(err => {
-          console.error('[SessionManager] Failed to schedule arrival notification:', err);
-        });
+        console.log(`[SessionManager] Entering destination geofence (${stationId}). Commute completed.`);
+        await this.closeSession(false);
+        return;
       }
     }
   }

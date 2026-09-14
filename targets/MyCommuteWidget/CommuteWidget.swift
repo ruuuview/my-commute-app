@@ -716,7 +716,15 @@ struct AccessoryInlineView: View {
         } else if entry.disruptedLines.count > 1 {
             Label("\(entry.disruptedLines.count) Lines Delayed", systemImage: "exclamationmark.triangle.fill")
         } else if let worst = entry.worstLine, worst.level != .good {
-            Label("\(abbreviatedLineName(worst.name)): \(abbreviatedStatus(worst.status))", systemImage: "exclamationmark.triangle.fill")
+            let icon: String = {
+                switch worst.level {
+                case .suspended: return "xmark.circle.fill"
+                case .severe: return "exclamationmark.triangle.fill"
+                case .minor: return "clock.fill"
+                case .good: return "checkmark"
+                }
+            }()
+            Label("\(abbreviatedLineName(worst.name)): \(abbreviatedStatus(worst.status))", systemImage: icon)
         } else {
             Label("All Lines Normal", systemImage: "checkmark")
                 .accessibilityLabel("All lines normal")
@@ -749,8 +757,16 @@ struct AccessoryCircularView: View {
                         .widgetAccentable()
                 }
             } else if let worst = entry.worstLine, worst.level != .good {
+                let icon: String = {
+                    switch worst.level {
+                    case .suspended: return "xmark.circle.fill"
+                    case .severe: return "exclamationmark.triangle.fill"
+                    case .minor: return "clock.fill"
+                    case .good: return "checkmark"
+                    }
+                }()
                 VStack(spacing: 1) {
-                    Image(systemName: worst.level == .suspended ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                    Image(systemName: icon)
                         .font(.system(size: 13, weight: .bold))
                         .widgetAccentable()
                     Text(String(worst.name.prefix(3)).uppercased())
@@ -799,9 +815,17 @@ struct AccessoryRectangularView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             } else if let worst = entry.worstLine, worst.level != .good {
+                let worstIcon: String = {
+                    switch worst.level {
+                    case .suspended: return "xmark.circle.fill"
+                    case .severe: return "exclamationmark.triangle.fill"
+                    case .minor: return "clock.fill"
+                    case .good: return "checkmark"
+                    }
+                }()
                 // Disrupted State: Hero row (22pt) + Secondary row (18pt)
                 HStack(spacing: 5) {
-                    Image(systemName: worst.level == .suspended ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                    Image(systemName: worstIcon)
                         .font(.system(size: 13, weight: .bold))
                         .widgetAccentable()
                     Text(worst.name)
@@ -809,18 +833,23 @@ struct AccessoryRectangularView: View {
                         .lineLimit(1)
                     Spacer()
                     Text(worst.status)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Color.primary.opacity(0.15))
-                        .clipShape(Capsule())
                 }
                 .frame(height: 22)
 
                 HStack(spacing: 4) {
                     if let second = entry.otherLines.first(where: { $0.level != .good }) {
-                        Image(systemName: second.level == .suspended ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                        let secondIcon: String = {
+                            switch second.level {
+                            case .suspended: return "xmark.circle.fill"
+                            case .severe: return "exclamationmark.triangle.fill"
+                            case .minor: return "clock.fill"
+                            case .good: return "checkmark"
+                            }
+                        }()
+                        Image(systemName: secondIcon)
                             .font(.system(size: 10))
                         Text("\(second.name): \(second.status)")
                             .font(.system(size: 10, weight: .medium))

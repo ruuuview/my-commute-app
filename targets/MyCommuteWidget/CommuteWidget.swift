@@ -57,21 +57,6 @@ enum SeverityLevel {
         }
     }
 
-    var ambientGlowColor: Color {
-        switch self {
-        case .good:
-            return Color(red: 48.0/255.0, green: 209.0/255.0, blue: 88.0/255.0).opacity(0.18)
-        case .minor:
-            return Color(red: 255.0/255.0, green: 176.0/255.0, blue: 0.0/255.0).opacity(0.20)
-        case .severe:
-            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0).opacity(0.25)
-        case .suspended:
-            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0).opacity(0.28)
-        }
-    }
-
-
-
     var gradientColors: [Color] {
         switch self {
         case .good:
@@ -423,10 +408,6 @@ struct CommutePremiumEntryView: View {
     var entry: CommuteEntry
     @Environment(\.widgetFamily) var family
 
-    private var priorityTheme: SeverityLevel {
-        entry.worstLine?.level ?? .good
-    }
-
     var body: some View {
         switch family {
         case .accessoryInline:
@@ -440,32 +421,20 @@ struct CommutePremiumEntryView: View {
                 .modifier(ContainerBackgroundModifier())
         default:
             ZStack {
-                // Base material layer — exactly one material in the entire widget
-                Rectangle().fill(.ultraThinMaterial)
-
-                // Atmospheric ambient radial gradient
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        priorityTheme.ambientGlowColor,
-                        Color.clear
-                    ]),
-                    center: .topLeading,
-                    startRadius: 10,
-                    endRadius: 130
-                )
+                LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
 
                 // Content layer
                 Group {
                     if let msg = entry.debugMessage, entry.lines.isEmpty {
-                        DebugView(message: msg, theme: priorityTheme)
+                        DebugView(message: msg, theme: entry.overallLevel)
                     } else if entry.lines.isEmpty {
-                        EmptyStateView(theme: priorityTheme)
+                        EmptyStateView(theme: entry.overallLevel)
                     } else {
                         if family == .systemSmall, let worst = entry.worstLine {
-                            SmallPriorityView(line: worst, theme: priorityTheme, entry: entry)
+                            SmallPriorityView(line: worst, theme: entry.overallLevel, entry: entry)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            DashboardView(entry: entry, theme: priorityTheme)
+                            DashboardView(entry: entry, theme: entry.overallLevel)
                         }
                     }
                 }
@@ -485,7 +454,6 @@ struct DashboardView: View {
                 if let worst = entry.worstLine {
                     PriorityView(line: worst, theme: theme)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(ContainerRelativeShape().fill(Color.white.opacity(0.04)))
                 }
 
                 Rectangle()
@@ -495,7 +463,6 @@ struct DashboardView: View {
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(ContainerRelativeShape().fill(Color.white.opacity(0.02)))
             }
 
             Rectangle()

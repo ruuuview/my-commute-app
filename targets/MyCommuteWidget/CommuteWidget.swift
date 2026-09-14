@@ -70,25 +70,7 @@ enum SeverityLevel {
         }
     }
 
-    var frameStrokeColor: Color {
-        switch self {
-        case .good:
-            return Color.white.opacity(0.14)
-        case .minor:
-            return Color.white.opacity(0.16)
-        case .severe, .suspended:
-            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0).opacity(0.85)
-        }
-    }
 
-    var frameStrokeWidth: CGFloat {
-        switch self {
-        case .good, .minor:
-            return 0.5
-        case .severe, .suspended:
-            return 1.0
-        }
-    }
 
     var gradientColors: [Color] {
         switch self {
@@ -449,15 +431,30 @@ struct CommutePremiumEntryView: View {
         switch family {
         case .accessoryInline:
             AccessoryInlineView(entry: entry)
-                .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: true))
+                .modifier(ContainerBackgroundModifier())
         case .accessoryCircular:
             AccessoryCircularView(entry: entry)
-                .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: true))
+                .modifier(ContainerBackgroundModifier())
         case .accessoryRectangular:
             AccessoryRectangularView(entry: entry)
-                .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: true))
+                .modifier(ContainerBackgroundModifier())
         default:
             ZStack {
+                // Base material layer — exactly one material in the entire widget
+                Rectangle().fill(.ultraThinMaterial)
+
+                // Atmospheric ambient radial gradient
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        priorityTheme.ambientGlowColor,
+                        Color.clear
+                    ]),
+                    center: .topLeading,
+                    startRadius: 10,
+                    endRadius: 130
+                )
+
+                // Content layer
                 Group {
                     if let msg = entry.debugMessage, entry.lines.isEmpty {
                         DebugView(message: msg, theme: priorityTheme)
@@ -473,12 +470,7 @@ struct CommutePremiumEntryView: View {
                     }
                 }
             }
-            .overlay(
-                ContainerRelativeShape()
-                    .inset(by: priorityTheme.frameStrokeWidth / 2)
-                    .stroke(priorityTheme.frameStrokeColor, lineWidth: priorityTheme.frameStrokeWidth)
-            )
-            .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: false))
+            .modifier(ContainerBackgroundModifier())
         }
     }
 }
@@ -489,41 +481,32 @@ struct DashboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: 4) {
                 if let worst = entry.worstLine {
                     PriorityView(line: worst, theme: theme)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(Color.black.opacity(0.45))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-                                )
-                        )
+                        .background(ContainerRelativeShape().fill(Color.white.opacity(0.04)))
                 }
+
+                Rectangle()
+                    .fill(theme.dividerColor)
+                    .frame(width: 1)
+                    .padding(.top, 6)
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color.black.opacity(0.45))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-                            )
-                    )
+                    .background(ContainerRelativeShape().fill(Color.white.opacity(0.02)))
             }
-            .padding(.top, 8)
-            .padding(.horizontal, 8)
 
-            Spacer(minLength: 4)
+            Rectangle()
+                .fill(entry.isStale ? Color.white.opacity(0.3) : theme.dividerColor)
+                .frame(height: 1)
+                .padding(.horizontal, 10)
 
             WidgetFooterView(entry: entry, theme: theme)
                 .layoutPriority(1)
-                .padding(.bottom, 6)
-                .padding(.horizontal, 8)
         }
+        .padding(.horizontal, 4)
         .widgetURL(URL(string: "mycommute://"))
     }
 }
@@ -541,7 +524,7 @@ struct PriorityView: View {
 
             Spacer(minLength: 4)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 StatusIcon(level: line.level, size: WidgetMetrics.iconSizeMedium)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(line.name)
@@ -558,7 +541,7 @@ struct PriorityView: View {
 
             Spacer(minLength: 4)
         }
-        .padding(.horizontal, 10).padding(.vertical, 6)
+        .padding(.leading, 12).padding(.top, 6).padding(.bottom, 6)
         .frame(maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(line.name + " line priority: " + line.status)
@@ -576,7 +559,7 @@ struct OtherLinesPanelView: View {
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
                 .padding(.top, 6)
-                .padding(.horizontal, 10)
+                .padding(.leading, 10)
 
             Spacer(minLength: 2)
 
@@ -585,7 +568,7 @@ struct OtherLinesPanelView: View {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(lines.prefix(4)) { line in LineRowView(line: line, theme: theme) }
             }
-            .padding(.horizontal, 10)
+            .padding(.leading, 10)
             .padding(.bottom, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -599,48 +582,35 @@ struct SmallPriorityView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("PRIORITY")
-                    .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
-                    .tracking(1.8)
-                    .foregroundColor(theme.secondaryTextColor)
-                    .padding(.top, 8)
+            Text("PRIORITY")
+                .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
+                .tracking(1.8)
+                .foregroundColor(theme.secondaryTextColor)
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
 
-                Spacer(minLength: 4)
+            Spacer(minLength: 4)
 
-                HStack(spacing: 8) {
-                    StatusIcon(level: line.level, size: WidgetMetrics.iconSizeSmall)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(line.name)
-                            .font(.system(size: WidgetMetrics.lineNameSmall, weight: .bold))
-                            .foregroundColor(theme.textColor)
-                            .lineLimit(1).minimumScaleFactor(0.6)
-                        Text(line.status)
-                            .font(.system(size: WidgetMetrics.lineStatusSmall, weight: .semibold))
-                            .foregroundColor(theme.secondaryTextColor)
-                            .lineLimit(2).minimumScaleFactor(0.7)
-                    }
+            HStack(spacing: 10) {
+                StatusIcon(level: line.level, size: WidgetMetrics.iconSizeSmall)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(line.name)
+                        .font(.system(size: WidgetMetrics.lineNameSmall, weight: .bold))
+                        .foregroundColor(theme.textColor)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Text(line.status)
+                        .font(.system(size: WidgetMetrics.lineStatusSmall, weight: .semibold))
+                        .foregroundColor(theme.secondaryTextColor)
+                        .lineLimit(2).minimumScaleFactor(0.7)
                 }
-
-                Spacer(minLength: 4)
             }
-            .padding(.horizontal, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.black.opacity(0.45))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-                    )
-            )
+            .padding(.horizontal, 14)
 
             Spacer(minLength: 4)
 
             WidgetFooterView(entry: entry, theme: theme)
                 .layoutPriority(1)
         }
-        .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .widgetURL(URL(string: "mycommute://"))
         .accessibilityElement(children: .combine)
@@ -946,45 +916,11 @@ struct AccessoryRectangularView: View {
 }
 
 struct ContainerBackgroundModifier: ViewModifier {
-    let theme: SeverityLevel
-    var forAccessory: Bool = false
-
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
-            if forAccessory {
-                content.containerBackground(for: .widget) { Color.clear }
-            } else {
-                content.containerBackground(for: .widget) {
-                    ZStack {
-                        Rectangle().fill(.ultraThinMaterial)
-                        Color.black.opacity(0.40)
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                theme.ambientGlowColor,
-                                Color.clear
-                            ]),
-                            center: .topLeading,
-                            startRadius: 10,
-                            endRadius: 130
-                        )
-                    }
-                }
-            }
+            content.containerBackground(for: .widget) { Color.clear }
         } else {
-            content.background(
-                ZStack {
-                    Color.black.opacity(0.85)
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            theme.ambientGlowColor,
-                            Color.clear
-                        ]),
-                        center: .topLeading,
-                        startRadius: 10,
-                        endRadius: 130
-                    )
-                }
-            )
+            content
         }
     }
 }

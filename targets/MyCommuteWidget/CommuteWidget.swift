@@ -151,6 +151,10 @@ struct CommuteEntry: TimelineEntry {
         lines.max(by: { $0.level.rank < $1.level.rank })
     }
 
+    var disruptedLines: [CommuteLine] {
+        lines.filter { $0.level != .good }
+    }
+
     var otherLines: [CommuteLine] {
         guard let worst = worstLine else { return [] }
         return lines
@@ -729,85 +733,215 @@ struct EmptyStateView: View {
 
 struct AccessoryInlineView: View {
     let entry: CommuteEntry
-    
+
+    private func abbreviatedLineName(_ name: String) -> String {
+        switch name.lowercased() {
+        case "metropolitan": return "Met"
+        case "waterloo & city", "waterloo and city": return "W&C"
+        case "hammersmith & city", "hammersmith and city": return "H&C"
+        case "piccadilly": return "Picc"
+        default:
+            if name.count > 10 {
+                return String(name.prefix(8)) + "."
+            }
+            return name
+        }
+    }
+
+    private func abbreviatedStatus(_ status: String) -> String {
+        switch status.lowercased() {
+        case "good service": return "Good"
+        case "minor delays": return "Minor"
+        case "severe delays": return "Severe"
+        case "part suspended": return "Part Susp"
+        case "suspended": return "Susp"
+        case "planned closure": return "Closure"
+        case "part closure": return "Part Close"
+        default:
+            if status.count > 10 {
+                return String(status.prefix(8)) + "."
+            }
+            return status
+        }
+    }
+
     var body: some View {
-        if let worst = entry.worstLine {
-            Text("\(worst.name): \(worst.status)")
+        ViewThatFits {
+            content
+        }
+        .dynamicTypeSize(...DynamicTypeSize.large)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if entry.lines.isEmpty {
+            Label("Tap to setup", systemImage: "tram")
+        } else if entry.disruptedLines.count > 1 {
+            Label("\(entry.disruptedLines.count) Lines Delayed", systemImage: "exclamationmark.triangle.fill")
+        } else if let worst = entry.worstLine, worst.level != .good {
+            Label("\(abbreviatedLineName(worst.name)): \(abbreviatedStatus(worst.status))", systemImage: "exclamationmark.triangle.fill")
         } else {
-            Text("No Commute Data")
+            Label("All Lines Normal", systemImage: "checkmark")
+                .accessibilityLabel("All lines normal")
         }
     }
 }
 
 struct AccessoryCircularView: View {
     let entry: CommuteEntry
-    
+
+    private var targetURL: URL {
+        URL(string: entry.lines.isEmpty ? "mycommute://lines" : "mycommute://")!
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            if let worst = entry.worstLine {
-                Image(systemName: worst.level == .good ? "checkmark.circle" :
-                                 worst.level == .minor ? "exclamationmark.triangle" :
-                                 worst.level == .severe ? "exclamationmark.circle" : "xmark.circle")
-                    .font(.system(size: 18, weight: .bold))
-                Text(String(worst.name.prefix(3)).uppercased())
-                    .font(.system(size: 8, weight: .black))
-            } else {
+        ZStack {
+            AccessoryWidgetBackground()
+
+            if entry.lines.isEmpty {
                 Image(systemName: "tram")
-                    .font(.system(size: 16))
+                    .font(.system(size: 18))
+                    .widgetAccentable()
+            } else if entry.disruptedLines.count > 1 {
+                VStack(spacing: 1) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .widgetAccentable()
+                    Text("\(entry.disruptedLines.count)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .widgetAccentable()
+                }
+            } else if let worst = entry.worstLine, worst.level != .good {
+                VStack(spacing: 1) {
+                    Image(systemName: worst.level == .suspended ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .widgetAccentable()
+                    Text(String(worst.name.prefix(3)).uppercased())
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .widgetAccentable()
+                }
+            } else {
+                VStack(spacing: 2) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .widgetAccentable()
+                        .accessibilityLabel("All lines normal")
+                    Text("\(entry.lines.count)")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .widgetAccentable()
+                }
             }
         }
+        .widgetURL(targetURL)
+        .dynamicTypeSize(...DynamicTypeSize.large)
     }
 }
 
 struct AccessoryRectangularView: View {
     let entry: CommuteEntry
-    
+
+    private var targetURL: URL {
+        URL(string: entry.lines.isEmpty ? "mycommute://lines" : "mycommute://")!
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 4) {
-                Image(systemName: "tram.fill")
-                    .font(.system(size: 10))
-                Text("COMMUTE")
-                    .font(.system(size: 8, weight: .black))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.bottom, 2)
-            
-            if let worst = entry.worstLine {
-                HStack(spacing: 4) {
-                    Image(systemName: worst.level == .good ? "checkmark.circle.fill" :
-                                     worst.level == .minor ? "exclamationmark.triangle.fill" :
-                                     worst.level == .suspended ? "xmark.circle.fill" :
-                                     "exclamationmark.circle.fill")
-                        .font(.system(size: 9))
-                    Text(worst.name)
-                        .font(.system(size: 11, weight: .bold))
-                    Text(worst.status)
-                        .font(.system(size: 10))
+        VStack(alignment: .leading, spacing: 4) {
+            if entry.lines.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "tram.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .widgetAccentable()
+                        Text("My Commute")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    Text("Tap to select commute lines")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
-                
-                if let second = entry.otherLines.first {
-                    HStack(spacing: 4) {
-                        Image(systemName: second.level == .good ? "checkmark.circle.fill" :
-                                         second.level == .minor ? "exclamationmark.triangle.fill" :
-                                         second.level == .suspended ? "xmark.circle.fill" :
-                                         "exclamationmark.circle.fill")
-                            .font(.system(size: 9))
-                        Text(second.name)
-                            .font(.system(size: 11, weight: .bold))
-                        Text(second.status)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            } else if let worst = entry.worstLine, worst.level != .good {
+                // Disrupted State: Hero row (22pt) + Secondary row (18pt)
+                HStack(spacing: 5) {
+                    Image(systemName: worst.level == .suspended ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .widgetAccentable()
+                    Text(worst.name)
+                        .font(.system(size: 13, weight: .bold))
+                        .lineLimit(1)
+                    Spacer()
+                    Text(worst.status)
+                        .font(.system(size: 10, weight: .semibold))
+                        .lineLimit(1)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color.primary.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+                .frame(height: 22)
+
+                HStack(spacing: 4) {
+                    if let second = entry.otherLines.first(where: { $0.level != .good }) {
+                        Image(systemName: second.level == .suspended ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
                             .font(.system(size: 10))
+                        Text("\(second.name): \(second.status)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .widgetAccentable()
+                            .accessibilityLabel("All lines normal")
+                        Text("All other lines normal")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
+                    if entry.isStale {
+                        Spacer()
+                        Text("(stale)")
+                            .font(.system(size: 9, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .frame(height: 18)
             } else {
-                Text("Tap to select commute lines")
-                    .font(.system(size: 9, weight: .medium))
+                // All Clear State: Hero row (22pt) + Secondary row (18pt)
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .widgetAccentable()
+                        .accessibilityLabel("All lines normal")
+                    Text("All Lines Normal")
+                        .font(.system(size: 13, weight: .bold))
+                        .lineLimit(1)
+                    if entry.isStale {
+                        Spacer()
+                        Text("(stale)")
+                            .font(.system(size: 9, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .frame(height: 22)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "tram.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                    Text("\(entry.lines.count) corridors monitored")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(height: 18)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .widgetURL(URL(string: "mycommute://lines"))
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .widgetURL(targetURL)
+        .dynamicTypeSize(...DynamicTypeSize.large)
     }
 }
 

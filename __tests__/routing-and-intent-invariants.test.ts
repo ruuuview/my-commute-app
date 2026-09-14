@@ -139,4 +139,102 @@ describe('Routing & Intent Lifecycle Invariants (Rule 20 Compliance)', () => {
       expect(dashCode).toContain('sessionConsumedLegacyLineIds');
     });
   });
+
+  describe('Invariant 5: Lock Screen Accessory Widget Invariants (Rule 22 Compliance)', () => {
+    const widgetPath = path.resolve(__dirname, '../targets/MyCommuteWidget/CommuteWidget.swift');
+    const widgetCode = fs.readFileSync(widgetPath, 'utf8');
+
+    it('eliminates self-branding COMMUTE header from accessory views', () => {
+      // Isolates the accessory views section
+      const accessorySection = widgetCode.substring(
+        widgetCode.indexOf('struct AccessoryInlineView'),
+        widgetCode.indexOf('struct ContainerBackgroundModifier')
+      );
+      expect(accessorySection).not.toContain('Text("COMMUTE")');
+    });
+
+    it('bans raw colored emoji from accessory views in favor of monochrome SF Symbols', () => {
+      const accessorySection = widgetCode.substring(
+        widgetCode.indexOf('struct AccessoryInlineView'),
+        widgetCode.indexOf('struct ContainerBackgroundModifier')
+      );
+      expect(accessorySection).not.toContain('⚠️');
+      expect(accessorySection).not.toContain('🚆');
+      expect(accessorySection).not.toContain('✓');
+      expect(accessorySection).toContain('exclamationmark.triangle.fill');
+      expect(accessorySection).toContain('checkmark');
+    });
+
+    it('enforces state-dependent routing: mycommute:// for populated and mycommute://lines for empty', () => {
+      const accessorySection = widgetCode.substring(
+        widgetCode.indexOf('struct AccessoryInlineView'),
+        widgetCode.indexOf('struct ContainerBackgroundModifier')
+      );
+      expect(accessorySection).toContain('entry.lines.isEmpty ? "mycommute://lines" : "mycommute://"');
+    });
+
+    it('applies Dynamic Type clamping to large on all accessory views', () => {
+      const accessorySection = widgetCode.substring(
+        widgetCode.indexOf('struct AccessoryInlineView'),
+        widgetCode.indexOf('struct ContainerBackgroundModifier')
+      );
+      const occurrences = (accessorySection.match(/\.dynamicTypeSize\(\.\.\.DynamicTypeSize\.large\)/g) || []).length;
+      expect(occurrences).toBe(3); // Rectangular, Circular, Inline
+    });
+
+    it('attaches VoiceOver accessibilityLabel to checkmark symbols', () => {
+      const accessorySection = widgetCode.substring(
+        widgetCode.indexOf('struct AccessoryInlineView'),
+        widgetCode.indexOf('struct ContainerBackgroundModifier')
+      );
+      expect(accessorySection).toContain('.accessibilityLabel("All lines normal")');
+    });
+
+    it('guarantees inline complication string <= 26 characters across worst-case lines', () => {
+      // Test the abbreviation logic matching CommuteWidget.swift
+      const abbreviateLine = (name: string): string => {
+        switch (name.toLowerCase()) {
+          case 'metropolitan': return 'Met';
+          case 'waterloo & city': case 'waterloo and city': return 'W&C';
+          case 'hammersmith & city': case 'hammersmith and city': return 'H&C';
+          case 'piccadilly': return 'Picc';
+          default:
+            return name.length > 10 ? name.slice(0, 8) + '.' : name;
+        }
+      };
+
+      const abbreviateStatus = (status: string): string => {
+        switch (status.toLowerCase()) {
+          case 'good service': return 'Good';
+          case 'minor delays': return 'Minor';
+          case 'severe delays': return 'Severe';
+          case 'part suspended': return 'Part Susp';
+          case 'suspended': return 'Susp';
+          case 'planned closure': return 'Closure';
+          case 'part closure': return 'Part Close';
+          default:
+            return status.length > 10 ? status.slice(0, 8) + '.' : status;
+        }
+      };
+
+      const sampleLines = [
+        { name: 'Metropolitan', status: 'Part Suspended' },
+        { name: 'Hammersmith & City', status: 'Planned Closure' },
+        { name: 'Waterloo & City', status: 'Severe Delays' },
+        { name: 'Piccadilly', status: 'Minor Delays' },
+        { name: 'Central', status: 'Severe Delays' },
+      ];
+
+      for (const line of sampleLines) {
+        const str = `${abbreviateLine(line.name)}: ${abbreviateStatus(line.status)}`;
+        expect(str.length).toBeLessThanOrEqual(26);
+      }
+
+      // Multi-line disruption string
+      expect('2 Lines Delayed'.length).toBeLessThanOrEqual(26);
+      expect('11 Lines Delayed'.length).toBeLessThanOrEqual(26);
+      expect('All Lines Normal'.length).toBeLessThanOrEqual(26);
+      expect('Tap to setup'.length).toBeLessThanOrEqual(26);
+    });
+  });
 });

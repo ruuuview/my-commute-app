@@ -379,9 +379,27 @@ export default function RootLayout() {
     };
 
     // Cold launch notification check: wait until hydration/fonts are ready before navigating
+    // Rule 20 Partition: Gated by MMKV-persisted ID + 30m disruption staleness window.
+    // Live listener below remains UNFILTERED so real-time user taps always fire.
     if (isReady) {
       void Notifications.getLastNotificationResponseAsync().then((response) => {
         if (response) {
+          const notifId = response.notification?.request?.identifier;
+          const prefs = useUserPreferencesStore.getState();
+          if (notifId && notifId === prefs.lastHandledColdBootNotificationId) {
+            return;
+          }
+          const notifDate = response.notification?.date;
+          const DISRUPTION_STALENESS_WINDOW_MS = 30 * 60 * 1000;
+          if (typeof notifDate === 'number') {
+            const ageMs = Date.now() - (notifDate < 1e12 ? notifDate * 1000 : notifDate);
+            if (ageMs > DISRUPTION_STALENESS_WINDOW_MS) {
+              return;
+            }
+          }
+          if (notifId) {
+            prefs.setLastHandledColdBootNotificationId(notifId);
+          }
           handleNotificationResponse(response);
         }
       });

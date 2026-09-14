@@ -377,6 +377,12 @@ const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: numbe
 // ─── Staggered Card Wrapper ──────────────────────────────────────
 
 
+// ─── Session-Level Intent Deduplication Sets ──────────────────────
+// Survives React component unmount/remount cycles during tab switching
+const sessionConsumedManageLinesNonces = new Set<string>();
+const sessionConsumedNotificationNonces = new Set<string>();
+const sessionConsumedLegacyLineIds = new Set<string>();
+
 // ─── Main Dashboard ───────────────────────────────────────────────
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -422,16 +428,25 @@ const MyCommuteDashboard: React.FC = () => {
 
   // Auto-open manage lines modal or unified disruption briefing when navigated via deep link/intent
   useEffect(() => {
-    if (searchParams.manageLines && searchParams.manageLines !== lastConsumedManageLinesNonceRef.current) {
-      lastConsumedManageLinesNonceRef.current = searchParams.manageLines;
-      setModalVisible(true);
+    // 1. Manage lines deep link / intent
+    if (searchParams.manageLines) {
+      const nonce = String(searchParams.manageLines);
+      if (!sessionConsumedManageLinesNonces.has(nonce) && nonce !== lastConsumedManageLinesNonceRef.current) {
+        sessionConsumedManageLinesNonces.add(nonce);
+        lastConsumedManageLinesNonceRef.current = nonce;
+        setModalVisible(true);
+      }
+      // Poka-Yoke: Immediately clear manageLines so tab switches or re-renders never resurrect the modal
+      router.setParams({ manageLines: '' });
     }
 
-    // 1. Guard against replay of already-consumed notification nonce or legacy line param
-    if (searchParams.notificationNonce && searchParams.notificationNonce === lastConsumedNonceRef.current) {
+    // 2. Guard against replay of already-consumed notification nonce or legacy line param
+    if (searchParams.notificationNonce && (sessionConsumedNotificationNonces.has(String(searchParams.notificationNonce)) || searchParams.notificationNonce === lastConsumedNonceRef.current)) {
+      router.setParams({ notificationIntent: '', notificationNonce: '' });
       return;
     }
-    if (searchParams.openRerouteLineId && searchParams.openRerouteLineId === lastConsumedLegacyLineRef.current) {
+    if (searchParams.openRerouteLineId && (sessionConsumedLegacyLineIds.has(String(searchParams.openRerouteLineId)) || searchParams.openRerouteLineId === lastConsumedLegacyLineRef.current)) {
+      router.setParams({ openRerouteLineId: '' });
       return;
     }
 
@@ -441,6 +456,7 @@ const MyCommuteDashboard: React.FC = () => {
 
     if (searchParams.notificationIntent) {
       if (searchParams.notificationNonce) {
+        sessionConsumedNotificationNonces.add(String(searchParams.notificationNonce));
         lastConsumedNonceRef.current = searchParams.notificationNonce;
       }
       try {
@@ -457,6 +473,7 @@ const MyCommuteDashboard: React.FC = () => {
       // Backward compatibility with direct line param
       targetLineId = String(searchParams.openRerouteLineId).toLowerCase();
       action = 'show-reroute';
+      sessionConsumedLegacyLineIds.add(String(searchParams.openRerouteLineId));
       lastConsumedLegacyLineRef.current = searchParams.openRerouteLineId;
     }
 
@@ -1026,7 +1043,10 @@ const MyCommuteDashboard: React.FC = () => {
 
         <ManageLinesModal
           visible={modalVisible}
-          onClose={() => setModalVisible(false)}
+          onClose={() => {
+            setModalVisible(false);
+            router.setParams({ manageLines: '' });
+          }}
         />
 
         <ManageStationsModal

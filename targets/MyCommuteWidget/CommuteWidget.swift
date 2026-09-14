@@ -57,6 +57,39 @@ enum SeverityLevel {
         }
     }
 
+    var ambientGlowColor: Color {
+        switch self {
+        case .good:
+            return Color(red: 48.0/255.0, green: 209.0/255.0, blue: 88.0/255.0).opacity(0.18)
+        case .minor:
+            return Color(red: 255.0/255.0, green: 176.0/255.0, blue: 0.0/255.0).opacity(0.20)
+        case .severe:
+            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0).opacity(0.25)
+        case .suspended:
+            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0).opacity(0.28)
+        }
+    }
+
+    var frameStrokeColor: Color {
+        switch self {
+        case .good:
+            return Color.white.opacity(0.14)
+        case .minor:
+            return Color.white.opacity(0.16)
+        case .severe, .suspended:
+            return Color(red: 255.0/255.0, green: 59.0/255.0, blue: 48.0/255.0).opacity(0.85)
+        }
+    }
+
+    var frameStrokeWidth: CGFloat {
+        switch self {
+        case .good, .minor:
+            return 0.5
+        case .severe, .suspended:
+            return 1.0
+        }
+    }
+
     var gradientColors: [Color] {
         switch self {
         case .good:
@@ -341,14 +374,6 @@ struct WidgetFooterView: View {
 
     private var isStale: Bool { entry.isStale }
 
-    private var pillBackground: Color {
-        isStale ? Color.white.opacity(0.25) : theme.textColor.opacity(0.12)
-    }
-
-    private var pillForeground: Color {
-        isStale ? .white : theme.secondaryTextColor
-    }
-
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             HStack(spacing: 4) {
@@ -359,20 +384,20 @@ struct WidgetFooterView: View {
                 } else if entry.isStale {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(Color(red: 255.0/255.0, green: 176.0/255.0, blue: 0.0/255.0))
                 }
 
                 if let fetchDate = entry.fetchDate {
                     (Text("Updated ") + Text(fetchDate, style: .relative) + Text(" ago"))
                         .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
                         .monospacedDigit()
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.85))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 } else {
                     Text("Tap ↻ to check")
                         .font(.system(size: WidgetMetrics.footerFontSize, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.85))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 }
@@ -388,16 +413,23 @@ struct WidgetFooterView: View {
                     }
                     .padding(.horizontal, isStale ? 10 : 8)
                     .padding(.vertical, isStale ? 6 : 5)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 0.5))
-                    .foregroundColor(pillForeground)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(isStale ? 0.22 : 0.08))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(isStale ? 0.40 : 0.16), lineWidth: 0.5)
+                    )
+                    .foregroundColor(isStale ? .white : .white.opacity(0.85))
                 }
                 .buttonStyle(.plain)
+                .contentShape(Rectangle())
                 .accessibilityLabel(isStale ? "Refresh commute status (warning active)" : "Refresh commute status")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 }
 
@@ -405,36 +437,44 @@ struct CommutePremiumEntryView: View {
     var entry: CommuteEntry
     @Environment(\.widgetFamily) var family
 
+    private var priorityTheme: SeverityLevel {
+        entry.worstLine?.level ?? .good
+    }
+
     var body: some View {
         switch family {
         case .accessoryInline:
             AccessoryInlineView(entry: entry)
-                .modifier(ContainerBackgroundModifier())
+                .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: true))
         case .accessoryCircular:
             AccessoryCircularView(entry: entry)
-                .modifier(ContainerBackgroundModifier())
+                .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: true))
         case .accessoryRectangular:
             AccessoryRectangularView(entry: entry)
-                .modifier(ContainerBackgroundModifier())
+                .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: true))
         default:
             ZStack {
-                LinearGradient(colors: entry.overallLevel.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
                 Group {
                     if let msg = entry.debugMessage, entry.lines.isEmpty {
-                        DebugView(message: msg, theme: entry.overallLevel)
+                        DebugView(message: msg, theme: priorityTheme)
                     } else if entry.lines.isEmpty {
-                        EmptyStateView(theme: entry.overallLevel)
+                        EmptyStateView(theme: priorityTheme)
                     } else {
                         if family == .systemSmall, let worst = entry.worstLine {
-                            SmallPriorityView(line: worst, theme: entry.overallLevel, entry: entry)
+                            SmallPriorityView(line: worst, theme: priorityTheme, entry: entry)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            DashboardView(entry: entry, theme: entry.overallLevel)
+                            DashboardView(entry: entry, theme: priorityTheme)
                         }
                     }
                 }
             }
-            .modifier(ContainerBackgroundModifier())
+            .overlay(
+                ContainerRelativeShape()
+                    .inset(by: priorityTheme.frameStrokeWidth / 2)
+                    .stroke(priorityTheme.frameStrokeColor, lineWidth: priorityTheme.frameStrokeWidth)
+            )
+            .modifier(ContainerBackgroundModifier(theme: priorityTheme, forAccessory: false))
         }
     }
 }
@@ -445,33 +485,42 @@ struct DashboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 4) {
+            HStack(spacing: 8) {
                 if let worst = entry.worstLine {
                     PriorityView(line: worst, theme: theme)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(ContainerRelativeShape().fill(Color.white.opacity(0.04)))
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color.black.opacity(0.45))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                                )
+                        )
                 }
-
-                Rectangle()
-                    .fill(theme.dividerColor)
-                    .frame(width: 1)
-                    .padding(.top, 6)
 
                 OtherLinesPanelView(lines: entry.otherLines, theme: theme)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(ContainerRelativeShape().fill(Color.white.opacity(0.02)))
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.black.opacity(0.45))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                            )
+                    )
             }
+            .padding(.top, 8)
+            .padding(.horizontal, 8)
 
-            Rectangle()
-                .fill(entry.isStale ? Color.white.opacity(0.3) : theme.dividerColor)
-                .frame(height: 1)
-                .padding(.horizontal, 10)
+            Spacer(minLength: 4)
 
             WidgetFooterView(entry: entry, theme: theme)
                 .layoutPriority(1)
+                .padding(.bottom, 6)
+                .padding(.horizontal, 8)
         }
-        .padding(.horizontal, 4)
-        .widgetURL(URL(string: "mycommute://lines"))
+        .widgetURL(URL(string: "mycommute://"))
     }
 }
 
@@ -488,7 +537,7 @@ struct PriorityView: View {
 
             Spacer(minLength: 4)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 StatusIcon(level: line.level, size: WidgetMetrics.iconSizeMedium)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(line.name)
@@ -505,7 +554,7 @@ struct PriorityView: View {
 
             Spacer(minLength: 4)
         }
-        .padding(.leading, 12).padding(.top, 6).padding(.bottom, 6)
+        .padding(.horizontal, 10).padding(.vertical, 6)
         .frame(maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(line.name + " line priority: " + line.status)
@@ -523,7 +572,7 @@ struct OtherLinesPanelView: View {
                 .tracking(1.8)
                 .foregroundColor(theme.secondaryTextColor)
                 .padding(.top, 6)
-                .padding(.leading, 10)
+                .padding(.horizontal, 10)
 
             Spacer(minLength: 2)
 
@@ -532,7 +581,7 @@ struct OtherLinesPanelView: View {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(lines.prefix(4)) { line in LineRowView(line: line, theme: theme) }
             }
-            .padding(.leading, 10)
+            .padding(.horizontal, 10)
             .padding(.bottom, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -546,38 +595,50 @@ struct SmallPriorityView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("PRIORITY")
+                    .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
+                    .tracking(1.8)
+                    .foregroundColor(theme.secondaryTextColor)
+                    .padding(.top, 8)
 
-            Text("PRIORITY")
-                .font(.system(size: WidgetMetrics.headerFontSize, weight: .bold))
-                .tracking(1.8)
-                .foregroundColor(theme.secondaryTextColor)
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
+                Spacer(minLength: 4)
 
-            Spacer(minLength: 4)
-
-            HStack(spacing: 10) {
-                StatusIcon(level: line.level, size: WidgetMetrics.iconSizeSmall)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(line.name)
-                        .font(.system(size: WidgetMetrics.lineNameSmall, weight: .bold))
-                        .foregroundColor(theme.textColor)
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                    Text(line.status)
-                        .font(.system(size: WidgetMetrics.lineStatusSmall, weight: .semibold))
-                        .foregroundColor(theme.secondaryTextColor)
-                        .lineLimit(2).minimumScaleFactor(0.7)
+                HStack(spacing: 8) {
+                    StatusIcon(level: line.level, size: WidgetMetrics.iconSizeSmall)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(line.name)
+                            .font(.system(size: WidgetMetrics.lineNameSmall, weight: .bold))
+                            .foregroundColor(theme.textColor)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Text(line.status)
+                            .font(.system(size: WidgetMetrics.lineStatusSmall, weight: .semibold))
+                            .foregroundColor(theme.secondaryTextColor)
+                            .lineLimit(2).minimumScaleFactor(0.7)
+                    }
                 }
+
+                Spacer(minLength: 4)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.black.opacity(0.45))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                    )
+            )
 
             Spacer(minLength: 4)
 
             WidgetFooterView(entry: entry, theme: theme)
                 .layoutPriority(1)
         }
+        .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .widgetURL(URL(string: "mycommute://lines"))
+        .widgetURL(URL(string: "mycommute://"))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(line.name + " line priority: " + line.status)
     }
@@ -751,11 +812,45 @@ struct AccessoryRectangularView: View {
 }
 
 struct ContainerBackgroundModifier: ViewModifier {
+    let theme: SeverityLevel
+    var forAccessory: Bool = false
+
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
-            content.containerBackground(for: .widget) { Color.clear }
+            if forAccessory {
+                content.containerBackground(for: .widget) { Color.clear }
+            } else {
+                content.containerBackground(for: .widget) {
+                    ZStack {
+                        Rectangle().fill(.ultraThinMaterial)
+                        Color.black.opacity(0.40)
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                theme.ambientGlowColor,
+                                Color.clear
+                            ]),
+                            center: .topLeading,
+                            startRadius: 10,
+                            endRadius: 130
+                        )
+                    }
+                }
+            }
         } else {
-            content
+            content.background(
+                ZStack {
+                    Color.black.opacity(0.85)
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            theme.ambientGlowColor,
+                            Color.clear
+                        ]),
+                        center: .topLeading,
+                        startRadius: 10,
+                        endRadius: 130
+                    )
+                }
+            )
         }
     }
 }

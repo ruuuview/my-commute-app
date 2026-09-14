@@ -87,6 +87,8 @@ export interface UserPreferencesState {
   alertWindowStart: string; // HH:MM format (default: '06:00')
   alertWindowEnd: string;   // HH:MM format (default: '22:00')
   severeBypassAlertHours: boolean; // default: true
+  lastHandledColdBootNotificationId: string | null;
+  setLastHandledColdBootNotificationId: (id: string) => void;
   // Shush Mode states
   shushPreferences: ShushPreferences;
   shushRuntimeState: ShushRuntimeState;
@@ -141,7 +143,7 @@ export interface UserPreferencesState {
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -171,6 +173,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   alertWindowStart: '06:00',
   alertWindowEnd: '22:00',
   severeBypassAlertHours: true,
+  lastHandledColdBootNotificationId: null,
   simulatedClaimActive: false,
   recentSearches: [],
   stationFilterToggles: {},
@@ -250,6 +253,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setNotificationsGranted: (granted) => set({ notificationsGranted: granted }),
       setLocationGranted: (granted) => set({ locationGranted: granted }),
       setEntitlementActive: (active) => set({ entitlementActive: active }),
+      setLastHandledColdBootNotificationId: (id: string) => set({ lastHandledColdBootNotificationId: id }),
       setTflRegistered: (registered) => {
         // NOTE — Day 23 copy branching (see master plan REFUND RADAR section):
         // This flag is the branch key for the Day 23 notification copy bank.
@@ -444,7 +448,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

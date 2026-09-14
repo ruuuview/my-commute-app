@@ -26,6 +26,7 @@
 
 import { Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { createMMKV } from 'react-native-mmkv';
 import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
@@ -40,6 +41,11 @@ import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { computeDetour } from './detourComputer';
 
+// Detect Expo Go where custom native modules are unsupported by design
+export const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
 // Re-use the same background MMKV the SessionManager uses (single store).
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
@@ -47,6 +53,20 @@ const backgroundStorage = createMMKV({ id: 'background-storage' });
 const MyCommuteLiveActivityModule =
   requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
   requireOptionalNativeModule('MyCommuteLiveActivity');
+
+// Fail-loud dev invariant (Rule 21): Alert if native bridge was not linked in custom binary
+if (Platform.OS === 'ios' && !isExpoGo && !MyCommuteLiveActivityModule) {
+  console.error(
+    '[LiveActivityService] CRITICAL: MyCommuteLiveActivityModule is NOT linked in this binary! ' +
+    'Live Activities and Dynamic Island require an EAS Development Client build with the native module autolinked.'
+  );
+}
+
+export type LiveActivitySupportStatus =
+  | 'expo_go'         // Running inside Expo Go (custom native modules unavailable by design)
+  | 'bridge_unlinked' // Running in custom client/build but Swift module was not linked into binary
+  | 'system_disabled' // User toggled Live Activities OFF in iOS Settings
+  | 'supported';      // Native bridge available & Live Activities permitted in iOS Settings
 
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
 
@@ -845,16 +865,26 @@ export class LiveActivityService {
     }
   }
 
-  static async areActivitiesEnabled(): Promise<boolean> {
-    if (Platform.OS !== 'ios') return false;
+  /**
+   * Tri-state support check distinguishing Expo Go, unlinked bridge module, and iOS user setting.
+   */
+  static async getSupportStatus(): Promise<LiveActivitySupportStatus> {
+    if (Platform.OS !== 'ios') return 'system_disabled';
+    if (isExpoGo) return 'expo_go';
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.areActivitiesEnabled !== 'function') {
-      return false;
+      return 'bridge_unlinked';
     }
     try {
-      return await MyCommuteLiveActivityModule.areActivitiesEnabled();
+      const enabled = await MyCommuteLiveActivityModule.areActivitiesEnabled();
+      return enabled ? 'supported' : 'system_disabled';
     } catch {
-      return false;
+      return 'bridge_unlinked';
     }
+  }
+
+  static async areActivitiesEnabled(): Promise<boolean> {
+    const status = await this.getSupportStatus();
+    return status === 'supported';
   }
 }
 

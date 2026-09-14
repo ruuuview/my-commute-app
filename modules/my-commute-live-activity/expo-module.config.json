@@ -1,6 +1,7 @@
 {
-  "platforms": ["ios"],
-  "ios": {
+  "platforms": ["apple", "ios"],
+  "apple": {
+    "podspecPath": "my-commute-live-activity.podspec",
     "modules": ["MyCommuteLiveActivityModule"]
   }
 }

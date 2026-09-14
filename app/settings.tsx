@@ -165,8 +165,25 @@ export default function SettingsScreen() {
       return;
     }
 
-    const enabled = await LiveActivityService.areActivitiesEnabled();
-    if (!enabled) {
+    const status = await LiveActivityService.getSupportStatus();
+    if (status === 'expo_go') {
+      Alert.alert(
+        'Preview Unavailable in Expo Go',
+        'Live Activities and Dynamic Island require custom Apple targets. Please test on an EAS Development Client or install a native build.'
+      );
+      return;
+    }
+
+    if (status === 'bridge_unlinked') {
+      Alert.alert(
+        'Native Bridge Unlinked',
+        'MyCommuteLiveActivityModule was not detected in this native binary. Rebuild with EAS to link native Apple targets.'
+      );
+      return;
+    }
+
+    const areActivitiesEnabled = status === 'supported';
+    if (!areActivitiesEnabled) {
       Alert.alert(
         'Live Activities Disabled',
         'Live Activities are turned off for My Commute in iOS Settings. Enable them to preview Shush Mode on your Dynamic Island and Lock Screen.',

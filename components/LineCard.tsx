@@ -238,14 +238,6 @@ export const LineCard = memo(function LineCard({
           style={StyleSheet.absoluteFillObject}
         />
 
-        <LinearGradient
-          colors={[GLASS.specularStart, GLASS.specularEnd]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          pointerEvents="none"
-          style={styles.specularTopSheen}
-        />
-
         {mode === 'select' && selected && (
           <View
             style={[
@@ -259,17 +251,42 @@ export const LineCard = memo(function LineCard({
           />
         )}
 
+        {isNorthern && mode === 'select' && selected && (
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.20)', 'rgba(255, 255, 255, 0.04)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.85, y: 0.85 }}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFillObject}
+          />
+        )}
+
+        <LinearGradient
+          colors={
+            isNorthern && mode === 'select' && selected
+              ? ['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.12)', 'transparent']
+              : [GLASS.specularStart, GLASS.specularEnd]
+          }
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
+          style={[
+            styles.specularTopSheen,
+            isNorthern && mode === 'select' && selected && { height: 26 },
+          ]}
+        />
+
         <View
           style={[
             styles.accentBar,
             {
-              backgroundColor: line.color,
+              backgroundColor: isNorthern ? NORTHERN_SHADES.accentBar : line.color,
               left: leftAccentBarPosition,
               height: isSlim ? (cardHeight - 16) : 36,
               top: (cardHeight - (isSlim ? (cardHeight - 16) : 36)) / 2,
             },
             isNorthern && {
-              borderWidth: 0.5,
+              borderWidth: 0.75,
               borderColor: NORTHERN_SHADES.highlightBorder,
             },
           ]}

@@ -58,11 +58,11 @@ export const LINE_NAMES: Record<string, string> = {
  */
 export const NORTHERN_SHADES = {
   brand: '#000000', // Canonical TfL Northern black
-  highlightBorder: '#C9D0DE', // Specular polished obsidian/platinum shiny rim (12:1 contrast against #0A1128)
+  highlightBorder: '#FFFFFF', // Specular diamond/platinum shiny rim (19:1 contrast against #0A1128)
   highlightBorderDark: '#62697A', // Specular obsidian shadow rim (6:1 contrast)
-  highlightWash: 'rgba(255, 255, 255, 0.08)', // Specular white lift wash (preserves glass blur and background gradient)
+  highlightWash: 'rgba(0, 0, 0, 0.72)', // Deep inky obsidian black wash — darker than canvas, preserving black identity
   shadowColor: '#000000', // Deep black shadow (never white)
   pillBorder: '#8A90A0', // Shiny obsidian pill rim (6.5:1 contrast)
-  pillBackground: 'rgba(30, 30, 36, 0.85)', // Deep carbon black pill fill
-  accentBar: '#18181C', // Jet obsidian tone ensuring edge visibility
+  pillBackground: 'rgba(10, 10, 14, 0.90)', // Deep carbon black pill fill
+  accentBar: '#000000', // Jet obsidian tone ensuring true black identity
 } as const;

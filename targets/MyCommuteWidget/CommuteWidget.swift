@@ -668,24 +668,58 @@ struct EmptyStateView: View {
     }
 }
 
-struct AccessoryInlineView: View {
-    let entry: CommuteEntry
-
-    private func abbreviatedLineName(_ name: String) -> String {
-        switch name.lowercased() {
-        case "metropolitan": return "Met"
-        case "waterloo & city", "waterloo and city": return "W&C"
-        case "hammersmith & city", "hammersmith and city": return "H&C"
-        case "piccadilly": return "Picc"
-        default:
-            if name.count > 10 {
-                return String(name.prefix(8)) + "."
-            }
-            return name
+enum CommuteFormatters {
+    static func displayName(for id: String) -> String {
+        switch id.lowercased().replacingOccurrences(of: "-", with: "") {
+        case "bakerloo": return "Bakerloo"
+        case "central": return "Central"
+        case "circle": return "Circle"
+        case "district": return "District"
+        case "dlr": return "DLR"
+        case "elizabeth": return "Elizabeth"
+        case "hammersmithcity": return "Hammersmith & City"
+        case "jubilee": return "Jubilee"
+        case "metropolitan": return "Metropolitan"
+        case "northern": return "Northern"
+        case "piccadilly": return "Piccadilly"
+        case "victoria": return "Victoria"
+        case "waterloocity": return "Waterloo & City"
+        case "liberty": return "Liberty"
+        case "lioness": return "Lioness"
+        case "mildmay": return "Mildmay"
+        case "suffragette": return "Suffragette"
+        case "weaver": return "Weaver"
+        case "windrush": return "Windrush"
+        default: return id.capitalized
         }
     }
 
-    private func abbreviatedStatus(_ status: String) -> String {
+    static func shortCode(for id: String) -> String {
+        switch id.lowercased().replacingOccurrences(of: "-", with: "") {
+        case "bakerloo": return "BAK"
+        case "central": return "CEN"
+        case "circle": return "CIR"
+        case "district": return "DIS"
+        case "dlr": return "DLR"
+        case "elizabeth": return "ELI"
+        case "hammersmithcity": return "H&C"
+        case "jubilee": return "JUB"
+        case "metropolitan": return "MET"
+        case "northern": return "NOR"
+        case "piccadilly": return "PIC"
+        case "victoria": return "VIC"
+        case "waterloocity": return "W&C"
+        case "liberty": return "LIB"
+        case "lioness": return "LIO"
+        case "mildmay": return "MLD"
+        case "suffragette": return "SUF"
+        case "weaver": return "WEA"
+        case "windrush": return "WND"
+        default: return String(id.prefix(3)).uppercased()
+        }
+    }
+
+    static func shortStatus(for status: String) -> String {
         switch status.lowercased() {
         case "good service": return "Good"
         case "minor delays": return "Minor"
@@ -702,6 +736,62 @@ struct AccessoryInlineView: View {
         }
     }
 
+    static func severityIcon(for level: SeverityLevel) -> String {
+        switch level {
+        case .suspended: return "xmark.circle.fill"
+        case .severe: return "exclamationmark.triangle.fill"
+        case .minor: return "clock.fill"
+        case .good: return "checkmark"
+        }
+    }
+}
+
+struct AccessoryRow: View {
+    let line: CommuteLine
+    var font: Font = .system(size: 12, weight: .bold)
+
+    private var icon: String {
+        CommuteFormatters.severityIcon(for: line.level)
+    }
+    private var fullName: String {
+        CommuteFormatters.displayName(for: line.id)
+    }
+    private var shortCode: String {
+        CommuteFormatters.shortCode(for: line.id)
+    }
+    private var shortStat: String {
+        CommuteFormatters.shortStatus(for: line.status)
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .widgetAccentable()
+
+            ViewThatFits(in: .horizontal) {
+                // Tier 1: Full name + full status (e.g. "Piccadilly · Severe Delays")
+                Text("\(fullName) · \(line.status)")
+                    .lineLimit(1)
+
+                // Tier 2: Short code + short status (e.g. "PIC · Severe")
+                Text("\(shortCode) · \(shortStat)")
+                    .lineLimit(1)
+
+                // Tier 3: Guaranteed-fit terminal floor (<= 38pt, <= 4 chars: "PIC")
+                Text(shortCode)
+                    .lineLimit(1)
+            }
+            .font(font)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(fullName), \(line.status)")
+    }
+}
+
+struct AccessoryInlineView: View {
+    let entry: CommuteEntry
+
     var body: some View {
         ViewThatFits {
             content
@@ -716,15 +806,10 @@ struct AccessoryInlineView: View {
         } else if entry.disruptedLines.count > 1 {
             Label("\(entry.disruptedLines.count) Lines Delayed", systemImage: "exclamationmark.triangle.fill")
         } else if let worst = entry.worstLine, worst.level != .good {
-            let icon: String = {
-                switch worst.level {
-                case .suspended: return "xmark.circle.fill"
-                case .severe: return "exclamationmark.triangle.fill"
-                case .minor: return "clock.fill"
-                case .good: return "checkmark"
-                }
-            }()
-            Label("\(abbreviatedLineName(worst.name)): \(abbreviatedStatus(worst.status))", systemImage: icon)
+            let icon = CommuteFormatters.severityIcon(for: worst.level)
+            let shortName = CommuteFormatters.shortCode(for: worst.id)
+            let shortStat = CommuteFormatters.shortStatus(for: worst.status)
+            Label("\(shortName): \(shortStat)", systemImage: icon)
         } else {
             Label("All Lines Normal", systemImage: "checkmark")
                 .accessibilityLabel("All lines normal")
@@ -740,49 +825,53 @@ struct AccessoryCircularView: View {
     }
 
     var body: some View {
-        ZStack {
-            AccessoryWidgetBackground()
-
+        Group {
             if entry.lines.isEmpty {
                 Image(systemName: "tram")
                     .font(.system(size: 18))
                     .widgetAccentable()
-            } else if entry.disruptedLines.count > 1 {
-                VStack(spacing: 1) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .widgetAccentable()
-                    Text("\(entry.disruptedLines.count)")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .widgetAccentable()
-                }
-            } else if let worst = entry.worstLine, worst.level != .good {
-                let icon: String = {
-                    switch worst.level {
-                    case .suspended: return "xmark.circle.fill"
-                    case .severe: return "exclamationmark.triangle.fill"
-                    case .minor: return "clock.fill"
-                    case .good: return "checkmark"
-                    }
-                }()
-                VStack(spacing: 1) {
-                    Image(systemName: icon)
-                        .font(.system(size: 13, weight: .bold))
-                        .widgetAccentable()
-                    Text(String(worst.name.prefix(3)).uppercased())
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .widgetAccentable()
-                }
-            } else {
-                VStack(spacing: 2) {
+            } else if entry.disruptedLines.isEmpty {
+                // All clear: 100% closed ring + checkmark
+                Gauge(value: 1.0) {
+                    Text("Status")
+                } currentValueLabel: {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .widgetAccentable()
-                        .accessibilityLabel("All lines normal")
-                    Text("\(entry.lines.count)")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold))
                         .widgetAccentable()
                 }
+                .gaugeStyle(.accessoryCircularCapacity)
+            } else if entry.disruptedLines.count == 1, let worst = entry.worstLine {
+                // 1 disrupted: ring indicator + severity icon & 3-letter short code
+                Gauge(value: 1.0) {
+                    Text("Disrupted")
+                } currentValueLabel: {
+                    VStack(spacing: 0) {
+                        Image(systemName: CommuteFormatters.severityIcon(for: worst.level))
+                            .font(.system(size: 11, weight: .bold))
+                            .widgetAccentable()
+                        Text(CommuteFormatters.shortCode(for: worst.id))
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .widgetAccentable()
+                    }
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
+            } else {
+                // Multi-disrupted: Fraction disrupted / total
+                let total = max(entry.lines.count, 1)
+                let disrupted = entry.disruptedLines.count
+                Gauge(value: Double(disrupted), in: 0...Double(total)) {
+                    Text("Disruptions")
+                } currentValueLabel: {
+                    VStack(spacing: 0) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .widgetAccentable()
+                        Text("\(disrupted)")
+                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .widgetAccentable()
+                    }
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
             }
         }
         .widgetURL(targetURL)
@@ -814,94 +903,89 @@ struct AccessoryRectangularView: View {
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            } else if let worst = entry.worstLine, worst.level != .good {
-                let worstIcon: String = {
-                    switch worst.level {
-                    case .suspended: return "xmark.circle.fill"
-                    case .severe: return "exclamationmark.triangle.fill"
-                    case .minor: return "clock.fill"
-                    case .good: return "checkmark"
-                    }
-                }()
-                // Disrupted State: Hero row (22pt) + Secondary row (18pt)
-                HStack(spacing: 5) {
-                    Image(systemName: worstIcon)
-                        .font(.system(size: 13, weight: .bold))
-                        .widgetAccentable()
-                    Text(worst.name)
-                        .font(.system(size: 13, weight: .bold))
-                        .lineLimit(1)
-                    Spacer()
-                    Text(worst.status)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                .frame(height: 22)
-
-                HStack(spacing: 4) {
-                    if let second = entry.otherLines.first(where: { $0.level != .good }) {
-                        let secondIcon: String = {
-                            switch second.level {
-                            case .suspended: return "xmark.circle.fill"
-                            case .severe: return "exclamationmark.triangle.fill"
-                            case .minor: return "clock.fill"
-                            case .good: return "checkmark"
-                            }
-                        }()
-                        Image(systemName: secondIcon)
-                            .font(.system(size: 10))
-                        Text("\(second.name): \(second.status)")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    } else {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .semibold))
-                            .widgetAccentable()
-                            .accessibilityLabel("All lines normal")
-                        Text("All other lines normal")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    if entry.isStale {
-                        Spacer()
-                        Text("(stale)")
-                            .font(.system(size: 9, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .frame(height: 18)
-            } else {
-                // All Clear State: Hero row (22pt) + Secondary row (18pt)
+            } else if entry.disruptedLines.isEmpty {
+                // All Clear State: Row 1 Hero + Row 2 Secondary
                 HStack(spacing: 5) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .widgetAccentable()
                         .accessibilityLabel("All lines normal")
                     Text("All Lines Normal")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .lineLimit(1)
-                    if entry.isStale {
-                        Spacer()
-                        Text("(stale)")
-                            .font(.system(size: 9, weight: .regular))
+                }
+                .frame(height: 20)
+
+                if entry.isStale {
+                    // Demote stale all-clear to relative time
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                        Text("Updated ")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary) +
+                        Text(entry.date, style: .relative)
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary) +
+                        Text(" ago")
+                            .font(.system(size: 9))
                             .foregroundColor(.secondary)
                     }
+                    .frame(height: 16)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "tram.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                        Text("\(entry.lines.count) corridors monitored")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(height: 16)
                 }
-                .frame(height: 22)
+            } else if entry.disruptedLines.count == 1, let worst = entry.worstLine {
+                // Exactly 1 line disrupted: Row 1 = Hero Line Name (Full width), Row 2 = Status (Full width)
+                HStack(spacing: 5) {
+                    Image(systemName: CommuteFormatters.severityIcon(for: worst.level))
+                        .font(.system(size: 12, weight: .bold))
+                        .widgetAccentable()
+                    Text(CommuteFormatters.displayName(for: worst.id))
+                        .font(.system(size: 13, weight: .bold))
+                        .lineLimit(1)
+                }
+                .frame(height: 20)
+
+                Text(worst.status)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .frame(height: 16)
+            } else if entry.disruptedLines.count == 2, let worst = entry.worstLine, let second = entry.otherLines.first(where: { $0.level != .good }) {
+                // Exactly 2 lines disrupted: Row 1 = Worst, Row 2 = Second
+                AccessoryRow(line: worst, font: .system(size: 12, weight: .bold))
+                    .frame(height: 20)
+
+                AccessoryRow(line: second, font: .system(size: 11, weight: .medium))
+                    .frame(height: 16)
+            } else if let worst = entry.worstLine {
+                // 3+ lines disrupted: Row 1 = Worst, Row 2 = "+N more disrupted" chip
+                AccessoryRow(line: worst, font: .system(size: 12, weight: .bold))
+                    .frame(height: 20)
 
                 HStack(spacing: 4) {
-                    Image(systemName: "tram.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
-                    Text("\(entry.lines.count) corridors monitored")
-                        .font(.system(size: 10, weight: .medium))
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .widgetAccentable()
+                    Text("+\(entry.disruptedLines.count - 1) more disrupted")
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
-                .frame(height: 18)
+                .frame(height: 16)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Plus \(entry.disruptedLines.count - 1) other lines disrupted")
             }
         }
         .padding(.vertical, 2)

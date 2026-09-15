@@ -41,6 +41,13 @@ export const LINE_NAMES: Record<string, string> = {
   piccadilly: 'Piccadilly',
   victoria: 'Victoria',
   'waterloo-city': 'Waterloo & City',
+  // Overground lines
+  liberty: 'Liberty',
+  lioness: 'Lioness',
+  mildmay: 'Mildmay',
+  suffragette: 'Suffragette',
+  weaver: 'Weaver',
+  windrush: 'Windrush',
 };
 
 /**

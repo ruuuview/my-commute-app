@@ -338,6 +338,30 @@ struct RefreshCommuteIntent: AppIntent {
     }
 }
 
+@available(iOS 17.0, *)
+struct WidgetRefreshButtonStyle: ButtonStyle {
+    let isStale: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .rotationEffect(configuration.isPressed ? .degrees(180) : .degrees(0))
+            .animation(.easeInOut(duration: 0.35), value: configuration.isPressed)
+            .padding(.horizontal, isStale ? 10 : 8)
+            .padding(.vertical, isStale ? 6 : 5)
+            .background(
+                Capsule()
+                    .fill(Color.white.opacity(isStale ? (configuration.isPressed ? 0.35 : 0.22) : (configuration.isPressed ? 0.18 : 0.08)))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(isStale ? 0.40 : 0.16), lineWidth: 0.5)
+            )
+            .scaleEffect(configuration.isPressed ? 0.88 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
 struct WidgetFooterView: View {
     let entry: CommuteEntry
     let theme: SeverityLevel
@@ -378,23 +402,12 @@ struct WidgetFooterView: View {
 
             if #available(iOS 17.0, *) {
                 Button(intent: RefreshCommuteIntent()) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: isStale ? 10 : 9, weight: .bold))
-                    }
-                    .padding(.horizontal, isStale ? 10 : 8)
-                    .padding(.vertical, isStale ? 6 : 5)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(isStale ? 0.22 : 0.08))
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(isStale ? 0.40 : 0.16), lineWidth: 0.5)
-                    )
-                    .foregroundColor(isStale ? .white : .white.opacity(0.85))
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: isStale ? 10 : 9, weight: .bold))
+                        .foregroundColor(isStale ? .white : .white.opacity(0.85))
+                        .symbolEffect(.bounce, value: entry.date)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WidgetRefreshButtonStyle(isStale: isStale))
                 .contentShape(Rectangle())
                 .accessibilityLabel(isStale ? "Refresh commute status (warning active)" : "Refresh commute status")
             }

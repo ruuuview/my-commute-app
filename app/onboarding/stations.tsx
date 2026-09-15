@@ -78,7 +78,7 @@ export default function StationsScreen() {
   const recentSearchIds = useUserPreferencesStore(s => s.recentSearches);
 
   const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -93,7 +93,7 @@ export default function StationsScreen() {
 
   useEffect(() => {
     if (openSearch === 'true') {
-      setIsSearching(true);
+      setSearchActive(true);
       setQuery('');
       InteractionManager.runAfterInteractions(() => {
         inputRef.current?.focus();
@@ -284,7 +284,7 @@ export default function StationsScreen() {
 
         // Auto-dismiss search sheet: clear query and exit search mode smoothly
         setQuery('');
-        setIsSearching(false);
+        setSearchActive(false);
         setIsFocused(false);
       }
     },
@@ -301,7 +301,7 @@ export default function StationsScreen() {
       }
     }
     setQuery('');
-    setIsSearching(false);
+    setSearchActive(false);
     setIsFocused(false);
     inputRef.current?.blur();
     Keyboard.dismiss();
@@ -310,7 +310,7 @@ export default function StationsScreen() {
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     playSound('pop', 0.32);
-    if (query.trim() !== '' || isSearching || isFocused) {
+    if (query.trim() !== '' || searchActive || isFocused) {
       handleCancelSearch();
       return;
     }
@@ -398,7 +398,7 @@ export default function StationsScreen() {
   const handleRecentPress = (station: TfLStation) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setQuery(station.name);
-    setIsSearching(true);
+    setSearchActive(true);
   };
 
   const ctaLabel = pinnedStations.length === 0
@@ -505,17 +505,14 @@ export default function StationsScreen() {
                 value={query}
                 onFocus={() => {
                   setIsFocused(true);
-                  setIsSearching(true);
+                  setSearchActive(true);
                 }}
                 onBlur={() => {
                   setIsFocused(false);
-                  if (query.trim() === '') {
-                    setIsSearching(false);
-                  }
                 }}
                 onChangeText={(text) => {
                   setQuery(text);
-                  setIsSearching(true);
+                  setSearchActive(true);
                 }}
                 placeholder={`Search ${cleanFullStations.length} stations...`}
                 placeholderTextColor="rgba(255, 255, 255, 0.30)"
@@ -540,7 +537,7 @@ export default function StationsScreen() {
               )}
             </Animated.View>
 
-            {(isSearching || isFocused || query.length > 0) && (
+            {(searchActive || query.length > 0) && (
               <Pressable
                 onPress={handleCancelSearch}
                 hitSlop={8}
@@ -591,12 +588,12 @@ export default function StationsScreen() {
                   )}
                   contentContainerStyle={styles.recentListContent}
                   showsVerticalScrollIndicator={false}
-                  keyboardDismissMode="on-drag"
+                  keyboardDismissMode="interactive"
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
-            ) : isSearching && query.trim() === '' && lineRecommendedStations.length > 0 ? (
-              /* Line-Smart Recommendations (zero-typing) */
+            ) : (query.trim() === '' && (searchActive || pinnedStations.length === 0) && lineRecommendedStations.length > 0) ? (
+              /* Line-Smart Recommendations (zero-typing or fallback) */
               <View style={styles.lineRecsContainer}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionHeaderText}>STATIONS ON YOUR LINES</Text>
@@ -609,7 +606,7 @@ export default function StationsScreen() {
                   windowSize={5}
                   contentContainerStyle={styles.lineRecsListContent}
                   showsVerticalScrollIndicator={false}
-                  keyboardDismissMode="on-drag"
+                  keyboardDismissMode="interactive"
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
@@ -623,10 +620,10 @@ export default function StationsScreen() {
                 windowSize={5}
                 contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
-                keyboardDismissMode="on-drag"
+                keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
-                  !isSearching && query.trim() === '' && pinnedStations.length > 0 ? (
+                  !searchActive && query.trim() === '' && pinnedStations.length > 0 ? (
                     <View style={styles.sectionHeader}>
                       <Text style={styles.sectionHeaderText}>
                         YOUR PINNED STATIONS ({pinnedStations.length})
@@ -635,7 +632,7 @@ export default function StationsScreen() {
                   ) : null
                 }
                 ListFooterComponent={
-                  !isSearching && query.trim() === '' && pinnedStations.length > 0 ? (
+                  !searchActive && query.trim() === '' && pinnedStations.length > 0 ? (
                     <Pressable
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -644,7 +641,7 @@ export default function StationsScreen() {
                             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                           } catch {}
                         }
-                        setIsSearching(true);
+                        setSearchActive(true);
                         setIsFocused(true);
                         InteractionManager.runAfterInteractions(() => {
                           inputRef.current?.focus();
@@ -697,7 +694,7 @@ export default function StationsScreen() {
         </View>
 
         {/* Sticky CTA Footer */}
-        {!isSearching && (
+        {!searchActive && (
           <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
           >

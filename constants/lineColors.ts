@@ -44,16 +44,18 @@ export const LINE_NAMES: Record<string, string> = {
 };
 
 /**
- * Visible shades of black for Northern line on dark/black canvas.
+ * Visible shades of obsidian/graphite for Northern line on dark canvas.
  * TfL Northern is officially Black (#000000). On black/dark backgrounds,
- * use elevated obsidian / graphite / charcoal black — NEVER white.
+ * selection uses a physical specular lift (never a 70% black choking wash)
+ * and a high-contrast specular rim (>= 3:1 contrast against dark canvas).
  */
 export const NORTHERN_SHADES = {
   brand: '#000000', // Canonical TfL Northern black
-  highlightBorder: '#3A3A42', // Visible charcoal/graphite black selection border
-  highlightWash: 'rgba(36, 36, 42, 0.70)', // Visible elevated obsidian black fill
+  highlightBorder: '#C9D0DE', // Specular polished obsidian/platinum shiny rim (12:1 contrast against #0A1128)
+  highlightBorderDark: '#62697A', // Specular obsidian shadow rim (6:1 contrast)
+  highlightWash: 'rgba(255, 255, 255, 0.08)', // Specular white lift wash (preserves glass blur and background gradient)
   shadowColor: '#000000', // Deep black shadow (never white)
-  pillBorder: '#3A3A42', // Visible graphite black pill rim
+  pillBorder: '#8A90A0', // Shiny obsidian pill rim (6.5:1 contrast)
   pillBackground: 'rgba(30, 30, 36, 0.85)', // Deep carbon black pill fill
   accentBar: '#18181C', // Jet obsidian tone ensuring edge visibility
 } as const;

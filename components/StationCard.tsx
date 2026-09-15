@@ -202,37 +202,29 @@ export function StationCard({
 
   const renderLinePills = () => {
     if (!station.lines || station.lines.length === 0) return null;
-    const visibleLines = station.lines.slice(0, 4);
-    const overflowCount = station.lines.length - 4;
+    const primaryLineId = station.lines[0];
+    const overflowCount = station.lines.length - 1;
+    const shortName = LINE_SHORT_NAMES[primaryLineId] || primaryLineId;
+    const brandColor = LINE_IDENTITY_COLORS[primaryLineId] || '#888';
+    const colors = getPillColors(primaryLineId, brandColor);
 
     return (
-      <View style={styles.pillsRowWrapper}>
-        <View style={styles.pillsContainer}>
-          {visibleLines.map((lineId) => {
-            const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-            const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
-            const colors = getPillColors(lineId, brandColor);
-
-            return (
-              <View
-                key={lineId}
-                style={[styles.pillItem, { borderColor: colors.borderColor }]}
-                accessibilityLabel={`${shortName} line`}
-                accessibilityRole="text"
-              >
-                <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
-                <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
-                <View style={[styles.pillBar, { backgroundColor: colors.dotColor }]} />
-                <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
-              </View>
-            );
-          })}
-          {overflowCount > 0 && (
-            <View style={styles.overflowBadge}>
-              <Text style={styles.overflowText}>+{overflowCount}</Text>
-            </View>
-          )}
+      <View style={styles.pillsContainer}>
+        <View
+          style={[styles.pillItem, { borderColor: colors.borderColor }]}
+          accessibilityLabel={`${shortName} line`}
+          accessibilityRole="text"
+        >
+          <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
+          <View style={[styles.pillBar, { backgroundColor: colors.dotColor }]} />
+          <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
         </View>
+        {overflowCount > 0 && (
+          <View style={styles.overflowBadge}>
+            <Text style={styles.overflowText}>+{overflowCount}</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -247,7 +239,7 @@ export function StationCard({
       onPressOut={pressAnim.onPressOut}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={`${cleanName}, ${selected ? 'selected' : 'unselected'}`}
+      accessibilityLabel={`${cleanName}, served lines: ${station.lines.join(', ')}, ${selected ? 'selected' : 'unselected'}`}
       accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.outerCard,
@@ -275,12 +267,12 @@ export function StationCard({
             <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
               {cleanName}
             </Text>
+            {renderLinePills()}
+            <View style={styles.headerSpacer} />
             {!isDashboardMode && rightElement && (
               <View style={styles.rightContainer}>{rightElement}</View>
             )}
           </View>
-
-          {renderLinePills()}
 
           {hasLedger && (
             <>
@@ -361,7 +353,7 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingVertical: 10,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -369,11 +361,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   stationName: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'SpaceGrotesk_600SemiBold',
     color: 'rgba(255, 255, 255, 0.95)',
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  headerSpacer: {
     flex: 1,
-    marginBottom: 4,
   },
   rightContainer: {
     flexShrink: 0,
@@ -381,24 +376,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pillsRowWrapper: {
-    marginTop: 0,
-    marginBottom: 2,
-  },
   pillsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
+    flexShrink: 0,
   },
   pillItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     borderWidth: 1,
     borderRadius: 20,
     overflow: 'hidden',
     paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   pillColorLayer: {
     ...StyleSheet.absoluteFillObject,

@@ -24,9 +24,9 @@ describe('Onboarding Screen 2: Station Search & Selection Invariants', () => {
   test('stations.tsx auto-clears query and search mode upon station add in handleToggleStation', () => {
     const content = fs.readFileSync(stationsScreenPath, 'utf8');
 
-    // Must reset query, isSearching, and isFocused when adding station
+    // Must reset query, searchActive, and isFocused when adding station
     expect(content).toContain("setQuery('')");
-    expect(content).toContain('setIsSearching(false)');
+    expect(content).toContain('setSearchActive(false)');
     expect(content).toContain('setIsFocused(false)');
 
     // Must call Keyboard.dismiss() and blur input on toggle

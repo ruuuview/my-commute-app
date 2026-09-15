@@ -57,7 +57,7 @@ describe('Lock Screen Accessory Complication Invariants', () => {
   });
 
   test('2. Short code length budget (strictly <= 4 chars)', () => {
-    for (const [lineId, code] of Object.entries(CANONICAL_SHORT_CODES)) {
+    for (const code of Object.values(CANONICAL_SHORT_CODES)) {
       expect(code.length).toBeGreaterThanOrEqual(2);
       expect(code.length).toBeLessThanOrEqual(4);
       expect(code).toBe(code.toUpperCase());
@@ -67,14 +67,14 @@ describe('Lock Screen Accessory Complication Invariants', () => {
   test('3. Guaranteed-Fit Terminal Tier Floor (strictly <= 8 chars)', () => {
     // In Tier 3 of ViewThatFits, the representation is an SF Symbol icon + ShortCode
     // In text budget terms, icon placeholder + space + short code must fit within 8 chars
-    for (const [lineId, code] of Object.entries(CANONICAL_SHORT_CODES)) {
+    for (const code of Object.values(CANONICAL_SHORT_CODES)) {
       const terminalString = `! ${code}`; // Symbol + short code representation
       expect(terminalString.length).toBeLessThanOrEqual(8);
     }
   });
 
   test('4. Status abbreviations are concise and defined', () => {
-    for (const [fullStatus, shortStatus] of Object.entries(STATUS_ABBREVIATIONS)) {
+    for (const shortStatus of Object.values(STATUS_ABBREVIATIONS)) {
       expect(shortStatus.length).toBeLessThanOrEqual(10);
     }
   });
@@ -83,7 +83,7 @@ describe('Lock Screen Accessory Complication Invariants', () => {
     // Format: "[AbbreviatedLine]: [AbbreviatedStatus]"
     for (const route of canonicalRoutes) {
       const shortCode = CANONICAL_SHORT_CODES[route];
-      for (const [fullStatus, shortStatus] of Object.entries(STATUS_ABBREVIATIONS)) {
+      for (const shortStatus of Object.values(STATUS_ABBREVIATIONS)) {
         const inlineString = `${shortCode}: ${shortStatus}`;
         expect(inlineString.length).toBeLessThanOrEqual(26);
       }
@@ -101,10 +101,10 @@ describe('Lock Screen Accessory Complication Invariants', () => {
   test('7. No raw colored emoji in complication string templates', () => {
     // Complications must use SF Symbols, never raw emoji which render full-color against tinted glass
     const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
-    for (const [lineId, code] of Object.entries(CANONICAL_SHORT_CODES)) {
+    for (const code of Object.values(CANONICAL_SHORT_CODES)) {
       expect(code).not.toMatch(emojiRegex);
     }
-    for (const [status, abbr] of Object.entries(STATUS_ABBREVIATIONS)) {
+    for (const abbr of Object.values(STATUS_ABBREVIATIONS)) {
       expect(abbr).not.toMatch(emojiRegex);
     }
   });

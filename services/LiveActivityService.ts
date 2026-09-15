@@ -75,6 +75,7 @@ export interface ApproachingEndpointPayload {
   branchText?: string;
   minutesToArrival: number;
   previousStationName?: string;
+  remainingStationSequence?: string[];
   stopsAway: number;
   etaTimestamp?: number;
 }
@@ -667,36 +668,47 @@ export class LiveActivityService {
 
     const previewPayload: LiveActivityBridgePayload = {
       journeyId: `preview_${Math.floor(Date.now() / 1000)}`,
-      originStation: station?.id || '940GZZLUPKC',
-      destinationStation: 'Piccadilly Circus',
-      stationId: station?.id || '940GZZLUPKC',
-      lineId: primaryLineId,
-      lineName: primaryLineName,
+      originStation: '940GZZLUCTN', // Camden Town
+      destinationStation: 'High Barnet',
+      stationId: '940GZZLUCTN',
+      lineId: 'northern',
+      lineName: 'Northern',
       branchKnown: true,
+      branchName: 'via Bank',
       arrivals: [
-        { destinationName: 'Cockfosters', timeToStationSeconds: 120 },
-        { destinationName: 'Arnos Grove', timeToStationSeconds: 300 },
+        { destinationName: 'High Barnet', timeToStationSeconds: 180, via: 'Bank' },
       ],
       statusSeverity: 'good',
       statusText: 'Good Service',
       severityTier: 0,
-      nextTrainMinutes: 2,
-      etaTimestamp: Math.floor(Date.now() / 1000) + 720,
+      nextTrainMinutes: 3,
+      etaTimestamp: Math.floor(Date.now() / 1000) + 180,
       etaDelta: 'On time',
       isDisrupted: false,
       isEscalated: false,
       delayRepayEligible: false,
       delayMinutes: 0,
       tunnelState: 'normal',
-      progress: 0.25,
+      progress: 0.35,
       segmentMaxDuration: 180,
       signalState: 'ok',
       phase: 'approaching',
-      availableEndpoints: ['Cockfosters', 'Arnos Grove'],
-      selectedEndpoint: 'Cockfosters',
+      availableEndpoints: ['High Barnet', 'Mill Hill East'],
+      selectedEndpoint: 'High Barnet',
       sessionStartTime: Math.floor(Date.now() / 1000),
-      currentStationName: "King's Cross St. Pancras",
-      destinationStationName: 'Piccadilly Circus',
+      currentStationName: 'Camden Town',
+      destinationStationName: 'High Barnet',
+      approachingEndpoints: [
+        {
+          destinationName: 'High Barnet',
+          branchText: 'via Bank',
+          minutesToArrival: 3,
+          previousStationName: "King's Cross St. Pancras",
+          remainingStationSequence: ['Euston'],
+          stopsAway: 1,
+          etaTimestamp: Math.floor(Date.now() / 1000) + 180,
+        },
+      ],
     };
 
     try {

@@ -28,6 +28,7 @@ public struct ApproachingEndpoint: Codable, Hashable {
   public let branchText: String?
   public let minutesToArrival: Int
   public let previousStationName: String?
+  public let remainingStationSequence: [String]?
   public let stopsAway: Int
   public let etaTimestamp: Int
 
@@ -36,6 +37,7 @@ public struct ApproachingEndpoint: Codable, Hashable {
     branchText: String? = nil,
     minutesToArrival: Int = 0,
     previousStationName: String? = nil,
+    remainingStationSequence: [String]? = nil,
     stopsAway: Int = 1,
     etaTimestamp: Int = 0
   ) {
@@ -43,8 +45,30 @@ public struct ApproachingEndpoint: Codable, Hashable {
     self.branchText = branchText
     self.minutesToArrival = minutesToArrival
     self.previousStationName = previousStationName
+    self.remainingStationSequence = remainingStationSequence
     self.stopsAway = stopsAway
     self.etaTimestamp = etaTimestamp
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case destinationName
+    case branchText
+    case minutesToArrival
+    case previousStationName
+    case remainingStationSequence
+    case stopsAway
+    case etaTimestamp
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    destinationName = try container.decodeIfPresent(String.self, forKey: .destinationName) ?? ""
+    branchText = try container.decodeIfPresent(String.self, forKey: .branchText)
+    minutesToArrival = try container.decodeIfPresent(Int.self, forKey: .minutesToArrival) ?? 0
+    previousStationName = try container.decodeIfPresent(String.self, forKey: .previousStationName)
+    remainingStationSequence = try container.decodeIfPresent([String].self, forKey: .remainingStationSequence)
+    stopsAway = try container.decodeIfPresent(Int.self, forKey: .stopsAway) ?? 1
+    etaTimestamp = try container.decodeIfPresent(Int.self, forKey: .etaTimestamp) ?? 0
   }
 }
 

@@ -1,11 +1,11 @@
 // frontend/targets/MyCommuteWidget/DeliveryTrackView.swift
-// SpringBoard-native countdown timer and Delivery Track progress bar.
+// SpringBoard-native transit card and Delivery Track progress bar.
 // Delivery Architecture:
 // Phase 0: Line Picker (Multi-line hubs)
 // Phase 1: Approaching Platform (Train coming to your station)
 // Phase 2: In-Transit (Your ride to next stop)
 // Phase 3: Arrived Summary (Auto-dismissing)
-// Zero wall-clock timestamps (08:36), zero stopwatches (08:24), zero compass text.
+// Zero wall-clock timestamps (08:36), zero stopwatches (08:24), zero compass text (Rule 15).
 
 import SwiftUI
 import ActivityKit
@@ -50,7 +50,7 @@ public struct DeliveryTrackView: View {
   }
 
   public var body: some View {
-    VStack(spacing: 10) {
+    VStack(alignment: .leading, spacing: 10) {
       if state.phase == "line_picker" {
         linePickerView
       } else if state.phase == "arrived" {
@@ -61,7 +61,7 @@ public struct DeliveryTrackView: View {
         approachingView
       }
     }
-    .padding(12)
+    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
   }
 
   // MARK: - Phase 0: Line Picker (Multi-Line Hub)
@@ -111,7 +111,7 @@ public struct DeliveryTrackView: View {
   private func lineChip(lineId: String) -> some View {
     HStack(spacing: 6) {
       Rectangle()
-        .fill(LineColor.color(for: lineId))
+        .fill(LineColor.specularColor(for: lineId))
         .frame(width: 4, height: 14)
         .cornerRadius(1)
       Text(lineId.capitalized)
@@ -124,37 +124,88 @@ public struct DeliveryTrackView: View {
     .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.5))
   }
 
-  // MARK: - Phase 1: Approaching Platform (Train Approaching You)
+  // MARK: - Phase 1: Approaching Platform (Unified 4-Row Corridor Architecture)
+  private var activeEndpoint: ApproachingEndpoint {
+    if let endpoints = state.approachingEndpoints, let first = endpoints.first {
+      return first
+    }
+    return ApproachingEndpoint(
+      destinationName: state.destinationStationName ?? state.selectedEndpoint ?? "Destination",
+      branchText: state.branchName,
+      minutesToArrival: state.nextTrainMinutes,
+      previousStationName: "Departed",
+      remainingStationSequence: nil,
+      stopsAway: state.nextTrainMinutes <= 1 ? 0 : 1,
+      etaTimestamp: state.etaTimestamp
+    )
+  }
+
   private var approachingView: some View {
-    VStack(spacing: 10) {
-      // Header: Line Name + Station
-      HStack {
-        DeliveryStatusIcon(severity: state.severityTier)
-        Text(state.lineName)
-          .font(.system(size: 13, weight: .bold))
+    let ep = activeEndpoint
+    let branchStr = (ep.branchText != nil && !ep.branchText!.isEmpty) ? " (\(ep.branchText!))" : ""
+    let minText = ep.minutesToArrival <= 0 ? "Due" : "\(ep.minutesToArrival)m"
+
+    return VStack(alignment: .leading, spacing: 8) {
+      // Row 1: Destination Endpoint + Tabular Minutes
+      HStack(alignment: .firstTextBaseline) {
+        Text("\(ep.destinationName)\(branchStr)")
+          .font(.system(size: 18, weight: .bold))
           .foregroundColor(.white)
-        if let stName = state.currentStationName, !stName.isEmpty {
-          Text("· \(stName)")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.white.opacity(0.85))
-        }
-        Spacer()
-        Text(state.statusText)
-          .font(.system(size: 11))
-          .foregroundColor(.white.opacity(0.7))
           .lineLimit(1)
+          .truncationMode(.tail)
+
+        Spacer()
+
+        Text(minText)
+          .font(.system(size: 24, weight: .bold))
+          .monospacedDigit()
+          .foregroundColor(ep.minutesToArrival <= 0 ? Color(hex: 0x30D158) : .white)
       }
 
-      // Stacked Delivery Tracks for Approaching Endpoints
-      if let endpoints = state.approachingEndpoints, !endpoints.isEmpty {
-        VStack(spacing: 12) {
-          ForEach(endpoints.prefix(2), id: \.destinationName) { ep in
-            approachingEndpointTrack(endpoint: ep)
+      // Row 2: 3.5pt Specular Line Color Bar + Line Name (Left-Aligned, No Indent)
+      HStack(spacing: 5) {
+        Rectangle()
+          .fill(LineColor.specularColor(for: lineId))
+          .frame(width: 3.5, height: 12)
+          .cornerRadius(1)
+        Text(state.lineName)
+          .font(.system(size: 12, weight: .medium))
+          .foregroundColor(.white.opacity(0.65))
+        Spacer()
+      }
+
+      // Row 3: Multi-Node Corridor Delivery Track
+      corridorTrack(endpoint: ep)
+
+      // Row 4: Micro-Status (Stops count + Service Severity)
+      HStack {
+        if state.tunnelState == "held" {
+          HStack(spacing: 5) {
+            Circle()
+              .fill(Color(hex: 0xFF9500))
+              .frame(width: 6, height: 6)
+            Text("Holding in tunnel · Awaiting signal")
+              .font(.system(size: 11, weight: .semibold))
+              .foregroundColor(.white.opacity(0.85))
           }
+        } else {
+          let stopsText: String = {
+            if ep.stopsAway <= 0 {
+              return "Arriving next"
+            } else if ep.stopsAway == 1 {
+              return "1 stop away"
+            } else {
+              return "\(ep.stopsAway) stops away"
+            }
+          }()
+          Text(stopsText)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.white.opacity(0.7))
         }
-      } else {
-        // Fallback: Single delivery track from top arrival
-        fallbackApproachingTrack
+
+        Spacer()
+
+        statusPill
       }
 
       // Detour Alternative (if service is disrupted/escalated)
@@ -162,208 +213,224 @@ public struct DeliveryTrackView: View {
     }
   }
 
-  private func approachingEndpointTrack(endpoint: ApproachingEndpoint) -> some View {
-    VStack(alignment: .leading, spacing: 5) {
-      HStack {
-        let branchStr = (endpoint.branchText != nil && !endpoint.branchText!.isEmpty) ? " (\(endpoint.branchText!))" : ""
-        Text("To \(endpoint.destinationName)\(branchStr)")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundColor(.white)
-        Spacer()
-        let minText = endpoint.minutesToArrival <= 0 ? "Due" : "\(endpoint.minutesToArrival)m"
-        Text(minText)
-          .font(.system(size: 13, weight: .bold))
-          .monospacedDigit()
-          .foregroundColor(endpoint.minutesToArrival <= 1 ? Color(hex: 0x30D158) : .white)
-      }
+  private func corridorTrack(endpoint: ApproachingEndpoint) -> some View {
+    let prevStation = endpoint.previousStationName ?? "Departed"
+    let targetStation = state.currentStationName ?? "Station"
+    let seq = endpoint.remainingStationSequence ?? []
+    let stopsAway = endpoint.stopsAway
 
-      // Track graphic: [Origin] ─────●───── [CurrentStation] 🏁
-      HStack(spacing: 4) {
-        Text(endpoint.previousStationName ?? "Approaching")
-          .font(.system(size: 10, weight: .medium))
-          .foregroundColor(.white.opacity(0.6))
-          .lineLimit(1)
-        
-        GeometryReader { geo in
-          ZStack(alignment: .leading) {
-            Capsule()
-              .fill(Color.white.opacity(0.18))
-              .frame(height: 4)
+    return HStack(spacing: 6) {
+      // 1. Departed station (truncates first)
+      Text(prevStation)
+        .font(.system(size: 10, weight: .medium))
+        .foregroundColor(.white.opacity(0.55))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .frame(maxWidth: 95, alignment: .leading)
 
-            // Progress position (1 stop away = 0.5, arriving now = 0.9)
-            let progressRatio: CGFloat = endpoint.minutesToArrival <= 0 ? 0.95 : (endpoint.stopsAway <= 1 ? 0.65 : 0.35)
-            Circle()
-              .fill(LineColor.color(for: lineId))
-              .frame(width: 8, height: 8)
-              .offset(x: max(0, min(geo.size.width - 8, geo.size.width * progressRatio)))
+      // 2. Center Track: line + train SF Symbol + intermediate nodes
+      GeometryReader { geo in
+        let width = geo.size.width
+        ZStack(alignment: .leading) {
+          // Base track line
+          Capsule()
+            .fill(Color.white.opacity(0.20))
+            .frame(height: 3)
+
+          // Traveled progress segment
+          let progressRatio: CGFloat = stopsAway <= 0 ? 0.70 : 0.35
+          Capsule()
+            .fill(LineColor.specularColor(for: lineId).opacity(0.75))
+            .frame(width: max(4, width * progressRatio), height: 3)
+
+          // Intermediate station node / ellipsis
+          if stopsAway == 1, let midStation = seq.first {
+            HStack(spacing: 2) {
+              Circle()
+                .fill(Color.white.opacity(0.8))
+                .frame(width: 4, height: 4)
+              Text(midStation)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(.white.opacity(0.75))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            }
+            .offset(x: width * 0.50)
+          } else if stopsAway >= 2, let nextCall = seq.first {
+            HStack(spacing: 2) {
+              Circle()
+                .fill(Color.white.opacity(0.8))
+                .frame(width: 4, height: 4)
+              Text(nextCall)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(.white.opacity(0.75))
+                .lineLimit(1)
+                .truncationMode(.tail)
+              Text("•••")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundColor(.white.opacity(0.5))
+            }
+            .offset(x: width * 0.40)
           }
-        }
-        .frame(height: 8)
 
-        HStack(spacing: 2) {
-          Text(state.currentStationName ?? "Station")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(.white.opacity(0.9))
-            .lineLimit(1)
-          Text("🏁")
-            .font(.system(size: 9))
+          // Native Train SF Symbol
+          Image(systemName: "tram.fill")
+            .font(.system(size: 10))
+            .foregroundColor(LineColor.specularColor(for: lineId))
+            .padding(3)
+            .background(Color.black.opacity(0.7), in: Circle())
+            .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+            .offset(x: max(0, min(width - 16, width * progressRatio - 8)))
         }
       }
+      .frame(height: 16)
+
+      // 3. Target Station (never truncates)
+      HStack(spacing: 2) {
+        Text(targetStation)
+          .font(.system(size: 11, weight: .bold))
+          .foregroundColor(.white)
+          .lineLimit(1)
+        Text("🏁")
+          .font(.system(size: 10))
+      }
+      .fixedSize(horizontal: true, vertical: false)
     }
-    .padding(8)
-    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(synthesizedAccessibilityLabel(endpoint: endpoint, prevStation: prevStation, targetStation: targetStation, seq: seq, stopsAway: stopsAway))
   }
 
-  private var fallbackApproachingTrack: some View {
-    let etaDate = state.etaTimestamp > 0
-      ? Date(timeIntervalSince1970: TimeInterval(state.etaTimestamp))
-      : Date().addingTimeInterval(180)
-    let now = Date()
-
-    return VStack(alignment: .leading, spacing: 6) {
-      HStack {
-        let dest = state.destinationStationName ?? state.selectedEndpoint ?? "Destination"
-        let branchStr = (state.branchName != nil && !state.branchName!.isEmpty) ? " (\(state.branchName!))" : ""
-        Text("To \(dest)\(branchStr)")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundColor(.white)
-        Spacer()
-        let minText = state.nextTrainMinutes <= 0 ? "Due" : "\(state.nextTrainMinutes)m"
-        Text(minText)
-          .font(.system(size: 13, weight: .bold))
-          .monospacedDigit()
-          .foregroundColor(.white)
-      }
-
-      GeometryReader { geo in
-        ZStack(alignment: .leading) {
-          Capsule()
-            .fill(Color.white.opacity(0.18))
-            .frame(height: 4)
-
-          Capsule()
-            .fill(LineColor.color(for: lineId))
-            .frame(width: max(8, min(geo.size.width, geo.size.width * CGFloat(state.progress))), height: 4)
-        }
-      }
-      .frame(height: 4)
-
-      HStack {
-        Text("Approaching platform")
-          .font(.system(size: 10))
-          .foregroundColor(.white.opacity(0.6))
-        Spacer()
-        let targetDate = max(now, etaDate)
-        Text(timerInterval: now...targetDate, countsDown: true)
-          .font(.system(size: 12, weight: .bold))
-          .monospacedDigit()
-          .foregroundColor(.white)
-      }
+  private func synthesizedAccessibilityLabel(endpoint: ApproachingEndpoint, prevStation: String, targetStation: String, seq: [String], stopsAway: Int) -> String {
+    let minText = endpoint.minutesToArrival <= 0 ? "due now" : "\(endpoint.minutesToArrival) minutes away"
+    if stopsAway <= 0 {
+      return "\(state.lineName) train to \(endpoint.destinationName), arriving next at \(targetStation), \(minText)"
+    } else if stopsAway == 1, let mid = seq.first {
+      return "\(state.lineName) train to \(endpoint.destinationName), between \(prevStation) and \(mid), 1 stop from \(targetStation), \(minText)"
+    } else {
+      let stopsList = seq.joined(separator: ", ")
+      return "\(state.lineName) train to \(endpoint.destinationName), departing \(prevStation), \(stopsAway) stops from \(targetStation), calling at \(stopsList), \(minText)"
     }
+  }
+
+  private var statusPill: some View {
+    let severity = state.severityTier
+    let text = state.statusText.isEmpty ? "Good Service" : state.statusText
+    let color: Color = {
+      if severity >= 2 {
+        return Color(hex: 0xFF3B30)
+      } else if severity == 1 {
+        return Color(hex: 0xFFB000)
+      } else {
+        return Color(hex: 0x30D158)
+      }
+    }()
+
+    return Text(text)
+      .font(.system(size: 11, weight: .semibold))
+      .foregroundColor(color)
+      .padding(.horizontal, 6)
+      .padding(.vertical, 2)
+      .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 4))
   }
 
   // MARK: - Phase 2: In-Transit (Your Ride to Next Stop)
   private var inTransitView: some View {
-    let now = Date()
-    let etaSec = (state.nextStationEtaMinutes ?? 2) * 60
-    let etaDate = state.nextStationEtaTimestamp != nil && state.nextStationEtaTimestamp! > 0
-      ? Date(timeIntervalSince1970: TimeInterval(state.nextStationEtaTimestamp!))
-      : now.addingTimeInterval(TimeInterval(etaSec))
-    let isStale = state.isStaleEta ?? false
+    let nextStation = state.nextStationName ?? "Next Stop"
+    let nextMins = state.nextStationEtaMinutes ?? 2
+    let dest = state.destinationStationName ?? state.selectedEndpoint ?? "Destination"
+    let branchSuffix = (state.branchName != nil && !state.branchName!.isEmpty) ? " (\(state.branchName!))" : ""
+    let minText = nextMins <= 0 ? "Due" : "\(nextMins)m"
 
-    return VStack(spacing: 10) {
-      HStack {
-        Rectangle()
-          .fill(LineColor.color(for: lineId))
-          .frame(width: 4, height: 14)
-          .cornerRadius(1)
-        Text(state.isOfflineMode ? "\(state.lineName) · In Transit (Offline)" : "\(state.lineName) · In Transit")
-          .font(.system(size: 13, weight: .bold))
+    return VStack(alignment: .leading, spacing: 8) {
+      // Row 1: Destination and Next Stop ETA
+      HStack(alignment: .firstTextBaseline) {
+        Text("To \(dest)\(branchSuffix)")
+          .font(.system(size: 18, weight: .bold))
           .foregroundColor(.white)
+          .lineLimit(1)
+          .truncationMode(.tail)
+
         Spacer()
-        if let dest = state.destinationStationName ?? state.selectedEndpoint {
-          let branchSuffix = (state.branchName != nil && !state.branchName!.isEmpty) ? " (\(state.branchName!))" : ""
-          Text("to \(dest)\(branchSuffix)")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.75))
-        }
+
+        Text(minText)
+          .font(.system(size: 24, weight: .bold))
+          .monospacedDigit()
+          .foregroundColor(nextMins <= 0 ? Color(hex: 0x30D158) : .white)
       }
 
-      // Delivery Track: [PrevStation] ─────●───── [NextStation] 🏁
+      // Row 2: 3.5pt Specular Line Bar + Line Name
+      HStack(spacing: 5) {
+        Rectangle()
+          .fill(LineColor.specularColor(for: lineId))
+          .frame(width: 3.5, height: 12)
+          .cornerRadius(1)
+        Text(state.lineName)
+          .font(.system(size: 12, weight: .medium))
+          .foregroundColor(.white.opacity(0.65))
+        Spacer()
+      }
+
+      // Row 3: Rider Transit Track
       HStack(spacing: 6) {
-        Text(state.currentStationName ?? "Origin")
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundColor(.white.opacity(0.7))
+        Text(state.currentStationName ?? "Departed")
+          .font(.system(size: 10, weight: .medium))
+          .foregroundColor(.white.opacity(0.55))
           .lineLimit(1)
+          .truncationMode(.tail)
+          .frame(maxWidth: 95, alignment: .leading)
 
         GeometryReader { geo in
+          let width = geo.size.width
           ZStack(alignment: .leading) {
             Capsule()
-              .fill(Color.white.opacity(0.18))
-              .frame(height: 6)
+              .fill(Color.white.opacity(0.20))
+              .frame(height: 3)
 
-            Circle()
-              .fill(LineColor.color(for: lineId))
-              .frame(width: 10, height: 10)
-              .offset(x: max(0, min(geo.size.width - 10, geo.size.width * 0.55)))
+            let progressRatio: CGFloat = min(1.0, max(0.15, CGFloat(state.progress)))
+            Capsule()
+              .fill(LineColor.specularColor(for: lineId).opacity(0.75))
+              .frame(width: max(4, width * progressRatio), height: 3)
+
+            Image(systemName: "tram.fill")
+              .font(.system(size: 10))
+              .foregroundColor(LineColor.specularColor(for: lineId))
+              .padding(3)
+              .background(Color.black.opacity(0.7), in: Circle())
+              .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+              .offset(x: max(0, min(width - 16, width * progressRatio - 8)))
           }
         }
-        .frame(height: 10)
+        .frame(height: 16)
 
         HStack(spacing: 2) {
-          Text(state.nextStationName ?? "Next Stop")
+          Text(nextStation)
             .font(.system(size: 11, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
           Text("🏁")
             .font(.system(size: 10))
         }
+        .fixedSize(horizontal: true, vertical: false)
       }
-      .padding(8)
-      .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-      // Next Stop Status and Native SpringBoard Countdown
+      // Row 4: Status and micro info
       HStack {
-        HStack(spacing: 4) {
-          if state.isOfflineMode {
-            let elapsedSec = max(0, Int(now.timeIntervalSince1970) - state.sessionStartTime)
-            let elapsedMins = max(1, elapsedSec / 60)
-            Text("In Transit ·")
-              .font(.system(size: 12, weight: .semibold))
-              .foregroundColor(.white.opacity(0.85))
-            Text("\(elapsedMins)m elapsed")
-              .font(.system(size: 13, weight: .bold))
-              .monospacedDigit()
-              .foregroundColor(.white)
-          } else {
-            Text("Next stop ·")
-              .font(.system(size: 12, weight: .semibold))
-              .foregroundColor(.white.opacity(0.85))
-            let targetDate = max(now, etaDate)
-            Text(timerInterval: now...targetDate, countsDown: true)
-              .font(.system(size: 14, weight: .bold))
-              .monospacedDigit()
-              .foregroundColor(.white)
-          }
+        if state.isOfflineMode {
+          let nowUnix = Int(Date().timeIntervalSince1970)
+          let elapsedSec = max(0, nowUnix - state.sessionStartTime)
+          let elapsedMins = max(1, elapsedSec / 60)
+          Text("In Transit · \(elapsedMins)m elapsed")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.white.opacity(0.7))
+        } else {
+          Text("Next stop: \(nextStation)")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.white.opacity(0.7))
         }
 
         Spacer()
 
-        if state.isOfflineMode {
-          if state.delayMinutes > 0 {
-            Text("Delayed · +\(state.delayMinutes)m")
-              .font(.system(size: 11, weight: .bold))
-              .foregroundColor(Color(hex: 0xFF9500))
-          } else {
-            Text("In Tunnel · On time")
-              .font(.system(size: 11, weight: .semibold))
-              .foregroundColor(.white.opacity(0.75))
-          }
-        } else {
-          Text(state.statusSeverity == "good" ? "On time" : state.statusText)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(state.isDisrupted ? Color(hex: 0xFFB000) : Color(hex: 0x30D158))
-        }
+        statusPill
       }
 
       detourSlot
@@ -372,23 +439,20 @@ public struct DeliveryTrackView: View {
 
   // MARK: - Phase 3: Arrived Summary
   private var arrivedView: some View {
-    VStack(spacing: 8) {
+    VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 6) {
         Image(systemName: "checkmark.circle.fill")
           .font(.system(size: 14, weight: .bold))
           .foregroundColor(Color(hex: 0x30D158))
         Text("Arrived · \(state.destinationStationName ?? state.lineName)")
-          .font(.system(size: 13, weight: .bold))
+          .font(.system(size: 14, weight: .bold))
           .foregroundColor(.white)
         Spacer()
       }
 
-      HStack {
-        Text("Commute completed. Auto-dismissing on exit.")
-          .font(.system(size: 11))
-          .foregroundColor(.white.opacity(0.7))
-        Spacer()
-      }
+      Text("Commute completed. Auto-dismissing on exit.")
+        .font(.system(size: 11))
+        .foregroundColor(.white.opacity(0.7))
     }
   }
 

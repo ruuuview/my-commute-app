@@ -32,6 +32,14 @@ enum LineColor {
     default:                                return Color(hex: 0x888888)
     }
   }
+
+  static func specularColor(for lineId: String) -> Color {
+    let norm = lineId.lowercased().replacingOccurrences(of: "-", with: "")
+    if norm == "northern" {
+      return Color(hex: 0x8A90A0) // Polished obsidian specular rim (6.5:1 contrast against dark glass)
+    }
+    return color(for: lineId)
+  }
 }
 
 extension Color {
@@ -252,11 +260,16 @@ private struct CompactIslandView: View {
             .foregroundColor(.white)
         }
       } else if context.state.isDisrupted {
-        Text("🟡 \(minutesAway)m")
-          .font(.mcHeadline)
-          .monospacedDigit()
-          .foregroundColor(Color(hex: 0xFFB000))
-          .accessibilityLabel("Disrupted, next train in \(minutesAway) minutes")
+        HStack(spacing: 3) {
+          Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundColor(Color(hex: 0xFFB000))
+          Text("\(minutesAway)m")
+            .font(.mcHeadline)
+            .monospacedDigit()
+            .foregroundColor(Color(hex: 0xFFB000))
+        }
+        .accessibilityLabel("Disrupted, next train in \(minutesAway) minutes")
       } else {
         Text("\(minutesAway == 0 ? "Due" : "\(minutesAway)m")")
           .font(.mcHeadline)
@@ -496,161 +509,11 @@ private struct ExpandedIslandView: View {
 private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
-  private var hero: Arrival? { context.state.arrivals?.first }
-  private var signalDegraded: Bool { context.state.tunnelState == "held" }
-  private var hasArrival: Bool { hero != nil || context.state.nextTrainMinutes >= 0 }
-
-  private var minutesAway: Int {
-    if let hero = hero {
-      return max(0, Int((hero.timeToStationSeconds + 30) / 60))
-    }
-    return context.state.nextTrainMinutes
-  }
-
-  private var isSevere: Bool {
-    return context.state.severityTier >= 2
-  }
-
-  private var mainHeadline: String {
-    if signalDegraded {
-      return context.state.statusText.isEmpty ? "Holding in tunnel · Awaiting signal" : context.state.statusText
-    }
-    if !hasArrival {
-      return "No trains currently scheduled"
-    }
-    let branchQualifier = (context.state.branchName != nil && !context.state.branchName!.isEmpty) ? " (\(context.state.branchName!))" : ""
-    if context.state.isEscalated {
-      return "\(lineDisplayName)\(branchQualifier) Suspended"
-    }
-    if context.state.severityTier > 0 {
-      return "\(lineDisplayName)\(branchQualifier) train delayed (\(context.state.etaDelta))"
-    }
-    if minutesAway == 0 {
-      return "Train arriving at platform"
-    } else if minutesAway <= 1 {
-      return "Train approaching shortly"
-    } else {
-      return "\(lineDisplayName)\(branchQualifier) train is on the way"
-    }
-  }
-
-  private var lineDisplayName: String {
-    let map: [String: String] = [
-      "bakerloo": "Bakerloo", "central": "Central", "circle": "Circle",
-      "district": "District", "elizabeth": "Elizabeth", "hammersmith": "Hammersmith",
-      "jubilee": "Jubilee", "metropolitan": "Metropolitan", "northern": "Northern",
-      "piccadilly": "Piccadilly", "victoria": "Victoria", "waterlooandcity": "Waterloo",
-      "overground": "Overground"
-    ]
-    return map[context.attributes.lineId.lowercased()] ?? (context.attributes.lineName ?? context.state.lineName)
-  }
-
-  private var destinationText: String {
-    if let hero = hero, !hero.destinationName.isEmpty {
-      if let branch = context.state.branchName, !branch.isEmpty {
-        return "\(hero.destinationName) (\(branch))"
-      } else if let via = hero.via, !via.isEmpty {
-        return "\(hero.destinationName) (\(via))"
-      }
-      return hero.destinationName
-    }
-    if let branch = context.state.branchName, !branch.isEmpty {
-      return "\(lineDisplayName) (\(branch))"
-    }
-    return lineDisplayName
-  }
-
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      // 1. Sub-Header: "Victoria Line · Live Commute" + Canonical TfL Badge
-      HStack(spacing: 6) {
-        Circle()
-          .fill(LineColor.color(for: context.attributes.lineId))
-          .frame(width: 8, height: 8)
-        let branchSuffix = (context.state.branchName != nil && !context.state.branchName!.isEmpty) ? " · \(context.state.branchName!)" : ""
-        Text("\(lineDisplayName) Line\(branchSuffix) · Live Commute")
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundColor(.white.opacity(0.7))
-        Spacer()
-        if signalDegraded {
-          Text("Reconnecting")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(.white.opacity(0.7))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.white.opacity(0.12))
-            .cornerRadius(4)
-        } else if !hasArrival {
-          Text("Closed")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(.white.opacity(0.6))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.white.opacity(0.1))
-            .cornerRadius(4)
-        } else if context.state.isDisrupted {
-          Text(isSevere ? "Severe Delays" : "Minor Delays")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background((isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)).opacity(0.18))
-            .cornerRadius(4)
-        } else {
-          Text("Good Service")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(Color(hex: 0x30D158))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color(hex: 0x30D158).opacity(0.18))
-            .cornerRadius(4)
-        }
-      }
-
-      // 2. Large Headline & Minutes
-      VStack(alignment: .leading, spacing: 2) {
-        Text(mainHeadline)
-          .font(.system(size: 18, weight: .bold))
-          .foregroundColor(.white)
-        if signalDegraded {
-          Text("Reconnecting to live transit feed...")
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(.white.opacity(0.65))
-        } else if !hasArrival {
-          Text("No scheduled departures")
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(.white.opacity(0.65))
-        } else if context.state.isDisrupted {
-          HStack(spacing: 4) {
-            Text(isSevere ? "Severe Delays" : "Minor Delays")
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundColor(isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000))
-            Text("·")
-              .foregroundColor(.white.opacity(0.4))
-            Text("\(minutesAway) mins away")
-              .font(.system(size: 13, weight: .medium))
-              .foregroundColor(.white.opacity(0.85))
-          }
-        } else {
-          HStack(spacing: 4) {
-            Text("On time")
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundColor(Color(hex: 0x30D158))
-            Text("·")
-              .foregroundColor(.white.opacity(0.4))
-            Text(minutesAway == 0 ? "Due now" : "\(minutesAway) mins away")
-              .font(.system(size: 13, weight: .medium))
-              .foregroundColor(.white.opacity(0.85))
-          }
-        }
-      }
-
-      // 3. SpringBoard-Native Delivery Track
-      DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
-    }
-    .padding(16)
-    .background(.ultraThinMaterial, in: ContainerRelativeShape())
-    .overlay(ContainerRelativeShape().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-    .padding(10)
+    DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+      .padding(14)
+      .background(.ultraThinMaterial, in: ContainerRelativeShape())
+      .overlay(ContainerRelativeShape().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
+      .padding(10)
   }
 }

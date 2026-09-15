@@ -409,7 +409,7 @@ export default function StationsScreen() {
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = isStationPinned(item);
-    const isSearchingMode = query.trim() !== '';
+    const isSearchingMode = query.trim() !== '' || pinnedStations.length === 0;
 
     const rightElement = isSearchingMode ? (
       isPinned ? (
@@ -449,11 +449,11 @@ export default function StationsScreen() {
         showLedger={true}
       />
     );
-  }, [isStationPinned, handleToggleStation, query]);
+  }, [isStationPinned, handleToggleStation, query, pinnedStations.length]);
 
   // searchFocusedStyle replaced by luminousSearchStyle Reanimated value above
 
-  const isShowRecents = query === '' && isFocused && recentStations.length > 0;
+  const isShowRecents = query === '' && isFocused && recentStations.length > 0 && pinnedStations.length === 0;
 
   return (
     <View style={styles.root}>
@@ -592,8 +592,8 @@ export default function StationsScreen() {
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
-            ) : (query.trim() === '' && (searchActive || pinnedStations.length === 0) && lineRecommendedStations.length > 0) ? (
-              /* Line-Smart Recommendations (zero-typing or fallback) */
+            ) : (query.trim() === '' && pinnedStations.length === 0 && lineRecommendedStations.length > 0) ? (
+              /* Line-Smart Recommendations (zero-typing fallback when no stations pinned) */
               <View style={styles.lineRecsContainer}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionHeaderText}>STATIONS ON YOUR LINES</Text>
@@ -623,7 +623,7 @@ export default function StationsScreen() {
                 keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
-                  !searchActive && query.trim() === '' && pinnedStations.length > 0 ? (
+                  query.trim() === '' && pinnedStations.length > 0 ? (
                     <View style={styles.sectionHeader}>
                       <Text style={styles.sectionHeaderText}>
                         YOUR PINNED STATIONS ({pinnedStations.length})
@@ -632,7 +632,7 @@ export default function StationsScreen() {
                   ) : null
                 }
                 ListFooterComponent={
-                  !searchActive && query.trim() === '' && pinnedStations.length > 0 ? (
+                  query.trim() === '' && pinnedStations.length > 0 ? (
                     <Pressable
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

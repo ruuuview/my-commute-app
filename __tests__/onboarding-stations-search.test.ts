@@ -156,4 +156,21 @@ describe('Onboarding Screen 2: Station Search & Selection Invariants', () => {
     expect(useOnboardingStore.getState().pinnedStations.length).toBe(1);
     expect(useOnboardingStore.getState().pinnedStations[0].id).toBe('940GZZLUOXC');
   });
+
+  test('Search Focus Invariant: suggestions do NOT hijack view or hide selected stations on focus', () => {
+    const content = fs.readFileSync(stationsScreenPath, 'utf8');
+
+    // Recommendations ('STATIONS ON YOUR LINES') must strictly gate on pinnedStations.length === 0
+    // It must NEVER activate solely because searchActive is true when stations are pinned
+    expect(content).not.toMatch(/searchActive\s*\|\|\s*pinnedStations\.length\s*===\s*0/);
+    expect(content).toMatch(/query\.trim\(\)\s*===\s*['"]['"]\s*&&\s*pinnedStations\.length\s*===\s*0\s*&&\s*lineRecommendedStations\.length\s*>\s*0/);
+
+    // isShowRecents must also not displace pinned stations
+    expect(content).toMatch(/isShowRecents\s*=\s*query\s*===\s*['"]['"]\s*&&\s*isFocused\s*&&\s*recentStations\.length\s*>\s*0\s*&&\s*pinnedStations\.length\s*===\s*0/);
+
+    // Main pinned deck header and footer must remain visible when query is empty, regardless of searchActive
+    expect(content).toMatch(/ListHeaderComponent=\{[\s\S]*?query\.trim\(\)\s*===\s*['"]['"]\s*&&\s*pinnedStations\.length\s*>\s*0/);
+    expect(content).toMatch(/ListFooterComponent=\{[\s\S]*?query\.trim\(\)\s*===\s*['"]['"]\s*&&\s*pinnedStations\.length\s*>\s*0/);
+  });
 });
+

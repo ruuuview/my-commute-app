@@ -202,24 +202,39 @@ export function StationCard({
 
   const renderLinePills = () => {
     if (!station.lines || station.lines.length === 0) return null;
-    const primaryLineId = station.lines[0];
-    const overflowCount = station.lines.length - 1;
-    const shortName = LINE_SHORT_NAMES[primaryLineId] || primaryLineId;
-    const brandColor = LINE_IDENTITY_COLORS[primaryLineId] || '#888';
-    const colors = getPillColors(primaryLineId, brandColor);
+
+    const sortedLines = [...station.lines].sort((a, b) => {
+      const aSelected = userSelectedLines.includes(a);
+      const bSelected = userSelectedLines.includes(b);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0;
+    });
+
+    const maxVisible = sortedLines.length === 4 ? 4 : 3;
+    const visibleLines = sortedLines.slice(0, maxVisible);
+    const overflowCount = Math.max(0, sortedLines.length - maxVisible);
 
     return (
       <View style={styles.pillsContainer}>
-        <View
-          style={[styles.pillItem, { borderColor: colors.borderColor }]}
-          accessibilityLabel={`${shortName} line`}
-          accessibilityRole="text"
-        >
-          <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
-          <View style={[styles.pillBar, { backgroundColor: colors.dotColor }]} />
-          <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
-        </View>
+        {visibleLines.map((lineId) => {
+          const shortName = LINE_SHORT_NAMES[lineId] || lineId;
+          const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
+          const colors = getPillColors(lineId, brandColor);
+
+          return (
+            <View
+              key={lineId}
+              style={[styles.pillItem, { borderColor: colors.borderColor }]}
+              accessibilityLabel={`${shortName} line`}
+              accessibilityRole="text"
+            >
+              <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
+              <View style={[styles.pillBar, { backgroundColor: colors.dotColor }]} />
+              <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
+            </View>
+          );
+        })}
         {overflowCount > 0 && (
           <View style={styles.overflowBadge}>
             <Text style={styles.overflowText}>+{overflowCount}</Text>
@@ -379,42 +394,43 @@ const styles = StyleSheet.create({
   pillsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     flexShrink: 0,
   },
   pillItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 12,
     overflow: 'hidden',
-    paddingHorizontal: 7,
+    paddingHorizontal: 6,
     paddingVertical: 2,
+    position: 'relative',
   },
   pillColorLayer: {
     ...StyleSheet.absoluteFillObject,
   },
   pillBar: {
-    width: 2.5,
-    height: 10,
-    borderRadius: 1,
+    width: 2,
+    height: 8,
+    borderRadius: 0.8,
   },
   pillText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   overflowBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 4,
-    paddingHorizontal: 5,
-    height: 16,
+    paddingHorizontal: 4,
+    height: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   overflowText: {
-    fontSize: 9,
+    fontSize: 8,
     color: 'rgba(255, 255, 255, 0.45)',
     fontFamily: 'SpaceGrotesk_700Bold',
   },

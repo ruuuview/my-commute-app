@@ -35,7 +35,7 @@ import Animated, {
   ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
@@ -107,6 +107,7 @@ const DepartureCard = memo(function DepartureCard({
   const selectedLines = useUserPreferencesStore(useShallow(s => s.selectedLines || []));
 
   const pressAnim = usePressAnimation('departure_card', false, isActive);
+  const jiggleStyle = useJiggle(jiggle, index, isActive);
 
   // ── Fetch live arrivals (paused while user is editing/reordering) ─
   const fetchArrivals = useCallback(
@@ -189,7 +190,7 @@ const DepartureCard = memo(function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.outerContainer, containerAnimStyle]}
+      style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
       testID={`departure-card-${stationId}`}
     >
       <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle]}>

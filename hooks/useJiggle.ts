@@ -12,18 +12,16 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 
-// ── Geometry (single-column stack, 370dp cards, 12dp vertical gap) ──────
-// Worst case = anti-phase neighbours: A's bottom corner drops while B's top
-// corner rises. Gap closure = 2 · (w/2) · sin θ.
-//   1.3° → 2·185·0.0227 = 8.4dp  → 3.6dp clearance  ✅ ships
-//   1.8° → 2·185·0.0314 = 11.6dp → 0.4dp clearance  ⚠️ hard ceiling
-export const JIGGLE_MAX_DEG = 1.3;
+// ── Geometry (single-column stack, 361pt cards on iPhone 14 Pro, 12dp vertical gap) ──────
+// Synchronous alternating polarity: even items rotate +θ while odd items rotate -θ.
+// Maximum rotation is clamped to 1.2° so vertical corner displacement is <= 3.8pt,
+// perfectly preserving the 12pt card separation without visual overlap.
+export const JIGGLE_MAX_DEG = 1.2;
 export const JIGGLE_DEG = JIGGLE_MAX_DEG;   // backward-compat alias
-export const JIGGLE_PERIOD_MS = 420;        // full cycle ≈ 2.4 Hz (tune 380–480)
+export const JIGGLE_PERIOD_MS = 340;        // 340ms cycle ≈ 2.94 Hz (authentic iOS SpringBoard cadence)
 export const JIGGLE_IN_MS = 160;
 export const JIGGLE_OUT_MS = 200;
 const TWO_PI = Math.PI * 2;
-const GOLDEN_ANGLE = 2.39996;               // rad ≈ 137.5°
 
 export interface JiggleDriver {
   /** Linear clock 0→2π. Loops non-reversed — seamless because sin(0) === sin(2π). */
@@ -89,7 +87,7 @@ export function useJiggleDriver(isEditing: boolean): JiggleDriver {
   return useMemo(() => ({ phase, amplitude }), [phase, amplitude]);
 }
 
-/** Per-card consumer. Emits ONLY transform + zIndex. No shadow. No scale. */
+/** Per-card consumer. Emits transform + zIndex. Rhythmic, even, synchronized alternating polarity. */
 export function useJiggle(driver: JiggleDriver | undefined, index: number, isActive: boolean) {
   const activeProgress = useSharedValue(isActive ? 1 : 0);
   useEffect(() => {
@@ -97,12 +95,15 @@ export function useJiggle(driver: JiggleDriver | undefined, index: number, isAct
     activeProgress.value = withTiming(isActive ? 1 : 0, { duration: 120, easing: Easing.out(Easing.quad) });
   }, [isActive, activeProgress]);
 
-  // Golden-angle spacing: unique phase per card; no two neighbours in lockstep or mirror.
-  const offset = index * GOLDEN_ANGLE;
+  // Synchronous alternating polarity:
+  // Even items tilt left when odd items tilt right in balanced rhythmic cadence.
+  // Both line cards and station departure cards share identical frequency and amplitude,
+  // completely eliminating chaotic, uneven wobble directions.
+  const polarity = (index % 2 === 0) ? 1 : -1;
 
   return useAnimatedStyle(() => {
     if (!driver) return { transform: [{ rotate: '0deg' }], zIndex: 1 };
-    const wobble = Math.sin(driver.phase.value + offset) * driver.amplitude.value * JIGGLE_MAX_DEG;
+    const wobble = Math.sin(driver.phase.value) * polarity * driver.amplitude.value * JIGGLE_MAX_DEG;
     const deg = wobble * (1 - activeProgress.value); // dragged card eases to flat
     return {
       transform: [{ rotate: `${deg}deg` }],

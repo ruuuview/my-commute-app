@@ -13,11 +13,18 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
   const dashboardGridSrc = fs.readFileSync(dashboardGridPath, 'utf8');
   const dashboardSrc = fs.readFileSync(dashboardPath, 'utf8');
 
-  describe('Rule: No Rotational Jiggle on Full-Width Cards', () => {
-    it('DepartureCard does not attach jiggleStyle or rotate transform to its outer container', () => {
-      // Invariant: Cards must remain level, stationary, and horizontal (HIG standard)
-      expect(departureCardSrc).not.toMatch(/style=\{?\[styles\.outerContainer,\s*containerAnimStyle,\s*jiggleStyle\]\}?/);
-      expect(departureCardSrc).toMatch(/style=\{?\[styles\.outerContainer,\s*containerAnimStyle\]\}?/);
+  describe('Rule: Harmonious Synchronized Jiggle Across Dashboard Cards', () => {
+    it('DepartureCard attaches synchronized alternating jiggleStyle to its outer container', () => {
+      // Invariant: Both station and line cards must jiggle in edit mode with balanced harmony
+      expect(departureCardSrc).toMatch(/style=\{?\[styles\.outerContainer,\s*containerAnimStyle,\s*jiggleStyle\]\}?/);
+    });
+
+    it('useJiggle enforces synchronous alternating polarity without chaotic random phase offsets', () => {
+      const useJigglePath = path.resolve(__dirname, '../hooks/useJiggle.ts');
+      const useJiggleSrc = fs.readFileSync(useJigglePath, 'utf8');
+      expect(useJiggleSrc).toMatch(/polarity\s*=\s*\(index\s*%\s*2\s*===\s*0\)\s*\?\s*1\s*:\s*-1/);
+      expect(useJiggleSrc).not.toContain('GOLDEN_ANGLE');
+      expect(useJiggleSrc).toMatch(/JIGGLE_PERIOD_MS\s*=\s*340/);
     });
   });
 

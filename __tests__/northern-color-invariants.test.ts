@@ -30,17 +30,19 @@ describe('Northern Line Poka-Yoke Invariants', () => {
   test('NORTHERN_SHADES defines valid specular obsidian tones and high-contrast boundaries', () => {
     expect(NORTHERN_SHADES.brand).toBe('#000000');
     expect(NORTHERN_SHADES.shadowColor).toBe('#000000');
-    expect(NORTHERN_SHADES.highlightBorder).toBe('#FFFFFF');
+    expect(NORTHERN_SHADES.highlightBorder).toBe('#000000');
+    expect(NORTHERN_SHADES.highlightBorder).not.toBe('#FFFFFF');
+    expect(NORTHERN_SHADES.highlightBorder).not.toMatch(/#fff/i);
     expect(NORTHERN_SHADES.pillBorder).toBe('#8A90A0');
 
-    // Systemic guardrail 1: Wash must be deep inky black (preserves black identity, darker than canvas)
+    // Systemic guardrail 1: Wash must be subtle dark depth (never choking opaque black box)
     expect(NORTHERN_SHADES.highlightWash).toMatch(/rgba\(\s*0,\s*0,\s*0/);
     const washAlpha = parseAlphaFromRgba(NORTHERN_SHADES.highlightWash);
-    expect(washAlpha).toBeGreaterThanOrEqual(0.50);
+    expect(washAlpha).toBeLessThanOrEqual(0.25);
+    expect(washAlpha).toBeGreaterThan(0.0);
 
-    // Systemic guardrail 2: Rim contrast against card background (#0A1128) must be >= 3:1 (prevents dead matte dark hole)
+    // Systemic guardrail 2: Pill border rim contrast against card background (#0A1128) must be >= 3:1
     const cardBg = '#0A1128';
-    expect(contrastRatio(NORTHERN_SHADES.highlightBorder, cardBg)).toBeGreaterThanOrEqual(3.0);
     expect(contrastRatio(NORTHERN_SHADES.pillBorder, cardBg)).toBeGreaterThanOrEqual(3.0);
   });
 

@@ -15,6 +15,7 @@ import {
   RefreshControl,
   BackHandler,
   Pressable,
+  AccessibilityInfo,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -744,6 +745,31 @@ const MyCommuteDashboard: React.FC = () => {
 
   const itemRefs = useRef<Record<string, View>>({});
 
+  // ── VoiceOver line reorder (parity with DashboardGrid's station handlers) ──
+  const handleMoveLineUp = useCallback((currentIndex: number) => {
+    if (currentIndex <= 0) return;
+    const next = [...sortedLines];
+    const [item] = next.splice(currentIndex, 1);
+    next.splice(currentIndex - 1, 0, item);
+    reorderLines(next.map(l => l.id));
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    AccessibilityInfo.announceForAccessibility(
+      `${item.name} moved up to position ${currentIndex} of ${next.length}`
+    );
+  }, [sortedLines, reorderLines]);
+
+  const handleMoveLineDown = useCallback((currentIndex: number) => {
+    if (currentIndex >= sortedLines.length - 1) return;
+    const next = [...sortedLines];
+    const [item] = next.splice(currentIndex, 1);
+    next.splice(currentIndex + 1, 0, item);
+    reorderLines(next.map(l => l.id));
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    AccessibilityInfo.announceForAccessibility(
+      `${item.name} moved down to position ${currentIndex + 2} of ${next.length}`
+    );
+  }, [sortedLines, reorderLines]);
+
   const renderLineItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<LineData>) => {
     const idx = getIndex() ?? sortedLines.findIndex((l: LineData) => l.id === item.id);
     const severity = getDashboardSeverity(item.status, item.status_severity);
@@ -778,11 +804,14 @@ const MyCommuteDashboard: React.FC = () => {
             isActive={isActive}
             index={idx}
             jiggle={jiggle}
+            onLongPress={handleEdit}
+            onMoveUp={handleMoveLineUp}
+            onMoveDown={handleMoveLineDown}
           />
         </View>
       </ScaleDecorator>
     );
-  }, [isEditing, isDraggingLine, sortedLines, removeLine, jiggle]);
+  }, [isEditing, isDraggingLine, sortedLines, removeLine, jiggle, handleEdit, handleMoveLineUp, handleMoveLineDown]);
   const worstStatus = useWorstStatus(selectedLines);
   const networkSeverity = useMemo(() => {
     if (staleState === 'offline') return 'offline';
@@ -1023,6 +1052,7 @@ const MyCommuteDashboard: React.FC = () => {
                       isJiggling={isEditing}
                       onExitJiggle={handleExitEdit}
                       onDelete={removeStation}
+                      onLongPressCard={handleEdit}
                       onScrollEnabledChange={(enabled) => {
                         setIsDraggingStation(!enabled);
                         setScrollEnabled(enabled);

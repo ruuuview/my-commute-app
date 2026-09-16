@@ -10,7 +10,6 @@ import Animated, {
   FadeOut,
   ZoomIn,
   ZoomOut,
-  SharedValue,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
@@ -87,7 +86,8 @@ interface LineCardProps {
   isActive?: boolean;
   index?: number;
   jiggle?: JiggleDriver;
-  globalJiggle?: SharedValue<number>;
+  onMoveUp?: (index: number) => void;
+  onMoveDown?: (index: number) => void;
 }
 
 export const LineCard = memo(function LineCard({
@@ -106,6 +106,8 @@ export const LineCard = memo(function LineCard({
   isActive = false,
   index = 0,
   jiggle,
+  onMoveUp,
+  onMoveDown,
 }: LineCardProps) {
   const isSlim = cardHeight <= 48;
   const cardRadius = isSlim ? 16 : 18;
@@ -174,13 +176,14 @@ export const LineCard = memo(function LineCard({
     }
   };
 
-  // FIX 2: handleLongPress flattened — dashboard owns all routing logic.
+  // The card body is PASSIVE in edit mode — drag() lives only on the dedicated
+  // grabber. Full-surface drag activation hijacked vertical scrolls (the same
+  // trap DepartureCard had). Body long-press only enters edit mode when NOT
+  // already editing.
   const handleLongPress = () => {
     if (disabled) return;
-    if (isEditing && drag) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      drag();
-    } else if (!isEditing && onLongPress) {
+    if (isEditing) return; // body never drags — the grabber owns that
+    if (onLongPress) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       onLongPress();
     }
@@ -275,8 +278,8 @@ export const LineCard = memo(function LineCard({
           onPress={isEditing ? undefined : handlePress}
           pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
           unstable_pressDelay={0}
-          delayLongPress={isEditing ? 350 : 700}
-          onLongPress={handleLongPress}
+          delayLongPress={700}
+          onLongPress={isEditing ? undefined : handleLongPress}
           onPressIn={() => {
             if (!isEditing) {
               pressAnim.onPressIn();
@@ -323,6 +326,43 @@ export const LineCard = memo(function LineCard({
                     </Animated.View>
                   )}
                 </View>
+
+                {/* Dedicated reorder grabber — the ONLY drag activator.
+                    Edit mode is dashboard-only (slim cards); onboarding never edits. */}
+                {isEditing && drag && (
+                  <Animated.View
+                    entering={FadeIn.duration(150)}
+                    exiting={FadeOut.duration(100)}
+                    style={styles.grabberContainer}
+                  >
+                    <Pressable
+                      onLongPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        drag();
+                      }}
+                      delayLongPress={150}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="adjustable"
+                      accessibilityLabel={`Reorder ${line.name}`}
+                      accessibilityHint="Long-press, then use Move Up and Move Down actions to reorder this line"
+                      accessibilityActions={[
+                        { name: 'increment', label: 'Move Up' },
+                        { name: 'decrement', label: 'Move Down' },
+                      ]}
+                      onAccessibilityAction={(event) => {
+                        if (event.nativeEvent.actionName === 'increment') {
+                          onMoveUp?.(index);
+                        } else if (event.nativeEvent.actionName === 'decrement') {
+                          onMoveDown?.(index);
+                        }
+                      }}
+                      style={styles.grabberButton}
+                      testID={`line-card-grabber-${line.id}`}
+                    >
+                      <Ionicons name="reorder-three-outline" size={22} color="rgba(255, 255, 255, 0.45)" />
+                    </Pressable>
+                  </Animated.View>
+                )}
               </>
             ) : (
               <View style={styles.statusSubRow}>
@@ -381,6 +421,7 @@ export const LineCard = memo(function LineCard({
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
                   onDelete(line.id);
                 }}
+                testID={`line-card-delete-${line.id}`}
               >
                 <Text style={styles.deleteIcon}>−</Text>
               </Pressable>
@@ -472,6 +513,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
     shadowRadius: 3,
+  },
+  grabberContainer: {
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  grabberButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   deleteBadgeContainer: {
     position: 'absolute',

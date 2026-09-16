@@ -6,59 +6,109 @@ import { useScrollLock } from '../hooks/useScrollLock';
 
 describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
   const departureCardPath = path.resolve(__dirname, '../components/DepartureCard.tsx');
+  const lineCardPath = path.resolve(__dirname, '../components/LineCard.tsx');
   const dashboardGridPath = path.resolve(__dirname, '../components/DashboardGrid.tsx');
   const dashboardPath = path.resolve(__dirname, '../components/MyCommuteDashboard.tsx');
+  const useJigglePath = path.resolve(__dirname, '../hooks/useJiggle.ts');
 
   const departureCardSrc = fs.readFileSync(departureCardPath, 'utf8');
+  const lineCardSrc = fs.readFileSync(lineCardPath, 'utf8');
   const dashboardGridSrc = fs.readFileSync(dashboardGridPath, 'utf8');
   const dashboardSrc = fs.readFileSync(dashboardPath, 'utf8');
+  const useJiggleSrc = fs.readFileSync(useJigglePath, 'utf8');
 
-  describe('Rule: Harmonious Synchronized Jiggle Across Dashboard Cards', () => {
-    it('DepartureCard attaches synchronized alternating jiggleStyle to its outer container', () => {
-      // Invariant: Both station and line cards must jiggle in edit mode with balanced harmony
-      expect(departureCardSrc).toMatch(/style=\{?\[styles\.outerContainer,\s*containerAnimStyle,\s*jiggleStyle\]\}?/);
+  describe('Rule: Organic Apple-Style Jiggle (RATIFIED: jiggle retained — "make it better, don\'t kill it")', () => {
+    it('both card types attach jiggleStyle to their outer container (one shared engine)', () => {
+      expect(departureCardSrc).toMatch(/style=\{\[styles\.outerContainer,\s*containerAnimStyle,\s*jiggleStyle\]\}/);
+      expect(lineCardSrc).toMatch(/jiggleStyle/);
     });
 
-    it('useJiggle enforces synchronous alternating polarity without chaotic random phase offsets', () => {
-      const useJigglePath = path.resolve(__dirname, '../hooks/useJiggle.ts');
-      const useJiggleSrc = fs.readFileSync(useJigglePath, 'utf8');
-      expect(useJiggleSrc).toMatch(/polarity\s*=\s*\(index\s*%\s*2\s*===\s*0\)\s*\?\s*1\s*:\s*-1/);
+    it('rotation is budgeted for wide cards: 0.6° base (±1.9pt corners on a 361pt card)', () => {
+      expect(useJiggleSrc).toMatch(/JIGGLE_MAX_DEG\s*=\s*0\.6\b/);
+    });
+
+    it('cadence is calm: base period ≥ 800ms (340ms lockstep flicker retired)', () => {
+      const m = useJiggleSrc.match(/JIGGLE_BASE_PERIOD_MS\s*=\s*(\d+)/);
+      expect(m).not.toBeNull();
+      expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(800);
+    });
+
+    it('no lockstep schemes: neither golden-angle spread nor ± parity antiphase', () => {
       expect(useJiggleSrc).not.toContain('GOLDEN_ANGLE');
-      expect(useJiggleSrc).toMatch(/JIGGLE_PERIOD_MS\s*=\s*340/);
+      expect(useJiggleSrc).not.toMatch(/index\s*%\s*2\s*===\s*0\s*\)\s*\?\s*1\s*:\s*-1/);
+    });
+
+    it('per-card wobble character is seeded and render-stable (no Math.random re-rolls)', () => {
+      expect(useJiggleSrc).toMatch(/Math\.imul/);
+      expect(useJiggleSrc).not.toContain('Math.random');
+      expect(useJiggleSrc).toMatch(/useMemo\(\s*\(\)\s*=>\s*\(\{[\s\S]*?offset:/);
+    });
+
+    it('periods are decorrelated per card (±15% jitter) so alignment never locks', () => {
+      expect(useJiggleSrc).toMatch(/0\.85\s*\+\s*0\.3\s*\*\s*seededUnit/);
+    });
+
+    it('jiggle honors Reduce Motion (no rotation or bob when enabled)', () => {
+      expect(useJiggleSrc).toMatch(/isEditing\s*&&\s*!reducedMotion/);
+    });
+
+    it('dragged card eases flat and lifts above the list (no angle snap)', () => {
+      expect(useJiggleSrc).toMatch(/activeProgress\.value\s*=\s*withTiming\(isActive\s*\?\s*1\s*:\s*0/);
+      expect(useJiggleSrc).toMatch(/zIndex:\s*activeProgress\.value\s*>\s*0\.5\s*\?\s*999\s*:\s*1/);
     });
   });
 
-  describe('Rule: Gesture Isolation & Drag Grabber Exclusivity', () => {
+  describe('Rule: Gesture Isolation & Drag Grabber Exclusivity (both card types)', () => {
     it('DepartureCard root Pressable does not invoke drag() on long press', () => {
-      // Invariant: The card body must be passive so vertical scrolling is never hijacked
       const rootPressableMatch = departureCardSrc.match(/<Pressable[\s\S]*?testID=\{`departure-card-pressable-\$\{stationId\}`\}[\s\S]*?>/);
       expect(rootPressableMatch).not.toBeNull();
-      const rootPressableContent = rootPressableMatch![0];
-      expect(rootPressableContent).not.toContain('drag()');
+      expect(rootPressableMatch![0]).not.toContain('drag()');
     });
 
     it('DepartureCard binds drag() strictly to the trailing grabber button', () => {
-      // Invariant: Dragging is only initiated from the dedicated grabber handle
       expect(departureCardSrc).toMatch(/testID=\{`departure-card-grabber-\$\{stationId\}`\}/);
       expect(departureCardSrc).toMatch(/onLongPress=\{\(\)\s*=>\s*\{[\s\S]*?drag\(\);[\s\S]*?\}\}/);
     });
 
-    it('DepartureCard grabber includes VoiceOver accessibilityActions for non-gesture reordering', () => {
-      // Invariant: WCAG & Apple HIG accessibility contract for reordering
+    it('LineCard root Pressable does not invoke drag() (full-surface hijack fix)', () => {
+      const bodyMatch = lineCardSrc.match(/<Pressable[\s\S]*?style=\{StyleSheet\.absoluteFillObject\}[\s\S]*?>/);
+      expect(bodyMatch).not.toBeNull();
+      expect(bodyMatch![0]).not.toContain('drag(');
+    });
+
+    it('LineCard binds drag() strictly to the trailing grabber button', () => {
+      expect(lineCardSrc).toMatch(/testID=\{`line-card-grabber-\$\{line\.id\}`\}/);
+      expect(lineCardSrc).toMatch(/onLongPress=\{\(\)\s*=>\s*\{[\s\S]*?drag\(\);/);
+    });
+
+    it('LineCard grabber includes VoiceOver accessibilityActions for non-gesture reordering', () => {
+      expect(lineCardSrc).toMatch(/accessibilityRole="adjustable"/);
+      expect(lineCardSrc).toMatch(/name:\s*'increment',\s*label:\s*'Move Up'/);
+      expect(lineCardSrc).toMatch(/name:\s*'decrement',\s*label:\s*'Move Down'/);
+      expect(lineCardSrc).toMatch(/onAccessibilityAction=\{/);
+    });
+
+    it('DepartureCard grabber includes VoiceOver accessibilityActions (regression guard)', () => {
       expect(departureCardSrc).toMatch(/accessibilityRole="adjustable"/);
       expect(departureCardSrc).toMatch(/name:\s*'increment',\s*label:\s*'Move Up'/);
-      expect(departureCardSrc).toMatch(/name:\s*'decrement',\s*label:\s*'Move Down'/);
-      expect(departureCardSrc).toMatch(/onAccessibilityAction=\{/);
     });
 
     it('DashboardGrid implements unmount cleanup to guarantee scroll is restored', () => {
-      // Invariant: If unmounted while scroll locked, scroll must be unconditionally unlocked
       expect(dashboardGridSrc).toMatch(/onScrollEnabledChange\(true\)/);
     });
 
     it('DepartureCard freezes arrival polling while in edit mode to prevent reflow desync', () => {
-      // Invariant: No mid-drag data mutations or index shifting
       expect(departureCardSrc).toMatch(/if\s*\(isEditing\)\s*return;\s*\/\/\s*Freeze polling/);
+    });
+
+    it('long-press-to-edit is wired for both sections (was a dead gesture)', () => {
+      expect(dashboardSrc).toMatch(/onLongPressCard=\{handleEdit\}/);
+      expect(dashboardSrc).toMatch(/onLongPress=\{handleEdit\}/);
+    });
+
+    it('dashboard wires VoiceOver line reorder handlers', () => {
+      expect(dashboardSrc).toMatch(/handleMoveLineUp/);
+      expect(dashboardSrc).toMatch(/onMoveUp=\{handleMoveLineUp\}/);
     });
   });
 
@@ -125,7 +175,6 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       });
       expect(result.current.scrollEnabled).toBe(false);
 
-      // Simulate OS sending app to background
       await act(async () => {
         listeners['change']?.('background');
       });
@@ -139,23 +188,19 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
 
   describe('iPhone 14 Pro Display & Dynamic Island Geometry Contract', () => {
     it('verifies floating Done button top offset clears iPhone 14 Pro Dynamic Island', () => {
-      // iPhone 14 Pro hardware spec: 393 × 852 pt, top inset 59pt (Dynamic Island), bottom inset 34pt
       const IPHONE_14_PRO_TOP_INSET = 59;
       const IPHONE_14_PRO_WIDTH = 393;
       const IPHONE_14_PRO_BOTTOM_INSET = 34;
 
-      // In MyCommuteDashboard.tsx, floatingDoneContainer is anchored at insets.top + 8
       const topOffsetMatch = dashboardSrc.match(/top:\s*insets\.top\s*\+\s*\(Platform\.OS\s*===\s*'ios'\s*\?\s*(\d+)\s*:\s*\d+\)/);
       expect(topOffsetMatch).not.toBeNull();
       const iosOffset = parseInt(topOffsetMatch![1], 10);
       const computedTop = IPHONE_14_PRO_TOP_INSET + iosOffset;
 
-      // Must be safely below Dynamic Island (59pt) but within standard top navigation bar (under 100pt)
       expect(computedTop).toBeGreaterThan(IPHONE_14_PRO_TOP_INSET);
       expect(computedTop).toBeLessThan(100);
-      expect(computedTop).toBe(67); // 59 + 8 = 67pt
+      expect(computedTop).toBe(67);
 
-      // Assert full hardware viewport bounds
       expect(IPHONE_14_PRO_WIDTH).toBe(393);
       expect(IPHONE_14_PRO_BOTTOM_INSET).toBe(34);
     });

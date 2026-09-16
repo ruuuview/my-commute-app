@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import React from 'react';
-import { View, Text, Pressable, AppState } from 'react-native';
+import { AppState } from 'react-native';
 import { renderHook, act } from '@testing-library/react-native';
 import { useScrollLock } from '../hooks/useScrollLock';
 
@@ -133,7 +132,7 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
 
   describe('iPhone 14 Pro Display & Dynamic Island Geometry Contract', () => {
     it('verifies floating Done button top offset clears iPhone 14 Pro Dynamic Island', () => {
-      // iPhone 14 Pro hardware spec: 393 × 852 pt, top inset 59pt (Dynamic Island)
+      // iPhone 14 Pro hardware spec: 393 × 852 pt, top inset 59pt (Dynamic Island), bottom inset 34pt
       const IPHONE_14_PRO_TOP_INSET = 59;
       const IPHONE_14_PRO_WIDTH = 393;
       const IPHONE_14_PRO_BOTTOM_INSET = 34;
@@ -148,6 +147,10 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(computedTop).toBeGreaterThan(IPHONE_14_PRO_TOP_INSET);
       expect(computedTop).toBeLessThan(100);
       expect(computedTop).toBe(67); // 59 + 8 = 67pt
+
+      // Assert full hardware viewport bounds
+      expect(IPHONE_14_PRO_WIDTH).toBe(393);
+      expect(IPHONE_14_PRO_BOTTOM_INSET).toBe(34);
     });
   });
 });

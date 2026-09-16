@@ -35,7 +35,7 @@ import Animated, {
   ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';

@@ -672,7 +672,7 @@ struct EmptyStateView: View {
             Text("Tap to select commute lines")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(theme.textColor)
-            Text("Select corridors for live delay alerts")
+            Text("Select lines for live delay alerts")
                 .font(.system(size: 9, weight: .medium))
                 .foregroundColor(theme.secondaryTextColor)
                 .multilineTextAlignment(.center)
@@ -844,13 +844,18 @@ struct AccessoryCircularView: View {
                     .font(.system(size: 18))
                     .widgetAccentable()
             } else if entry.disruptedLines.isEmpty {
-                // All clear: 100% closed ring + checkmark
+                // All clear: 100% closed ring + checkmark & line count
                 Gauge(value: 1.0) {
                     Text("Status")
                 } currentValueLabel: {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .widgetAccentable()
+                    VStack(spacing: 0) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .widgetAccentable()
+                        Text("\(entry.lines.count) OK")
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .widgetAccentable()
+                    }
                 }
                 .gaugeStyle(.accessoryCircularCapacity)
             } else if entry.disruptedLines.count == 1, let worst = entry.worstLine {
@@ -951,7 +956,7 @@ struct AccessoryRectangularView: View {
                         Image(systemName: "tram.fill")
                             .font(.system(size: 9))
                             .foregroundColor(.secondary)
-                        Text("\(entry.lines.count) corridors monitored")
+                        Text("\(entry.lines.count) lines monitored")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundColor(.secondary)
                             .lineLimit(1)

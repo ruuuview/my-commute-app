@@ -108,4 +108,28 @@ describe('Lock Screen Accessory Complication Invariants', () => {
       expect(abbr).not.toMatch(emojiRegex);
     }
   });
+
+  test('8. Widget copy uses "lines" not internal "corridors" language', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const widgetPath = path.resolve(__dirname, '../targets/MyCommuteWidget/CommuteWidget.swift');
+    const content = fs.readFileSync(widgetPath, 'utf8');
+
+    // No user-facing widget text should refer to "corridors"
+    expect(content).not.toMatch(/corridors\s+monitored/i);
+    expect(content).not.toMatch(/select\s+corridors/i);
+    expect(content).toContain('lines monitored');
+    expect(content).toContain('Select lines for live delay alerts');
+  });
+
+  test('9. AccessoryCircularView all-clear state displays line count context', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const widgetPath = path.resolve(__dirname, '../targets/MyCommuteWidget/CommuteWidget.swift');
+    const content = fs.readFileSync(widgetPath, 'utf8');
+
+    // Must not be bare checkmark without line count context
+    expect(content).toContain('entry.lines.count) OK');
+  });
 });
+

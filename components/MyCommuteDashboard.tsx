@@ -27,6 +27,8 @@ import Animated, {
   withSequence,
   Easing,
   cancelAnimation,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { PREMIUM_BUTTON } from '../theme/colors';
@@ -42,6 +44,7 @@ import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useJiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { useScrollLock } from '../hooks/useScrollLock';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard'; // memoized
 import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -518,7 +521,16 @@ const MyCommuteDashboard: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isDraggingLine, setIsDraggingLine] = useState(false);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [isDraggingStation, setIsDraggingStation] = useState(false);
+
+  const { scrollEnabled, setScrollEnabled } = useScrollLock({
+    onForceReset: () => {
+      setIsEditing(false);
+      setIsDraggingLine(false);
+      setIsDraggingStation(false);
+    },
+  });
+
   const jiggle = useJiggleDriver(isEditing);
 
   const isScrollingRef = useRef(false);
@@ -679,10 +691,21 @@ const MyCommuteDashboard: React.FC = () => {
 
   const touchStartedInEditModeRef = useRef(false);
 
+  const handleExitEdit = useCallback(() => {
+    setIsEditing(false);
+    setIsDraggingLine(false);
+    setIsDraggingStation(false);
+    setScrollEnabled(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, [setScrollEnabled]);
+
   const handleEdit = useCallback(() => {
     setIsEditing((prev) => {
       const next = !prev;
       if (prev) {
+        setIsDraggingLine(false);
+        setIsDraggingStation(false);
+        setScrollEnabled(true);
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } else {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -692,7 +715,7 @@ const MyCommuteDashboard: React.FC = () => {
       }
       return next;
     });
-  }, []);
+  }, [setScrollEnabled]);
 
   const handleBackgroundPressIn = useCallback(() => {
     touchStartedInEditModeRef.current = isEditing;
@@ -702,23 +725,11 @@ const MyCommuteDashboard: React.FC = () => {
   useEffect(() => {
     if (!isEditing) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setIsEditing(false);
+      handleExitEdit();
       return true;
     });
     return () => sub.remove();
-  }, [isEditing]);
-
-  // ── Backdrop tap exits jiggle ─────────────────────────────────
-  const handleBackdropPress = useCallback(() => {
-    // Only exit edit mode if this touch STARTED while already in edit mode (i.e. an intentional subsequent single tap)
-    if (!touchStartedInEditModeRef.current) {
-      return;
-    }
-    if (isEditing) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      setIsEditing(false);
-    }
-  }, [isEditing]);
+  }, [isEditing, handleExitEdit]);
 
   // Tab switch automatically exits jiggle mode
   useFocusEffect(
@@ -814,13 +825,13 @@ const MyCommuteDashboard: React.FC = () => {
                 {hasContent && (
                   <BouncyPressable
                     onPress={handleEdit}
-                    style={[dash.headerBtn, isEditing && dash.headerBtnDone]}
+                    style={[dash.headerBtn, isEditing && { opacity: 0, pointerEvents: 'none' }]}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel={isEditing ? 'Finish editing layout' : 'Edit layout'}
                     accessibilityRole="button"
                   >
-                    <Text style={[dash.headerBtnText, isEditing && dash.headerBtnTextDone]}>
-                      {isEditing ? 'Done' : 'Edit'}
+                    <Text style={dash.headerBtnText}>
+                      Edit
                     </Text>
                   </BouncyPressable>
                 )}
@@ -831,7 +842,7 @@ const MyCommuteDashboard: React.FC = () => {
             </View>
           </View>
 
-          {/* Top spacer below header — catches backdrop taps and long-presses */}
+          {/* Top spacer below header — catches backdrop long-presses */}
           <Pressable
             style={{ height: 12 }}
             pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
@@ -839,7 +850,6 @@ const MyCommuteDashboard: React.FC = () => {
             delayLongPress={700}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
-            onPress={isEditing ? handleBackdropPress : undefined}
           />
 
           {!hasContent && (
@@ -874,7 +884,7 @@ const MyCommuteDashboard: React.FC = () => {
                     onPressAdd={() => setModalVisible(true)}
                     isEditing={isEditing}
                     onPressIn={handleBackgroundPressIn}
-                    onExitJiggle={handleBackdropPress}
+                    onExitJiggle={handleExitEdit}
                   />
                   <NestableDraggableFlatList
                     data={sortedLines}
@@ -883,6 +893,10 @@ const MyCommuteDashboard: React.FC = () => {
                     onDragBegin={() => {
                       setIsDraggingLine(true);
                       setScrollEnabled(false);
+                    }}
+                    onRelease={() => {
+                      setIsDraggingLine(false);
+                      setScrollEnabled(true);
                     }}
                     onDragEnd={({ data }) => {
                       setIsDraggingLine(false);
@@ -965,7 +979,7 @@ const MyCommuteDashboard: React.FC = () => {
                 </>
               )}
 
-              {/* Spacer between sections — catches backdrop taps and long-presses */}
+              {/* Spacer between sections — catches backdrop long-presses */}
               <Pressable
                 style={{ height: isEditing ? 24 : 12 }}
                 pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
@@ -973,7 +987,6 @@ const MyCommuteDashboard: React.FC = () => {
                 delayLongPress={700}
                 onPressIn={handleBackgroundPressIn}
                 onLongPress={!isEditing ? handleEdit : undefined}
-                onPress={isEditing ? handleBackdropPress : undefined}
               />
 
               {(selectedStations.length > 0 || isEditing) && (
@@ -984,7 +997,7 @@ const MyCommuteDashboard: React.FC = () => {
                     onPressAdd={() => setStationModalVisible(true)}
                     isEditing={isEditing}
                     onPressIn={handleBackgroundPressIn}
-                    onExitJiggle={handleBackdropPress}
+                    onExitJiggle={handleExitEdit}
                   />
                   {selectedStations.length === 0 ? (
                     <BouncyPressable
@@ -1008,9 +1021,12 @@ const MyCommuteDashboard: React.FC = () => {
                     <DashboardGrid
                       stations={selectedStations}
                       isJiggling={isEditing}
-                      onExitJiggle={handleBackdropPress}
+                      onExitJiggle={handleExitEdit}
                       onDelete={removeStation}
-                      onScrollEnabledChange={setScrollEnabled}
+                      onScrollEnabledChange={(enabled) => {
+                        setIsDraggingStation(!enabled);
+                        setScrollEnabled(enabled);
+                      }}
                       onReorderStations={reorderStations}
                       simultaneousHandlers={scrollRef}
                       jiggle={jiggle}
@@ -1027,7 +1043,7 @@ const MyCommuteDashboard: React.FC = () => {
             </>
           )}
 
-          {/* Bottom spacer — catches backdrop taps and long-presses */}
+          {/* Bottom spacer — catches backdrop long-presses */}
           <Pressable
             style={{ flex: 1, minHeight: 180 }}
             pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
@@ -1035,11 +1051,8 @@ const MyCommuteDashboard: React.FC = () => {
             delayLongPress={700}
             onPressIn={handleBackgroundPressIn}
             onLongPress={!isEditing ? handleEdit : undefined}
-            onPress={isEditing ? handleBackdropPress : undefined}
           />
         </NestableScrollContainer>
-
-
 
         <ManageLinesModal
           visible={modalVisible}
@@ -1096,6 +1109,31 @@ const MyCommuteDashboard: React.FC = () => {
           />
         )}
       </View>
+
+      {/* Floating persistent escape hatch: Exactly-One-Done in edit mode */}
+      {isEditing && (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(150)}
+          style={[
+            dash.floatingDoneContainer,
+            { top: insets.top + (Platform.OS === 'ios' ? 8 : 10) },
+          ]}
+          pointerEvents={isDraggingLine || isDraggingStation ? 'none' : 'auto'}
+        >
+          <BouncyPressable
+            onPress={handleExitEdit}
+            style={dash.floatingDoneBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Finish editing layout"
+            accessibilityRole="button"
+            testID="floating-done-button"
+          >
+            <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Text style={dash.floatingDoneText}>Done</Text>
+          </BouncyPressable>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -1277,6 +1315,33 @@ const dash = StyleSheet.create({
     shadowColor: '#007AFF',
     shadowOpacity: 0.35,
     shadowRadius: 8,
+  },
+  floatingDoneContainer: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 9999,
+    elevation: 20,
+  },
+  floatingDoneBtn: {
+    height: 34,
+    paddingHorizontal: 16,
+    borderRadius: 17,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'rgba(255, 255, 255, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  floatingDoneText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
   headerBtnText: {
     fontFamily: 'SpaceGrotesk_500Medium',

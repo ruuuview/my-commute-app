@@ -28,6 +28,7 @@ interface Props {
   accessibilityState?: object;
   accessibilityHint?: string;
   hitSlop?: { top?: number; bottom?: number; left?: number; right?: number };
+  testID?: string;
 }
 
 export default function BouncyPressable({
@@ -45,6 +46,7 @@ export default function BouncyPressable({
   accessibilityState,
   accessibilityHint,
   hitSlop,
+  testID,
 }: Props) {
   const scale = useSharedValue(1);
   const reducedMotion = useReducedMotion();
@@ -81,6 +83,7 @@ export default function BouncyPressable({
         accessibilityState={accessibilityState}
         accessibilityHint={accessibilityHint}
         hitSlop={hitSlop}
+        testID={testID}
       >
         {children}
       </Pressable>

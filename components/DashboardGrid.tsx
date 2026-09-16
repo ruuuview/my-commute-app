@@ -94,6 +94,46 @@ export default function DashboardGrid({
 }: DashboardGridProps) {
   const [isDragging, setIsDragging] = useState(false);
 
+  // ── Unmount safety cleanup: unconditionally unlock scroll ─────────
+  useEffect(() => {
+    return () => {
+      onScrollEnabledChange(true);
+    };
+  }, [onScrollEnabledChange]);
+
+  // ── VoiceOver / Accessibility non-gesture reorder handlers ────────
+  const handleMoveUp = useCallback(
+    (currentIndex: number) => {
+      if (currentIndex <= 0) return;
+      const newData = [...stations];
+      const item = newData[currentIndex];
+      newData.splice(currentIndex, 1);
+      newData.splice(currentIndex - 1, 0, item);
+      onReorderStations?.(newData);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      AccessibilityInfo.announceForAccessibility(
+        `${item.name} moved up to position ${currentIndex} of ${newData.length}`
+      );
+    },
+    [stations, onReorderStations]
+  );
+
+  const handleMoveDown = useCallback(
+    (currentIndex: number) => {
+      if (currentIndex >= stations.length - 1) return;
+      const newData = [...stations];
+      const item = newData[currentIndex];
+      newData.splice(currentIndex, 1);
+      newData.splice(currentIndex + 1, 0, item);
+      onReorderStations?.(newData);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      AccessibilityInfo.announceForAccessibility(
+        `${item.name} moved down to position ${currentIndex + 2} of ${newData.length}`
+      );
+    },
+    [stations, onReorderStations]
+  );
+
   // ── Card tap handler: navigate to full-screen StationDetailScreen ─
   const handleCardTap = useCallback(
     (stationId: string, stationName: string) => {
@@ -120,11 +160,13 @@ export default function DashboardGrid({
             index={index}
             isActive={isActive}
             jiggle={jiggle}
+            onMoveUp={handleMoveUp}
+            onMoveDown={handleMoveDown}
           />
         </StaggeredEntranceWrapper>
       </ScaleDecorator>
     );
-  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, jiggle, skipEntrance]);
+  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, jiggle, skipEntrance, handleMoveUp, handleMoveDown]);
 
   return (
     <View style={styles.container} testID="dashboard-grid">
@@ -136,6 +178,10 @@ export default function DashboardGrid({
           setIsDragging(true);
           onScrollEnabledChange(false);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        }}
+        onRelease={() => {
+          setIsDragging(false);
+          onScrollEnabledChange(true);
         }}
         onDragEnd={({ data, from, to }) => {
           setIsDragging(false);

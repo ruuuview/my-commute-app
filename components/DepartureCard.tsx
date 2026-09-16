@@ -42,6 +42,7 @@ import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import { useShallow } from 'zustand/react/shallow';
+import { Ionicons } from '@expo/vector-icons';
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
@@ -79,6 +80,8 @@ export interface DepartureCardProps {
   isActive?: boolean;
   jiggle?: JiggleDriver;
   globalJiggle?: SharedValue<number>;
+  onMoveUp?: (index: number) => void;
+  onMoveDown?: (index: number) => void;
 }
 
 // ─── Main component ──────────────────────────────────────────────
@@ -94,6 +97,8 @@ const DepartureCard = memo(function DepartureCard({
   index = 0,
   isActive = false,
   jiggle,
+  onMoveUp,
+  onMoveDown,
 }: DepartureCardProps) {
   const reducedMotion = useLiveReducedMotion();
   const [arrivals, setArrivals] = useState<NormalizedDeparture[]>([]);
@@ -102,9 +107,8 @@ const DepartureCard = memo(function DepartureCard({
   const selectedLines = useUserPreferencesStore(useShallow(s => s.selectedLines || []));
 
   const pressAnim = usePressAnimation('departure_card', false, isActive);
-  const jiggleStyle = useJiggle(jiggle, index, isActive);
 
-  // ── Fetch live arrivals ───────────────────────────────────────
+  // ── Fetch live arrivals (paused while user is editing/reordering) ─
   const fetchArrivals = useCallback(
     async (active: { current: boolean }) => {
       try {
@@ -124,6 +128,7 @@ const DepartureCard = memo(function DepartureCard({
   );
 
   useEffect(() => {
+    if (isEditing) return; // Freeze polling during edit/reorder mode to prevent reflow jitter
     const active = { current: true };
     const delayMs = Math.min(index * 30, 300);
     const startTimer = setTimeout(() => {
@@ -135,7 +140,7 @@ const DepartureCard = memo(function DepartureCard({
       clearTimeout(startTimer);
       clearInterval(interval);
     };
-  }, [fetchArrivals, index]);
+  }, [fetchArrivals, index, isEditing]);
 
   // ── Derived values ───────────────────────────────────────────
   const cleanName = String(stationName ?? '')
@@ -184,7 +189,7 @@ const DepartureCard = memo(function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
+      style={[styles.outerContainer, containerAnimStyle]}
       testID={`departure-card-${stationId}`}
     >
       <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle]}>
@@ -202,16 +207,15 @@ const DepartureCard = memo(function DepartureCard({
           onPress={isEditing ? undefined : handlePress}
           pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
           unstable_pressDelay={0}
-          delayLongPress={isEditing ? 350 : 700}
-          onLongPress={() => {
-            if (isEditing && drag) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              drag();
-            } else if (!isEditing && onLongPress) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              onLongPress();
-            }
-          }}
+          delayLongPress={700}
+          onLongPress={
+            !isEditing && onLongPress
+              ? () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                  onLongPress();
+                }
+              : undefined
+          }
           onPressIn={() => {
             if (!isEditing) {
               pressAnim.onPressIn();
@@ -225,7 +229,44 @@ const DepartureCard = memo(function DepartureCard({
         >
           {/* Station header */}
           <View style={styles.headerRow}>
-            <Text style={styles.stationName} numberOfLines={1}>{cleanName}</Text>
+            <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
+              {cleanName}
+            </Text>
+
+            {isEditing && drag && (
+              <Animated.View
+                entering={FadeIn.duration(150)}
+                exiting={FadeOut.duration(100)}
+                style={styles.grabberContainer}
+              >
+                <Pressable
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    drag();
+                  }}
+                  delayLongPress={150}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="adjustable"
+                  accessibilityLabel={`Reorder ${cleanName}`}
+                  accessibilityHint="Swipe up or down to reorder this station"
+                  accessibilityActions={[
+                    { name: 'increment', label: 'Move Up' },
+                    { name: 'decrement', label: 'Move Down' },
+                  ]}
+                  onAccessibilityAction={(event) => {
+                    if (event.nativeEvent.actionName === 'increment') {
+                      onMoveUp?.(index);
+                    } else if (event.nativeEvent.actionName === 'decrement') {
+                      onMoveDown?.(index);
+                    }
+                  }}
+                  style={styles.grabberButton}
+                  testID={`departure-card-grabber-${stationId}`}
+                >
+                  <Ionicons name="reorder-three-outline" size={22} color="rgba(255, 255, 255, 0.45)" />
+                </Pressable>
+              </Animated.View>
+            )}
           </View>
 
           {/* Subtle glass divider to give definition to the station name */}
@@ -333,6 +374,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
+  },
+  grabberContainer: {
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  grabberButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   divider: {
     height: StyleSheet.hairlineWidth,

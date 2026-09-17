@@ -122,6 +122,12 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(dashboardSrc).toMatch(/isEditing\s*&&\s*\{\s*opacity:\s*0,\s*pointerEvents:\s*'none'\s*\}/);
     });
 
+    it('in-header Edit button hides from VoiceOver when isEditing is true', () => {
+      expect(dashboardSrc).toMatch(/accessibilityElementsHidden=\{isEditing\}/);
+      expect(dashboardSrc).toMatch(/importantForAccessibility=\{isEditing \? 'no-hide-descendants' : 'auto'\}/);
+      expect(dashboardSrc).toMatch(/aria-hidden=\{isEditing\}/);
+    });
+
     it('Floating Done button disables pointerEvents during active drag to prevent mid-gesture race', () => {
       expect(dashboardSrc).toMatch(/pointerEvents=\{isDraggingLine\s*\|\|\s*isDraggingStation\s*\?\s*'none'\s*:\s*'auto'\}/);
     });
@@ -183,6 +189,85 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(onForceReset).toHaveBeenCalled();
 
       addEventListenerSpy.mockRestore();
+    });
+
+    it('preserves calm edit sessions on inactive AppState when no drag is active', async () => {
+      const onForceReset = jest.fn();
+      const listeners: Record<string, (state: string) => void> = {};
+
+      const addEventListenerSpy = jest.spyOn(AppState, 'addEventListener').mockImplementation((event, handler) => {
+        listeners[event] = handler as (state: string) => void;
+        return { remove: jest.fn() } as any;
+      });
+
+      const { result } = await renderHook(() => useScrollLock({ onForceReset }));
+      expect(result.current.scrollEnabled).toBe(true);
+
+      await act(async () => {
+        listeners['change']?.('inactive');
+      });
+
+      expect(result.current.scrollEnabled).toBe(true);
+      expect(onForceReset).not.toHaveBeenCalled();
+
+      addEventListenerSpy.mockRestore();
+    });
+
+    it('force-resets on inactive AppState when drag is active (scroll was locked)', async () => {
+      const onForceReset = jest.fn();
+      const listeners: Record<string, (state: string) => void> = {};
+
+      const addEventListenerSpy = jest.spyOn(AppState, 'addEventListener').mockImplementation((event, handler) => {
+        listeners[event] = handler as (state: string) => void;
+        return { remove: jest.fn() } as any;
+      });
+
+      const { result } = await renderHook(() => useScrollLock({ onForceReset }));
+
+      await act(async () => {
+        result.current.lockScroll();
+      });
+      expect(result.current.scrollEnabled).toBe(false);
+
+      await act(async () => {
+        listeners['change']?.('inactive');
+      });
+
+      expect(result.current.scrollEnabled).toBe(true);
+      expect(onForceReset).toHaveBeenCalledTimes(1);
+
+      addEventListenerSpy.mockRestore();
+    });
+  });
+
+  describe('Rule: Haptic Structural Timing & Gesture Purity', () => {
+    const usePressAnimationPath = path.resolve(__dirname, '../hooks/usePressAnimation.ts');
+    const usePressAnimationSrc = fs.readFileSync(usePressAnimationPath, 'utf8');
+
+    it('haptic impact is bound to onPress (touch release) and NOT onPressIn (touch-down)', () => {
+      const onPressInMatch = usePressAnimationSrc.match(/const onPressIn = useCallback\([\s\S]*?\n  \},/);
+      expect(onPressInMatch).not.toBeNull();
+      expect(onPressInMatch![0]).not.toContain('Haptics.impactAsync');
+
+      const onPressMatch = usePressAnimationSrc.match(/const onPress = useCallback\([\s\S]*?\n  \},/);
+      expect(onPressMatch).not.toBeNull();
+      expect(onPressMatch![0]).toContain('Haptics.impactAsync');
+    });
+
+    it('onPressOut invokes cancel immediately for 60ms non-overshooting settle', () => {
+      const onPressOutMatch = usePressAnimationSrc.match(/const onPressOut = useCallback\([\s\S]*?\n  \},/);
+      expect(onPressOutMatch).not.toBeNull();
+      expect(onPressOutMatch![0]).toContain('cancel()');
+    });
+
+    it('DepartureCard and LineCard retain unstable_pressDelay >= 80 to eliminate scroll-flick', () => {
+      expect(departureCardSrc).toMatch(/unstable_pressDelay=\{80\}/);
+      expect(lineCardSrc).toMatch(/unstable_pressDelay=\{80\}/);
+    });
+
+    it('card outer container has no pan responders (card body passivity)', () => {
+      expect(departureCardSrc).not.toMatch(/onMoveShouldSetPanResponder/);
+      expect(lineCardSrc).not.toMatch(/onMoveShouldSetPanResponder/);
     });
   });
 

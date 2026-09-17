@@ -169,10 +169,7 @@ export const LineCard = memo(function LineCard({
 
       if (onPress) onPress();
     } else {
-      if (onPress) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        onPress();
-      }
+      pressAnim.onPress(onPress);
     }
   };
 

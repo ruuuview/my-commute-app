@@ -22,11 +22,14 @@ interface Props {
   animatedStyle?: StyleProp<ViewStyle>;
   disabled?: boolean;
   pressDelay?: number;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   accessibilityLabel?: string;
   accessibilityRole?: 'button' | 'checkbox' | 'link' | 'none';
   accessibilityState?: object;
   accessibilityHint?: string;
+  accessibilityElementsHidden?: boolean;
+  importantForAccessibility?: 'auto' | 'yes' | 'no' | 'no-hide-descendants';
+  'aria-hidden'?: boolean;
   hitSlop?: { top?: number; bottom?: number; left?: number; right?: number };
   testID?: string;
 }
@@ -45,6 +48,9 @@ export default function BouncyPressable({
   accessibilityRole,
   accessibilityState,
   accessibilityHint,
+  accessibilityElementsHidden,
+  importantForAccessibility,
+  'aria-hidden': ariaHidden,
   hitSlop,
   testID,
 }: Props) {
@@ -70,7 +76,12 @@ export default function BouncyPressable({
   };
 
   return (
-    <Animated.View style={[springStyle, animatedStyle]}>
+    <Animated.View
+      style={[springStyle, animatedStyle]}
+      accessibilityElementsHidden={accessibilityElementsHidden}
+      importantForAccessibility={importantForAccessibility}
+      aria-hidden={ariaHidden}
+    >
       <Pressable
         onPress={disabled ? undefined : onPress}
         unstable_pressDelay={pressDelay}
@@ -82,6 +93,9 @@ export default function BouncyPressable({
         accessibilityRole={accessibilityRole}
         accessibilityState={accessibilityState}
         accessibilityHint={accessibilityHint}
+        accessibilityElementsHidden={accessibilityElementsHidden}
+        importantForAccessibility={importantForAccessibility}
+        aria-hidden={ariaHidden}
         hitSlop={hitSlop}
         testID={testID}
       >

@@ -10,7 +10,10 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "tsc:check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "patch-package",
+    "eas-build-post-install": "grep -rq simultaneousWithExternalGesture node_modules/react-native-draggable-flatlist/ || { echo 'FAIL: draggable-flatlist patch not replayed'; exit 1; }",
+    "verify:patch-durability": "rm -rf node_modules && yarn install --frozen-lockfile && grep -rq simultaneousWithExternalGesture node_modules/react-native-draggable-flatlist/"
   },
   "jest": {
     "preset": "jest-expo",
@@ -115,6 +118,7 @@
     "eslint-config-expo": "10.0.0",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.0",
+    "patch-package": "^8.0.1",
     "ruflo": "latest",
     "test-renderer": "^1.0.0",
     "typescript": "~5.9.2"

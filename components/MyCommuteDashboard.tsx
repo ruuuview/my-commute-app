@@ -861,6 +861,9 @@ const MyCommuteDashboard: React.FC = () => {
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel={isEditing ? 'Finish editing layout' : 'Edit layout'}
                     accessibilityRole="button"
+                    accessibilityElementsHidden={isEditing}
+                    importantForAccessibility={isEditing ? 'no-hide-descendants' : 'auto'}
+                    aria-hidden={isEditing}
                   >
                     <Text style={dash.headerBtnText}>
                       Edit

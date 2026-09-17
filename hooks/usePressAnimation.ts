@@ -4,7 +4,6 @@ import {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withDelay,
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
@@ -140,6 +139,18 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
     borderOpacity.value = withTiming(target.borderOpacity, timing);
   }, [lifted, reduceMotion, cancelAll, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity]);
 
+  const cancel = useCallback(() => {
+    cancelAll();
+    const timingConfig = { duration: CANCEL_OUT_MS, easing: CANCEL_EASING };
+    const target = lifted ? LIFT_DRAG : LIFT_REST;
+    scale.value = withTiming(1.0, timingConfig);
+    shadowRadius.value = withTiming(target.shadowRadius, timingConfig);
+    shadowOpacity.value = withTiming(target.shadowOpacity, timingConfig);
+    shadowOffsetY.value = withTiming(target.shadowOffsetY, timingConfig);
+    liftElevation.value = withTiming(target.elevation, timingConfig);
+    borderOpacity.value = withTiming(target.borderOpacity, timingConfig);
+  }, [cancelAll, lifted, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity]);
+
   const onPressIn = useCallback(() => {
     if (disabled || reduceMotion) return;
 
@@ -147,10 +158,6 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
     if (now - lastTapTime.current < DEBOUNCE_LOCKOUT_MS) return;
     lastTapTime.current = now;
     pressStartTime.current = now;
-
-    if (hapticsEnabled) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
 
     // Cancel previous return animations
     cancelAll();
@@ -165,7 +172,7 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
     shadowOffsetY.value = withTiming(LIFT_ACTIVE.shadowOffsetY, timingConfig);
     liftElevation.value = withTiming(LIFT_ACTIVE.elevation, timingConfig);
     borderOpacity.value = withTiming(LIFT_ACTIVE.borderOpacity, timingConfig);
-  }, [configKey, disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, hapticsEnabled, cancelAll]);
+  }, [configKey, disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, cancelAll]);
 
   const onPressOut = useCallback(() => {
     if (disabled || reduceMotion) {
@@ -180,31 +187,18 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
       return;
     }
 
-    // Ensure quick single taps complete full apex before settling back
-    const elapsed = Date.now() - pressStartTime.current;
-    const remainingHold = Math.max(0, LIFT_IN_MS - elapsed);
-    const timingConfig = { duration: LIFT_OUT_MS, easing: LIFT_EASING };
-    const target = lifted ? LIFT_DRAG : LIFT_REST;
+    cancel();
+  }, [disabled, reduceMotion, cancelAll, scale, lifted, cancel, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity]);
 
-    scale.value = withDelay(remainingHold, withTiming(1.0, timingConfig));
-    shadowRadius.value = withDelay(remainingHold, withTiming(target.shadowRadius, timingConfig));
-    shadowOpacity.value = withDelay(remainingHold, withTiming(target.shadowOpacity, timingConfig));
-    shadowOffsetY.value = withDelay(remainingHold, withTiming(target.shadowOffsetY, timingConfig));
-    liftElevation.value = withDelay(remainingHold, withTiming(target.elevation, timingConfig));
-    borderOpacity.value = withDelay(remainingHold, withTiming(target.borderOpacity, timingConfig));
-  }, [disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, cancelAll, lifted]);
-
-  const cancel = useCallback(() => {
-    cancelAll();
-    const timingConfig = { duration: CANCEL_OUT_MS, easing: CANCEL_EASING };
-    const target = lifted ? LIFT_DRAG : LIFT_REST;
-    scale.value = withTiming(1.0, timingConfig);
-    shadowRadius.value = withTiming(target.shadowRadius, timingConfig);
-    shadowOpacity.value = withTiming(target.shadowOpacity, timingConfig);
-    shadowOffsetY.value = withTiming(target.shadowOffsetY, timingConfig);
-    liftElevation.value = withTiming(target.elevation, timingConfig);
-    borderOpacity.value = withTiming(target.borderOpacity, timingConfig);
-  }, [cancelAll, lifted, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity]);
+  const onPress = useCallback((userOnPress?: (() => void) | unknown) => {
+    if (disabled) return;
+    if (hapticsEnabled) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (typeof userOnPress === 'function') {
+      userOnPress();
+    }
+  }, [disabled, hapticsEnabled]);
 
   // Register with global pressFeedback bus so scroll start immediately cancels in-flight press
   useEffect(() => {
@@ -214,6 +208,7 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
   return {
     onPressIn,
     onPressOut,
+    onPress,
     cancel,
     animatedStyle,      // Scale-only — ALL 14 consumers
     liftShadowStyle,    // Shadow + elevation — outer container opt-in

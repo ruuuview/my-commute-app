@@ -182,8 +182,9 @@ const DepartureCard = memo(function DepartureCard({
   // ── Tap handler ───────────────────────────────────────────────
   const handlePress = () => {
     if (isEditing) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onCardTap?.(stationId, stationName);
+    pressAnim.onPress(() => {
+      onCardTap?.(stationId, stationName);
+    });
   };
 
   if (hideCard) return null;

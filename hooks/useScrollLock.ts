@@ -7,6 +7,9 @@ export interface UseScrollLockOptions {
 
 export function useScrollLock(options?: UseScrollLockOptions) {
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const scrollEnabledRef = useRef(scrollEnabled);
+  scrollEnabledRef.current = scrollEnabled;
+
   const onForceResetRef = useRef(options?.onForceReset);
   onForceResetRef.current = options?.onForceReset;
 
@@ -23,11 +26,14 @@ export function useScrollLock(options?: UseScrollLockOptions) {
     onForceResetRef.current?.();
   }, []);
 
-  // Fail-safe 1: If the app is backgrounded or becomes inactive mid-drag,
-  // immediately release the scroll lock and cancel any active edit/drag state.
+  // Fail-safe 1: If the app is backgrounded, always reset.
+  // If the app becomes inactive (e.g. Control Center pull-down), only reset if
+  // an active drag was in flight (!scrollEnabled). Calm edit sessions persist.
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
+      if (nextAppState === 'background') {
+        forceReset();
+      } else if (nextAppState === 'inactive' && !scrollEnabledRef.current) {
         forceReset();
       }
     };

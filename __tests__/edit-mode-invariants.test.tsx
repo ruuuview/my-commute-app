@@ -10,12 +10,14 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
   const dashboardGridPath = path.resolve(__dirname, '../components/DashboardGrid.tsx');
   const dashboardPath = path.resolve(__dirname, '../components/MyCommuteDashboard.tsx');
   const useJigglePath = path.resolve(__dirname, '../hooks/useJiggle.ts');
+  const stationArrivalsStorePath = path.resolve(__dirname, '../services/stationArrivalsStore.ts');
 
   const departureCardSrc = fs.readFileSync(departureCardPath, 'utf8');
   const lineCardSrc = fs.readFileSync(lineCardPath, 'utf8');
   const dashboardGridSrc = fs.readFileSync(dashboardGridPath, 'utf8');
   const dashboardSrc = fs.readFileSync(dashboardPath, 'utf8');
   const useJiggleSrc = fs.readFileSync(useJigglePath, 'utf8');
+  const stationArrivalsStoreSrc = fs.readFileSync(stationArrivalsStorePath, 'utf8');
 
   describe('Rule: Organic Apple-Style Jiggle (RATIFIED: jiggle retained — "make it better, don\'t kill it")', () => {
     it('both card types attach jiggleStyle to their outer container (one shared engine)', () => {
@@ -65,9 +67,31 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(rootPressableMatch![0]).not.toContain('drag()');
     });
 
-    it('DepartureCard binds drag() strictly to the trailing grabber button', () => {
+    it('DepartureCard body is inert during edit mode (passivity invariant)', () => {
+      expect(departureCardSrc).toMatch(/onPress=\{isEditing \? undefined : handlePress\}/);
+      expect(departureCardSrc).toMatch(/onLongPress=\{isEditing \? undefined : handleBodyLongPress\}/);
+    });
+
+    it('DepartureCard binds drag() strictly to the dedicated grabber button', () => {
       expect(departureCardSrc).toMatch(/testID=\{`departure-card-grabber-\$\{stationId\}`\}/);
-      expect(departureCardSrc).toMatch(/onLongPress=\{\(\)\s*=>\s*\{[\s\S]*?drag\(\);[\s\S]*?\}\}/);
+      expect(departureCardSrc).toMatch(/onLongPress=\{\(\)\s*=>\s*\{[\s\S]*?drag\(\);/);
+    });
+
+    it('DepartureCard grabber includes VoiceOver accessibilityActions, value, and announcements', () => {
+      expect(departureCardSrc).toMatch(/accessibilityRole="adjustable"/);
+      expect(departureCardSrc).toMatch(/name:\s*'increment',\s*label:\s*'Move Up'/);
+      expect(departureCardSrc).toMatch(/name:\s*'decrement',\s*label:\s*'Move Down'/);
+      expect(departureCardSrc).toMatch(/accessibilityValue=\{\{\s*text:\s*`Position \$\{index \+ 1\} of \$\{totalStations\}`\s*\}\}/);
+      expect(departureCardSrc).toMatch(/AccessibilityInfo\.announceForAccessibility/);
+    });
+
+    it('DepartureCard pauses background polling during edit mode to prevent layout jumps', () => {
+      expect(departureCardSrc).toMatch(/useStationArrivals\(stationId,\s*\{\s*enabled:\s*!isEditing\s*\}\)/);
+    });
+
+    it('DepartureCard provides 44pt accessible touch target for delete badge matching LineCard', () => {
+      expect(departureCardSrc).toMatch(/testID=\{`departure-card-delete-\$\{stationId\}`\}/);
+      expect(departureCardSrc).toMatch(/hitSlop=\{\{\s*top:\s*12,\s*bottom:\s*12,\s*left:\s*16,\s*right:\s*16\s*\}\}/);
     });
 
     it('LineCard root Pressable does not invoke drag() (full-surface hijack fix)', () => {
@@ -88,17 +112,8 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(lineCardSrc).toMatch(/onAccessibilityAction=\{/);
     });
 
-    it('DepartureCard grabber includes VoiceOver accessibilityActions (regression guard)', () => {
-      expect(departureCardSrc).toMatch(/accessibilityRole="adjustable"/);
-      expect(departureCardSrc).toMatch(/name:\s*'increment',\s*label:\s*'Move Up'/);
-    });
-
     it('DashboardGrid implements unmount cleanup to guarantee scroll is restored', () => {
       expect(dashboardGridSrc).toMatch(/onScrollEnabledChange\(true\)/);
-    });
-
-    it('DepartureCard freezes arrival polling while in edit mode to prevent reflow desync', () => {
-      expect(departureCardSrc).toMatch(/if\s*\(isEditing\)\s*return;\s*\/\/\s*Freeze polling/);
     });
 
     it('long-press-to-edit is wired for both sections (was a dead gesture)', () => {
@@ -321,6 +336,51 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       const lineContainerMatches = dashboardSrc.match(/height:\s*46,\s*marginBottom:\s*12/g);
       expect(lineContainerMatches).not.toBeNull();
       expect(lineContainerMatches!.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('DashboardGrid read tree contains zero NestableDraggableFlatList or GestureDetector components', () => {
+      const readBranchMatch = dashboardGridSrc.match(/if\s*\(!isJiggling\)\s*\{([\s\S]*?)\}\s*return\s*\(/);
+      expect(readBranchMatch).not.toBeNull();
+      expect(readBranchMatch![1]).not.toContain('NestableDraggableFlatList');
+      expect(readBranchMatch![1]).not.toContain('GestureDetector');
+    });
+
+    it('key parity across both read and edit trees for stations', () => {
+      expect(dashboardGridSrc).toMatch(/key=\{item\.id\}/);
+      expect(dashboardGridSrc).toMatch(/keyExtractor=\{\(item\)\s*=>\s*item\.id\}/);
+    });
+
+    it('stationArrivalsStore polling deps depend strictly on stationId and enabled (never index or gesture mirrors)', () => {
+      expect(stationArrivalsStoreSrc).toMatch(/\[enabled,\s*executeFetch,\s*stationId\]/);
+      expect(stationArrivalsStoreSrc).not.toContain('isEditing');
+    });
+
+    it('useStationArrivals initializes synchronously from store so exit-edit renders last-known immediately', () => {
+      expect(stationArrivalsStoreSrc).toMatch(/arrivalsStore\.get\(stationId\)\?\.departures/);
+      expect(stationArrivalsStoreSrc).toMatch(/loading:\s*arrivals\s*===\s*undefined/);
+    });
+
+    it('fetchOnce enforces single-flight and 20s freshness window', () => {
+      expect(stationArrivalsStoreSrc).toMatch(/FRESH_MS\s*=\s*20_000/);
+      expect(stationArrivalsStoreSrc).toMatch(/now\s*-\s*existing\.fetchedAt\s*<\s*FRESH_MS/);
+      expect(stationArrivalsStoreSrc).toMatch(/inFlightRequests\.get\(stationId\)/);
+    });
+
+    it('MyCommuteDashboard provides 4-second reversible delete undo toast', () => {
+      expect(dashboardSrc).toMatch(/testID="delete-undo-toast"/);
+      expect(dashboardSrc).toMatch(/testID="delete-undo-button"/);
+      expect(dashboardSrc).toMatch(/deleteCachedArrivals\(stationId\)/);
+    });
+
+    it('DashboardGrid sets autoscrollSpeed={0} and autoscrollThreshold={80} to eliminate runaway autoscroll without NaN', () => {
+      expect(dashboardGridSrc).toMatch(/autoscrollThreshold=\{80\}/);
+      expect(dashboardGridSrc).toMatch(/autoscrollSpeed=\{0\}/);
+    });
+
+    it('stationArrivalsStore implements subscriber reference counting and interval deduplication', () => {
+      expect(stationArrivalsStoreSrc).toMatch(/activeSubscriptions\s*=\s*new Map/);
+      expect(stationArrivalsStoreSrc).toMatch(/subscribeToStation\(/);
+      expect(stationArrivalsStoreSrc).toMatch(/getActiveSubscriptionCount/);
     });
   });
 });

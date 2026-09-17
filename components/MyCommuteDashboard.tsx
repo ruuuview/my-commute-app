@@ -30,9 +30,12 @@ import Animated, {
   cancelAnimation,
   FadeIn,
   FadeOut,
+  FadeInDown,
+  FadeOutDown,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { PREMIUM_BUTTON } from '../theme/colors';
+import { deleteCachedArrivals } from '../services/stationArrivalsStore';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -693,13 +696,75 @@ const MyCommuteDashboard: React.FC = () => {
 
   const touchStartedInEditModeRef = useRef(false);
 
+  const [pendingDelete, setPendingDelete] = useState<{
+    station: any;
+    index: number;
+  } | null>(null);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDeleteStation = useCallback((stationId: string) => {
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+    if (pendingDelete) {
+      deleteCachedArrivals(pendingDelete.station.id);
+    }
+
+    const currentStations = useUserPreferencesStore.getState().pinnedStations || [];
+    const index = currentStations.findIndex((s: any) => s.id === stationId);
+    const station = currentStations[index];
+
+    removeStation(stationId);
+
+    if (station) {
+      setPendingDelete({ station, index });
+      deleteTimeoutRef.current = setTimeout(() => {
+        deleteCachedArrivals(stationId);
+        setPendingDelete(null);
+        deleteTimeoutRef.current = null;
+      }, 4000);
+    }
+  }, [pendingDelete, removeStation]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+    if (pendingDelete) {
+      const currentStations = [...(useUserPreferencesStore.getState().pinnedStations || [])];
+      const targetIndex = Math.min(pendingDelete.index, currentStations.length);
+      currentStations.splice(targetIndex, 0, pendingDelete.station);
+      reorderStations(currentStations);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      setPendingDelete(null);
+    }
+  }, [pendingDelete, reorderStations]);
+
   const handleExitEdit = useCallback(() => {
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+    if (pendingDelete) {
+      deleteCachedArrivals(pendingDelete.station.id);
+      setPendingDelete(null);
+    }
     setIsEditing(false);
     setIsDraggingLine(false);
     setIsDraggingStation(false);
     setScrollEnabled(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
-  }, [setScrollEnabled]);
+  }, [pendingDelete, setScrollEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleEdit = useCallback(() => {
     setIsEditing((prev) => {
@@ -708,11 +773,11 @@ const MyCommuteDashboard: React.FC = () => {
         setIsDraggingLine(false);
         setIsDraggingStation(false);
         setScrollEnabled(true);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } else {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         setTimeout(() => {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         }, 80);
       }
       return next;
@@ -1098,7 +1163,7 @@ const MyCommuteDashboard: React.FC = () => {
                       stations={selectedStations}
                       isJiggling={isEditing}
                       onExitJiggle={handleExitEdit}
-                      onDelete={removeStation}
+                      onDelete={handleDeleteStation}
                       onLongPressCard={handleEdit}
                       onScrollEnabledChange={(enabled) => {
                         setIsDraggingStation(!enabled);
@@ -1209,6 +1274,35 @@ const MyCommuteDashboard: React.FC = () => {
             <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
             <Text style={dash.floatingDoneText}>Done</Text>
           </BouncyPressable>
+        </Animated.View>
+      )}
+
+      {/* 4-second reversible delete undo toast */}
+      {pendingDelete && (
+        <Animated.View
+          entering={FadeInDown.duration(200)}
+          exiting={FadeOutDown.duration(200)}
+          style={[
+            dash.undoToastContainer,
+            { bottom: Math.max(insets.bottom + 16, 24) },
+          ]}
+          testID="delete-undo-toast"
+        >
+          <View style={dash.undoToastContent}>
+            <Text style={dash.undoToastText} numberOfLines={1}>
+              {pendingDelete.station.name.replace(/\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i, '')} removed
+            </Text>
+            <Pressable
+              onPress={handleUndoDelete}
+              style={dash.undoToastButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Undo removing station"
+              testID="delete-undo-button"
+            >
+              <Text style={dash.undoToastButtonText}>Undo</Text>
+            </Pressable>
+          </View>
         </Animated.View>
       )}
     </View>
@@ -1419,6 +1513,46 @@ const dash = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     letterSpacing: 0.2,
+  },
+  undoToastContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 9998,
+    elevation: 25,
+  },
+  undoToastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(25, 25, 30, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+  },
+  undoToastText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: '#FFFFFF',
+    flex: 1,
+    marginRight: 12,
+  },
+  undoToastButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  undoToastButtonText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    color: '#0A84FF',
   },
   headerBtnText: {
     fontFamily: 'SpaceGrotesk_500Medium',

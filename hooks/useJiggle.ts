@@ -69,13 +69,21 @@ export function useLiveReducedMotion(): boolean {
 }
 
 /** mulberry32 single-step. Deterministic per-card "wobble character":
- *  same index → same phase/period/amplitude on every render. No unseeded RNG
+ *  same seed → same phase/period/amplitude on every render. No unseeded RNG
  *  here — re-rolling character on re-render reads as the card glitching. */
 function seededUnit(seed: number): number {
   let t = (seed + 0x6d2b79f5) | 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+function stringToSeed(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }
 
 /** ONE instance per dashboard. Owns the shared amplitude envelope (entry ramp +
@@ -103,21 +111,24 @@ export function useJiggleDriver(isEditing: boolean): JiggleDriver {
  *  Each card gets its OWN clock with a seeded phase offset, period (±15%), and
  *  amplitude (±20%) — the SpringBoard recipe. Ensemble result: at any instant
  *  cards lean at different angles, drifting in and out of alignment, never all
- *  synchronized in one direction or locked in opposition. */
-export function useJiggle(driver: JiggleDriver | undefined, index: number, isActive: boolean) {
+ *  synchronized in one direction or locked in opposition.
+ *  Accepts `seed`: either a stable string ID (e.g. stationId) or numeric index. */
+export function useJiggle(driver: JiggleDriver | undefined, seed: string | number, isActive: boolean) {
   const phase = useSharedValue(0);
   const activeProgress = useSharedValue(isActive ? 1 : 0);
   const settleScale = useSharedValue(1);
 
-  // Stable per-card wobble character (seeded — survives re-renders):
+  const numericSeed = typeof seed === 'string' ? stringToSeed(seed) : seed;
+
+  // Stable per-card wobble character (seeded — survives re-renders and reorders):
   const character = useMemo(
     () => ({
-      offset: seededUnit(index) * TWO_PI,                                     // starting angle
-      period: JIGGLE_BASE_PERIOD_MS * (0.85 + 0.3 * seededUnit(index + 101)), // ±15% — periods drift apart
-      deg: JIGGLE_MAX_DEG * (0.8 + 0.4 * seededUnit(index + 202)),            // ±20% amplitude variety
-      bob: JIGGLE_BOB_PT * (0.7 + 0.6 * seededUnit(index + 303)),             // float variety
+      offset: seededUnit(numericSeed) * TWO_PI,                                           // starting angle
+      period: JIGGLE_BASE_PERIOD_MS * (0.85 + 0.3 * seededUnit(numericSeed + 101)),       // ±15% — periods drift apart
+      deg: JIGGLE_MAX_DEG * (0.8 + 0.4 * seededUnit(numericSeed + 202)),                  // ±20% amplitude variety
+      bob: JIGGLE_BOB_PT * (0.7 + 0.6 * seededUnit(numericSeed + 303)),                   // float variety
     }),
-    [index]
+    [numericSeed]
   );
 
   // Dragged card eases flat + lifts (no angle snap at drag start).
@@ -137,7 +148,7 @@ export function useJiggle(driver: JiggleDriver | undefined, index: number, isAct
       );
       // One-shot entry acknowledgment: tiny scale pop, staggered down the list.
       settleScale.value = withDelay(
-        Math.min(index * 20, 160),
+        Math.min((numericSeed % 8) * 20, 160),
         withSequence(
           withTiming(JIGGLE_ENTRY_POP, { duration: 110, easing: Easing.out(Easing.quad) }),
           withSpring(1, { damping: 16, stiffness: 220 })
@@ -148,7 +159,7 @@ export function useJiggle(driver: JiggleDriver | undefined, index: number, isAct
       cancelAnimation(settleScale);
       settleScale.value = withTiming(1, { duration: 140 });
     }
-  }, [driver?.active, character, index, phase, settleScale]);
+  }, [driver?.active, character, numericSeed, phase, settleScale]);
 
   // Unmount: no orphaned UI-thread loops.
   useEffect(

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect } from 'react';
 import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -93,8 +93,6 @@ export default function DashboardGrid({
   jiggle,
   skipEntrance = false,
 }: DashboardGridProps) {
-  const [isDragging, setIsDragging] = useState(false);
-
   // ── Unmount safety cleanup: unconditionally unlock scroll ─────────
   useEffect(() => {
     return () => {
@@ -144,30 +142,47 @@ export default function DashboardGrid({
     [isJiggling, onStationTap]
   );
 
-  const renderItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<any>) => {
-    const index = getIndex() ?? stations.findIndex(s => s.id === item.id);
+  const renderItem = useCallback(
+    ({ item, drag, isActive, getIndex }: RenderItemParams<any>) => {
+      const index = getIndex() ?? stations.findIndex(s => s.id === item.id);
 
-    return (
-      <ScaleDecorator activeScale={1.04}>
-        <StaggeredEntranceWrapper index={index} skipEntrance={skipEntrance}>
+      const handleDragWithScrollLock = () => {
+        // Lock parent scroll immediately on grabber long press before drag movement starts
+        onScrollEnabledChange(false);
+        drag();
+      };
+
+      return (
+        <ScaleDecorator activeScale={1.03}>
           <DepartureCard
             stationId={item.id}
             stationName={item.name}
-            isEditing={isJiggling && !isDragging}
-            onDelete={onDelete}
             onLongPress={onLongPressCard}
             onCardTap={handleCardTap}
-            drag={isJiggling ? drag : undefined}
             index={index}
             isActive={isActive}
             jiggle={jiggle}
+            isEditing={true}
+            drag={handleDragWithScrollLock}
+            onDelete={onDelete}
             onMoveUp={handleMoveUp}
             onMoveDown={handleMoveDown}
+            totalStations={stations.length}
           />
-        </StaggeredEntranceWrapper>
-      </ScaleDecorator>
-    );
-  }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, jiggle, skipEntrance, handleMoveUp, handleMoveDown]);
+        </ScaleDecorator>
+      );
+    },
+    [
+      stations,
+      onDelete,
+      handleMoveUp,
+      handleMoveDown,
+      jiggle,
+      onLongPressCard,
+      handleCardTap,
+      onScrollEnabledChange,
+    ]
+  );
 
   if (!isJiggling) {
     return (
@@ -177,14 +192,10 @@ export default function DashboardGrid({
             <DepartureCard
               stationId={item.id}
               stationName={item.name}
-              isEditing={false}
-              onDelete={onDelete}
               onLongPress={onLongPressCard}
               onCardTap={handleCardTap}
               index={index}
               jiggle={jiggle}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
             />
           </StaggeredEntranceWrapper>
         ))}
@@ -201,16 +212,13 @@ export default function DashboardGrid({
         renderItem={renderItem}
         onDragBegin={() => {
           pressFeedback.cancelAll();
-          setIsDragging(true);
           onScrollEnabledChange(false);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         }}
         onRelease={() => {
-          setIsDragging(false);
           onScrollEnabledChange(true);
         }}
         onDragEnd={({ data, from, to }) => {
-          setIsDragging(false);
           onScrollEnabledChange(true);
           onReorderStations?.(data);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -226,7 +234,7 @@ export default function DashboardGrid({
         }}
         activationDistance={10}
         autoscrollThreshold={80}
-        autoscrollSpeed={120}
+        autoscrollSpeed={0}
         dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
         simultaneousHandlers={simultaneousHandlers}
         scrollEnabled={false}

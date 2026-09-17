@@ -13,6 +13,7 @@ import Animated, {
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
 import { JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { pressFeedback } from '../utils/pressFeedback';
 
 // ─── Per-card wrapper: stagger entrance animation ──────────────────
 interface StaggeredEntranceWrapperProps {
@@ -168,13 +169,38 @@ export default function DashboardGrid({
     );
   }, [isJiggling, isDragging, stations, onDelete, onLongPressCard, handleCardTap, jiggle, skipEntrance, handleMoveUp, handleMoveDown]);
 
+  if (!isJiggling) {
+    return (
+      <View style={styles.container} testID="dashboard-grid">
+        {stations.map((item, index) => (
+          <StaggeredEntranceWrapper key={item.id} index={index} skipEntrance={skipEntrance}>
+            <DepartureCard
+              stationId={item.id}
+              stationName={item.name}
+              isEditing={false}
+              onDelete={onDelete}
+              onLongPress={onLongPressCard}
+              onCardTap={handleCardTap}
+              index={index}
+              jiggle={jiggle}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+            />
+          </StaggeredEntranceWrapper>
+        ))}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container} testID="dashboard-grid">
       <NestableDraggableFlatList
+        testID="nestable-draggable-stations"
         data={stations}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         onDragBegin={() => {
+          pressFeedback.cancelAll();
           setIsDragging(true);
           onScrollEnabledChange(false);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});

@@ -11,11 +11,14 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLiveReducedMotion } from './useJiggle';
+import { pressFeedback } from '../utils/pressFeedback';
 
 // ── Timing ──────────────────────────────────────────────────────────
 const LIFT_IN_MS = 90;    // Sub-100ms = instantaneous (Apple HIG)
-const LIFT_OUT_MS = 220;  // Leisurely settle reads as elegant, not snappy
+const LIFT_OUT_MS = 160;  // Leisurely settle reads as elegant, not snappy
+const CANCEL_OUT_MS = 60; // Fast non-overshooting return on scroll cancel (zero bounce)
 const LIFT_EASING = Easing.out(Easing.cubic);
+const CANCEL_EASING = Easing.out(Easing.quad);
 const DEBOUNCE_LOCKOUT_MS = 150;
 
 // ── Ghost Shadow (zero shadow as requested) ──
@@ -46,15 +49,15 @@ const LIFT_DRAG = {
 };
 
 export const PRESS_PRESETS = {
-  LINE_PILL_SELECT:   { scaleUp: 1.025 },
-  LINE_PILL_DESELECT: { scaleUp: 1.025 },
-  STATION_ROW:        { scaleUp: 1.025 },
-  CONTINUE_BTN:       { scaleUp: 1.025 },
-  BACK_BTN:           { scaleUp: 1.025 },
-  SKIP_BTN:           { scaleUp: 1.025 },
-  NAV_BAR_ITEM:       { scaleUp: 1.025 },
-  DEPARTURE_CARD:     { scaleUp: 1.025 },
-  CHIP:               { scaleUp: 1.025 },
+  LINE_PILL_SELECT:   { scaleUp: 1.0 },     // Zero scale for wide list rows — glass/border brightening handles touch feedback
+  LINE_PILL_DESELECT: { scaleUp: 1.0 },     // Zero scale for wide list rows
+  STATION_ROW:        { scaleUp: 1.0 },     // Zero scale for wide list rows
+  CONTINUE_BTN:       { scaleUp: 1.025 },   // Standalone CTA button
+  BACK_BTN:           { scaleUp: 1.025 },   // Standalone button
+  SKIP_BTN:           { scaleUp: 1.025 },   // Standalone button
+  NAV_BAR_ITEM:       { scaleUp: 1.025 },   // Standalone nav item
+  DEPARTURE_CARD:     { scaleUp: 1.0 },     // Zero scale for wide departure cards — eliminates scroll-jitter
+  CHIP:               { scaleUp: 1.025 },   // Standalone chip
 } as const;
 
 export type PressType =
@@ -191,9 +194,27 @@ export function usePressAnimation(configKey: PressType, disabled = false, lifted
     borderOpacity.value = withDelay(remainingHold, withTiming(target.borderOpacity, timingConfig));
   }, [disabled, reduceMotion, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity, cancelAll, lifted]);
 
+  const cancel = useCallback(() => {
+    cancelAll();
+    const timingConfig = { duration: CANCEL_OUT_MS, easing: CANCEL_EASING };
+    const target = lifted ? LIFT_DRAG : LIFT_REST;
+    scale.value = withTiming(1.0, timingConfig);
+    shadowRadius.value = withTiming(target.shadowRadius, timingConfig);
+    shadowOpacity.value = withTiming(target.shadowOpacity, timingConfig);
+    shadowOffsetY.value = withTiming(target.shadowOffsetY, timingConfig);
+    liftElevation.value = withTiming(target.elevation, timingConfig);
+    borderOpacity.value = withTiming(target.borderOpacity, timingConfig);
+  }, [cancelAll, lifted, scale, shadowRadius, shadowOpacity, shadowOffsetY, liftElevation, borderOpacity]);
+
+  // Register with global pressFeedback bus so scroll start immediately cancels in-flight press
+  useEffect(() => {
+    return pressFeedback.register(cancel);
+  }, [cancel]);
+
   return {
     onPressIn,
     onPressOut,
+    cancel,
     animatedStyle,      // Scale-only — ALL 14 consumers
     liftShadowStyle,    // Shadow + elevation — outer container opt-in
     liftBorderStyle,    // Border brightening — inner container opt-in

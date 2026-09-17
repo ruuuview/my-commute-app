@@ -205,4 +205,37 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(IPHONE_14_PRO_BOTTOM_INSET).toBe(34);
     });
   });
+
+  describe('Rule: Mode Isolation Architecture Invariants (Read Mode Gesture Purity)', () => {
+    it('DashboardGrid enforces mode isolation: direct mapping in read mode (!isJiggling)', () => {
+      expect(dashboardGridSrc).toMatch(/if\s*\(!isJiggling\)\s*\{[\s\S]*?stations\.map\(/);
+      expect(dashboardGridSrc).toMatch(/testID="nestable-draggable-stations"/);
+    });
+
+    it('MyCommuteDashboard enforces mode isolation: direct mapping in read mode (!isEditing)', () => {
+      expect(dashboardSrc).toMatch(/!isEditing\s*\?\s*\([\s\S]*?sortedLines\.map\(/);
+      expect(dashboardSrc).toMatch(/testID="nestable-draggable-lines"/);
+    });
+
+    it('DepartureCard root Pressable enforces 80ms press delay to kill scroll flick flashes', () => {
+      const match = departureCardSrc.match(/<Pressable[\s\S]*?testID=\{`departure-card-pressable-\$\{stationId\}`\}[\s\S]*?>/);
+      expect(match).not.toBeNull();
+      expect(match![0]).toMatch(/unstable_pressDelay=\{80\}/);
+    });
+
+    it('LineCard root Pressable enforces 80ms press delay to kill scroll flick flashes', () => {
+      const match = lineCardSrc.match(/<Pressable[\s\S]*?style=\{StyleSheet\.absoluteFillObject\}[\s\S]*?>/);
+      expect(match).not.toBeNull();
+      expect(match![0]).toMatch(/unstable_pressDelay=\{80\}/);
+    });
+
+    it('verifies stable key parity and zero layout shift dimensions between read and edit modes', () => {
+      // Both branches in MyCommuteDashboard must use item.id as key
+      expect(dashboardSrc).toMatch(/key=\{item\.id\}/);
+      // Both branches in MyCommuteDashboard must use height: 46, marginBottom: 12
+      const lineContainerMatches = dashboardSrc.match(/height:\s*46,\s*marginBottom:\s*12/g);
+      expect(lineContainerMatches).not.toBeNull();
+      expect(lineContainerMatches!.length).toBeGreaterThanOrEqual(2);
+    });
+  });
 });

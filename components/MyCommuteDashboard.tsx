@@ -58,6 +58,7 @@ import BouncyPressable from './BouncyPressable';
 import { useLineDataStore } from '../store/lineDataStore';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
+import { pressFeedback } from '../utils/pressFeedback';
 import { getSeverityColor, getSeverityRank } from '../utils/getSeverityColor';
 import RerouteScreen from './RerouteScreen';
 import { useAutoDetectBranch } from '../hooks/useAutoDetectBranch';
@@ -697,7 +698,7 @@ const MyCommuteDashboard: React.FC = () => {
     setIsDraggingLine(false);
     setIsDraggingStation(false);
     setScrollEnabled(true);
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
   }, [setScrollEnabled]);
 
   const handleEdit = useCallback(() => {
@@ -707,11 +708,11 @@ const MyCommuteDashboard: React.FC = () => {
         setIsDraggingLine(false);
         setIsDraggingStation(false);
         setScrollEnabled(true);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
       } else {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
         setTimeout(() => {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
         }, 80);
       }
       return next;
@@ -752,7 +753,7 @@ const MyCommuteDashboard: React.FC = () => {
     const [item] = next.splice(currentIndex, 1);
     next.splice(currentIndex - 1, 0, item);
     reorderLines(next.map(l => l.id));
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     AccessibilityInfo.announceForAccessibility(
       `${item.name} moved up to position ${currentIndex} of ${next.length}`
     );
@@ -764,7 +765,7 @@ const MyCommuteDashboard: React.FC = () => {
     const [item] = next.splice(currentIndex, 1);
     next.splice(currentIndex + 1, 0, item);
     reorderLines(next.map(l => l.id));
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     AccessibilityInfo.announceForAccessibility(
       `${item.name} moved down to position ${currentIndex + 2} of ${next.length}`
     );
@@ -837,10 +838,12 @@ const MyCommuteDashboard: React.FC = () => {
           removeClippedSubviews={false}
           onScrollBeginDrag={() => {
             isScrollingRef.current = true;
+            pressFeedback.cancelAll();
           }}
           onScrollEndDrag={applyPendingData}
           onMomentumScrollBegin={() => {
             isScrollingRef.current = true;
+            pressFeedback.cancelAll();
           }}
           onMomentumScrollEnd={applyPendingData}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="rgba(255,255,255,0.6)" />}
@@ -915,37 +918,78 @@ const MyCommuteDashboard: React.FC = () => {
                     onPressIn={handleBackgroundPressIn}
                     onExitJiggle={handleExitEdit}
                   />
-                  <NestableDraggableFlatList
-                    data={sortedLines}
-                    keyExtractor={(item: LineData) => item.id}
-                    renderItem={renderLineItem}
-                    onDragBegin={() => {
-                      setIsDraggingLine(true);
-                      setScrollEnabled(false);
-                    }}
-                    onRelease={() => {
-                      setIsDraggingLine(false);
-                      setScrollEnabled(true);
-                    }}
-                    onDragEnd={({ data }) => {
-                      setIsDraggingLine(false);
-                      setScrollEnabled(true);
-                      reorderLines((data as LineData[]).map(l => l.id));
-                    }}
-                    onPlaceholderIndexChange={() => {
-                      Haptics.selectionAsync().catch(() => {});
-                    }}
-                    activationDistance={10}
-                    autoscrollThreshold={80}
-                    autoscrollSpeed={120}
-                    dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
-                    simultaneousHandlers={scrollRef}
-                    scrollEnabled={false}
-                    initialNumToRender={10}
-                    windowSize={11}
-                    maxToRenderPerBatch={10}
-                    updateCellsBatchingPeriod={50}
-                  />
+                  {!isEditing ? (
+                    sortedLines.map((item: LineData, idx: number) => {
+                      const severity = getDashboardSeverity(item.status, item.status_severity);
+                      const handlePress = () => {
+                        const ref = itemRefs.current[item.id];
+                        if (ref) {
+                          ref.measureInWindow((x, y, width, height) => {
+                            setSelectedLineInfo({ id: item.id, anchorRect: { x, y, width, height } });
+                          });
+                        }
+                      };
+
+                      return (
+                        <View
+                          key={item.id}
+                          ref={el => { if (el) itemRefs.current[item.id] = el; }}
+                          style={{ height: 46, marginBottom: 12 }}
+                        >
+                          <LineCard
+                            line={item}
+                            selected={false}
+                            onPress={handlePress}
+                            statusType={severity}
+                            statusLabel={item.status || 'Good service'}
+                            cardHeight={46}
+                            mode="display"
+                            isEditing={false}
+                            onDelete={removeLine}
+                            index={idx}
+                            jiggle={jiggle}
+                            onLongPress={handleEdit}
+                            onMoveUp={handleMoveLineUp}
+                            onMoveDown={handleMoveLineDown}
+                          />
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <NestableDraggableFlatList
+                      testID="nestable-draggable-lines"
+                      data={sortedLines}
+                      keyExtractor={(item: LineData) => item.id}
+                      renderItem={renderLineItem}
+                      onDragBegin={() => {
+                        pressFeedback.cancelAll();
+                        setIsDraggingLine(true);
+                        setScrollEnabled(false);
+                      }}
+                      onRelease={() => {
+                        setIsDraggingLine(false);
+                        setScrollEnabled(true);
+                      }}
+                      onDragEnd={({ data }) => {
+                        setIsDraggingLine(false);
+                        setScrollEnabled(true);
+                        reorderLines((data as LineData[]).map(l => l.id));
+                      }}
+                      onPlaceholderIndexChange={() => {
+                        Haptics.selectionAsync().catch(() => { });
+                      }}
+                      activationDistance={10}
+                      autoscrollThreshold={80}
+                      autoscrollSpeed={120}
+                      dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                      simultaneousHandlers={scrollRef}
+                      scrollEnabled={false}
+                      initialNumToRender={10}
+                      windowSize={11}
+                      maxToRenderPerBatch={10}
+                      updateCellsBatchingPeriod={50}
+                    />
+                  )}
                 </View>
               )}
 
@@ -1209,34 +1253,34 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
   // Match the engine's resolved route, branchId, or terminus to our grid tiles
   const matchedEngineBranch = engineBranch
     ? branches.find((b) => {
-        const bLower = b.toLowerCase().replace(/\bbranch\b/g, '').trim();
-        // 1. Direct or substring match with terminus
-        if (
-          engineBranch.terminus &&
-          (b.toLowerCase() === engineBranch.terminus.toLowerCase() ||
-            bLower === engineBranch.terminus.toLowerCase() ||
-            engineBranch.terminus.toLowerCase().includes(bLower) ||
-            bLower.includes(engineBranch.terminus.toLowerCase()))
-        ) {
-          return true;
-        }
-        // 2. Check routeName / branchId (e.g. "Edgware ↔ Morden via Bank" or "edgware-via-bank" -> "Bank branch")
-        if (
-          engineBranch.routeName &&
-          bLower.length >= 3 &&
-          engineBranch.routeName.toLowerCase().includes(bLower)
-        ) {
-          return true;
-        }
-        if (
-          engineBranch.branchId &&
-          bLower.length >= 3 &&
-          engineBranch.branchId.toLowerCase().includes(bLower)
-        ) {
-          return true;
-        }
-        return false;
-      })
+      const bLower = b.toLowerCase().replace(/\bbranch\b/g, '').trim();
+      // 1. Direct or substring match with terminus
+      if (
+        engineBranch.terminus &&
+        (b.toLowerCase() === engineBranch.terminus.toLowerCase() ||
+          bLower === engineBranch.terminus.toLowerCase() ||
+          engineBranch.terminus.toLowerCase().includes(bLower) ||
+          bLower.includes(engineBranch.terminus.toLowerCase()))
+      ) {
+        return true;
+      }
+      // 2. Check routeName / branchId (e.g. "Edgware ↔ Morden via Bank" or "edgware-via-bank" -> "Bank branch")
+      if (
+        engineBranch.routeName &&
+        bLower.length >= 3 &&
+        engineBranch.routeName.toLowerCase().includes(bLower)
+      ) {
+        return true;
+      }
+      if (
+        engineBranch.branchId &&
+        bLower.length >= 3 &&
+        engineBranch.branchId.toLowerCase().includes(bLower)
+      ) {
+        return true;
+      }
+      return false;
+    })
     : null;
 
   // Fallback: the line's default terminus (branches[0])
@@ -1300,9 +1344,9 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
       suggestedRoute={
         resolution.mode === 'affected'
           ? (REROUTE_SUGGESTIONS[rerouteLine.id] || {
-              description: 'Use parallel London Bus routes or interchange via nearest operating line.',
-              extraTimeMinutes: 8,
-            })
+            description: 'Use parallel London Bus routes or interchange via nearest operating line.',
+            extraTimeMinutes: 8,
+          })
           : undefined
       }
       googleMapsUrl={links.googleMapsUrl}

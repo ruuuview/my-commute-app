@@ -207,7 +207,7 @@ const DepartureCard = memo(function DepartureCard({
         <Pressable
           onPress={isEditing ? undefined : handlePress}
           pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
-          unstable_pressDelay={0}
+          unstable_pressDelay={80}
           delayLongPress={700}
           onLongPress={
             !isEditing && onLongPress

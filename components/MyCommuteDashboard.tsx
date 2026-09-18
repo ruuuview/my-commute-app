@@ -895,7 +895,7 @@ const MyCommuteDashboard: React.FC = () => {
         <NestableScrollContainer
           ref={scrollRef}
           style={[dash.scroll, { zIndex: 1 }]}
-          contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 80, flexGrow: 1 }]}
+          contentContainerStyle={[dash.scrollContent, { paddingBottom: insets.bottom + 100, flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={scrollEnabled}
           canCancelContentTouches={true}

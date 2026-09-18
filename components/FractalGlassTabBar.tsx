@@ -48,6 +48,9 @@ const TabButton = memo(({ tab, isActive, onPress }: { tab: any; isActive: boolea
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      accessibilityLabel={tab.label}
       style={[
         styles.tab,
         isActive && styles.activeTab
@@ -55,10 +58,12 @@ const TabButton = memo(({ tab, isActive, onPress }: { tab: any; isActive: boolea
     >
       <Animated.View style={[styles.tabContent, animatedStyle]}>
         {React.createElement(tab.icon, {
-          size: 24,
-          color: isActive ? "#FFFFFF" : "rgba(255,255,255,0.35)"
+          size: 20,
+          color: isActive ? "#FFFFFF" : "rgba(255,255,255,0.60)"
         })}
-        {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
+        <Text style={[styles.tabLabel, !isActive && styles.inactiveTabLabel]}>
+          {tab.label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -103,7 +108,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 20,
   },
   outerShadowWrapper: {
     borderRadius: 32,
@@ -113,6 +118,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.55,
     shadowRadius: 20,
     elevation: 12,
+    alignSelf: 'center',
   },
   blurContainer: {
     flexDirection: 'row',
@@ -121,6 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: GLASS.background,
     borderWidth: 1.25,
     borderColor: GLASS.borderColor,
+    alignSelf: 'center',
   },
   specularTopSheen: {
     position: 'absolute',
@@ -132,18 +139,19 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    width: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    gap: 4,
   },
   tab: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 9,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 24,
+    minWidth: 114,
   },
   tabContent: {
     flexDirection: 'row',
@@ -166,7 +174,10 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_600SemiBold',
     color: '#FFFFFF',
     fontSize: 14,
-  }
+  },
+  inactiveTabLabel: {
+    color: 'rgba(255, 255, 255, 0.60)',
+  },
 });
 
 export default FractalGlassTabBar;

@@ -15,7 +15,7 @@ import {
   CaretLeft, Bell, Clock, CaretRight,
   Fingerprint, MapTrifold, MapPin, Shield,
   WarningCircle, Wrench, Warning,
-  SpeakerHigh, BellSlash, Sparkle
+  BellSlash, Sparkle
 } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { LiveActivityService } from '../services/LiveActivityService';
@@ -503,7 +503,7 @@ export default function SettingsScreen() {
             >
               {/* Delivery Mode 3-Way Segmented Glass Control */}
               <View style={styles.shushPickerRow}>
-                {/* Loud & Proud */}
+                {/* Standard: System Blue */}
                 <Pressable
                   style={[
                     styles.shushModeCard,
@@ -511,18 +511,18 @@ export default function SettingsScreen() {
                   ]}
                   onPress={() => handleSelectDeliveryMode('loud')}
                   accessibilityRole="button"
-                  accessibilityLabel="Loud delivery mode"
+                  accessibilityLabel="Standard delivery mode"
                 >
                   <IconBadge
-                    icon={<SpeakerHigh size={18} color={shushPreferences.alertDeliveryMode === 'loud' ? '#FF9500' : '#8E8E93'} weight="fill" />}
-                    backgroundColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(255, 149, 0, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
-                    borderColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(255, 149, 0, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
+                    icon={<Bell size={18} color={shushPreferences.alertDeliveryMode === 'loud' ? '#0A84FF' : '#8E8E93'} weight={shushPreferences.alertDeliveryMode === 'loud' ? 'fill' : 'regular'} />}
+                    backgroundColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(10, 132, 255, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
+                    borderColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(10, 132, 255, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
                   />
-                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'loud' && { color: '#FF9500' }]}>Loud</Text>
+                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'loud' && { color: '#0A84FF' }]}>Standard</Text>
                   <Text style={styles.shushModeDesc}>Banners & sound</Text>
                 </Pressable>
 
-                {/* Shush Mode */}
+                {/* Ambient: System Indigo */}
                 <Pressable
                   style={[
                     styles.shushModeCard,
@@ -530,18 +530,18 @@ export default function SettingsScreen() {
                   ]}
                   onPress={() => handleSelectDeliveryMode('shush')}
                   accessibilityRole="button"
-                  accessibilityLabel="Shush Mode delivery mode"
+                  accessibilityLabel="Ambient delivery mode"
                 >
                   <IconBadge
-                    icon={<Sparkle size={18} color={shushPreferences.alertDeliveryMode === 'shush' ? '#BF5AF2' : '#8E8E93'} weight="fill" />}
-                    backgroundColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(191, 90, 242, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
-                    borderColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(191, 90, 242, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
+                    icon={<Sparkle size={18} color={shushPreferences.alertDeliveryMode === 'shush' ? '#5E5CE6' : '#8E8E93'} weight="fill" />}
+                    backgroundColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(94, 92, 230, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
+                    borderColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(94, 92, 230, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
                   />
-                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'shush' && { color: '#BF5AF2' }]}>Shush Mode</Text>
+                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'shush' && { color: '#5E5CE6' }]}>Ambient</Text>
                   <Text style={styles.shushModeDesc}>Dynamic Island</Text>
                 </Pressable>
 
-                {/* Off */}
+                {/* Muted: Slate Mist */}
                 <Pressable
                   style={[
                     styles.shushModeCard,
@@ -549,58 +549,93 @@ export default function SettingsScreen() {
                   ]}
                   onPress={() => handleSelectDeliveryMode('off')}
                   accessibilityRole="button"
-                  accessibilityLabel="Off delivery mode"
+                  accessibilityLabel="Muted delivery mode"
                 >
                   <IconBadge
-                    icon={<BellSlash size={18} color={shushPreferences.alertDeliveryMode === 'off' ? '#FFFFFF' : '#8E8E93'} weight="fill" />}
+                    icon={<BellSlash size={18} color={shushPreferences.alertDeliveryMode === 'off' ? '#8E8E93' : '#8E8E93'} weight={shushPreferences.alertDeliveryMode === 'off' ? 'fill' : 'regular'} />}
                     backgroundColor={shushPreferences.alertDeliveryMode === 'off' ? 'rgba(142, 142, 147, 0.22)' : 'rgba(255, 255, 255, 0.05)'}
                     borderColor={shushPreferences.alertDeliveryMode === 'off' ? 'rgba(142, 142, 147, 0.40)' : 'rgba(255, 255, 255, 0.10)'}
                   />
-                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'off' && { color: '#FFFFFF' }]}>Off</Text>
-                  <Text style={styles.shushModeDesc}>Mute alerts</Text>
+                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'off' && { color: '#8E8E93' }]}>Muted</Text>
+                  <Text style={styles.shushModeDesc}>Open app manually</Text>
                 </Pressable>
               </View>
 
-              {shushPreferences.alertDeliveryMode === 'shush' && (
-                <>
-                  <View style={styles.divider} />
+              <View style={styles.divider} />
 
-                  {/* Surface indicator (DI vs Non-DI) with smart whisper */}
-                  <View style={styles.surfaceInfoRow}>
-                    <Sparkle size={15} color="#BF5AF2" weight="fill" />
-                    <Text style={styles.surfaceInfoText}>
-                      {hasDI
-                        ? 'Activates automatically on Dynamic Island & Lock Screen near your stations or during disruptions.'
-                        : 'Activates automatically near your stations or during disruptions via silent notifications.'}
-                    </Text>
-                  </View>
-
-                  {/* Time-Sensitive Permission Soft Nag (Tri-state: only renders if capability exists in binary and is user-disabled) */}
-                  {shushPreferences.timeSensitiveStatus === 'disabled' && (
-                    <View style={styles.shushWarningBox}>
-                      <Warning size={18} color="#FF9F0A" weight="fill" />
-                      <View style={{ flex: 1, marginHorizontal: 8 }}>
-                        <Text style={styles.shushWarningTitle}>Urgent Closure Alerts</Text>
-                        <Text style={styles.shushWarningSub}>
-                          Allow urgent closure alerts so you&apos;re notified when a Tube line is suspended.
-                        </Text>
-                      </View>
+              {/* Single Contextual Subtitle & Intent x OS Permission Delivery Truth */}
+              <View style={styles.surfaceInfoRow}>
+                {shushPreferences.alertDeliveryMode === 'loud' && (
+                  !osNotificationsGranted ? (
+                    <View style={styles.deliveryTruthWarningRow}>
+                      <WarningCircle size={15} color="#FF453A" weight="fill" />
+                      <Text style={[styles.surfaceInfoText, { color: '#FF453A' }]}>
+                        iOS notifications disabled in Settings. Banners cannot deliver.
+                      </Text>
                       <Pressable
-                        style={styles.shushEnableBtn}
-                        onPress={async () => {
-                          await LiveActivityService.requestTimeSensitivePermission();
-                          const refreshed = await LiveActivityService.getTimeSensitiveStatus();
-                          setTimeSensitiveStatus(refreshed);
-                          if (refreshed === 'disabled') {
-                            Linking.openSettings().catch(() => {});
-                          }
-                        }}
+                        style={styles.inlineFixBtn}
+                        onPress={() => Linking.openSettings().catch(() => {})}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open iOS Settings to enable notifications"
                       >
-                        <Text style={styles.shushEnableBtnText}>Allow</Text>
+                        <Text style={styles.inlineFixBtnText}>Fix</Text>
                       </Pressable>
                     </View>
-                  )}
-                </>
+                  ) : (
+                    <>
+                      <Bell size={15} color="#0A84FF" weight="fill" />
+                      <Text style={styles.surfaceInfoText}>
+                        Alerts appear as banners with sound during disruptions.
+                      </Text>
+                    </>
+                  )
+                )}
+
+                {shushPreferences.alertDeliveryMode === 'shush' && (
+                  <>
+                    <Sparkle size={15} color="#5E5CE6" weight="fill" />
+                    <Text style={styles.surfaceInfoText}>
+                      {hasDI
+                        ? 'Silent updates visible only on Dynamic Island & Lock Screen.'
+                        : 'Silent updates visible only near your commute stations.'}
+                    </Text>
+                  </>
+                )}
+
+                {shushPreferences.alertDeliveryMode === 'off' && (
+                  <>
+                    <BellSlash size={15} color="#8E8E93" weight="fill" />
+                    <Text style={styles.surfaceInfoText}>
+                      No alerts. Check status manually in-app.
+                    </Text>
+                  </>
+                )}
+              </View>
+
+              {/* Time-Sensitive Permission Soft Nag (Tri-state: only renders if capability exists in binary and is user-disabled) */}
+              {shushPreferences.alertDeliveryMode === 'shush' && shushPreferences.timeSensitiveStatus === 'disabled' && (
+                <View style={styles.shushWarningBox}>
+                  <Warning size={18} color="#FF9F0A" weight="fill" />
+                  <View style={{ flex: 1, marginHorizontal: 8 }}>
+                    <Text style={styles.shushWarningTitle}>Urgent Closure Alerts</Text>
+                    <Text style={styles.shushWarningSub}>
+                      Allow urgent closure alerts so you&apos;re notified when a Tube line is suspended.
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.shushEnableBtn}
+                    onPress={async () => {
+                      await LiveActivityService.requestTimeSensitivePermission();
+                      const refreshed = await LiveActivityService.getTimeSensitiveStatus();
+                      setTimeSensitiveStatus(refreshed);
+                      if (refreshed === 'disabled') {
+                        Linking.openSettings().catch(() => {});
+                      }
+                    }}
+                  >
+                    <Text style={styles.shushEnableBtnText}>Allow</Text>
+                  </Pressable>
+                </View>
               )}
             </LiquidGlassView>
           </View>
@@ -624,7 +659,7 @@ export default function SettingsScreen() {
                   <View style={styles.rowInfo}>
                     <Text style={styles.collapsedOffTitle}>All notifications paused</Text>
                     <Text style={styles.collapsedOffSubtitle}>
-                      Tap Loud or Shush above to configure alerts
+                      Tap Standard or Ambient above to configure alerts
                     </Text>
                   </View>
                 </View>
@@ -769,16 +804,16 @@ export default function SettingsScreen() {
                 <View style={styles.rowInfo}>
                   <View style={styles.labelRow}>
                     <IconBadge
-                      icon={<MapTrifold size={18} color="#BF5AF2" weight="fill" />}
-                      backgroundColor="rgba(175, 82, 222, 0.18)"
-                      borderColor="rgba(175, 82, 222, 0.35)"
+                      icon={<MapTrifold size={18} color="#0A84FF" weight="fill" />}
+                      backgroundColor="rgba(10, 132, 255, 0.18)"
+                      borderColor="rgba(10, 132, 255, 0.35)"
                     />
                     <Text style={styles.rowLabel}>Home & Work Stations</Text>
                   </View>
                   <Text
                     style={[
                       styles.rowSubtitle,
-                      !hasHomeOrWork && { color: '#FFA500', fontFamily: 'SpaceGrotesk_600SemiBold' },
+                      !hasHomeOrWork && { color: 'rgba(255, 255, 255, 0.50)', fontFamily: 'SpaceGrotesk_400Regular' },
                     ]}
                   >
                     {homeWorkSubtitle}
@@ -1243,16 +1278,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   shushModeCardActiveLoud: {
-    backgroundColor: 'rgba(255, 149, 0, 0.14)',
-    borderColor: '#FF9500',
+    backgroundColor: 'rgba(10, 132, 255, 0.14)',
+    borderColor: '#0A84FF',
   },
   shushModeCardActiveShush: {
-    backgroundColor: 'rgba(191, 90, 242, 0.16)',
-    borderColor: '#BF5AF2',
+    backgroundColor: 'rgba(94, 92, 230, 0.16)',
+    borderColor: '#5E5CE6',
   },
   shushModeCardActiveOff: {
     backgroundColor: 'rgba(142, 142, 147, 0.14)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: 'rgba(142, 142, 147, 0.40)',
   },
   shushModeTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -1281,6 +1316,25 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.75)',
     flex: 1,
     lineHeight: 16,
+  },
+  deliveryTruthWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  inlineFixBtn: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 69, 58, 0.20)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 69, 58, 0.40)',
+  },
+  inlineFixBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 11,
+    color: '#FF453A',
   },
   shushWarningBox: {
     flexDirection: 'row',

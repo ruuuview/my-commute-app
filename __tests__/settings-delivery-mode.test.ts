@@ -25,10 +25,30 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     // Must conditionally render collapsed card when alertDeliveryMode is 'off'
     expect(content).toContain("shushPreferences.alertDeliveryMode === 'off'");
     expect(content).toContain('All notifications paused');
-    expect(content).toContain('Tap Loud or Shush above to configure alerts');
+    expect(content).toContain('Tap Standard or Ambient above to configure alerts');
     expect(content).toContain('styles.collapsedOffRow');
     expect(content).toContain('styles.collapsedOffTitle');
     expect(content).toContain('styles.collapsedOffSubtitle');
+  });
+
+  test('Settings file enforces Apple System tokens and eliminates hazard/neon colors', () => {
+    const content = fs.readFileSync(settingsPath, 'utf8');
+
+    // Option 1 Token Contract: Standard (System Blue #0A84FF), Ambient (System Indigo #5E5CE6), Muted (System Gray #8E8E93)
+    expect(content).toContain('>Standard<');
+    expect(content).toContain('>Ambient<');
+    expect(content).toContain('>Muted<');
+    expect(content).toContain('#0A84FF');
+    expect(content).toContain('#5E5CE6');
+
+    // Poka-Yoke: Zero hazard amber or rave neon purple in settings
+    expect(content).not.toContain('#FF9500');
+    expect(content).not.toContain('#BF5AF2');
+
+    // Intent x OS Permission delivery truth status line
+    expect(content).toContain('!osNotificationsGranted');
+    expect(content).toContain('iOS notifications disabled in Settings. Banners cannot deliver.');
+    expect(content).toContain('Alerts appear as banners with sound during disruptions.');
   });
 
   test('Settings file wires real Severe Suspension Bypass control', () => {

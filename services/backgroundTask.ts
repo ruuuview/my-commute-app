@@ -15,6 +15,7 @@ import {
   presentServiceImprovingNotification,
 } from './notifications/dispatch';
 import { isLineId } from './notifications/payload';
+import { scheduleCalendarCommuteAlerts } from './calendarScheduler';
 
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
@@ -304,6 +305,15 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         console.log('✅ Background Fetch bridged statuses successfully.');
       } catch (e) {
         console.error('❌ Failed to bridge background statuses to widget:', e);
+      }
+    }
+
+    // 6. Refresh calendar commute leave-by alerts if enabled
+    if (state.calendarGranted) {
+      try {
+        await scheduleCalendarCommuteAlerts();
+      } catch (calErr) {
+        console.warn('❌ Failed to refresh calendar commute alerts in background:', calErr);
       }
     }
 

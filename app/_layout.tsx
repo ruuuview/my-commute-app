@@ -19,6 +19,7 @@ import {
 import { registerBackgroundFetchAsync, syncGeofencesAsync } from '../services/backgroundTask';
 import { syncToWidget } from '../utils/widgetSync';
 import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
+import { scheduleCalendarCommuteAlerts } from '../services/calendarScheduler';
 import * as Notifications from 'expo-notifications';
 import { SessionManager } from '../services/SessionManager';
 import { installDirectionNotification } from '../services/directionNotification';
@@ -162,6 +163,16 @@ export default function RootLayout() {
       });
     }
   }, [_hasHydrated, locationGranted, pinnedStations]);
+
+  // Synchronize calendar commute leave-by alerts if calendar auto-detect is enabled
+  const calendarGranted = useUserPreferencesStore(s => s.calendarGranted);
+  useEffect(() => {
+    if (_hasHydrated && calendarGranted) {
+      void scheduleCalendarCommuteAlerts().catch(() => {
+        console.warn('Failed to schedule calendar commute alerts');
+      });
+    }
+  }, [_hasHydrated, calendarGranted, pinnedStations]);
 
   // Synchronize with iOS Widget when selectedLines changes
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);

@@ -60,20 +60,34 @@ function setCachedDuration(originId: string, destId: string, duration: number) {
   }
 }
 
+// Cancel all previously scheduled calendar commute leave-by notifications
+export async function cancelCalendarCommuteAlerts(): Promise<void> {
+  try {
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of scheduledNotifications) {
+      if (notification.content.data?.type === 'commute-leave-by') {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
+  } catch (err) {
+    console.error('[CalendarScheduler] Error cancelling commute alerts:', err);
+  }
+}
+
 // Main scheduler service
-export async function scheduleCalendarCommuteAlerts() {
+export async function scheduleCalendarCommuteAlerts(): Promise<{ scheduledCount: number }> {
   try {
     // 1. Audit native permissions before executing operations
     const calendarPermission = await Calendar.getCalendarPermissionsAsync();
     if (calendarPermission.status !== Calendar.PermissionStatus.GRANTED) {
       console.log('Calendar permission not granted. Skipping scheduler.');
-      return;
+      return { scheduledCount: 0 };
     }
 
     const notificationPermission = await Notifications.getPermissionsAsync();
     if (notificationPermission.status !== 'granted') {
       console.log('Notification permission not granted. Skipping scheduler.');
-      return;
+      return { scheduledCount: 0 };
     }
 
     // 2. Fetch calendars and events for the next 24 hours
@@ -81,7 +95,7 @@ export async function scheduleCalendarCommuteAlerts() {
     const calendarIds = calendars.map(c => c.id);
     if (calendarIds.length === 0) {
       console.log('No calendars found.');
-      return;
+      return { scheduledCount: 0 };
     }
 
     const startDate = new Date();
@@ -89,23 +103,18 @@ export async function scheduleCalendarCommuteAlerts() {
     const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
     if (events.length === 0) {
       console.log('No events found in the next 24 hours.');
-      return;
+      return { scheduledCount: 0 };
     }
 
     // 3. Clean up previously scheduled commute notifications before rescheduling
-    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-    for (const notification of scheduledNotifications) {
-      if (notification.content.data?.type === 'commute-leave-by') {
-        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-      }
-    }
+    await cancelCalendarCommuteAlerts();
 
-    // 4. Identify origin station
+    // 4. Identify origin station (prioritize home station)
     const pinnedStations = useUserPreferencesStore.getState().pinnedStations;
-    const originStation = pinnedStations[0];
+    const originStation = pinnedStations.find(s => s.role === 'home') || pinnedStations[0];
     if (!originStation) {
       console.log('No origin station pinned. Skipping scheduler.');
-      return;
+      return { scheduledCount: 0 };
     }
 
     // Deduplicate stations by lowercase cleaned name, then sort by length descending
@@ -118,6 +127,8 @@ export async function scheduleCalendarCommuteAlerts() {
     }
     console.log(`[Scheduler] Deduplicating stations: FULL_STATIONS.length = ${FULL_STATIONS.length}, Unique stations count = ${stationsByName.size}`);
     const sortedStations = [...stationsByName.values()].sort((a, b) => sanitiseStationName(b.name).length - sanitiseStationName(a.name).length);
+
+    let scheduledCount = 0;
 
     // 5. Schedule alerts for each event
     for (const event of events) {
@@ -223,11 +234,15 @@ export async function scheduleCalendarCommuteAlerts() {
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
         });
 
+        scheduledCount++;
         console.log(`Scheduled leave-by alert for "${event.title}" at ${triggerDate.toISOString()} (Leave by: ${formattedTime}, Travel: ${travelTimeMinutes} mins)`);
       }
     }
+
+    return { scheduledCount };
   } catch (error) {
     // Catch-all to gracefully handle unexpected runtime changes / permission revocation without crashing
     console.error('Error running scheduleCalendarCommuteAlerts:', error);
+    return { scheduledCount: 0 };
   }
 }

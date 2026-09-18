@@ -31,6 +31,7 @@ import {
   ArrowsClockwise,
   Trash,
   Train,
+  Sparkle,
 } from 'phosphor-react-native';
 import { usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -58,6 +59,8 @@ export const DiagnosticsModal: React.FC<Props> = ({
   const setTflAccountStatus = useUserPreferencesStore((s) => s.setTflAccountStatus);
   const setSimulatedClaimActive = useUserPreferencesStore((s) => s.setSimulatedClaimActive);
   const selectedLines = useUserPreferencesStore((s) => s.selectedLines);
+  const shushPreferences = useUserPreferencesStore((s) => s.shushPreferences);
+  const setShushActivation = useUserPreferencesStore((s) => s.setShushActivation);
   const primaryLineId = (selectedLines && selectedLines[0]) || 'piccadilly';
   const primaryLineName = primaryLineId.charAt(0).toUpperCase() + primaryLineId.slice(1);
 
@@ -67,6 +70,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
     taskRegistered: boolean;
   }>({ active: false, regionCount: 0, taskRegistered: false });
   const [isSimulatingLiveActivity, setIsSimulatingLiveActivity] = useState(false);
+  const [isTestingShush, setIsTestingShush] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -208,6 +212,56 @@ export const DiagnosticsModal: React.FC<Props> = ({
     }
   };
 
+  const handleTestShushDemo = async () => {
+    if (isTestingShush) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await LiveActivityService.stopPreviewActivity();
+      setIsTestingShush(false);
+      return;
+    }
+
+    const status = await LiveActivityService.getSupportStatus();
+    if (status === 'expo_go') {
+      Alert.alert(
+        'Preview Unavailable in Expo Go',
+        'Live Activities and Dynamic Island require custom Apple targets. Please test on an EAS Development Client or install a native build.'
+      );
+      return;
+    }
+
+    if (status === 'bridge_unlinked') {
+      Alert.alert(
+        'Native Bridge Unlinked',
+        'MyCommuteLiveActivityModule was not detected in this native binary. Rebuild with EAS to link native Apple targets.'
+      );
+      return;
+    }
+
+    const areActivitiesEnabled = status === 'supported';
+    if (!areActivitiesEnabled) {
+      Alert.alert(
+        'Live Activities Disabled',
+        'Live Activities are turned off for My Commute in iOS Settings. Enable them to preview Shush Mode on your Dynamic Island and Lock Screen.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+        ]
+      );
+      return;
+    }
+
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setIsTestingShush(true);
+    const activityId = await LiveActivityService.startPreviewActivity();
+    if (!activityId) {
+      setIsTestingShush(false);
+      Alert.alert(
+        'Unable to Start Preview',
+        'Could not start the Live Activity. Ensure your device is running iOS 16.2+ and Live Activities are permitted in Settings.'
+      );
+    }
+  };
+
   const handleResetTflCoverage = () => {
     Alert.alert(
       'Reset TfL Coverage Status',
@@ -344,9 +398,66 @@ export const DiagnosticsModal: React.FC<Props> = ({
               </View>
             </View>
 
+            {/* Shush Activation Policy (Subterranean GPS Override) */}
+            <Text style={styles.sectionHeader}>SHUSH ACTIVATION POLICY</Text>
+            <View style={styles.card}>
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowTitle}>Subterranean Trigger Mode</Text>
+                  <Text style={styles.rowSubtitle}>Underground fallback when GPS signal is lost</Text>
+                </View>
+              </View>
+              <View style={styles.pillGroup}>
+                {(['smart', 'schedule', 'always'] as const).map((act) => (
+                  <Pressable
+                    key={act}
+                    style={[
+                      styles.pill,
+                      shushPreferences.shushActivation === act && styles.pillActive,
+                    ]}
+                    onPress={() => {
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShushActivation(act);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        shushPreferences.shushActivation === act && styles.pillTextActive,
+                      ]}
+                    >
+                      {act === 'smart' ? 'Smart (Auto)' : act === 'schedule' ? 'Schedule (Hours)' : 'Always (In-Flight)'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
             {/* Test Actions */}
             <Text style={styles.sectionHeader}>SIMULATION & OVERRIDES</Text>
             <View style={styles.card}>
+              {/* Test Shush Mode (Preview on Lock Screen) */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={handleTestShushDemo}
+                accessibilityRole="button"
+                accessibilityLabel="Test Shush Mode (Preview on Lock Screen)"
+              >
+                <Sparkle size={20} color={isTestingShush ? '#FF453A' : '#BF5AF2'} weight="bold" />
+                <View style={styles.actionInfo}>
+                  <Text style={[styles.actionTitle, { color: isTestingShush ? '#FF453A' : '#BF5AF2' }]}>
+                    {isTestingShush ? 'End Preview (Lock screen to view)' : 'Test Shush Mode (Preview on Lock Screen)'}
+                  </Text>
+                  <Text style={styles.actionSubtitle}>
+                    {isTestingShush
+                      ? 'Live preview running · Tap to end'
+                      : 'Spawns live Shush Mode preview on Lock Screen & Dynamic Island'}
+                  </Text>
+                </View>
+              </Pressable>
+
+              <View style={styles.divider} />
+
               <Pressable
                 style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                 onPress={handleToggleSimulateCommute}
@@ -578,5 +689,34 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginVertical: 6,
+  },
+  pillGroup: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  pill: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+  },
+  pillActive: {
+    backgroundColor: 'rgba(191, 90, 242, 0.25)',
+    borderColor: '#BF5AF2',
+  },
+  pillText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.65)',
+    textAlign: 'center',
+  },
+  pillTextActive: {
+    color: '#FFFFFF',
   },
 });

@@ -39,20 +39,26 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     expect(content).toContain('setSevereBypassAlertHours');
   });
 
-  test('Settings file features honest time-sensitive copy and interactive test toggle', () => {
+  test('Settings file features honest time-sensitive copy, and QA preview button is quarantined in Diagnostics', () => {
     const content = fs.readFileSync(settingsPath, 'utf8');
+    const diagPath = path.resolve(__dirname, '../components/DiagnosticsModal.tsx');
+    const diagContent = fs.readFileSync(diagPath, 'utf8');
 
-    // Clear and honest Time-Sensitive copy gated on tri-state disabled
+    // Clear and honest Time-Sensitive copy in settings gated on tri-state disabled
     expect(content).toContain("shushPreferences.timeSensitiveStatus === 'disabled'");
     expect(content).toContain('Urgent Closure Alerts');
     expect(content).toContain('Allow urgent closure alerts so you&apos;re notified when a Tube line is suspended.');
     expect(content).toContain('>Allow<');
 
-    // Preview button toggles state between test and end
-    expect(content).toContain('End Preview (Lock screen to view)');
-    expect(content).toContain('Test Shush Mode (Preview on Lock Screen)');
-    expect(content).toContain('areActivitiesEnabled');
-    expect(content).toContain('stopPreviewActivity');
+    // Consumer settings must NOT contain raw developer preview buttons
+    expect(content).not.toContain('Test Shush Mode (Preview on Lock Screen)');
+
+    // Preview button and activation policy are safely quarantined in Diagnostics
+    expect(diagContent).toContain('End Preview (Lock screen to view)');
+    expect(diagContent).toContain('Test Shush Mode (Preview on Lock Screen)');
+    expect(diagContent).toContain('areActivitiesEnabled');
+    expect(diagContent).toContain('stopPreviewActivity');
+    expect(diagContent).toContain('SHUSH ACTIVATION POLICY');
   });
 
   test('Store manages tri-state TimeSensitiveStatus accurately', () => {

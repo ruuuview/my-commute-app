@@ -25,12 +25,14 @@ import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import * as ExpoLocation from 'expo-location';
+import * as Calendar from 'expo-calendar';
 import { useShallow } from 'zustand/react/shallow';
 import Animated from 'react-native-reanimated';
 
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import { syncGeofencesAsync } from '../services/backgroundTask';
+import { scheduleCalendarCommuteAlerts, cancelCalendarCommuteAlerts } from '../services/calendarScheduler';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { FixItSheet } from '../components/FixItSheet';
 import { AlertHoursSheet } from '../components/AlertHoursSheet';
@@ -93,7 +95,6 @@ export default function SettingsScreen() {
     setSevereBypassAlertHours,
     shushPreferences,
     setAlertDeliveryMode,
-    setShushActivation,
     setTimeSensitiveStatus,
   } = useUserPreferencesStore(
     useShallow((s) => ({
@@ -115,14 +116,12 @@ export default function SettingsScreen() {
       setSevereBypassAlertHours: s.setSevereBypassAlertHours,
       shushPreferences: s.shushPreferences,
       setAlertDeliveryMode: s.setAlertDeliveryMode,
-      setShushActivation: s.setShushActivation,
       setTimeSensitiveStatus: s.setTimeSensitiveStatus,
     }))
   );
 
   // ── Shush Mode & Dynamic Island State ─────────────────────────────
   const [hasDI, setHasDI] = useState(true);
-  const [isTestingShush, setIsTestingShush] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -154,60 +153,6 @@ export default function SettingsScreen() {
     },
     [hapticsEnabled, setAlertDeliveryMode, setTimeSensitiveStatus]
   );
-
-  const handleTestShushDemo = useCallback(async () => {
-    if (isTestingShush) {
-      if (hapticsEnabled) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      }
-      await LiveActivityService.stopPreviewActivity();
-      setIsTestingShush(false);
-      return;
-    }
-
-    const status = await LiveActivityService.getSupportStatus();
-    if (status === 'expo_go') {
-      Alert.alert(
-        'Preview Unavailable in Expo Go',
-        'Live Activities and Dynamic Island require custom Apple targets. Please test on an EAS Development Client or install a native build.'
-      );
-      return;
-    }
-
-    if (status === 'bridge_unlinked') {
-      Alert.alert(
-        'Native Bridge Unlinked',
-        'MyCommuteLiveActivityModule was not detected in this native binary. Rebuild with EAS to link native Apple targets.'
-      );
-      return;
-    }
-
-    const areActivitiesEnabled = status === 'supported';
-    if (!areActivitiesEnabled) {
-      Alert.alert(
-        'Live Activities Disabled',
-        'Live Activities are turned off for My Commute in iOS Settings. Enable them to preview Shush Mode on your Dynamic Island and Lock Screen.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
-        ]
-      );
-      return;
-    }
-
-    if (hapticsEnabled) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
-    setIsTestingShush(true);
-    const activityId = await LiveActivityService.startPreviewActivity();
-    if (!activityId) {
-      setIsTestingShush(false);
-      Alert.alert(
-        'Unable to Start Preview',
-        'Could not start the Live Activity. Ensure your device is running iOS 16.2+ and Live Activities are permitted in Settings.'
-      );
-    }
-  }, [hapticsEnabled, isTestingShush]);
 
   // ── Modals & Sheets ───────────────────────────────────────────────
   const [showFixItSheet, setShowFixItSheet] = useState(false);
@@ -246,10 +191,25 @@ export default function SettingsScreen() {
       if (isLocGranted) {
         usePermissionOrchestrator.getState().recordDecision('locationAlways', 'granted');
       }
+
+      // Sync native Calendar permission status
+      try {
+        const cal = await Calendar.getCalendarPermissionsAsync();
+        const isCalGranted = cal.status === Calendar.PermissionStatus.GRANTED;
+        const currentCalStore = useUserPreferencesStore.getState().calendarGranted;
+        if (!isCalGranted && currentCalStore) {
+          setCalendarGranted(false);
+          void cancelCalendarCommuteAlerts();
+        } else if (isCalGranted && currentCalStore) {
+          void scheduleCalendarCommuteAlerts();
+        }
+      } catch (calErr) {
+        console.warn('[Settings] Error checking calendar permissions:', calErr);
+      }
     } catch (e) {
       console.warn('[Settings] Error checking OS permissions:', e);
     }
-  }, []);
+  }, [setCalendarGranted]);
 
   const handleRequestNotificationPermission = useCallback(async () => {
     if (hapticsEnabled) {
@@ -541,7 +501,7 @@ export default function SettingsScreen() {
               style={styles.cardOuter}
               contentStyle={styles.cardInner}
             >
-              {/* Delivery Mode 3-Way Picker */}
+              {/* Delivery Mode 3-Way Segmented Glass Control */}
               <View style={styles.shushPickerRow}>
                 {/* Loud & Proud */}
                 <Pressable
@@ -551,18 +511,18 @@ export default function SettingsScreen() {
                   ]}
                   onPress={() => handleSelectDeliveryMode('loud')}
                   accessibilityRole="button"
-                  accessibilityLabel="Loud & Proud delivery mode"
+                  accessibilityLabel="Loud delivery mode"
                 >
                   <IconBadge
-                    icon={<SpeakerHigh size={18} color="#FF9500" weight="fill" />}
-                    backgroundColor="rgba(255, 149, 0, 0.18)"
-                    borderColor="rgba(255, 149, 0, 0.35)"
+                    icon={<SpeakerHigh size={18} color={shushPreferences.alertDeliveryMode === 'loud' ? '#FF9500' : '#8E8E93'} weight="fill" />}
+                    backgroundColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(255, 149, 0, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
+                    borderColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(255, 149, 0, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
                   />
-                  <Text style={styles.shushModeTitle}>Loud & Proud</Text>
-                  <Text style={styles.shushModeDesc}>Banners, chimes & haptics</Text>
+                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'loud' && { color: '#FF9500' }]}>Loud</Text>
+                  <Text style={styles.shushModeDesc}>Banners & sound</Text>
                 </Pressable>
 
-                {/* Shush Mode ✨ */}
+                {/* Shush Mode */}
                 <Pressable
                   style={[
                     styles.shushModeCard,
@@ -573,12 +533,12 @@ export default function SettingsScreen() {
                   accessibilityLabel="Shush Mode delivery mode"
                 >
                   <IconBadge
-                    icon={<Sparkle size={18} color="#BF5AF2" weight="fill" />}
-                    backgroundColor="rgba(191, 90, 242, 0.18)"
-                    borderColor="rgba(191, 90, 242, 0.35)"
+                    icon={<Sparkle size={18} color={shushPreferences.alertDeliveryMode === 'shush' ? '#BF5AF2' : '#8E8E93'} weight="fill" />}
+                    backgroundColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(191, 90, 242, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
+                    borderColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(191, 90, 242, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
                   />
-                  <Text style={[styles.shushModeTitle, { color: '#BF5AF2' }]}>Shush Mode ✨</Text>
-                  <Text style={styles.shushModeDesc}>Silent Dynamic Island</Text>
+                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'shush' && { color: '#BF5AF2' }]}>Shush Mode</Text>
+                  <Text style={styles.shushModeDesc}>Dynamic Island</Text>
                 </Pressable>
 
                 {/* Off */}
@@ -592,12 +552,12 @@ export default function SettingsScreen() {
                   accessibilityLabel="Off delivery mode"
                 >
                   <IconBadge
-                    icon={<BellSlash size={18} color="#8E8E93" weight="fill" />}
-                    backgroundColor="rgba(142, 142, 147, 0.18)"
-                    borderColor="rgba(142, 142, 147, 0.35)"
+                    icon={<BellSlash size={18} color={shushPreferences.alertDeliveryMode === 'off' ? '#FFFFFF' : '#8E8E93'} weight="fill" />}
+                    backgroundColor={shushPreferences.alertDeliveryMode === 'off' ? 'rgba(142, 142, 147, 0.22)' : 'rgba(255, 255, 255, 0.05)'}
+                    borderColor={shushPreferences.alertDeliveryMode === 'off' ? 'rgba(142, 142, 147, 0.40)' : 'rgba(255, 255, 255, 0.10)'}
                   />
-                  <Text style={styles.shushModeTitle}>Off</Text>
-                  <Text style={styles.shushModeDesc}>Complete silence</Text>
+                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'off' && { color: '#FFFFFF' }]}>Off</Text>
+                  <Text style={styles.shushModeDesc}>Mute alerts</Text>
                 </Pressable>
               </View>
 
@@ -605,46 +565,13 @@ export default function SettingsScreen() {
                 <>
                   <View style={styles.divider} />
 
-                  {/* Activation Mode Selector */}
-                  <View style={styles.shushSubRow}>
-                    <Text style={styles.shushSubLabel}>Activation</Text>
-                    <View style={styles.shushPillGroup}>
-                      {(['smart', 'schedule', 'always'] as const).map((act) => (
-                        <Pressable
-                          key={act}
-                          style={[
-                            styles.shushPill,
-                            shushPreferences.shushActivation === act && styles.shushPillActive,
-                          ]}
-                          onPress={() => {
-                            if (hapticsEnabled) {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                            }
-                            setShushActivation(act);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.shushPillText,
-                              shushPreferences.shushActivation === act && styles.shushPillTextActive,
-                            ]}
-                          >
-                            {act === 'smart' ? 'Smart' : act === 'schedule' ? 'Schedule' : 'Always'}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.divider} />
-
-                  {/* Surface indicator (DI vs Non-DI) */}
+                  {/* Surface indicator (DI vs Non-DI) with smart whisper */}
                   <View style={styles.surfaceInfoRow}>
                     <Sparkle size={15} color="#BF5AF2" weight="fill" />
                     <Text style={styles.surfaceInfoText}>
                       {hasDI
-                        ? 'Optimized for Dynamic Island & Lock Screen Card'
-                        : 'Delivering via silent Notification Center updates'}
+                        ? 'Activates automatically on Dynamic Island & Lock Screen near your stations or during disruptions.'
+                        : 'Activates automatically near your stations or during disruptions via silent notifications.'}
                     </Text>
                   </View>
 
@@ -673,21 +600,6 @@ export default function SettingsScreen() {
                       </Pressable>
                     </View>
                   )}
-
-                  {/* 1-Tap Demo / Toggle */}
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.shushDemoBtn,
-                      isTestingShush && styles.shushDemoBtnTesting,
-                      pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
-                    ]}
-                    onPress={handleTestShushDemo}
-                  >
-                    <Sparkle size={16} color="#FFFFFF" weight="bold" />
-                    <Text style={styles.shushDemoBtnText}>
-                      {isTestingShush ? '⏹ End Preview (Lock screen to view)' : 'Test Shush Mode (Preview on Lock Screen)'}
-                    </Text>
-                  </Pressable>
                 </>
               )}
             </LiquidGlassView>
@@ -797,7 +709,9 @@ export default function SettingsScreen() {
                       <Text style={styles.rowLabel}>Auto-detect commute from calendar</Text>
                     </View>
                     <Text style={styles.rowSubtitle}>
-                      Reads event start times to alert you before you travel
+                      {calendarGranted
+                        ? 'Leave-by alerts active for upcoming 24h events'
+                        : 'Reads event start times to alert you before you travel'}
                     </Text>
                   </View>
                   <Switch
@@ -807,10 +721,24 @@ export default function SettingsScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                       }
                       if (v) {
-                        const res = await requestPermission('calendar', 'auto_detect');
-                        setCalendarGranted(res === 'granted');
+                        const res = await requestPermission('calendar', 'settings_toggle');
+                        if (res === 'granted') {
+                          setCalendarGranted(true);
+                          void scheduleCalendarCommuteAlerts();
+                        } else {
+                          setCalendarGranted(false);
+                          Alert.alert(
+                            'Calendar Access Needed',
+                            'To scan your schedule and calculate exact leave-by times for your commutes, allow Calendar access in iOS Settings.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+                            ]
+                          );
+                        }
                       } else {
                         setCalendarGranted(false);
+                        void cancelCalendarCommuteAlerts();
                       }
                     }}
                     trackColor={{ false: '#3A3A3C', true: '#007AFF' }}
@@ -1305,86 +1233,54 @@ const styles = StyleSheet.create({
   },
   shushModeCard: {
     flex: 1,
-    padding: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   shushModeCardActiveLoud: {
-    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    backgroundColor: 'rgba(255, 149, 0, 0.14)',
     borderColor: '#FF9500',
   },
   shushModeCardActiveShush: {
-    backgroundColor: 'rgba(191, 90, 242, 0.18)',
+    backgroundColor: 'rgba(191, 90, 242, 0.16)',
     borderColor: '#BF5AF2',
   },
   shushModeCardActiveOff: {
-    backgroundColor: 'rgba(142, 142, 147, 0.15)',
-    borderColor: '#8E8E93',
+    backgroundColor: 'rgba(142, 142, 147, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   shushModeTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#FFFFFF',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
   },
   shushModeDesc: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 10.5,
+    color: 'rgba(255, 255, 255, 0.60)',
     marginTop: 2,
     textAlign: 'center',
     lineHeight: 13,
-  },
-  shushSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  shushSubLabel: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-  shushPillGroup: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  shushPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  shushPillActive: {
-    backgroundColor: 'rgba(191, 90, 242, 0.28)',
-    borderColor: '#BF5AF2',
-  },
-  shushPillText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.70)',
-  },
-  shushPillTextActive: {
-    color: '#FFFFFF',
   },
   surfaceInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   surfaceInfoText: {
     fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.75)',
     flex: 1,
+    lineHeight: 16,
   },
   shushWarningBox: {
     flexDirection: 'row',
@@ -1418,26 +1314,5 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
     color: '#000000',
-  },
-  shushDemoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(191, 90, 242, 0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(191, 90, 242, 0.45)',
-    marginVertical: 10,
-  },
-  shushDemoBtnTesting: {
-    backgroundColor: 'rgba(255, 69, 58, 0.22)',
-    borderColor: 'rgba(255, 69, 58, 0.45)',
-  },
-  shushDemoBtnText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
-    color: '#FFFFFF',
   },
 });

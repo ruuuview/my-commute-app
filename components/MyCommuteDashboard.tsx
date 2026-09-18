@@ -43,6 +43,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
 import { useWorstStatus, computeWorstStatus } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
+import { Gear } from 'phosphor-react-native';
 // ✅ Modal now managed HERE, not upstream
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
@@ -774,11 +775,13 @@ const MyCommuteDashboard: React.FC = () => {
         setIsDraggingStation(false);
         setScrollEnabled(true);
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        AccessibilityInfo.announceForAccessibility('Edit mode finished');
       } else {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         setTimeout(() => {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         }, 80);
+        AccessibilityInfo.announceForAccessibility('Edit mode active. Tap Done to exit.');
       }
       return next;
     });
@@ -935,6 +938,22 @@ const MyCommuteDashboard: React.FC = () => {
                     </Text>
                   </BouncyPressable>
                 )}
+                <BouncyPressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/settings');
+                  }}
+                  style={[dash.headerBtnCircle, isEditing && { opacity: 0, pointerEvents: 'none' }]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Settings"
+                  accessibilityRole="button"
+                  accessibilityElementsHidden={isEditing}
+                  importantForAccessibility={isEditing ? 'no-hide-descendants' : 'auto'}
+                  aria-hidden={isEditing}
+                  testID="header-settings-button"
+                >
+                  <Gear size={18} color="rgba(255, 255, 255, 0.85)" weight="regular" />
+                </BouncyPressable>
               </View>
             </View>
             <View style={dash.subheadingArea}>
@@ -1463,8 +1482,23 @@ const dash = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
-  titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32, flexShrink: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
+  headerBtnCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    backgroundColor: PREMIUM_BUTTON.background,
+    shadowColor: PREMIUM_BUTTON.shadowColor,
+    shadowOffset: PREMIUM_BUTTON.shadowOffset,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
+    elevation: PREMIUM_BUTTON.elevation,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerBtn: {
     paddingHorizontal: 16,
     paddingVertical: 7,

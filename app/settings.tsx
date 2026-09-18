@@ -228,12 +228,24 @@ export default function SettingsScreen() {
   const checkOsPermissions = useCallback(async () => {
     try {
       const notif = await Notifications.getPermissionsAsync();
-      setOsNotificationsGranted(notif.status === 'granted');
+      const isGranted = Boolean(
+        notif.granted ||
+        notif.status === 'granted' ||
+        (notif.ios && (notif.ios.status === 2 || notif.ios.status === 3 || notif.ios.allowsAlert))
+      );
+      setOsNotificationsGranted(isGranted);
       setOsNotifCanAskAgain(notif.canAskAgain);
       setOsNotifStatus(notif.status);
+      if (isGranted) {
+        usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
+      }
 
       const locBg = await ExpoLocation.getBackgroundPermissionsAsync();
-      setOsLocationAlwaysGranted(locBg.status === 'granted');
+      const isLocGranted = Boolean(locBg.granted || locBg.status === 'granted');
+      setOsLocationAlwaysGranted(isLocGranted);
+      if (isLocGranted) {
+        usePermissionOrchestrator.getState().recordDecision('locationAlways', 'granted');
+      }
     } catch (e) {
       console.warn('[Settings] Error checking OS permissions:', e);
     }
@@ -247,7 +259,11 @@ export default function SettingsScreen() {
       const res = await Notifications.requestPermissionsAsync({
         ios: { allowAlert: true, allowBadge: true, allowSound: true },
       });
-      const granted = res.status === 'granted';
+      const granted = Boolean(
+        res.granted ||
+        res.status === 'granted' ||
+        (res.ios && (res.ios.status === 2 || res.ios.status === 3 || res.ios.allowsAlert))
+      );
       setOsNotificationsGranted(granted);
       setOsNotifStatus(res.status);
       setOsNotifCanAskAgain(res.canAskAgain);
@@ -311,7 +327,7 @@ export default function SettingsScreen() {
 
   // ── Priority Attention Row (Max 1) ────────────────────────────────
   const attentionRow = useMemo(() => {
-    // Priority 1: Notifications (suppressed if user explicitly picked Off)
+    // Priority 1: Notifications (OS truth alone decides delivery. Suppressed if user chose Off)
     if (shushPreferences.alertDeliveryMode !== 'off' && !osNotificationsGranted) {
       // Truly blocked in iOS Settings (status === 'denied' and OS won't allow re-asking in-app)
       if (osNotifStatus === Notifications.PermissionStatus.DENIED && !osNotifCanAskAgain) {

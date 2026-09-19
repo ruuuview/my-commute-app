@@ -2,7 +2,7 @@
 // Radar v2 State A' hero — live surveillance radar card with pristine Apple Liquid Glass.
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Broadcast, ShieldCheck } from 'phosphor-react-native';
@@ -16,8 +16,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GLASS } from '../../theme/colors';
 import { SolariCurrencyRow } from './SolariCurrencyRow';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
 
-export default function ZeroStateHeroCard({
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
+
+export function ZeroStateHeroCard({
   checkedAtIso = null,
   isRegistered28Day = false,
 }: {
@@ -25,6 +36,7 @@ export default function ZeroStateHeroCard({
   isRegistered28Day?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
+  const reduceTransparency = useReduceTransparency();
 
   // Slow breathing pulse on the surveillance ring
   const ringPulse = useSharedValue(0);
@@ -60,8 +72,18 @@ export default function ZeroStateHeroCard({
   }));
 
   return (
-    <View style={styles.outer}>
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+    <View style={[styles.outer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+      {!reduceTransparency && (
+        isNativeGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        )
+      )}
 
       <LinearGradient
         colors={[GLASS.specularStart, GLASS.specularEnd]}
@@ -123,7 +145,7 @@ const styles = StyleSheet.create({
   outer: {
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     backgroundColor: GLASS.background,
     marginBottom: 16,
@@ -252,3 +274,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+export default ZeroStateHeroCard;

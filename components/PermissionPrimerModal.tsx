@@ -9,9 +9,11 @@
 // capsule primary CTA, drag handle anchor.
 
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getPrimerRequest,
@@ -21,12 +23,23 @@ import {
   type PermissionKey,
 } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import { GLASS } from '../theme/colors';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function PermissionPrimerModal() {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const [request, setRequest] = useState<{
     key: PermissionKey;
     trigger: string;
@@ -57,33 +70,67 @@ export function PermissionPrimerModal() {
       onRequestClose={() => resolvePrimer(false)}
     >
       <View style={styles.scrim}>
-        <BlurView intensity={80} tint="dark" style={styles.blurFill}>
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{copy.title}</Text>
-            <Text style={styles.body}>{copy.body}</Text>
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: Math.max(insets.bottom, 16),
+              backgroundColor: reduceTransparency
+                ? '#1C1C1E'
+                : Platform.OS === 'android'
+                ? '#0E0E14'
+                : GLASS.background,
+            },
+          ]}
+        >
+          {/* Layer 1: Native Liquid Glass or BlurView fallback */}
+          {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
 
-            <AnimatedPressable
-              onPressIn={continuePress.onPressIn}
-              onPressOut={continuePress.onPressOut}
-              onPress={() => resolvePrimer(true)}
-              style={[styles.primaryCta, continuePress.animatedStyle]}
-              accessibilityRole="button"
-            >
-              <Text style={styles.primaryCtaText}>{copy.button}</Text>
-            </AnimatedPressable>
+          {/* Layer 2: Specular Top Rim Catch-Light */}
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+              style={styles.specularTopSheen}
+            />
+          )}
 
-            <AnimatedPressable
-              onPressIn={dismissPress.onPressIn}
-              onPressOut={dismissPress.onPressOut}
-              onPress={() => resolvePrimer(false)}
-              style={[styles.dismissCta, dismissPress.animatedStyle]}
-              accessibilityRole="button"
-            >
-              <Text style={styles.dismissCtaText}>Not now</Text>
-            </AnimatedPressable>
-          </View>
-        </BlurView>
+          <View style={styles.handle} />
+          <Text style={styles.title}>{copy.title}</Text>
+          <Text style={styles.body}>{copy.body}</Text>
+
+          <AnimatedPressable
+            onPressIn={continuePress.onPressIn}
+            onPressOut={continuePress.onPressOut}
+            onPress={() => resolvePrimer(true)}
+            style={[styles.primaryCta, continuePress.animatedStyle]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryCtaText}>{copy.button}</Text>
+          </AnimatedPressable>
+
+          <AnimatedPressable
+            onPressIn={dismissPress.onPressIn}
+            onPressOut={dismissPress.onPressOut}
+            onPress={() => resolvePrimer(false)}
+            style={[styles.dismissCta, dismissPress.animatedStyle]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.dismissCtaText}>Not now</Text>
+          </AnimatedPressable>
+        </View>
       </View>
     </Modal>
   );
@@ -95,17 +142,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
-  blurFill: {
-    ...StyleSheet.absoluteFillObject,
-  },
   sheet: {
-    backgroundColor: 'rgba(20, 24, 42, 0.88)',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,
@@ -114,6 +158,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     gap: 14,
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 20,
   },
   handle: {
     alignSelf: 'center',
@@ -150,7 +201,7 @@ const styles = StyleSheet.create({
   dismissCta: {
     borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     paddingVertical: 12,
     alignItems: 'center',

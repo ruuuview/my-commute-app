@@ -42,6 +42,7 @@ import {
   Linking,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -59,6 +60,21 @@ import { BlurView } from 'expo-blur';
 import { GLASS } from '../theme/colors';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import type { DetectionSource } from '../hooks/useAutoDetectBranch';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
+import { getBranchSuggestedRoute, buildRerouteLinks } from './rerouteHelpers';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 // ─── Icons ────────────────────────────────────────────────────────
 // The design system mandates Phosphor icons only (AGENTS.md: "Icons: Phosphor
@@ -68,10 +84,6 @@ import type { DetectionSource } from '../hooks/useAutoDetectBranch';
 // the Phosphor package is added, only this alias block changes. Until then it
 // resolves to Ionicons — the closest available glyphs. FLAGGED: swap to real
 // Phosphor once the dependency is installed.
-import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
-import { getBranchSuggestedRoute, buildRerouteLinks } from './rerouteHelpers';
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
   back: CaretLeft,
@@ -194,6 +206,7 @@ export default function RerouteScreen({
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
+  const reduceTransparency = useReduceTransparency();
 
   // Auto-scroll to alternatives section if opened via quick action
   useEffect(() => {
@@ -629,11 +642,23 @@ export default function RerouteScreen({
           style={[
             s.sheet,
             { paddingBottom: insets.bottom + 16 },
+            reduceTransparency && { backgroundColor: '#1C1C1E' },
             sheetAnimatedStyle,
           ]}
         >
           {/* Apple liquid glass — the plain s.sheet View owns layout + clip */}
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            )
+          )}
           <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} pointerEvents="none" />
           <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} pointerEvents="none" />
 
@@ -752,9 +777,9 @@ const s = StyleSheet.create({
     overflow: 'hidden', // clip guard: inner glass can never extend past screen bottom
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
@@ -905,7 +930,7 @@ const s = StyleSheet.create({
   suggestedRouteCard: {
     borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     backgroundColor: GLASS.background,
     paddingHorizontal: 14,
@@ -1001,7 +1026,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 8,
     marginTop: 12,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   gotItButtonText: {
@@ -1047,7 +1072,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     paddingHorizontal: 16,
   },
@@ -1079,7 +1104,7 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 9999,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
     paddingHorizontal: 14,

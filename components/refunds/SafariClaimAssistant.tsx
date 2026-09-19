@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -28,7 +29,17 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { RadarClaim } from '../../components/refunds/types';
 import { LINE_NAMES } from '../../constants/lineColors';
-import { CANVAS_LONDON_NIGHT } from '../../theme/colors';
+import { CANVAS_LONDON_NIGHT, GLASS } from '../../theme/colors';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const TFL_CLAIM_URL = 'https://tfl.gov.uk/fares/refunds-and-replacements';
 
@@ -48,6 +59,7 @@ export default function SafariClaimAssistant({
   onDismiss,
 }: SafariClaimAssistantProps) {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   let bottomPadding = 34;
   if (insets && typeof insets.bottom === 'number') {
     bottomPadding = Math.max(insets.bottom + 16, 34);
@@ -155,29 +167,54 @@ export default function SafariClaimAssistant({
     >
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        {/* Plain View owns ALL layout; BlurView is background-only */}
-        <View style={styles.sheet}>
-          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+        {/* Plain View owns ALL layout; GlassView/BlurView is background-only */}
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: reduceTransparency
+                ? '#1C1C1E'
+                : Platform.OS === 'android'
+                ? '#0E0E14'
+                : 'rgba(7, 14, 38, 0.72)',
+            },
+          ]}
+        >
+          {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
           
-          <LinearGradient
-            colors={[
-              'rgba(0, 152, 212, 0.15)',
-              'rgba(10, 22, 58, 0.55)',
-              'rgba(4, 9, 26, 0.92)',
-            ]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[
+                'rgba(0, 152, 212, 0.15)',
+                'rgba(10, 22, 58, 0.55)',
+                'rgba(4, 9, 26, 0.92)',
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
+          )}
 
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.specularTopSheen}
-            pointerEvents="none"
-          />
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.specularTopSheen}
+              pointerEvents="none"
+            />
+          )}
 
           {/* Drag Handle */}
           <View style={styles.dragHandle} />
@@ -308,11 +345,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.75,
@@ -324,7 +360,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 2,
+    height: 18,
     zIndex: 10,
   },
   dragHandle: {
@@ -352,7 +388,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     backgroundColor: 'rgba(0, 152, 212, 0.22)',
-    borderWidth: 1,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(56, 189, 248, 0.40)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -370,8 +406,8 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -396,7 +432,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     flexDirection: 'row',
     alignItems: 'center',
@@ -421,7 +457,7 @@ const styles = StyleSheet.create({
   guidanceBox: {
     padding: 14,
     borderRadius: 16,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
     gap: 6,

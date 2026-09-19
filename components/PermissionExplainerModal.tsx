@@ -16,9 +16,22 @@ import {
   Linking,
 } from 'react-native'
 import { BlurView } from 'expo-blur'
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import * as Location from 'expo-location'
 import { MapPin, Bell, ShieldCheck, X } from 'phosphor-react-native'
+import { useReduceTransparency } from '../hooks/useReduceTransparency'
+import { GLASS } from '../theme/colors'
+
+let isNativeGlassAvailable = false
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable()
+  }
+} catch {
+  isNativeGlassAvailable = false
+}
 
 export interface PermissionExplainerModalProps {
   visible: boolean
@@ -34,6 +47,7 @@ export default function PermissionExplainerModal({
   onDenied,
 }: PermissionExplainerModalProps) {
   const [isRequesting, setIsRequesting] = useState(false)
+  const reduceTransparency = useReduceTransparency()
 
   const handleRequestPermission = async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -86,7 +100,42 @@ export default function PermissionExplainerModal({
       <View style={styles.overlay}>
         <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
 
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: reduceTransparency
+                ? '#1C1C1E'
+                : Platform.OS === 'android'
+                ? '#0E0E14'
+                : GLASS.background,
+            },
+          ]}
+        >
+          {/* Layer 1: Native Liquid Glass or BlurView fallback */}
+          {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
+
+          {/* Layer 2: Specular Top Rim Catch-Light */}
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+              style={styles.specularTopSheen}
+            />
+          )}
+
           <Pressable
             style={styles.closeButton}
             onPress={onClose}
@@ -151,17 +200,24 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: 'rgba(28, 28, 30, 0.95)',
     borderRadius: 24,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 10,
     alignItems: 'center',
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 20,
   },
   closeButton: {
     position: 'absolute',

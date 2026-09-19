@@ -5,19 +5,31 @@
  * Shows after first tracked commute. Single vs multi station.
  */
 import React, { useState, useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { FixItSheet } from './FixItSheet';
 import { GLASS } from '../theme/colors';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 interface Props {
   onDismiss?: () => void;
 }
 
 export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
+  const reduceTransparency = useReduceTransparency();
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
   const confirmLabels = useUserPreferencesStore(s => s.confirmLabels);
   const dismissConfirmationCard = useUserPreferencesStore(s => s.dismissConfirmationCard);
@@ -78,7 +90,18 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
           onDismiss={handleDismiss}
         />
       ) : (
-        <BlurView intensity={45} tint="dark" style={styles.card}>
+        <View style={[styles.card, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
           <Text style={styles.question}>{question}</Text>
           <View style={styles.buttons}>
             <Pressable onPress={handleYes} style={styles.yesBtn}>
@@ -91,7 +114,7 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
           <Pressable onPress={handleDismiss} hitSlop={8} style={styles.dismissArea}>
             <Text style={styles.dismissText}>Dismiss</Text>
           </Pressable>
-        </BlurView>
+        </View>
       )}
 
       <FixItSheet
@@ -108,6 +131,7 @@ const InlineFixCard: React.FC<{
   onDone: () => void;
   onDismiss: () => void;
 }> = ({ station, onDone, onDismiss }) => {
+  const reduceTransparency = useReduceTransparency();
   const setStationRole = useUserPreferencesStore(s => s.setStationRole);
   const home = useUserPreferencesStore(s => s.pinnedStations.find(s => s.role === 'home'));
   const work = useUserPreferencesStore(s => s.pinnedStations.find(s => s.role === 'work'));
@@ -126,7 +150,18 @@ const InlineFixCard: React.FC<{
   }, [station.id, setStationRole]);
 
   return (
-    <BlurView intensity={45} tint="dark" style={styles.card}>
+    <View style={[styles.card, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+      {!reduceTransparency && (
+        isNativeGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        )
+      )}
       <Text style={styles.question}>{station.name} is...</Text>
       <View style={styles.inlineChips}>
         <Pressable onPress={handleHomeTap} style={[styles.chip, isHome && styles.chipSelected]}>
@@ -144,7 +179,7 @@ const InlineFixCard: React.FC<{
       <Pressable onPress={onDismiss} hitSlop={8} style={styles.dismissArea}>
         <Text style={styles.dismissText}>Dismiss</Text>
       </Pressable>
-    </BlurView>
+    </View>
   );
 };
 
@@ -152,9 +187,10 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
     padding: 16,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
+    position: 'relative',
   },
   question: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -171,7 +207,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 16,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     paddingVertical: 8,
     alignItems: 'center',

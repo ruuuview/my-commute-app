@@ -7,6 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { GLASS } from '../theme/colors';
 import { Bell, Sparkle, BellSlash } from 'phosphor-react-native';
 import { useLiveReducedMotion } from '../hooks/useReducedMotion';
 
@@ -93,19 +94,14 @@ export const SegmentedGlassControl = memo(function SegmentedGlassControl({
     >
       {SEGMENTS.map((seg) => {
         const isSelected = currentMode === seg.id;
-        const iconColor = isSelected ? seg.color : 'rgba(255, 255, 255, 0.45)';
+        const iconColor = isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.45)';
 
         return (
           <Pressable
             key={seg.id}
             style={[
               styles.segmentCard,
-              isSelected
-                ? {
-                    backgroundColor: seg.activeBg,
-                    borderColor: seg.activeBorder,
-                  }
-                : styles.segmentCardInactive,
+              isSelected ? styles.segmentCardActive : styles.segmentCardInactive,
             ]}
             onPress={() => handlePress(seg.id)}
             accessibilityRole="radio"
@@ -113,28 +109,30 @@ export const SegmentedGlassControl = memo(function SegmentedGlassControl({
             accessibilityLabel={seg.accessibilityLabel}
             accessibilityHint={seg.hint}
           >
-            {/* Icon Badge */}
-            <View
-              style={[
-                styles.iconBadge,
-                isSelected
-                  ? {
-                      backgroundColor: `${seg.color}26`, // 15% opacity hex
-                      borderColor: `${seg.color}59`, // 35% opacity hex
-                    }
-                  : styles.iconBadgeInactive,
-              ]}
-            >
-              {seg.icon(iconColor)}
-            </View>
+            {/* Active Pill Subtle Accent Rim */}
+            {isSelected && (
+              <View
+                style={[
+                  styles.activeGlowLine,
+                  { backgroundColor: seg.color },
+                ]}
+              />
+            )}
 
-            {/* Text Labels — Locked to White for WCAG AAA Compliance */}
-            <Text style={[styles.title, !isSelected && styles.titleInactive]}>
-              {seg.title}
-            </Text>
-            <Text style={[styles.desc, !isSelected && styles.descInactive]}>
-              {seg.desc}
-            </Text>
+            {/* Icon + Title Row */}
+            <View style={styles.contentRow}>
+              <View style={[styles.iconWrapper, isSelected && { backgroundColor: `${seg.color}33` }]}>
+                {seg.icon(isSelected ? seg.color : iconColor)}
+              </View>
+              <View style={styles.textColumn}>
+                <Text style={[styles.title, !isSelected && styles.titleInactive]}>
+                  {seg.title}
+                </Text>
+                <Text style={[styles.desc, !isSelected && styles.descInactive]} numberOfLines={1}>
+                  {seg.desc}
+                </Text>
+              </View>
+            </View>
           </Pressable>
         );
       })}
@@ -148,54 +146,83 @@ export default SegmentedGlassControl;
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 14,
+    borderWidth: GLASS.borderWidth,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    padding: 4,
+    gap: 4,
+    marginVertical: 6,
   },
   segmentCard: {
     flex: 1,
-    minHeight: 88, // Generous touch target exceeding 44x44pt requirement
-    paddingVertical: 12,
+    minHeight: 56,
+    paddingVertical: 8,
     paddingHorizontal: 6,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  segmentCardActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   segmentCardInactive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'transparent',
+    borderWidth: GLASS.borderWidth,
+    borderColor: 'transparent',
   },
-  iconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  activeGlowLine: {
+    position: 'absolute',
+    top: 0,
+    left: '20%',
+    right: '20%',
+    height: 1.5,
+    borderRadius: 1,
+    opacity: 0.85,
+  },
+  contentRow: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    marginBottom: 6,
+    gap: 4,
   },
-  iconBadgeInactive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+  iconWrapper: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  textColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 12.5,
+    fontSize: 12,
     color: '#FFFFFF', // WCAG AAA: > 16:1 contrast ratio over tinted backdrops
     textAlign: 'center',
   },
   titleInactive: {
-    color: 'rgba(255, 255, 255, 0.70)', // WCAG AAA: > 8:1 contrast ratio
+    color: 'rgba(255, 255, 255, 0.65)',
   },
   desc: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 10.5,
-    color: 'rgba(255, 255, 255, 0.75)',
-    marginTop: 2,
+    fontSize: 9.5,
+    color: 'rgba(255, 255, 255, 0.80)',
+    marginTop: 1,
     textAlign: 'center',
-    lineHeight: 13,
   },
   descInactive: {
-    color: 'rgba(255, 255, 255, 0.45)',
+    color: 'rgba(255, 255, 255, 0.40)',
   },
 });

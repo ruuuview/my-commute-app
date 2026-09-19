@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -22,7 +23,17 @@ import {
   X,
   ShieldCheck,
 } from 'phosphor-react-native';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
 import { GLASS } from '../../theme/colors';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const TFL_CONTACTLESS_PORTAL_URL =
   'https://tfl.gov.uk/fares/contactless-and-oyster-account';
@@ -42,6 +53,7 @@ export default function TfLConnectSheet({
   onUnregistered,
   onDismiss,
 }: TfLConnectSheetProps) {
+  const reduceTransparency = useReduceTransparency();
   let bottomPadding = 34;
   try {
     const insets = useSafeAreaInsets();
@@ -115,31 +127,56 @@ export default function TfLConnectSheet({
         />
 
         {/* Outer Plain View owns layout boundaries; BlurView & Gradients act as background layers */}
-        <View style={styles.sheet}>
-          {/* Deep dark glass optical blur to block background bleed-through */}
-          <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: reduceTransparency
+                ? '#1C1C1E'
+                : Platform.OS === 'android'
+                ? '#0E0E14'
+                : 'rgba(7, 14, 38, 0.75)',
+            },
+          ]}
+        >
+          {/* Native Liquid Glass or BlurView fallback */}
+          {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
 
           {/* Deep dark glass background gradient for ultra-crisp text legibility */}
-          <LinearGradient
-            colors={[
-              'rgba(0, 152, 212, 0.12)',
-              'rgba(10, 22, 58, 0.70)',
-              'rgba(4, 9, 26, 0.95)',
-            ]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[
+                'rgba(0, 152, 212, 0.12)',
+                'rgba(10, 22, 58, 0.70)',
+                'rgba(4, 9, 26, 0.95)',
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
+          )}
 
           {/* Top specular rim catch-light */}
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.specularTopSheen}
-            pointerEvents="none"
-          />
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.specularTopSheen}
+              pointerEvents="none"
+            />
+          )}
 
           {/* Drag Handle */}
           <View style={styles.dragHandle} />
@@ -268,11 +305,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.85)' : '#0E0E14',
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.65,
@@ -350,7 +386,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
@@ -359,7 +395,7 @@ const styles = StyleSheet.create({
   recommendedCard: {
     borderRadius: 18,
     padding: 16,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.28)',
     backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
@@ -375,7 +411,7 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     justifyContent: 'center',
     alignItems: 'center',

@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import Animated, {
   useSharedValue,
@@ -35,7 +36,7 @@ import Animated, {
   FadeOutDown,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { PREMIUM_BUTTON } from '../theme/colors';
+import { PREMIUM_BUTTON, GLASS } from '../theme/colors';
 import { deleteCachedArrivals } from '../services/stationArrivalsStore';
 
 // ✅ Wired directly to our Zustand + MMKV Brain
@@ -75,6 +76,15 @@ import {
   isBranchMentioned,
   isLineWideDisruption,
 } from './rerouteHelpers';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -1105,7 +1115,15 @@ const MyCommuteDashboard: React.FC = () => {
                           style={[dash.arrivalBanner, notificationsOffPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
                           {!reduceTransparency && (
-                            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                            isNativeGlassAvailable ? (
+                              <GlassView
+                                glassEffectStyle="regular"
+                                colorScheme="dark"
+                                style={StyleSheet.absoluteFillObject}
+                              />
+                            ) : (
+                              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                            )
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
                           <Text style={dash.arrivalBannerText}>
@@ -1131,7 +1149,15 @@ const MyCommuteDashboard: React.FC = () => {
                           style={[dash.arrivalBanner, snoozedPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
                           {!reduceTransparency && (
-                            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                            isNativeGlassAvailable ? (
+                              <GlassView
+                                glassEffectStyle="regular"
+                                colorScheme="dark"
+                                style={StyleSheet.absoluteFillObject}
+                              />
+                            ) : (
+                              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                            )
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
                           <Text style={dash.arrivalBannerText}>
@@ -1176,11 +1202,19 @@ const MyCommuteDashboard: React.FC = () => {
                       accessibilityRole="button"
                     >
                       {!reduceTransparency && (
-                        <BlurView
-                          intensity={20}
-                          tint="dark"
-                          style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                        />
+                        isNativeGlassAvailable ? (
+                          <GlassView
+                            glassEffectStyle="regular"
+                            colorScheme="dark"
+                            style={StyleSheet.absoluteFillObject}
+                          />
+                        ) : (
+                          <BlurView
+                            intensity={20}
+                            tint="dark"
+                            style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                          />
+                        )
                       )}
                       <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
                       <Text style={dash.addCardText}>Add your first station</Text>
@@ -1299,7 +1333,15 @@ const MyCommuteDashboard: React.FC = () => {
             testID="floating-done-button"
           >
             {!reduceTransparency && (
-              <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+              isNativeGlassAvailable ? (
+                <GlassView
+                  glassEffectStyle="regular"
+                  colorScheme="dark"
+                  style={StyleSheet.absoluteFillObject}
+                />
+              ) : (
+                <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+              )
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
           </BouncyPressable>
@@ -1542,8 +1584,8 @@ const dash = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 17,
     overflow: 'hidden',
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1638,8 +1680,8 @@ const dash = StyleSheet.create({
   addStationCard: {
     alignSelf: 'stretch',
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     height: 68,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1669,8 +1711,8 @@ const dash = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     overflow: 'hidden',
   },
   arrivalBannerText: {

@@ -40,6 +40,17 @@ import { LineId } from '../services/notifications/payload';
 import { CANONICAL_ALTERNATIVES } from '../services/notifications/intent';
 import { GLASS } from '../theme/colors';
 import { LiveActivityService } from '../services/LiveActivityService';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 interface Props {
   visible: boolean;
@@ -53,6 +64,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
   onResetOnboarding,
 }) => {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const permissions = usePermissionOrchestrator((s) => s.permissions);
   const tier1HitCount = usePermissionOrchestrator((s) => s.tier1HitCount);
   const tflAccountStatus = useUserPreferencesStore((s) => s.tflAccountStatus);
@@ -299,15 +311,27 @@ export const DiagnosticsModal: React.FC<Props> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: bottomPadding }]}>
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.specularTopSheen}
-          />
+        <View style={[styles.container, { paddingTop: insets.top + 16, paddingBottom: bottomPadding }, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+              style={styles.specularTopSheen}
+            />
+          )}
 
           {/* Header */}
           <View style={styles.header}>
@@ -580,11 +604,11 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: Platform.OS === 'android' ? '#0A0C14' : 'rgba(10, 14, 30, 0.90)',
+    backgroundColor: Platform.OS === 'android' ? '#0A0C14' : GLASS.background,
     paddingHorizontal: 20,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
   },
@@ -630,8 +654,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     backgroundColor: GLASS.background,
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 12,

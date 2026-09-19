@@ -91,3 +91,15 @@ jest.mock('expo-web-browser', () => ({
   openBrowserAsync: jest.fn().mockResolvedValue({ type: 'opened' }),
   openAuthSessionAsync: jest.fn().mockResolvedValue({ type: 'success' }),
 }));
+
+// Mock expo-glass-effect
+jest.mock('expo-glass-effect', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    GlassView: (props) => React.createElement(View, { ...props, testID: props.testID || 'mock-glass-view' }),
+    GlassContainer: (props) => React.createElement(View, { ...props, testID: props.testID || 'mock-glass-container' }),
+    isLiquidGlassAvailable: jest.fn(() => true),
+    isGlassEffectAPIAvailable: jest.fn(() => true),
+  };
+});

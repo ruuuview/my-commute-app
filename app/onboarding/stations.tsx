@@ -125,7 +125,7 @@ export default function StationsScreen() {
       [0, 1],
       ['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.45)']
     ),
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
   }));
 
   const luminousIconColor = isFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.35)';
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     position: 'relative',
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(0, 102, 204, 0.40)',
     borderStyle: 'dashed',
     backgroundColor: 'rgba(0, 102, 204, 0.06)',
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     position: 'relative',
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   recentCardBlur: {

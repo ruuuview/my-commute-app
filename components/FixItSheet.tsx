@@ -12,6 +12,7 @@ import {
   Text,
   View,
   ScrollView,
+  Platform,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -20,6 +21,8 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -27,6 +30,15 @@ import { requestPermission } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 import { GLASS } from '../theme/colors';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -43,6 +55,7 @@ interface Props {
 
 export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const setStationRole = useUserPreferencesStore(s => s.setStationRole);
   const stations = useUserPreferencesStore(s => s.pinnedStations || []);
   const donePress = usePressAnimation('continue_btn');
@@ -87,9 +100,19 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
 
         <Animated.View
           entering={FadeInDown.duration(300)}
-          style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}
+          style={[styles.sheet, { paddingBottom: insets.bottom + 20 }, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
         >
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFill}
+              />
+            ) : (
+              <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+            )
+          )}
 
           {/* Drag handle */}
           <View style={styles.handle} />
@@ -205,9 +228,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },

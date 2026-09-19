@@ -15,6 +15,7 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { GLASS } from '../theme/colors';
@@ -31,6 +32,15 @@ import { getPillColors } from '../utils/pillColors';
 
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -67,11 +77,19 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
       ]}
     >
       <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
+        {isNativeGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+        )}
         <View style={styles.compactCardContent}>
           <View style={styles.compactMainRow}>
             <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
@@ -299,7 +317,15 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
 
         {/* Bottom sheet with explicit bounded height so FlatList scrolls */}
         <View style={[styles.sheet, { height: sheetHeight }]}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          {isNativeGlassAvailable ? (
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : (
+            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          )}
 
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
@@ -426,9 +452,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
@@ -471,7 +497,7 @@ const styles = StyleSheet.create({
   },
   donePill: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderRadius: 16,
     paddingHorizontal: 14,
@@ -564,7 +590,7 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     borderRadius: 14,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   compactCardContent: {

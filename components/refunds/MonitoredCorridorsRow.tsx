@@ -6,6 +6,7 @@ import {
   lineChipBorderColor,
 } from '../../theme/radarTheme';
 import { NORTHERN_SHADES } from '../../constants/lineColors';
+import { GLASS } from '../../theme/colors';
 
 export interface MonitoredCorridorsRowProps {
   lineIds: string[];
@@ -60,7 +61,7 @@ function chipStyle(brandColor: string, borderColor: string) {
     paddingVertical: 5,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.10)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },

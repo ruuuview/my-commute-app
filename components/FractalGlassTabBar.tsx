@@ -1,13 +1,23 @@
 // components/FractalGlassTabBar.tsx
 import React, { memo } from 'react';
-import { View, StyleSheet, Pressable, Text } from 'react-native';
+import { View, StyleSheet, Pressable, Text, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 interface TabBarProps {
   tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[];
@@ -80,7 +90,15 @@ const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress })
       <View style={styles.outerShadowWrapper}>
         <View style={[styles.blurContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
           {!reduceTransparency && (
-            <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
           )}
           <LinearGradient
             colors={[GLASS.specularStart, GLASS.specularEnd]}
@@ -130,7 +148,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     overflow: 'hidden',
     backgroundColor: GLASS.background,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     alignSelf: 'center',
   },

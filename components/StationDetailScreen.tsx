@@ -33,6 +33,17 @@ import { NORTHERN_SHADES } from '../constants/lineColors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { getSeverityColor } from '../utils/getSeverityColor';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 type Departure = NormalizedDeparture;
 
@@ -98,6 +109,7 @@ export default function StationDetailScreen({
 }: StationDetailScreenProps) {
   const router = useRouter();
   const { top: safeAreaTop } = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -275,16 +287,28 @@ export default function StationDetailScreen({
         testID={`screen-line-${group.lineId}`}
         style={[s.lineCardOuter, idx > 0 ? { marginTop: 14 } : undefined]}
       >
-        <View style={s.lineCardInner}>
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[s.lineCardInner, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
 
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={s.specularTopSheen}
-          />
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+              style={s.specularTopSheen}
+            />
+          )}
 
           {/* Line header: color bar + name in small caps */}
           <View style={s.lineHeader}>
@@ -495,7 +519,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 16,
     padding: 2,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   segmentTab: {
@@ -507,7 +531,7 @@ const s = StyleSheet.create({
   },
   segmentTabActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: 1,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.40)',
   },
   segmentTabText: {
@@ -549,7 +573,7 @@ const s = StyleSheet.create({
     paddingBottom: 10,
     borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   specularTopSheen: {

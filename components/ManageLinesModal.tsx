@@ -23,6 +23,18 @@ import { getSeverityLabel, getSeverityRank } from '../utils/getSeverityColor';
 
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+import { LinearGradient } from 'expo-linear-gradient';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
@@ -67,6 +79,7 @@ interface ManageLinesModalProps {
 
 export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const { width, height: screenHeight } = useWindowDimensions();
   const selectedLines = useUserPreferencesStore(s => s.selectedLines);
   const toggleLine = useUserPreferencesStore(s => s.toggleLine);
@@ -220,11 +233,31 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
         />
 
         {/* Bottom sheet — sizes to content, capped at 85% of screen height */}
-        <BlurView
-          intensity={80}
-          tint="dark"
-          style={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        <View
+          style={[styles.sheet, { maxHeight: sheetMaxHeight }, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
         >
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView
+                intensity={80}
+                tint="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            )
+          )}
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={styles.specularTopSheen}
+          />
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
             <View style={styles.dragHandle} />
@@ -265,7 +298,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             ]}
             showsVerticalScrollIndicator={false}
           />
-        </BlurView>
+        </View>
       </View>
     </Modal>
   );
@@ -286,9 +319,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    borderTopWidth: 1.25,
-    borderLeftWidth: 1.25,
-    borderRightWidth: 1.25,
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
@@ -330,7 +363,7 @@ const styles = StyleSheet.create({
   // Frosted tint pill — matches dashboard Edit button spec
   donePill: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderRadius: 20,
     paddingHorizontal: 14,
@@ -363,5 +396,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#DC2626',
+  },
+  specularTopSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 24,
+    zIndex: 1,
   },
 });

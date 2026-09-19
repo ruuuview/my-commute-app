@@ -80,27 +80,27 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
-  // Live optical blur intensity (upgraded to 50 for authentic Apple frosted glass)
-  blurIntensity: 50,
+  // Live optical blur intensity (authentic Apple frosted glass)
+  blurIntensity: 65,
   // Card base frosted tint (creates distinct glass body substance against vibrant/dark backgrounds)
-  background: 'rgba(255, 255, 255, 0.08)',
-  // Hardware-accelerated uniform perimeter rim (CoreAnimation GPU native)
-  borderColor: 'rgba(255, 255, 255, 0.28)',
-  borderWidth: 1.25,
+  background: 'rgba(255, 255, 255, 0.05)',
+  // Hairline perimeter specular rim
+  borderColor: 'rgba(255, 255, 255, 0.16)',
+  borderWidth: 0.75,
   // Directional fallbacks
-  borderTop: 'rgba(255, 255, 255, 0.45)',
-  borderSides: 'rgba(255, 255, 255, 0.28)',
-  borderSide: 'rgba(255, 255, 255, 0.28)',
-  borderBottom: 'rgba(255, 255, 255, 0.16)',
+  borderTop: 'rgba(255, 255, 255, 0.28)',
+  borderSides: 'rgba(255, 255, 255, 0.14)',
+  borderSide: 'rgba(255, 255, 255, 0.14)',
+  borderBottom: 'rgba(255, 255, 255, 0.08)',
   // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
-  specularStart: 'rgba(255, 255, 255, 0.32)',
+  specularStart: 'rgba(255, 255, 255, 0.22)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
-  // Zero shadows behind cards (clean glass aesthetic)
-  shadowColor: 'transparent',
-  shadowOffset: { width: 0, height: 0 } as const,
-  shadowOpacity: 0,
-  shadowRadius: 0,
-  elevation: 0,
+  // Soft ambient depth
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 8 } as const,
+  shadowOpacity: 0.25,
+  shadowRadius: 16,
+  elevation: 4,
 };
 
 export const PREMIUM_BUTTON = {

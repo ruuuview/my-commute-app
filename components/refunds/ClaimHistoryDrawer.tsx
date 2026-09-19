@@ -22,12 +22,19 @@ import {
   XCircle,
 } from 'phosphor-react-native';
 import { formatPence } from '../../services/refundSlaService';
-import {
-  loopStateOf,
-  daysLeftUntil,
-  type RadarClaim,
-} from './types';
+import { loopStateOf, daysLeftUntil, type RadarClaim } from './types';
 import { GLASS } from '../../theme/colors';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 type FilterKey = 'ALL' | 'SETTLED' | 'IN_REVIEW' | 'EXPIRED';
 
@@ -68,6 +75,7 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
   claims,
   onClose,
 }) => {
+  const reduceTransparency = useReduceTransparency();
   const [filter, setFilter] = useState<FilterKey>('ALL');
 
   const filteredClaims = useMemo(
@@ -85,8 +93,18 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissOverlay} onPress={onClose} />
 
-        <View style={styles.sheetContainer}>
-          <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.sheetContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
 
           <LinearGradient
             colors={[
@@ -234,11 +252,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.32)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.85)' : '#0E0E14',
+    borderTopWidth: GLASS.borderWidth,
+    borderLeftWidth: GLASS.borderWidth,
+    borderRightWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    backgroundColor: Platform.OS === 'ios' ? GLASS.background : '#0E0E14',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.65,
@@ -291,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   filterRow: {
@@ -328,8 +346,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     gap: 6,
   },
   receiptTop: {

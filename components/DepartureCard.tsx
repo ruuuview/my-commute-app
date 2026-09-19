@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
@@ -44,6 +45,15 @@ import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import { useShallow } from 'zustand/react/shallow';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
@@ -176,7 +186,15 @@ const DepartureCard = memo(function DepartureCard({
     >
       <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
         {!reduceTransparency && (
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          isNativeGlassAvailable ? (
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme="dark"
+              style={StyleSheet.absoluteFillObject}
+            />
+          ) : (
+            <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          )
         )}
 
         <LinearGradient
@@ -361,7 +379,7 @@ const styles = StyleSheet.create({
   innerGlass: {
     flex: 1,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderRadius: 14,
     overflow: 'hidden',

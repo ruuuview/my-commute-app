@@ -24,6 +24,8 @@ import { StatusBezel } from './StatusBezel';
 import { CaretRight, CaretDown, X } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   readCachedDisruption,
@@ -34,6 +36,15 @@ import {
   isLineWideDisruption,
 } from './rerouteHelpers';
 import type { AffectedStop } from './rerouteHelpers';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 40, 380);
@@ -155,6 +166,7 @@ export function LineDetailModal({
   stationId,
 }: LineDetailModalProps) {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const MIN_ALLOWED_TOP = insets.top + 12;
 
   const pinnedStations = useUserPreferencesStore(s => s.pinnedStations);
@@ -414,12 +426,23 @@ export function LineDetailModal({
           onLayout={handlePopupLayout}
           style={[styles.popupShadow, { top: safePopupTop }, animStyle]}
         >
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint="dark"
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            ) : (
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint="dark"
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            )
+          )}
           <LinearGradient
             colors={[GLASS.specularStart, GLASS.specularEnd]}
             start={{ x: 0.5, y: 0 }}
@@ -577,7 +600,7 @@ const styles = StyleSheet.create({
     maxHeight: MAX_POPUP_HEIGHT,
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
@@ -760,7 +783,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },

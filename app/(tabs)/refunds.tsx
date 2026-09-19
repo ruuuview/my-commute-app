@@ -67,7 +67,7 @@ import {
   SIGNAL_LOCK_DURATION_MS,
   useClaimArrivalAnimation,
 } from '../../hooks/useClaimArrivalAnimation'
-import ZeroStateHeroCard from '../../components/refunds/ZeroStateHeroCard'
+import { ZeroStateHeroCard } from '../../components/refunds/ZeroStateHeroCard'
 import ActiveClaimHeroCard from '../../components/refunds/ActiveClaimHeroCard'
 import TfLConnectSheet from '../../components/refunds/TfLConnectSheet'
 import { ClaimHistoryDrawer } from '../../components/refunds/ClaimHistoryDrawer'
@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.10)',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
   // ── Coverage Tier (The Upsell) ───
   coverageBox: {
     borderRadius: 18,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 16,
@@ -966,7 +966,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 14,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     backgroundColor: GLASS.background,
     marginTop: 12,

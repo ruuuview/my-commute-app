@@ -3,9 +3,19 @@ import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
-
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+// Dynamic safe resolution of expo-glass-effect (iOS 18+ Liquid Glass)
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 export interface LiquidGlassViewProps {
   children?: React.ReactNode;
@@ -23,14 +33,16 @@ export interface LiquidGlassViewProps {
 /**
  * LiquidGlassView / GlassSurface
  * ────────────────────────────────────────────────────────
- * Outer Container: Handles unclipped ambient drop shadow.
- * Inner Glass Body: Handles clipping, native BlurView,
- * specular catch-light LinearGradient, and directional rim borders.
+ * Layer 0: Ambient soft drop shadow (unclipped).
+ * Layer 1: Hardware native GlassView (iOS 18+ Liquid Glass) or
+ *          native BlurView (iOS 16/17 & Web).
+ * Layer 2: Physical specular catch-light reflection sheen.
+ * Layer 3: Glass card content.
  *
  * Accessibility:
  * Automatically listens to `useReduceTransparency()`. When user has
- * Reduce Transparency enabled in iOS Settings, BlurView is omitted
- * and a solid, opaque high-contrast dark slate (#1C1C1E) is rendered.
+ * Reduce Transparency enabled in iOS Settings, all blur/glass effects
+ * are omitted and a solid, opaque dark slate (#1C1C1E) is rendered.
  */
 export const LiquidGlassView = memo(function LiquidGlassView({
   children,
@@ -62,17 +74,25 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           contentStyle,
         ]}
       >
-        {/* Layer 1: Native Live Blur (iOS & Web) — skipped under Reduce Transparency */}
+        {/* Layer 1: Native Glass Effect (Liquid Glass when compiled, BlurView fallback) */}
         {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
-          <BlurView
-            intensity={intensity}
-            tint={tint}
-            style={StyleSheet.absoluteFillObject}
-          />
+          isNativeGlassAvailable ? (
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme="dark"
+              style={StyleSheet.absoluteFillObject}
+            />
+          ) : (
+            <BlurView
+              intensity={intensity}
+              tint={tint}
+              style={StyleSheet.absoluteFillObject}
+            />
+          )
         )}
 
-        {/* Layer 2: Specular Top Rim Catch-Light (Physical Glass Reflection) */}
-        {specular && (
+        {/* Layer 2: Specular Top Rim Catch-Light (Physical Glass Highlight) */}
+        {specular && !reduceTransparency && (
           <LinearGradient
             colors={[GLASS.specularStart, GLASS.specularEnd]}
             start={{ x: 0.5, y: 0 }}
@@ -96,16 +116,21 @@ export default LiquidGlassView;
 const styles = StyleSheet.create({
   outerShadowContainer: {
     backgroundColor: 'transparent',
+    shadowColor: GLASS.shadowColor,
+    shadowOffset: GLASS.shadowOffset,
+    shadowOpacity: GLASS.shadowOpacity,
+    shadowRadius: GLASS.shadowRadius,
+    elevation: GLASS.elevation,
   },
   innerGlassBody: {
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
   },
   specularTopSheen: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 18,
+    height: 22,
   },
 });

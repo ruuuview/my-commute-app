@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { LiquidGlassView } from './LiquidGlassView';
 import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -10,7 +9,6 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 import { cleanDisplayStationName } from '../data/tflStations';
 import { LINE_SHORT_NAMES } from '../data/lineMetadata';
 import { getPillColors } from '../utils/pillColors';
-import { GLASS } from '../theme/colors';
 import { fetchNormalizedStationArrivals } from '../services/apiService';
 import { LINE_IDENTITY_COLORS, NORTHERN_SHADES } from '../constants/lineColors';
 import { getVisibleArrivals } from '../selectors/stationLines';
@@ -261,23 +259,13 @@ export function StationCard({
         pressed && styles.outerCardPressed,
       ]}
     >
-      <Animated.View style={[styles.cardInner, !reducedMotion && pressAnim.animatedStyle]}>
-        {/* Dark smoked glass background */}
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={[StyleSheet.absoluteFillObject, styles.blurBackground]}
-        />
-
-        <LinearGradient
-          colors={[GLASS.specularStart, GLASS.specularEnd]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          pointerEvents="none"
-          style={styles.specularTopSheen}
-        />
-
-        <View style={styles.cardContent}>
+      <Animated.View style={!reducedMotion ? pressAnim.animatedStyle : undefined}>
+        <LiquidGlassView
+          borderRadius={16}
+          style={styles.cardContainer}
+          contentStyle={styles.cardInner}
+        >
+          <View style={styles.cardContent}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
               {cleanName}
@@ -333,7 +321,8 @@ export function StationCard({
               </View>
             </>
           )}
-        </View>
+          </View>
+        </LiquidGlassView>
       </Animated.View>
     </Pressable>
   );
@@ -346,25 +335,13 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   outerCardPressed: {
-    opacity: 0.65,
+    opacity: 0.75,
+  },
+  cardContainer: {
+    flex: 1,
   },
   cardInner: {
-    flex: 1,
-    overflow: 'hidden',
-    borderRadius: 16,
-    borderWidth: 1.25,
-    borderColor: GLASS.borderColor,
     minHeight: 74,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-  },
-  blurBackground: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.9)' : GLASS.background,
   },
   cardContent: {
     paddingHorizontal: 16,

@@ -37,6 +37,17 @@ import {
 } from 'phosphor-react-native';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { GLASS } from '../theme/colors';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 interface Props {
   visible: boolean;
@@ -58,6 +69,7 @@ function formatTimeString(date: Date): string {
 
 export const AlertHoursSheet: React.FC<Props> = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
   const alertHoursMode = useUserPreferencesStore((s) => s.alertHoursMode || 'custom');
   const alertWindowStart = useUserPreferencesStore((s) => s.alertWindowStart || '06:00');
   const alertWindowEnd = useUserPreferencesStore((s) => s.alertWindowEnd || '22:00');
@@ -172,15 +184,27 @@ export const AlertHoursSheet: React.FC<Props> = ({ visible, onClose }) => {
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
 
-        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.specularTopSheen}
-          />
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+              style={styles.specularTopSheen}
+            />
+          )}
 
           {/* Header */}
           <View style={styles.header}>
@@ -459,12 +483,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: Platform.OS === 'android' ? '#0F121E' : 'rgba(15, 20, 42, 0.92)',
+    backgroundColor: Platform.OS === 'android' ? '#0F121E' : GLASS.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
     paddingTop: 20,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
     maxHeight: '90%',
@@ -548,8 +572,8 @@ const styles = StyleSheet.create({
   alwaysOnCard: {
     borderRadius: 16,
     backgroundColor: 'rgba(0, 122, 255, 0.12)',
-    borderWidth: 1.25,
-    borderColor: 'rgba(0, 122, 255, 0.35)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     padding: 18,
     marginBottom: 16,
   },
@@ -590,8 +614,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
@@ -650,8 +674,8 @@ const styles = StyleSheet.create({
   wheelCard: {
     borderRadius: 16,
     backgroundColor: GLASS.background,
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     paddingTop: 12,
     paddingBottom: 4,
     marginBottom: 12,
@@ -687,8 +711,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     backgroundColor: GLASS.background,
-    borderWidth: 1.25,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 14,

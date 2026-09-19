@@ -1,8 +1,19 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
 import { formatPence } from '../../services/refundSlaService';
 import { GLASS } from '../../theme/colors';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 interface LifetimeMetricsCardProps {
   recoveredTotalPence: number;
@@ -13,28 +24,38 @@ const LifetimeMetricsCard: React.FC<LifetimeMetricsCardProps> = ({
   recoveredTotalPence,
   settledCount,
 }) => {
+  const reduceTransparency = useReduceTransparency();
   const penceText = formatPence(recoveredTotalPence);
 
   return (
     <View
-      style={styles.outer}
+      style={[styles.outer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
       accessibilityLabel={`Lifetime recovered ${formatPence(recoveredTotalPence)} across ${settledCount} settled claims`}
     >
-      <BlurView intensity={45} tint="dark" style={styles.blurFill}>
-        <View style={styles.glassFill}>
-          <View style={styles.content}>
-            <View style={styles.leftColumn}>
-              <Text style={styles.labelLeft}>LIFETIME RECOVERED</Text>
-              <Text style={styles.amount}>{penceText}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.rightColumn}>
-              <Text style={styles.labelRight}>SETTLED CLAIMS</Text>
-              <Text style={styles.count}>{settledCount}</Text>
-            </View>
+      {!reduceTransparency && (
+        isNativeGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            style={styles.blurFill}
+          />
+        ) : (
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={styles.blurFill} />
+        )
+      )}
+      <View style={styles.glassFill}>
+        <View style={styles.content}>
+          <View style={styles.leftColumn}>
+            <Text style={styles.labelLeft}>LIFETIME RECOVERED</Text>
+            <Text style={styles.amount}>{penceText}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.rightColumn}>
+            <Text style={styles.labelRight}>SETTLED CLAIMS</Text>
+            <Text style={styles.count}>{settledCount}</Text>
           </View>
         </View>
-      </BlurView>
+      </View>
     </View>
   );
 };
@@ -44,12 +65,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    backgroundColor: GLASS.background,
   },
   blurFill: StyleSheet.absoluteFillObject,
   glassFill: {
-    backgroundColor: 'rgba(18, 26, 43, 0.75)',
+    backgroundColor: 'rgba(18, 26, 43, 0.35)',
     padding: 18,
   },
   content: {

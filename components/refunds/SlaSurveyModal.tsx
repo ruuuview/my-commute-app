@@ -4,11 +4,23 @@ import * as Haptics from 'expo-haptics'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Clock } from 'phosphor-react-native'
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { useReduceTransparency } from '../../hooks/useReduceTransparency'
+import { GLASS } from '../../theme/colors'
 import {
   workingDaysSince,
   formatPence,
 } from '../../services/refundSlaService'
 import type { RadarClaim } from './types'
+
+let isNativeGlassAvailable = false
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable()
+  }
+} catch {
+  isNativeGlassAvailable = false
+}
 
 export type SurveyOutcome =
   | 'PAID_FULL'
@@ -73,6 +85,7 @@ export function SlaSurveyModal({
   onClose,
   onSubmit,
 }: SlaSurveyModalProps) {
+  const reduceTransparency = useReduceTransparency()
   if (!claim) return null
 
   const daysSinceFiled = claim.filedAt ? workingDaysSince(claim.filedAt) : 0
@@ -97,8 +110,18 @@ export function SlaSurveyModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <View style={styles.modalContainer}>
-          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.modalContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : (
+              <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )
+          )}
           
           <LinearGradient
             colors={[
@@ -112,13 +135,15 @@ export function SlaSurveyModal({
             pointerEvents="none"
           />
 
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.specularTopSheen}
-            pointerEvents="none"
-          />
+          {!reduceTransparency && (
+            <LinearGradient
+              colors={[GLASS.specularStart, GLASS.specularEnd]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.specularTopSheen}
+              pointerEvents="none"
+            />
+          )}
 
           <View style={styles.modalHeader}>
             <Clock size={24} color="#38BDF8" weight="bold" />
@@ -168,11 +193,11 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(7, 14, 38, 0.72)' : 'rgba(7, 14, 38, 0.96)',
+    backgroundColor: Platform.OS === 'ios' ? GLASS.background : 'rgba(7, 14, 38, 0.96)',
     borderRadius: 24,
     padding: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     gap: 16,
     overflow: 'hidden',
     shadowColor: '#000000',
@@ -186,7 +211,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 2,
+    height: 18,
     zIndex: 10,
   },
   modalHeader: {

@@ -27,6 +27,17 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { LINE_IDENTITY_COLORS, LINE_NAMES, NORTHERN_SHADES } from '../../constants/lineColors';
 import { GLASS } from '../../theme/colors';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 export interface ActiveClaimHeroCardProps {
   claim: RadarClaim;
@@ -47,6 +58,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
   onOpenPortal,
   locallyFiledAtMs,
 }) => {
+  const reduceTransparency = useReduceTransparency();
   const lineKey = (claim.lineId ?? '').toLowerCase().trim();
   const lineColor = LINE_IDENTITY_COLORS[lineKey] ?? '#8E8E93';
   const lineDisplayName = LINE_NAMES[lineKey] ?? (claim.lineId ? claim.lineId.charAt(0).toUpperCase() + claim.lineId.slice(1) : 'Tube Line');
@@ -95,8 +107,18 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
   };
 
   return (
-    <View style={styles.outerContainer}>
-      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+    <View style={[styles.outerContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+      {!reduceTransparency && (
+        isNativeGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        )
+      )}
 
       <LinearGradient
         colors={[GLASS.specularStart, GLASS.specularEnd]}
@@ -225,7 +247,7 @@ const styles = StyleSheet.create({
   outerContainer: {
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     marginBottom: 16,
@@ -383,7 +405,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#007AFF',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.35)',
     flexDirection: 'row',
     alignItems: 'center',

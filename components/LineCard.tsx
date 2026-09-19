@@ -19,9 +19,20 @@ import { getSeverityColor } from '../utils/getSeverityColor';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StatusBezel } from './StatusBezel';
 import { GLASS } from '../theme/colors';
 import { NORTHERN_SHADES } from '../constants/lineColors';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -109,6 +120,7 @@ export const LineCard = memo(function LineCard({
   onMoveUp,
   onMoveDown,
 }: LineCardProps) {
+  const reduceTransparency = useReduceTransparency();
   const isSlim = cardHeight <= 48;
   const cardRadius = isSlim ? 16 : 18;
   const lineNameFontSize = cardHeight >= 44 ? 14 : (isSlim ? 13 : 14);
@@ -221,9 +233,9 @@ export const LineCard = memo(function LineCard({
           styles.cardInner,
           {
             borderRadius: cardRadius,
-            backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
+            backgroundColor: reduceTransparency ? '#1C1C1E' : (Platform.OS === 'android' ? '#0E0E14' : GLASS.background),
             overflow: 'hidden',
-            borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : 1.25,
+            borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : GLASS.borderWidth,
             borderColor: mode === 'select' && selected
               ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
               : GLASS.borderColor,
@@ -232,11 +244,21 @@ export const LineCard = memo(function LineCard({
           mode === 'display' ? pressAnim.liftBorderStyle : null,
         ]}
       >
-        <BlurView
-          intensity={GLASS.blurIntensity}
-          tint="dark"
-          style={StyleSheet.absoluteFillObject}
-        />
+        {!reduceTransparency && (
+          isNativeGlassAvailable ? (
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme="dark"
+              style={StyleSheet.absoluteFillObject}
+            />
+          ) : (
+            <BlurView
+              intensity={GLASS.blurIntensity}
+              tint="dark"
+              style={StyleSheet.absoluteFillObject}
+            />
+          )
+        )}
 
         {mode === 'select' && selected && (
           <View

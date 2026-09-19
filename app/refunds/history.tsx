@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 16,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   cardOuter: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
   },
   cardFill: {

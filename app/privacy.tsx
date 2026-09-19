@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     backgroundColor: GLASS.background,
     borderRadius: 16,
     padding: 20,
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
     marginTop: 8,

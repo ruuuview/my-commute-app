@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   cardWrap: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.25,
+    borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     backgroundColor: GLASS.background,
   },

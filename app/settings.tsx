@@ -38,6 +38,7 @@ import { FixItSheet } from '../components/FixItSheet';
 import { AlertHoursSheet } from '../components/AlertHoursSheet';
 import { DiagnosticsModal } from '../components/DiagnosticsModal';
 import { LiquidGlassView } from '../components/LiquidGlassView';
+import { SegmentedGlassControl } from '../components/SegmentedGlassControl';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { SETTINGS_BACKGROUND_GRADIENT, CANVAS_LONDON_NIGHT } from '../theme/colors';
@@ -120,13 +121,9 @@ export default function SettingsScreen() {
     }))
   );
 
-  // ── Shush Mode & Dynamic Island State ─────────────────────────────
-  const [hasDI, setHasDI] = useState(true);
-
+  // ── Shush Mode & Time Sensitive Status ───────────────────────────
   useEffect(() => {
     void (async () => {
-      const di = await LiveActivityService.hasDynamicIsland();
-      setHasDI(di);
       const status = await LiveActivityService.getTimeSensitiveStatus();
       setTimeSensitiveStatus(status);
     })();
@@ -169,9 +166,23 @@ export default function SettingsScreen() {
     Notifications.PermissionStatus.UNDETERMINED
   );
   const [osLocationAlwaysGranted, setOsLocationAlwaysGranted] = useState(false);
+  const [liveActivityAuth, setLiveActivityAuth] = useState<{ supported: boolean; enabled: boolean }>({
+    supported: true,
+    enabled: true,
+  });
+
+  const checkLiveActivityAuth = useCallback(async () => {
+    try {
+      const info = await LiveActivityService.getActivityAuthorizationInfo();
+      setLiveActivityAuth(info);
+    } catch {
+      setLiveActivityAuth({ supported: false, enabled: false });
+    }
+  }, []);
 
   const checkOsPermissions = useCallback(async () => {
     try {
+      void checkLiveActivityAuth();
       const notif = await Notifications.getPermissionsAsync();
       const isGranted = Boolean(
         notif.granted ||
@@ -209,7 +220,7 @@ export default function SettingsScreen() {
     } catch (e) {
       console.warn('[Settings] Error checking OS permissions:', e);
     }
-  }, [setCalendarGranted]);
+  }, [setCalendarGranted, checkLiveActivityAuth]);
 
   const handleRequestNotificationPermission = useCallback(async () => {
     if (hapticsEnabled) {
@@ -239,9 +250,11 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     void checkOsPermissions();
+    void checkLiveActivityAuth();
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void checkOsPermissions();
+        void checkLiveActivityAuth();
         void (async () => {
           const status = await LiveActivityService.getTimeSensitiveStatus();
           setTimeSensitiveStatus(status);
@@ -249,7 +262,7 @@ export default function SettingsScreen() {
       }
     });
     return () => sub.remove();
-  }, [checkOsPermissions, setTimeSensitiveStatus]);
+  }, [checkOsPermissions, checkLiveActivityAuth, setTimeSensitiveStatus]);
 
   // ── Station Helpers ───────────────────────────────────────────────
   const homeStation = useMemo(
@@ -287,7 +300,7 @@ export default function SettingsScreen() {
 
   // ── Priority Attention Row (Max 1) ────────────────────────────────
   const attentionRow = useMemo(() => {
-    // Priority 1: Notifications (OS truth alone decides delivery. Suppressed if user chose Off)
+    // Priority 1: Notifications (OS truth alone decides delivery. Relevant whenever delivery mode is not off)
     if (shushPreferences.alertDeliveryMode !== 'off' && !osNotificationsGranted) {
       // Truly blocked in iOS Settings (status === 'denied' and OS won't allow re-asking in-app)
       if (osNotifStatus === Notifications.PermissionStatus.DENIED && !osNotifCanAskAgain) {
@@ -502,115 +515,118 @@ export default function SettingsScreen() {
               contentStyle={styles.cardInner}
             >
               {/* Delivery Mode 3-Way Segmented Glass Control */}
-              <View style={styles.shushPickerRow}>
-                {/* Standard: System Blue */}
-                <Pressable
-                  style={[
-                    styles.shushModeCard,
-                    shushPreferences.alertDeliveryMode === 'loud' && styles.shushModeCardActiveLoud,
-                  ]}
-                  onPress={() => handleSelectDeliveryMode('loud')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Standard delivery mode"
-                >
-                  <IconBadge
-                    icon={<Bell size={18} color={shushPreferences.alertDeliveryMode === 'loud' ? '#0A84FF' : '#8E8E93'} weight={shushPreferences.alertDeliveryMode === 'loud' ? 'fill' : 'regular'} />}
-                    backgroundColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(10, 132, 255, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
-                    borderColor={shushPreferences.alertDeliveryMode === 'loud' ? 'rgba(10, 132, 255, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
-                  />
-                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'loud' && { color: '#0A84FF' }]}>Standard</Text>
-                  <Text style={styles.shushModeDesc}>Banners & sound</Text>
-                </Pressable>
-
-                {/* Ambient: System Indigo */}
-                <Pressable
-                  style={[
-                    styles.shushModeCard,
-                    shushPreferences.alertDeliveryMode === 'shush' && styles.shushModeCardActiveShush,
-                  ]}
-                  onPress={() => handleSelectDeliveryMode('shush')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ambient delivery mode"
-                >
-                  <IconBadge
-                    icon={<Sparkle size={18} color={shushPreferences.alertDeliveryMode === 'shush' ? '#5E5CE6' : '#8E8E93'} weight="fill" />}
-                    backgroundColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(94, 92, 230, 0.18)' : 'rgba(255, 255, 255, 0.05)'}
-                    borderColor={shushPreferences.alertDeliveryMode === 'shush' ? 'rgba(94, 92, 230, 0.35)' : 'rgba(255, 255, 255, 0.10)'}
-                  />
-                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'shush' && { color: '#5E5CE6' }]}>Ambient</Text>
-                  <Text style={styles.shushModeDesc}>Dynamic Island</Text>
-                </Pressable>
-
-                {/* Muted: Slate Mist */}
-                <Pressable
-                  style={[
-                    styles.shushModeCard,
-                    shushPreferences.alertDeliveryMode === 'off' && styles.shushModeCardActiveOff,
-                  ]}
-                  onPress={() => handleSelectDeliveryMode('off')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Muted delivery mode"
-                >
-                  <IconBadge
-                    icon={<BellSlash size={18} color={shushPreferences.alertDeliveryMode === 'off' ? '#8E8E93' : '#8E8E93'} weight={shushPreferences.alertDeliveryMode === 'off' ? 'fill' : 'regular'} />}
-                    backgroundColor={shushPreferences.alertDeliveryMode === 'off' ? 'rgba(142, 142, 147, 0.22)' : 'rgba(255, 255, 255, 0.05)'}
-                    borderColor={shushPreferences.alertDeliveryMode === 'off' ? 'rgba(142, 142, 147, 0.40)' : 'rgba(255, 255, 255, 0.10)'}
-                  />
-                  <Text style={[styles.shushModeTitle, shushPreferences.alertDeliveryMode === 'off' && { color: '#8E8E93' }]}>Muted</Text>
-                  <Text style={styles.shushModeDesc}>Open app manually</Text>
-                </Pressable>
-              </View>
+              <SegmentedGlassControl
+                currentMode={shushPreferences.alertDeliveryMode}
+                onSelectMode={handleSelectDeliveryMode}
+                hapticsEnabled={hapticsEnabled}
+              />
 
               <View style={styles.divider} />
 
-              {/* Single Contextual Subtitle & Intent x OS Permission Delivery Truth */}
-              <View style={styles.surfaceInfoRow}>
-                {shushPreferences.alertDeliveryMode === 'loud' && (
-                  !osNotificationsGranted ? (
-                    <View style={styles.deliveryTruthWarningRow}>
-                      <WarningCircle size={15} color="#FF453A" weight="fill" />
-                      <Text style={[styles.surfaceInfoText, { color: '#FF453A' }]}>
-                        iOS notifications disabled in Settings. Banners cannot deliver.
+              {/* ── Intent × Capability Delivery Truth Table (7 Rows) ── */}
+
+              {/* Row 1: Standard + Notifications Granted → Zero warning, positive confirmation */}
+              {shushPreferences.alertDeliveryMode === 'loud' && osNotificationsGranted && (
+                <View style={styles.surfaceInfoRow} testID="truth-table-row-1">
+                  <Bell size={15} color="#0A84FF" weight="fill" />
+                  <Text style={styles.surfaceInfoText}>
+                    Alerts appear as banners with sound during disruptions.
+                  </Text>
+                </View>
+              )}
+
+              {/* Row 2: Standard + Notifications Undetermined → Prominent Card with [Enable] */}
+              {shushPreferences.alertDeliveryMode === 'loud' && !osNotificationsGranted && (osNotifStatus === Notifications.PermissionStatus.UNDETERMINED || (osNotifCanAskAgain && osNotifStatus !== Notifications.PermissionStatus.DENIED)) && (
+                <View style={styles.prominentWarningCard} testID="truth-table-row-2">
+                  <View style={styles.prominentCardHeader}>
+                    <IconBadge
+                      icon={<Bell size={18} color="#0A84FF" weight="fill" />}
+                      backgroundColor="rgba(10, 132, 255, 0.18)"
+                      borderColor="rgba(10, 132, 255, 0.35)"
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.prominentCardTitle}>Enable Line Disruption Banners</Text>
+                      <Text style={styles.prominentCardDesc}>
+                        Enable push notifications to receive line disruption banners on your lock screen.
                       </Text>
-                      <Pressable
-                        style={styles.inlineFixBtn}
-                        onPress={() => Linking.openSettings().catch(() => {})}
-                        accessibilityRole="button"
-                        accessibilityLabel="Open iOS Settings to enable notifications"
-                      >
-                        <Text style={styles.inlineFixBtnText}>Fix</Text>
-                      </Pressable>
                     </View>
-                  ) : (
-                    <>
-                      <Bell size={15} color="#0A84FF" weight="fill" />
-                      <Text style={styles.surfaceInfoText}>
-                        Alerts appear as banners with sound during disruptions.
-                      </Text>
-                    </>
-                  )
-                )}
+                  </View>
+                  <Pressable
+                    style={styles.prominentEnableBtn}
+                    onPress={handleRequestNotificationPermission}
+                    accessibilityRole="button"
+                    accessibilityLabel="Enable push notifications"
+                  >
+                    <Text style={styles.prominentEnableBtnText}>Enable</Text>
+                  </Pressable>
+                </View>
+              )}
 
-                {shushPreferences.alertDeliveryMode === 'shush' && (
-                  <>
-                    <Sparkle size={15} color="#5E5CE6" weight="fill" />
-                    <Text style={styles.surfaceInfoText}>
-                      {hasDI
-                        ? 'Silent updates visible only on Dynamic Island & Lock Screen.'
-                        : 'Silent updates visible only near your commute stations.'}
-                    </Text>
-                  </>
-                )}
+              {/* Row 3: Standard + Notifications Denied → Quiet Slate Line with [Settings] */}
+              {shushPreferences.alertDeliveryMode === 'loud' && !osNotificationsGranted && (osNotifStatus === Notifications.PermissionStatus.DENIED || !osNotifCanAskAgain) && (
+                <View style={styles.quietSlateRow} testID="truth-table-row-3">
+                  <WarningCircle size={15} color="#8E8E93" weight="regular" />
+                  <Text style={styles.quietSlateText}>
+                    Notifications disabled in iOS Settings. Lock screen banners cannot be delivered.
+                  </Text>
+                  <Pressable
+                    style={styles.inlineSettingsBtn}
+                    onPress={() => Linking.openSettings().catch(() => {})}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open iOS Settings"
+                  >
+                    <Text style={styles.inlineSettingsBtnText}>Settings</Text>
+                  </Pressable>
+                </View>
+              )}
 
-                {shushPreferences.alertDeliveryMode === 'off' && (
-                  <>
-                    <BellSlash size={15} color="#8E8E93" weight="fill" />
-                    <Text style={styles.surfaceInfoText}>
-                      No alerts. Check status manually in-app.
-                    </Text>
-                  </>
-                )}
-              </View>
+              {/* Row 4: Ambient + Live Activities Supported & Enabled → Zero warning */}
+              {shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && liveActivityAuth.enabled && (
+                <View style={styles.surfaceInfoRow} testID="truth-table-row-4">
+                  <Sparkle size={15} color="#5E5CE6" weight="fill" />
+                  <Text style={styles.surfaceInfoText}>
+                    Silent updates visible on Dynamic Island & Lock Screen.
+                  </Text>
+                </View>
+              )}
+
+              {/* Row 5: Ambient + Live Activities Supported & Disabled → Quiet Slate Line with [Settings] */}
+              {shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && !liveActivityAuth.enabled && (
+                <View style={styles.quietSlateRow} testID="truth-table-row-5">
+                  <WarningCircle size={15} color="#8E8E93" weight="regular" />
+                  <Text style={styles.quietSlateText}>
+                    Live Activities disabled in iOS Settings. Lock screen widget cannot update.
+                  </Text>
+                  <Pressable
+                    style={styles.inlineSettingsBtn}
+                    onPress={() => Linking.openSettings().catch(() => {})}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open iOS Settings"
+                  >
+                    <Text style={styles.inlineSettingsBtnText}>Settings</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Row 6: Muted → Zero warning banner */}
+              {shushPreferences.alertDeliveryMode === 'off' && (
+                <View style={styles.surfaceInfoRow} testID="truth-table-row-6">
+                  <BellSlash size={15} color="#8E8E93" weight="fill" />
+                  <Text style={styles.surfaceInfoText}>
+                    No alerts. Check status manually in-app.
+                  </Text>
+                </View>
+              )}
+
+              {/* Row 7: Ambient + Live Activities Unsupported → Quiet Slate Line (No action button) */}
+              {shushPreferences.alertDeliveryMode === 'shush' && !liveActivityAuth.supported && (
+                <View style={styles.quietSlateRow} testID="truth-table-row-7">
+                  <WarningCircle size={15} color="#8E8E93" weight="regular" />
+                  <Text style={styles.quietSlateText}>
+                    Live Activities require iOS 16.1 or later. Ambient mode is unavailable on this device.
+                  </Text>
+                </View>
+              )}
 
               {/* Time-Sensitive Permission Soft Nag (Tri-state: only renders if capability exists in binary and is user-disabled) */}
               {shushPreferences.alertDeliveryMode === 'shush' && shushPreferences.timeSensitiveStatus === 'disabled' && (
@@ -1368,5 +1384,76 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
     color: '#000000',
+  },
+  prominentWarningCard: {
+    backgroundColor: 'rgba(10, 132, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(10, 132, 255, 0.28)',
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 10,
+    gap: 10,
+  },
+  prominentCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  prominentCardTitle: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  prominentCardDesc: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  prominentEnableBtn: {
+    backgroundColor: '#0A84FF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  prominentEnableBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  quietSlateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 142, 147, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(142, 142, 147, 0.20)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginVertical: 10,
+    gap: 8,
+  },
+  quietSlateText: {
+    flex: 1,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.80)',
+    lineHeight: 16,
+  },
+  inlineSettingsBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+  },
+  inlineSettingsBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 11,
+    color: '#FFFFFF',
   },
 });

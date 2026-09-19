@@ -5,6 +5,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GLASS } from '../theme/colors';
 
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
+
 export interface LiquidGlassViewProps {
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -19,11 +21,16 @@ export interface LiquidGlassViewProps {
 }
 
 /**
- * LiquidGlassView (Apple Liquid Glass 2-Tier Architecture)
+ * LiquidGlassView / GlassSurface
  * ────────────────────────────────────────────────────────
  * Outer Container: Handles unclipped ambient drop shadow.
  * Inner Glass Body: Handles clipping, native BlurView,
  * specular catch-light LinearGradient, and directional rim borders.
+ *
+ * Accessibility:
+ * Automatically listens to `useReduceTransparency()`. When user has
+ * Reduce Transparency enabled in iOS Settings, BlurView is omitted
+ * and a solid, opaque high-contrast dark slate (#1C1C1E) is rendered.
  */
 export const LiquidGlassView = memo(function LiquidGlassView({
   children,
@@ -36,6 +43,8 @@ export const LiquidGlassView = memo(function LiquidGlassView({
   borderColor = GLASS.borderColor,
   testID,
 }: LiquidGlassViewProps) {
+  const reduceTransparency = useReduceTransparency();
+
   return (
     <View style={[styles.outerShadowContainer, style]} testID={testID}>
       <View
@@ -43,14 +52,18 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           styles.innerGlassBody,
           {
             borderRadius,
-            backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-            borderColor,
+            backgroundColor: reduceTransparency
+              ? '#1C1C1E'
+              : Platform.OS === 'android'
+              ? '#0E0E14'
+              : GLASS.background,
+            borderColor: reduceTransparency ? 'rgba(255, 255, 255, 0.20)' : borderColor,
           },
           contentStyle,
         ]}
       >
-        {/* Layer 1: Native Live Blur (iOS & Web) */}
-        {(Platform.OS === 'ios' || Platform.OS === 'web') && (
+        {/* Layer 1: Native Live Blur (iOS & Web) — skipped under Reduce Transparency */}
+        {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
           <BlurView
             intensity={intensity}
             tint={tint}
@@ -77,6 +90,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
 });
 
 LiquidGlassView.displayName = 'LiquidGlassView';
+export const GlassSurface = LiquidGlassView;
 export default LiquidGlassView;
 
 const styles = StyleSheet.create({

@@ -32,7 +32,7 @@ import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import {
+import MyCommuteLiveActivityModuleDefault, {
   addPushToStartListener,
   addLiveActivityPushTokenListener,
 } from '../modules/my-commute-live-activity';
@@ -49,10 +49,17 @@ export const isExpoGo =
 // Re-use the same background MMKV the SessionManager uses (single store).
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
-// The Expo Modules bridge (expo-modules-core requireOptionalNativeModule).
-const MyCommuteLiveActivityModule =
-  requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
-  requireOptionalNativeModule('MyCommuteLiveActivity');
+// The Expo Modules bridge (expo-modules-core requireOptionalNativeModule with fallback).
+let testModuleOverride: any = null;
+const getLiveActivityModule = () => {
+  if (testModuleOverride) return testModuleOverride;
+  return (
+    requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
+    requireOptionalNativeModule('MyCommuteLiveActivity') ??
+    MyCommuteLiveActivityModuleDefault
+  );
+};
+const MyCommuteLiveActivityModule = getLiveActivityModule();
 
 // Fail-loud dev invariant (Rule 21): Alert if native bridge was not linked in custom binary
 if (Platform.OS === 'ios' && !isExpoGo && !MyCommuteLiveActivityModule) {
@@ -65,6 +72,7 @@ if (Platform.OS === 'ios' && !isExpoGo && !MyCommuteLiveActivityModule) {
 export type LiveActivitySupportStatus =
   | 'expo_go'         // Running inside Expo Go (custom native modules unavailable by design)
   | 'bridge_unlinked' // Running in custom client/build but Swift module was not linked into binary
+  | 'unsupported'     // iOS < 16.1 or device lacks Live Activity capability
   | 'system_disabled' // User toggled Live Activities OFF in iOS Settings
   | 'supported';      // Native bridge available & Live Activities permitted in iOS Settings
 
@@ -661,11 +669,6 @@ export class LiveActivityService {
       this.previewTimeout = null;
     }
 
-    const state = useUserPreferencesStore.getState();
-    const primaryLineId = state.selectedLines?.[0] || 'piccadilly';
-    const primaryLineName = tflCapitalise(primaryLineId);
-    const station = state.pinnedStations?.[0];
-
     const previewPayload: LiveActivityBridgePayload = {
       journeyId: `preview_${Math.floor(Date.now() / 1000)}`,
       originStation: '940GZZLUCTN', // Camden Town
@@ -877,20 +880,58 @@ export class LiveActivityService {
     }
   }
 
+  static _setNativeModuleForTesting(mock: any) {
+    testModuleOverride = mock;
+  }
+
   /**
-   * Tri-state support check distinguishing Expo Go, unlinked bridge module, and iOS user setting.
+   * Tri-state/multi-state support check distinguishing Expo Go, unlinked bridge module, iOS capability, and iOS user setting.
    */
   static async getSupportStatus(): Promise<LiveActivitySupportStatus> {
-    if (Platform.OS !== 'ios') return 'system_disabled';
+    if (Platform.OS !== 'ios') return 'unsupported';
     if (isExpoGo) return 'expo_go';
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.areActivitiesEnabled !== 'function') {
+    const module = getLiveActivityModule();
+    if (!module) {
       return 'bridge_unlinked';
     }
     try {
-      const enabled = await MyCommuteLiveActivityModule.areActivitiesEnabled();
-      return enabled ? 'supported' : 'system_disabled';
+      if (typeof module.activityAuthorizationInfo === 'function') {
+        const info = await module.activityAuthorizationInfo();
+        if (!info.supported) return 'unsupported';
+        return info.enabled ? 'supported' : 'system_disabled';
+      }
+      if (typeof module.areActivitiesEnabled === 'function') {
+        const enabled = await module.areActivitiesEnabled();
+        return enabled ? 'supported' : 'system_disabled';
+      }
+      return 'bridge_unlinked';
     } catch {
       return 'bridge_unlinked';
+    }
+  }
+
+  /**
+   * Two-bit capability check: supported (iOS 16.1+) and enabled (user toggle in iOS Settings).
+   */
+  static async getActivityAuthorizationInfo(): Promise<{ supported: boolean; enabled: boolean }> {
+    if (Platform.OS !== 'ios' || isExpoGo) {
+      return { supported: false, enabled: false };
+    }
+    const module = getLiveActivityModule();
+    if (!module) {
+      return { supported: false, enabled: false };
+    }
+    try {
+      if (typeof module.activityAuthorizationInfo === 'function') {
+        return await module.activityAuthorizationInfo();
+      }
+      if (typeof module.areActivitiesEnabled === 'function') {
+        const enabled = await module.areActivitiesEnabled();
+        return { supported: true, enabled };
+      }
+      return { supported: false, enabled: false };
+    } catch {
+      return { supported: false, enabled: false };
     }
   }
 

@@ -16,14 +16,12 @@
 //   θ=1.2° → ±3.8pt (v2 — gaps breathed 4.4↔19.6pt: the ugliness)
 //   θ=0.6° → ±1.9pt (v3 — gentle, decorrelated breathing)
 // ─────────────────────────────────────────────────────────────────
-import { useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import { useEffect, useMemo } from 'react';
 import {
   Easing,
   SharedValue,
   cancelAnimation,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -31,6 +29,10 @@ import {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useLiveReducedMotion } from './useReducedMotion';
+
+// Backward compatibility re-export; consumers should import from ./useReducedMotion directly.
+export { useLiveReducedMotion };
 
 // ── Tuning knobs ──
 export const JIGGLE_MAX_DEG = 0.6;        // Base rotation. ±1.9pt corners on a 361pt card.
@@ -54,18 +56,6 @@ export interface JiggleDriver {
   amplitude: SharedValue<number>;
   /** JS-side mirror of the active state so per-card clocks start/stop with the mode. */
   active: boolean;
-}
-
-/** Live reduce-motion. Reanimated's useReducedMotion() is read once at launch. */
-export function useLiveReducedMotion(): boolean {
-  const initial = useReducedMotion();
-  const [live, setLive] = useState<boolean>(Boolean(initial));
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setLive).catch(() => {});
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setLive);
-    return () => sub.remove();
-  }, []);
-  return live;
 }
 
 /** mulberry32 single-step. Deterministic per-card "wobble character":

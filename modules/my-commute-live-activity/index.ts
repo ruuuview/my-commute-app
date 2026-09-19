@@ -18,6 +18,7 @@ const mockFallbackModule = {
   checkTimeSensitivePermission: async () => false,
   requestTimeSensitivePermission: async () => false,
   areActivitiesEnabled: async () => false,
+  activityAuthorizationInfo: async () => ({ supported: false, enabled: false }),
   addListener: () => ({ remove: () => {} }),
   removeListeners: () => {},
 };
@@ -93,6 +94,7 @@ export interface MyCommuteLiveActivity {
   checkTimeSensitivePermission(): Promise<boolean>;
   requestTimeSensitivePermission(): Promise<boolean>;
   areActivitiesEnabled(): Promise<boolean>;
+  activityAuthorizationInfo(): Promise<{ supported: boolean; enabled: boolean }>;
 }
 
 export function addPushToStartListener(listener: (event: { token: string }) => void): EventSubscription {

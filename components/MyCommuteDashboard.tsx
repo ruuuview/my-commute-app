@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -396,6 +397,7 @@ const sessionConsumedLegacyLineIds = new Set<string>();
 const MyCommuteDashboard: React.FC = () => {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<any>(null);
+  const reduceTransparency = useReduceTransparency();
 
   const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, completedJourneys, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
     resetOnboarding: s.resetOnboarding,
@@ -1100,9 +1102,11 @@ const MyCommuteDashboard: React.FC = () => {
                           unstable_pressDelay={0}
                           onPressIn={notificationsOffPress.onPressIn}
                           onPressOut={notificationsOffPress.onPressOut}
-                          style={[dash.arrivalBanner, notificationsOffPress.animatedStyle]}
+                          style={[dash.arrivalBanner, notificationsOffPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
-                          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                          {!reduceTransparency && (
+                            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                          )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
                           <Text style={dash.arrivalBannerText}>
                             Arrival notifications are off — <Text style={{ fontWeight: '600' }}>turn back on</Text>
@@ -1124,9 +1128,11 @@ const MyCommuteDashboard: React.FC = () => {
                           unstable_pressDelay={0}
                           onPressIn={snoozedPress.onPressIn}
                           onPressOut={snoozedPress.onPressOut}
-                          style={[dash.arrivalBanner, snoozedPress.animatedStyle]}
+                          style={[dash.arrivalBanner, snoozedPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
-                          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                          {!reduceTransparency && (
+                            <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                          )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
                           <Text style={dash.arrivalBannerText}>
                             Arrival notifications snoozed until {timeStr} — <Text style={{ fontWeight: '600' }}>tap to resume</Text>
@@ -1165,15 +1171,17 @@ const MyCommuteDashboard: React.FC = () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
                         setStationModalVisible(true);
                       }}
-                      style={dash.addStationCard}
+                      style={[dash.addStationCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                       accessibilityLabel="Add your first station"
                       accessibilityRole="button"
                     >
-                      <BlurView
-                        intensity={20}
-                        tint="dark"
-                        style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                      />
+                      {!reduceTransparency && (
+                        <BlurView
+                          intensity={20}
+                          tint="dark"
+                          style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                        />
+                      )}
                       <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
                       <Text style={dash.addCardText}>Add your first station</Text>
                     </BouncyPressable>
@@ -1284,13 +1292,15 @@ const MyCommuteDashboard: React.FC = () => {
         >
           <BouncyPressable
             onPress={handleExitEdit}
-            style={dash.floatingDoneBtn}
+            style={[dash.floatingDoneBtn, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityLabel="Finish editing layout"
             accessibilityRole="button"
             testID="floating-done-button"
           >
-            <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+            {!reduceTransparency && (
+              <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+            )}
             <Text style={dash.floatingDoneText}>Done</Text>
           </BouncyPressable>
         </Animated.View>

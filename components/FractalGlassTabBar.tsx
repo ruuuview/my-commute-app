@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
 interface TabBarProps {
   tabs: { key: string; icon: React.ComponentType<{size?: number; color?: string}>; label: string }[];
@@ -72,11 +73,15 @@ TabButton.displayName = 'TabButton';
 
 const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress }) => {
   const insets = useSafeAreaInsets();
+  const reduceTransparency = useReduceTransparency();
+
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom || 16 }]}>
       <View style={styles.outerShadowWrapper}>
-        <View style={styles.blurContainer}>
-          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.blurContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFillObject} />
+          )}
           <LinearGradient
             colors={[GLASS.specularStart, GLASS.specularEnd]}
             start={{ x: 0.5, y: 0 }}

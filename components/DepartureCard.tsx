@@ -24,6 +24,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -103,6 +104,7 @@ const DepartureCard = memo(function DepartureCard({
   totalStations = 1,
 }: DepartureCardProps) {
   const reducedMotion = useLiveReducedMotion();
+  const reduceTransparency = useReduceTransparency();
   // Pause interval polling during edit mode so updates don't shift layout mid-drag
   const { arrivals, loading } = useStationArrivals(stationId, { enabled: !isEditing });
 
@@ -172,8 +174,10 @@ const DepartureCard = memo(function DepartureCard({
       style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle]}>
-        <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+        {!reduceTransparency && (
+          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        )}
 
         <LinearGradient
           colors={[GLASS.specularStart, GLASS.specularEnd]}

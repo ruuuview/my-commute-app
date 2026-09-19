@@ -77,24 +77,24 @@ export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
   blurIntensity: 65,
   // Card base frosted tint (creates distinct glass body substance against vibrant/dark backgrounds)
-  background: 'rgba(255, 255, 255, 0.05)',
+  background: 'rgba(255, 255, 255, 0.12)',
   // Hairline perimeter specular rim
   borderColor: 'rgba(255, 255, 255, 0.16)',
   borderWidth: 0.75,
   // Directional fallbacks
-  borderTop: 'rgba(255, 255, 255, 0.28)',
+  borderTop: 'rgba(255, 255, 255, 0.48)',
   borderSides: 'rgba(255, 255, 255, 0.14)',
   borderSide: 'rgba(255, 255, 255, 0.14)',
   borderBottom: 'rgba(255, 255, 255, 0.08)',
   // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
   specularStart: 'rgba(255, 255, 255, 0.22)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
-  // Soft ambient depth
-  shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 8 } as const,
-  shadowOpacity: 0.25,
-  shadowRadius: 16,
-  elevation: 4,
+  // Zero shadows behind cards per design specification
+  shadowColor: 'transparent',
+  shadowOffset: { width: 0, height: 0 } as const,
+  shadowOpacity: 0,
+  shadowRadius: 0,
+  elevation: 0,
 };
 
 export const PREMIUM_BUTTON = {

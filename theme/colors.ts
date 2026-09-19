@@ -76,8 +76,8 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
   blurIntensity: 65,
-  // Card base frosted tint (creates distinct glass body substance against vibrant/dark backgrounds)
-  background: 'rgba(255, 255, 255, 0.12)',
+  // Card base frosted tint — transparent to let native blur and specular rims drive optical depth
+  background: 'transparent',
   // Hairline perimeter specular rim
   borderColor: 'rgba(255, 255, 255, 0.16)',
   borderWidth: 0.75,

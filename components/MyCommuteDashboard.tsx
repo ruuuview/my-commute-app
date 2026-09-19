@@ -1593,7 +1593,7 @@ const dash = StyleSheet.create({
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
@@ -1700,7 +1700,7 @@ const dash = StyleSheet.create({
     marginBottom: 12,
   },
   addCardBlur: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15,20,70,0.85)' : 'rgba(255,255,255,0.07)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(15,20,70,0.85)' : 'transparent',
   },
   addCardIcon: {
     marginRight: 10,

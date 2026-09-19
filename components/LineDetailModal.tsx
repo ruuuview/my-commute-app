@@ -437,7 +437,7 @@ export function LineDetailModal({
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemUltraThinMaterialDark"
+                tint="systemMaterial"
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
@@ -595,8 +595,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
   },
 
@@ -767,8 +765,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
   },
   rerouteButtonText: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

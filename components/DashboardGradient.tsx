@@ -11,14 +11,16 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Severity } from './MyCommuteDashboard';
 
-const STATUS_GRADIENTS: Record<Severity, readonly [string, string]> = {
-  good: ['#0d5c2e', '#000000'],
-  minor: ['#a86400', '#000000'],
-  severe: ['#7a0e0e', '#000000'],
-  suspended: ['#5c0a0a', '#000000'],
-  offline: ['#1a1a2e', '#000000'],
-  unknown: ['#1a1a2e', '#000000'],
+const STATUS_GRADIENTS: Record<Severity, readonly [string, string, string]> = {
+  good: ['#0d5c2e', '#042413', '#010d07'],
+  minor: ['#a86400', '#3b2200', '#120900'],
+  severe: ['#7a0e0e', '#360606', '#140202'],
+  suspended: ['#5c0a0a', '#290404', '#0f0101'],
+  offline: ['#1a1a2e', '#0d0d1a', '#05050c'],
+  unknown: ['#1a1a2e', '#0d0d1a', '#05050c'],
 } as const;
+
+const GRADIENT_LOCATIONS = [0, 0.40, 1.0] as const;
 
 interface Props {
   severity: Severity;
@@ -77,6 +79,7 @@ export function DashboardGradient({ severity, children }: Props) {
       {/* Bottom layer — current / outgoing gradient */}
       <LinearGradient
         colors={STATUS_GRADIENTS[layers[0]] || STATUS_GRADIENTS.unknown}
+        locations={GRADIENT_LOCATIONS}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -86,6 +89,7 @@ export function DashboardGradient({ severity, children }: Props) {
       <Animated.View style={[StyleSheet.absoluteFillObject, topLayerStyle]}>
         <LinearGradient
           colors={STATUS_GRADIENTS[layers[1]] || STATUS_GRADIENTS.unknown}
+          locations={GRADIENT_LOCATIONS}
           style={StyleSheet.absoluteFillObject}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}

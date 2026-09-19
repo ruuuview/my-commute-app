@@ -36,7 +36,7 @@ export default function TermsScreen() {
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <Text style={styles.lastUpdated}>Last updated: July 2026</Text>
@@ -119,8 +119,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     marginTop: 8,
   },

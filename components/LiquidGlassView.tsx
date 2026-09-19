@@ -1,6 +1,7 @@
 // components/LiquidGlassView.tsx
 import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
@@ -24,7 +25,7 @@ export interface LiquidGlassViewProps {
   contentStyle?: StyleProp<ViewStyle>;
   borderRadius?: number;
   intensity?: number;
-  tint?: 'dark' | 'light' | 'default';
+  tint?: 'dark' | 'light' | 'default' | 'systemMaterial' | 'systemThinMaterial' | string;
   specular?: boolean;
   borderTopColor?: string;
   borderColor?: string;
@@ -51,13 +52,16 @@ export const LiquidGlassView = memo(function LiquidGlassView({
   contentStyle,
   borderRadius = 16,
   intensity = GLASS.blurIntensity,
-  tint = 'dark',
+  tint = 'systemMaterial',
   specular = true,
   borderTopColor,
   borderColor = GLASS.borderColor,
   testID,
 }: LiquidGlassViewProps) {
   const reduceTransparency = useReduceTransparency();
+  const effectiveBorderColor = reduceTransparency
+    ? 'rgba(255, 255, 255, 0.20)'
+    : (borderColor || GLASS.borderColor);
 
   return (
     <View style={[styles.outerShadowContainer, style]} testID={testID}>
@@ -71,15 +75,8 @@ export const LiquidGlassView = memo(function LiquidGlassView({
               : Platform.OS === 'android'
               ? '#0E0E14'
               : GLASS.background,
-            borderColor: reduceTransparency
-              ? 'rgba(255, 255, 255, 0.20)'
-              : (borderColor || GLASS.borderColor),
-            borderTopColor: reduceTransparency
-              ? 'rgba(255, 255, 255, 0.20)'
-              : (borderTopColor || GLASS.borderTop),
-            borderBottomColor: reduceTransparency
-              ? 'rgba(255, 255, 255, 0.20)'
-              : GLASS.borderBottom,
+            borderColor: effectiveBorderColor,
+            ...(borderTopColor ? { borderTopColor } : {}),
           },
           contentStyle,
         ]}
@@ -96,14 +93,33 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           ) : (
             <BlurView
               intensity={intensity}
-              tint={tint === 'dark' ? 'systemUltraThinMaterialDark' : tint}
+              tint={tint === 'dark' ? 'systemMaterial' : (tint as any)}
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           )
         )}
 
-        {/* Layer 2: Content */}
+        {/* Layer 2: Physical specular top sheen (simulates light refraction across curved glass) */}
+        {specular && !reduceTransparency && (
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 20,
+              borderTopLeftRadius: borderRadius,
+              borderTopRightRadius: borderRadius,
+            }}
+            pointerEvents="none"
+          />
+        )}
+
+        {/* Layer 3: Content */}
         {children}
       </View>
     </View>

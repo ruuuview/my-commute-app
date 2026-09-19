@@ -594,7 +594,7 @@ export default function StationsScreen() {
                         ) : (
                           <BlurView
                             intensity={GLASS.blurIntensity}
-                            tint="systemUltraThinMaterialDark"
+                            tint="systemMaterial"
                             style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
                             pointerEvents="none"
                           />
@@ -684,7 +684,7 @@ export default function StationsScreen() {
                             pointerEvents="none"
                           />
                         ) : (
-                          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                         )
                       )}
                       <View style={styles.addAnotherIconCircle}>
@@ -998,8 +998,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
   },
   recentCardBlur: {
     backgroundColor: GLASS.background,

@@ -49,7 +49,7 @@ const SkeletonLineCard: React.FC = () => {
         isNativeGlassAvailable ? (
           <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.colorBarPlaceholder} />
@@ -70,7 +70,7 @@ const SkeletonStationCard: React.FC = () => {
         isNativeGlassAvailable ? (
           <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.stationHeader}>
@@ -133,8 +133,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     marginBottom: 8,
     overflow: 'hidden',
   },
@@ -157,8 +155,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     minHeight: 110,
     paddingHorizontal: 16,
     paddingVertical: 16,

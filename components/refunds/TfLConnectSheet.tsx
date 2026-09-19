@@ -150,8 +150,8 @@ export default function TfLConnectSheet({
               />
             ) : (
               <BlurView
-                intensity={Platform.OS === 'ios' ? 85 : 100}
-                tint="systemUltraThinMaterialDark"
+                intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -297,7 +297,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
   },
   dragHandle: {
     width: 38,
@@ -364,9 +363,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
+    borderColor: GLASS.borderColor,
     backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
     position: 'relative',

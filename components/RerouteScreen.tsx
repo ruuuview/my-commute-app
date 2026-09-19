@@ -656,7 +656,7 @@ export default function RerouteScreen({
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} pointerEvents="none" />
@@ -781,7 +781,6 @@ const s = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
     paddingHorizontal: 16,
     paddingTop: 8,
   },
@@ -790,7 +789,7 @@ const s = StyleSheet.create({
   },
   sheetRim: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: GLASS.borderTop,
+    borderTopColor: GLASS.borderColor,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
@@ -831,9 +830,7 @@ const s = StyleSheet.create({
     borderRadius: 19,
     backgroundColor: 'rgba(28, 28, 42, 0.90)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
+    borderColor: GLASS.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -83,7 +83,7 @@ export function ZeroStateHeroCard({
         ) : (
           <BlurView
             intensity={GLASS.blurIntensity}
-            tint="systemUltraThinMaterialDark"
+            tint="systemMaterial"
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
@@ -144,8 +144,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     marginBottom: 16,
     position: 'relative',

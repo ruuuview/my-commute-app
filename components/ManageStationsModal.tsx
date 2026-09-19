@@ -87,7 +87,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
         ) : (
           <BlurView
             intensity={GLASS.blurIntensity}
-            tint="systemUltraThinMaterialDark"
+            tint="systemMaterial"
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
@@ -327,7 +327,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
               pointerEvents="none"
             />
           ) : (
-            <BlurView intensity={80} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <BlurView intensity={80} tint="systemMaterial" style={StyleSheet.absoluteFill} pointerEvents="none" />
           )}
 
           {/* Drag handle */}
@@ -459,7 +459,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
   },
   container: {
     flex: 1,
@@ -498,8 +497,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -588,8 +585,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
+    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
   },
   compactCardContent: {
     flex: 1,

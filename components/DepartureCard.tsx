@@ -21,6 +21,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -195,11 +196,30 @@ const DepartureCard = memo(function DepartureCard({
           ) : (
             <BlurView
               intensity={GLASS.blurIntensity}
-              tint="systemUltraThinMaterialDark"
+              tint="systemMaterial"
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           )
+        )}
+
+        {/* Specular top highlight falloff across upper curved surface */}
+        {!reduceTransparency && (
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 14,
+              borderTopLeftRadius: 14,
+              borderTopRightRadius: 14,
+            }}
+            pointerEvents="none"
+          />
         )}
 
         <Pressable
@@ -378,8 +398,6 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     borderRadius: 14,
     overflow: 'hidden',
   },

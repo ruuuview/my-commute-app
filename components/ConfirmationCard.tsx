@@ -100,7 +100,7 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <Text style={styles.question}>{question}</Text>
@@ -161,7 +161,7 @@ const InlineFixCard: React.FC<{
             pointerEvents="none"
           />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <Text style={styles.question}>{station.name} is...</Text>
@@ -189,10 +189,9 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
     padding: 16,
+    backgroundColor: GLASS.background,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     position: 'relative',
   },

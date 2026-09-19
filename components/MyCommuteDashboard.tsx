@@ -1123,7 +1123,7 @@ const MyCommuteDashboard: React.FC = () => {
                                 pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
@@ -1158,7 +1158,7 @@ const MyCommuteDashboard: React.FC = () => {
                                 pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
@@ -1214,7 +1214,7 @@ const MyCommuteDashboard: React.FC = () => {
                         ) : (
                           <BlurView
                             intensity={GLASS.blurIntensity}
-                            tint="systemUltraThinMaterialDark"
+                            tint="systemMaterial"
                             style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
                             pointerEvents="none"
                           />
@@ -1345,7 +1345,7 @@ const MyCommuteDashboard: React.FC = () => {
                   pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
@@ -1587,9 +1587,7 @@ const dash = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'transparent',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : GLASS.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1615,8 +1613,6 @@ const dash = StyleSheet.create({
     backgroundColor: 'rgba(25, 25, 30, 0.94)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
   },
   undoToastText: {
     fontFamily: 'SpaceGrotesk_500Medium',
@@ -1678,8 +1674,6 @@ const dash = StyleSheet.create({
     borderRadius: 18,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     height: 68,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1711,8 +1705,6 @@ const dash = StyleSheet.create({
     borderRadius: 16,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
   },
   arrivalBannerText: {

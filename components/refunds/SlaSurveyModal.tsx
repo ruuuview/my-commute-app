@@ -121,8 +121,8 @@ export function SlaSurveyModal({
               />
             ) : (
               <BlurView
-                intensity={Platform.OS === 'ios' ? 70 : 100}
-                tint="systemUltraThinMaterialDark"
+                intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -194,8 +194,6 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     gap: 16,
     overflow: 'hidden',
   },

@@ -104,8 +104,8 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
               />
             ) : (
               <BlurView
-                intensity={Platform.OS === 'ios' ? 85 : 100}
-                tint="systemUltraThinMaterialDark"
+                intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -254,7 +254,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
     backgroundColor: Platform.OS === 'ios' ? GLASS.background : '#0E0E14',
   },
   innerContent: {

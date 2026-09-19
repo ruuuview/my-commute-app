@@ -551,7 +551,7 @@ export default function RefundsScreen() {
                   pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <ShieldCheck size={14} color="#0098D4" weight="fill" />
@@ -655,7 +655,7 @@ export default function RefundsScreen() {
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <View style={styles.historyCardContent}>
@@ -826,8 +826,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
   },
   statusHeaderPillText: {
@@ -854,8 +852,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
   },
   feedSummaryCardContent: {
@@ -929,8 +925,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     padding: 16,
     gap: 8,
@@ -990,8 +984,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     marginTop: 12,
   },
@@ -1005,8 +997,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     position: 'relative',
   },

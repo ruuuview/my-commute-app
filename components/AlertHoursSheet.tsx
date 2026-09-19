@@ -195,7 +195,7 @@ export const AlertHoursSheet: React.FC<Props> = ({ visible, onClose }) => {
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemUltraThinMaterialDark"
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -486,7 +486,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
     maxHeight: '90%',
   },

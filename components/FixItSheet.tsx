@@ -111,7 +111,7 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={80} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+              <BlurView intensity={80} tint="systemMaterial" style={StyleSheet.absoluteFill} pointerEvents="none" />
             )
           )}
 
@@ -233,7 +233,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
     maxHeight: '70%',
     paddingHorizontal: 20,
     paddingTop: 10,

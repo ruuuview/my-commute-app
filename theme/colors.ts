@@ -75,19 +75,19 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
-  blurIntensity: 65,
-  // Card base frosted tint — transparent to let native blur and specular rims drive optical depth
-  background: 'transparent',
-  // Hairline perimeter specular rim
-  borderColor: 'rgba(255, 255, 255, 0.16)',
+  blurIntensity: 75,
+  // Card base frosted tint — calibrated Apple luminous translucency (not flat dark, not opaque white)
+  background: 'rgba(255, 255, 255, 0.08)',
+  // Hairline perimeter specular rim — uniform across all 4 corners and edges
+  borderColor: 'rgba(255, 255, 255, 0.28)',
   borderWidth: 0.75,
-  // Directional fallbacks
-  borderTop: 'rgba(255, 255, 255, 0.48)',
-  borderSides: 'rgba(255, 255, 255, 0.14)',
-  borderSide: 'rgba(255, 255, 255, 0.14)',
-  borderBottom: 'rgba(255, 255, 255, 0.08)',
-  // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
-  specularStart: 'rgba(255, 255, 255, 0.22)',
+  // Directional aliases kept identical to borderColor for 100% equal corner brightness
+  borderTop: 'rgba(255, 255, 255, 0.28)',
+  borderSides: 'rgba(255, 255, 255, 0.28)',
+  borderSide: 'rgba(255, 255, 255, 0.28)',
+  borderBottom: 'rgba(255, 255, 255, 0.28)',
+  // Specular top-rim catch-light sheen (subtle top-to-bottom surface light falloff)
+  specularStart: 'rgba(255, 255, 255, 0.12)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
   // Zero shadows behind cards per design specification
   shadowColor: 'transparent',

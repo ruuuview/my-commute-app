@@ -94,7 +94,7 @@ export function PermissionPrimerModal() {
             ) : (
               <BlurView
                 intensity={80}
-                tint="systemUltraThinMaterialDark"
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -143,7 +143,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
     paddingHorizontal: 24,
     paddingTop: 12,

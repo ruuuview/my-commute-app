@@ -298,7 +298,7 @@ export default function StationDetailScreen({
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemUltraThinMaterialDark"
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -570,8 +570,6 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
   },
 
   lineHeader: {

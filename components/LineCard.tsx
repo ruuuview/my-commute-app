@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { getSeverityColor } from '../utils/getSeverityColor';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StatusBezel } from './StatusBezel';
@@ -203,6 +204,7 @@ export const LineCard = memo(function LineCard({
 
   // Zero shadow invariant per Apple Liquid Glass design standard (no drop/glow shadows)
   const selectedShadowStyle = null;
+  const unselectedBorder = GLASS.borderColor;
 
   return (
     <Animated.View
@@ -223,13 +225,7 @@ export const LineCard = memo(function LineCard({
             borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : GLASS.borderWidth,
             borderColor: mode === 'select' && selected
               ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
-              : GLASS.borderColor,
-            borderTopColor: mode === 'select' && selected
-              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
-              : GLASS.borderTop,
-            borderBottomColor: mode === 'select' && selected
-              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
-              : GLASS.borderBottom,
+              : unselectedBorder,
           },
           pressAnim.animatedStyle,
           mode === 'display' ? pressAnim.liftBorderStyle : null,
@@ -246,11 +242,30 @@ export const LineCard = memo(function LineCard({
           ) : (
             <BlurView
               intensity={GLASS.blurIntensity}
-              tint="systemUltraThinMaterialDark"
+              tint="systemMaterial"
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           )
+        )}
+
+        {/* Specular top highlight falloff across upper curved surface */}
+        {!reduceTransparency && (
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 14,
+              borderTopLeftRadius: cardRadius,
+              borderTopRightRadius: cardRadius,
+            }}
+            pointerEvents="none"
+          />
         )}
 
         {mode === 'select' && selected && (

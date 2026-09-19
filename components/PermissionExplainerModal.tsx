@@ -97,7 +97,7 @@ export default function PermissionExplainerModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <BlurView intensity={40} tint="systemUltraThinMaterialDark" pointerEvents="none" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={40} tint="dark" pointerEvents="none" style={StyleSheet.absoluteFill} />
 
         <View
           style={[
@@ -122,8 +122,8 @@ export default function PermissionExplainerModal({
               />
             ) : (
               <BlurView
-                intensity={70}
-                tint="systemUltraThinMaterialDark"
+                intensity={GLASS.blurIntensity}
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -198,8 +198,6 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     alignItems: 'center',
   },

@@ -322,7 +322,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemUltraThinMaterialDark"
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -606,7 +606,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
   },
   header: {

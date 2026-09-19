@@ -207,7 +207,7 @@ export default function TflRegistrationScreen() {
               ) : (
                 <BlurView
                   intensity={GLASS.blurIntensity}
-                  tint="systemUltraThinMaterialDark"
+                  tint="systemMaterial"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
@@ -380,8 +380,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
   },
   accentBar: {

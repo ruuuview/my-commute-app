@@ -190,8 +190,8 @@ export default function SafariClaimAssistant({
               />
             ) : (
               <BlurView
-                intensity={Platform.OS === 'ios' ? 70 : 100}
-                tint="systemUltraThinMaterialDark"
+                intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
+                tint="systemMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -345,7 +345,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
   },
   dragHandle: {
     width: 38,

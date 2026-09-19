@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
@@ -11,7 +11,9 @@ import { useReduceTransparency } from '../hooks/useReduceTransparency';
 let isNativeGlassAvailable = false;
 try {
   if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
+    isNativeGlassAvailable =
+      isLiquidGlassAvailable() &&
+      (typeof isGlassEffectAPIAvailable !== 'function' || isGlassEffectAPIAvailable());
   }
 } catch {
   isNativeGlassAvailable = false;
@@ -80,12 +82,14 @@ export const LiquidGlassView = memo(function LiquidGlassView({
             <GlassView
               glassEffectStyle="regular"
               colorScheme="dark"
+              pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           ) : (
             <BlurView
               intensity={intensity}
               tint={tint}
+              pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           )

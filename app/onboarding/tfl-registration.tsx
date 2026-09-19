@@ -206,7 +206,7 @@ export default function TflRegistrationScreen() {
                 />
               ) : (
                 <BlurView
-                  intensity={20}
+                  intensity={GLASS.blurIntensity}
                   tint="systemUltraThinMaterialDark"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
@@ -346,8 +346,6 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_BUTTON.background,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   skipAbsoluteText: {
     fontSize: 12,

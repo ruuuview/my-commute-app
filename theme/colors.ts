@@ -101,11 +101,11 @@ export const PREMIUM_BUTTON = {
   background: 'rgba(255, 255, 255, 0.12)',
   borderWidth: 1.25,
   borderColor: 'rgba(255, 255, 255, 0.38)',
-  shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.45,
-  shadowRadius: 8,
-  elevation: 4,
+  shadowColor: 'transparent',
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0,
+  shadowRadius: 0,
+  elevation: 0,
 };
 
 /** The interactive accent colour used across the app (not iOS blue) */

@@ -423,8 +423,6 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_BUTTON.background,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   skipAbsoluteText: {
     fontSize: 12,

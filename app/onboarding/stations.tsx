@@ -128,6 +128,11 @@ export default function StationsScreen() {
       [0, 1],
       ['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.45)']
     ),
+    borderTopColor: interpolateColor(
+      searchFocusProgress.value,
+      [0, 1],
+      ['rgba(255, 255, 255, 0.28)', 'rgba(255, 255, 255, 0.60)']
+    ),
     borderWidth: GLASS.borderWidth,
   }));
 
@@ -588,7 +593,7 @@ export default function StationsScreen() {
                           />
                         ) : (
                           <BlurView
-                            intensity={45}
+                            intensity={GLASS.blurIntensity}
                             tint="systemUltraThinMaterialDark"
                             style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
                             pointerEvents="none"
@@ -884,10 +889,6 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_BUTTON.background,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: GLASS.shadowColor,
-    shadowOffset: GLASS.shadowOffset,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   addCircle: {
     width: 28,
@@ -898,8 +899,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: PREMIUM_BUTTON.background,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   removeCircle: {
     width: 28,
@@ -1051,8 +1050,6 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_BUTTON.background,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
     alignSelf: 'center',
   },
   skipText: {
@@ -1069,8 +1066,6 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_BUTTON.background,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
-    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
-    shadowRadius: PREMIUM_BUTTON.shadowRadius,
   },
   backButtonPressed: {
     backgroundColor: 'rgba(255,255,255,0.12)',

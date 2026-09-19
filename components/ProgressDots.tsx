@@ -55,11 +55,6 @@ const styles = StyleSheet.create({
   dotActive: {
     width: DOT_ACTIVE_WIDTH,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#0066CC',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.85,
-    shadowRadius: 6,
-    elevation: 4,
   },
   dotComplete: {
     width: DOT_INACTIVE_WIDTH,

@@ -130,15 +130,9 @@ export const LineCard = memo(function LineCard({
 
   const opacityVal = useSharedValue(0);
 
-  const shadowOpacityBase = (mode === 'select' && selected)
-    ? (line.id === 'northern' ? 0.6 : (line.id === 'jubilee' ? 0.65 : 0.5))
-    : 0;
-
-  const shadowRadiusBase = (mode === 'select' && selected)
-    ? (line.id === 'northern' ? 10 : 8)
-    : 0;
-
-  const elevationBase = (mode === 'select' && selected) ? 5 : 0;
+  const shadowOpacityBase = 0;
+  const shadowRadiusBase = 0;
+  const elevationBase = 0;
 
   const jiggleStyle = useJiggle(jiggle, index, isActive);
   const [touchReady, setTouchReady] = useState(true);
@@ -207,16 +201,8 @@ export const LineCard = memo(function LineCard({
 
   const isNorthern = line.id === 'northern';
 
-  // Selection glow shadow configuration (Apple pill design).
-  // For Northern line, use a deep true black shadow (NORTHERN_SHADES.shadowColor: #000000)
-  // to physically ground and elevate the card with dark depth — NEVER white.
-  const selectedShadowStyle = (mode === 'select' && selected) ? {
-    shadowColor: isNorthern ? NORTHERN_SHADES.shadowColor : line.color,
-    shadowOffset: isNorthern ? { width: 0, height: 4 } : { width: 0, height: 0 },
-    shadowOpacity: isNorthern ? 0.90 : shadowOpacityBase,
-    shadowRadius: isNorthern ? 10 : shadowRadiusBase,
-    elevation: isNorthern ? 6 : elevationBase,
-  } : null;
+  // Zero shadow invariant per Apple Liquid Glass design standard (no drop/glow shadows)
+  const selectedShadowStyle = null;
 
   return (
     <Animated.View
@@ -527,10 +513,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: 'rgba(0,0,0,0.12)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 3,
   },
   grabberContainer: {
     marginLeft: 8,

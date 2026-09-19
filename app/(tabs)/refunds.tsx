@@ -546,12 +546,12 @@ export default function RefundsScreen() {
               isNativeGlassAvailable ? (
                 <GlassView
                   glassEffectStyle="regular"
-                  colorScheme="dark"
+                  colorScheme="light"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <ShieldCheck size={14} color="#0098D4" weight="fill" />
@@ -650,12 +650,12 @@ export default function RefundsScreen() {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <View style={styles.historyCardContent}>

@@ -52,7 +52,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
   contentStyle,
   borderRadius = 16,
   intensity = GLASS.blurIntensity,
-  tint = 'systemMaterial',
+  tint = GLASS.blurTint,
   specular = true,
   borderTopColor,
   borderColor = GLASS.borderColor,
@@ -72,8 +72,6 @@ export const LiquidGlassView = memo(function LiquidGlassView({
             borderRadius,
             backgroundColor: reduceTransparency
               ? '#1C1C1E'
-              : Platform.OS === 'android'
-              ? '#0E0E14'
               : GLASS.background,
             borderColor: reduceTransparency
               ? 'rgba(255, 255, 255, 0.20)'
@@ -93,14 +91,14 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           isNativeGlassAvailable ? (
             <GlassView
               glassEffectStyle="regular"
-              colorScheme="dark"
+              colorScheme="light"
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           ) : (
             <BlurView
               intensity={intensity}
-              tint={tint === 'dark' ? 'systemMaterial' : (tint as any)}
+              tint={tint === 'dark' ? GLASS.blurTint : (tint as any)}
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />

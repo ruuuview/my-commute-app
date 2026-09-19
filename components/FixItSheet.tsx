@@ -106,12 +106,12 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 style={StyleSheet.absoluteFill}
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={80} tint="systemMaterial" style={StyleSheet.absoluteFill} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
             )
           )}
 

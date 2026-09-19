@@ -98,14 +98,14 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
-    backgroundColor: Platform.OS === 'ios' ? GLASS.background : '#0E0E14',
+    backgroundColor: GLASS.background,
   },
   innerContent: {
     paddingHorizontal: 20,

@@ -239,14 +239,14 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
-                intensity={80}
-                tint="systemMaterial"
+                intensity={GLASS.blurIntensity}
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
+    backgroundColor: GLASS.background,
   },
   dragHandleWrap: {
     alignItems: 'center',

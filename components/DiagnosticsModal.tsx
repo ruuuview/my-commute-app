@@ -315,14 +315,14 @@ export const DiagnosticsModal: React.FC<Props> = ({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: Platform.OS === 'android' ? '#0A0C14' : GLASS.background,
+    backgroundColor: GLASS.background,
     paddingHorizontal: 20,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,

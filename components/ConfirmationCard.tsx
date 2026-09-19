@@ -95,12 +95,12 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <Text style={styles.question}>{question}</Text>
@@ -156,12 +156,12 @@ const InlineFixCard: React.FC<{
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="dark"
+            colorScheme="light"
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <Text style={styles.question}>{station.name} is...</Text>

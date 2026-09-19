@@ -76,14 +76,14 @@ export function ZeroStateHeroCard({
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="dark"
+            colorScheme="light"
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
         ) : (
           <BlurView
             intensity={GLASS.blurIntensity}
-            tint="systemMaterial"
+            tint={GLASS.blurTint}
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />

@@ -220,7 +220,7 @@ export const LineCard = memo(function LineCard({
           styles.cardInner,
           {
             borderRadius: cardRadius,
-            backgroundColor: reduceTransparency ? '#1C1C1E' : (Platform.OS === 'android' ? '#0E0E14' : GLASS.background),
+            backgroundColor: reduceTransparency ? '#1C1C1E' : GLASS.background,
             overflow: 'hidden',
             borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : GLASS.borderWidth,
             borderColor: mode === 'select' && selected
@@ -241,14 +241,14 @@ export const LineCard = memo(function LineCard({
           isNativeGlassAvailable ? (
             <GlassView
               glassEffectStyle="regular"
-              colorScheme="dark"
+              colorScheme="light"
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           ) : (
             <BlurView
               intensity={GLASS.blurIntensity}
-              tint="systemMaterial"
+              tint={GLASS.blurTint}
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />

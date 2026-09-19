@@ -200,14 +200,14 @@ export default function TflRegistrationScreen() {
               isNativeGlassAvailable ? (
                 <GlassView
                   glassEffectStyle="regular"
-                  colorScheme="dark"
+                  colorScheme="light"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
               ) : (
                 <BlurView
                   intensity={GLASS.blurIntensity}
-                  tint="systemMaterial"
+                  tint={GLASS.blurTint}
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />

@@ -105,8 +105,6 @@ export default function PermissionExplainerModal({
             {
               backgroundColor: reduceTransparency
                 ? '#1C1C1E'
-                : Platform.OS === 'android'
-                ? '#0E0E14'
                 : GLASS.background,
             },
           ]}
@@ -116,14 +114,14 @@ export default function PermissionExplainerModal({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

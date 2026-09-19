@@ -291,14 +291,14 @@ export default function StationDetailScreen({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -562,7 +562,7 @@ const s = StyleSheet.create({
     overflow: 'visible',
   },
   lineCardInner: {
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
+    backgroundColor: GLASS.background,
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 10,

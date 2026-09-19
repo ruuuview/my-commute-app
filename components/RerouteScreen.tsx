@@ -651,12 +651,12 @@ export default function RerouteScreen({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )
           )}
           <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} pointerEvents="none" />

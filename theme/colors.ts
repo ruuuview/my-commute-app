@@ -75,9 +75,11 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
-  blurIntensity: 75,
+  blurIntensity: 35,
+  // Adaptive Apple material tint: light optical frost prevents dark absorption on colored gradients
+  blurTint: 'systemUltraThinMaterialLight' as const,
   // Card base frosted tint — calibrated Apple luminous translucency (not flat dark, not opaque white)
-  background: 'rgba(255, 255, 255, 0.08)',
+  background: 'rgba(255, 255, 255, 0.12)',
   // Hairline perimeter specular rim
   borderColor: 'rgba(255, 255, 255, 0.16)',
   borderWidth: 0.75,

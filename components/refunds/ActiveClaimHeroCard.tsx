@@ -111,14 +111,14 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="dark"
+            colorScheme="light"
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
         ) : (
           <BlurView
             intensity={GLASS.blurIntensity}
-            tint="systemMaterial"
+            tint={GLASS.blurTint}
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
@@ -206,7 +206,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
         {/* Action Area: Frosted Filed State vs Full Apple Liquid Glass CTA */}
         {locallyFiledAtMs != null ? (
           <View style={styles.filedStatusBanner}>
-            <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" pointerEvents="none" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} pointerEvents="none" style={StyleSheet.absoluteFillObject} />
             <CheckCircle size={15} color="#10B981" weight="fill" />
             <Text style={styles.filedStatusText}>
               Filed — Awaiting TfL 10-day review
@@ -219,7 +219,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             accessibilityRole="button"
             accessibilityLabel="File a claim on TfL"
           >
-            <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" pointerEvents="none" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} pointerEvents="none" style={StyleSheet.absoluteFillObject} />
             <ArrowSquareOut size={16} color="#FFFFFF" weight="bold" />
             <Text style={styles.primaryCtaText}>
               File a Claim ↗
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
-    backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
+    backgroundColor: GLASS.background,
     marginBottom: 16,
     position: 'relative',
   },

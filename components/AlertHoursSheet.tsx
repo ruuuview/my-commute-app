@@ -188,14 +188,14 @@ export const AlertHoursSheet: React.FC<Props> = ({ visible, onClose }) => {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: Platform.OS === 'android' ? '#0F121E' : GLASS.background,
+    backgroundColor: GLASS.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,

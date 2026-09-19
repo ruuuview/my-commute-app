@@ -76,8 +76,6 @@ export function PermissionPrimerModal() {
               paddingBottom: Math.max(insets.bottom, 16),
               backgroundColor: reduceTransparency
                 ? '#1C1C1E'
-                : Platform.OS === 'android'
-                ? '#0E0E14'
                 : GLASS.background,
             },
           ]}
@@ -87,14 +85,14 @@ export function PermissionPrimerModal() {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
-                intensity={80}
-                tint="systemMaterial"
+                intensity={GLASS.blurIntensity}
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

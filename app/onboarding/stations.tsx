@@ -587,14 +587,14 @@ export default function StationsScreen() {
                         isNativeGlassAvailable ? (
                           <GlassView
                             glassEffectStyle="regular"
-                            colorScheme="dark"
+                            colorScheme="light"
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />
                         ) : (
                           <BlurView
                             intensity={GLASS.blurIntensity}
-                            tint="systemMaterial"
+                            tint={GLASS.blurTint}
                             style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
                             pointerEvents="none"
                           />
@@ -679,12 +679,12 @@ export default function StationsScreen() {
                         isNativeGlassAvailable ? (
                           <GlassView
                             glassEffectStyle="regular"
-                            colorScheme="dark"
+                            colorScheme="light"
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />
                         ) : (
-                          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                         )
                       )}
                       <View style={styles.addAnotherIconCircle}>

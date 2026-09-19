@@ -47,9 +47,9 @@ const SkeletonLineCard: React.FC = () => {
     <View style={[styles.lineCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
       {!reduceTransparency && (
         isNativeGlassAvailable ? (
-          <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <GlassView glassEffectStyle="regular" colorScheme="light" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.colorBarPlaceholder} />
@@ -68,9 +68,9 @@ const SkeletonStationCard: React.FC = () => {
     <View style={[styles.stationCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
       {!reduceTransparency && (
         isNativeGlassAvailable ? (
-          <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <GlassView glassEffectStyle="regular" colorScheme="light" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.stationHeader}>
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 40, 0.85)' : GLASS.background,
+    backgroundColor: GLASS.background,
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     marginBottom: 12,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15, 20, 70, 0.85)' : GLASS.background,
+    backgroundColor: GLASS.background,
   },
   stationHeader: {
     flexDirection: 'row',

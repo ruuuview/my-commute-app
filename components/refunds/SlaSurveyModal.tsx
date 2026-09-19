@@ -115,14 +115,14 @@ export function SlaSurveyModal({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: Platform.OS === 'ios' ? GLASS.background : 'rgba(7, 14, 38, 0.96)',
+    backgroundColor: GLASS.background,
     borderRadius: 24,
     padding: 24,
     borderWidth: GLASS.borderWidth,

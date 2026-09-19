@@ -36,12 +36,12 @@ const LifetimeMetricsCard: React.FC<LifetimeMetricsCardProps> = ({
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="dark"
+            colorScheme="light"
             style={styles.blurFill}
             pointerEvents="none"
           />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={styles.blurFill} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={styles.blurFill} pointerEvents="none" />
         )
       )}
       <View style={styles.glassFill}>

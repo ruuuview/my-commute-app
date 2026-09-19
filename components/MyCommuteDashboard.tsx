@@ -1118,12 +1118,12 @@ const MyCommuteDashboard: React.FC = () => {
                             isNativeGlassAvailable ? (
                               <GlassView
                                 glassEffectStyle="regular"
-                                colorScheme="dark"
+                                colorScheme="light"
                                 style={StyleSheet.absoluteFillObject}
                                 pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
@@ -1153,12 +1153,12 @@ const MyCommuteDashboard: React.FC = () => {
                             isNativeGlassAvailable ? (
                               <GlassView
                                 glassEffectStyle="regular"
-                                colorScheme="dark"
+                                colorScheme="light"
                                 style={StyleSheet.absoluteFillObject}
                                 pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
@@ -1207,14 +1207,14 @@ const MyCommuteDashboard: React.FC = () => {
                         isNativeGlassAvailable ? (
                           <GlassView
                             glassEffectStyle="regular"
-                            colorScheme="dark"
+                            colorScheme="light"
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />
                         ) : (
                           <BlurView
                             intensity={GLASS.blurIntensity}
-                            tint="systemMaterial"
+                            tint={GLASS.blurTint}
                             style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
                             pointerEvents="none"
                           />
@@ -1340,12 +1340,12 @@ const MyCommuteDashboard: React.FC = () => {
               isNativeGlassAvailable ? (
                 <GlassView
                   glassEffectStyle="regular"
-                  colorScheme="dark"
+                  colorScheme="light"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={GLASS.blurIntensity} tint="systemMaterial" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
@@ -1589,7 +1589,7 @@ const dash = StyleSheet.create({
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : GLASS.background,
+    backgroundColor: GLASS.background,
     alignItems: 'center',
     justifyContent: 'center',
   },

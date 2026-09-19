@@ -174,8 +174,6 @@ export default function SafariClaimAssistant({
             {
               backgroundColor: reduceTransparency
                 ? '#1C1C1E'
-                : Platform.OS === 'android'
-                ? '#0E0E14'
                 : 'rgba(7, 14, 38, 0.72)',
             },
           ]}
@@ -184,14 +182,14 @@ export default function SafariClaimAssistant({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="dark"
+                colorScheme="light"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
-                tint="systemMaterial"
+                tint={GLASS.blurTint}
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

@@ -57,12 +57,6 @@ export const MASTER_CANVAS = {
   VAULT_SETTINGS_BASE: '#070E24',
   VAULT_SETTINGS_GRADIENT: ['#002D7A', '#070E24', '#02040A'] as const,
 
-  // Atmospheric Dynamic Washes for Dashboard (Worst-Line Driven)
-  DASHBOARD_GOOD: ['#0B1B3A', '#07162C', '#030818'] as const, // Deep Royal Navy
-  DASHBOARD_MINOR: ['#221200', '#140A00', '#030818'] as const, // Dark Amber Copper
-  DASHBOARD_SEVERE: ['#280204', '#150102', '#030818'] as const, // Dark Crimson Obsidian
-  DASHBOARD_OFFLINE: ['#121824', '#0B101B', '#030818'] as const, // Neutral Dark Muted
-
   // Functional Accents (App-Wide Standard)
   CYAN_TELEMETRY: '#0098D4', // Live Radar Scan, TfL Links, Telemetry
   EMERALD_PROTECT: '#34D399', // 28-Day Active, Money Won, Good Service Dot

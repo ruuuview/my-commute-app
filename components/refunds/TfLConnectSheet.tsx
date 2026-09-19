@@ -297,6 +297,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
   },
   dragHandle: {
     width: 38,
@@ -363,7 +364,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     borderWidth: GLASS.borderWidth,
-    borderColor: GLASS.borderColor,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
     position: 'relative',

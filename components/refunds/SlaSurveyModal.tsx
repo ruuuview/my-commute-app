@@ -194,6 +194,8 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     gap: 16,
     overflow: 'hidden',
   },

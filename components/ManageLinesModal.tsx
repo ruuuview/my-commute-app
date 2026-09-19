@@ -317,6 +317,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
   },
   dragHandleWrap: {
@@ -354,6 +355,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,

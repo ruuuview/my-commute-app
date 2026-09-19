@@ -233,6 +233,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     maxHeight: '70%',
     paddingHorizontal: 20,
     paddingTop: 10,

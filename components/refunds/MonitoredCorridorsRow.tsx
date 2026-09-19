@@ -63,6 +63,8 @@ function chipStyle(brandColor: string, borderColor: string) {
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: GLASS.borderWidth,
     borderColor: borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   };
 }
 

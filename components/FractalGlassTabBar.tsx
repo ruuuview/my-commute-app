@@ -143,6 +143,8 @@ const styles = StyleSheet.create({
     backgroundColor: GLASS.background,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     alignSelf: 'center',
   },
   tabs: {
@@ -172,6 +174,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.40)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     borderRadius: 24,
   },
   tabLabel: {

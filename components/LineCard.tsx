@@ -225,7 +225,13 @@ export const LineCard = memo(function LineCard({
             borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : GLASS.borderWidth,
             borderColor: mode === 'select' && selected
               ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
-              : unselectedBorder,
+              : GLASS.borderColor,
+            borderTopColor: mode === 'select' && selected
+              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+              : GLASS.borderTop,
+            borderBottomColor: mode === 'select' && selected
+              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+              : GLASS.borderBottom,
           },
           pressAnim.animatedStyle,
           mode === 'display' ? pressAnim.liftBorderStyle : null,

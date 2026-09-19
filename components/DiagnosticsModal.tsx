@@ -606,6 +606,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
   },
   header: {

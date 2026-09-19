@@ -486,6 +486,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
     maxHeight: '90%',
   },

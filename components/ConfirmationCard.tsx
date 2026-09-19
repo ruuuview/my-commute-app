@@ -192,6 +192,8 @@ const styles = StyleSheet.create({
     backgroundColor: GLASS.background,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     position: 'relative',
   },

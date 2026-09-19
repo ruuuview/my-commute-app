@@ -254,6 +254,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     backgroundColor: Platform.OS === 'ios' ? GLASS.background : '#0E0E14',
   },
   innerContent: {

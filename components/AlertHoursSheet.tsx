@@ -188,7 +188,7 @@ export const AlertHoursSheet: React.FC<Props> = ({ visible, onClose }) => {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

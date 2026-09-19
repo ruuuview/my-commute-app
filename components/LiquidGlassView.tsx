@@ -2,7 +2,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
@@ -86,23 +85,16 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           contentStyle,
         ]}
       >
-        {/* Layer 1: Native Glass Effect (Liquid Glass when compiled, BlurView fallback) */}
+        {/* Layer 1: Native Glass Effect (Liquid Glass when compiled) */}
         {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
           isNativeGlassAvailable ? (
             <GlassView
               glassEffectStyle="regular"
-              colorScheme="light"
+              colorScheme="dark"
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
-          ) : (
-            <BlurView
-              intensity={intensity}
-              tint={tint === 'dark' ? GLASS.blurTint : (tint as any)}
-              pointerEvents="none"
-              style={StyleSheet.absoluteFillObject}
-            />
-          )
+          ) : null
         )}
 
         {/* Layer 2: Physical specular top sheen (simulates light refraction across curved glass) */}

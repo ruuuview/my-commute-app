@@ -315,7 +315,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

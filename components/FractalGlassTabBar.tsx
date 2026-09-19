@@ -92,7 +92,7 @@ const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress })
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

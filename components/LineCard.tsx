@@ -237,22 +237,13 @@ export const LineCard = memo(function LineCard({
           mode === 'display' ? pressAnim.liftBorderStyle : null,
         ]}
       >
-        {!reduceTransparency && (
-          isNativeGlassAvailable ? (
-            <GlassView
-              glassEffectStyle="regular"
-              colorScheme="light"
-              pointerEvents="none"
-              style={StyleSheet.absoluteFillObject}
-            />
-          ) : (
-            <BlurView
-              intensity={GLASS.blurIntensity}
-              tint={GLASS.blurTint}
-              pointerEvents="none"
-              style={StyleSheet.absoluteFillObject}
-            />
-          )
+        {!reduceTransparency && isNativeGlassAvailable && (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            pointerEvents="none"
+            style={StyleSheet.absoluteFillObject}
+          />
         )}
 
         {/* Specular top highlight falloff across upper curved surface */}

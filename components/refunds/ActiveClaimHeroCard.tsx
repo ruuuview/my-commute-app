@@ -111,7 +111,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="light"
+            colorScheme="dark"
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />

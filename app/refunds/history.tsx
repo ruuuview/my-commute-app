@@ -134,7 +134,7 @@ const ReceiptCard = React.memo(({ claim }: { claim: RadarClaim }) => {
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="light"
+            colorScheme="dark"
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />

@@ -80,7 +80,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
         {isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="light"
+            colorScheme="dark"
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
@@ -322,7 +322,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
           {isNativeGlassAvailable ? (
             <GlassView
               glassEffectStyle="regular"
-              colorScheme="light"
+              colorScheme="dark"
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />

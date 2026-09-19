@@ -114,7 +114,7 @@ export default function PermissionExplainerModal({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

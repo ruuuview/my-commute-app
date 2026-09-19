@@ -142,7 +142,7 @@ export default function TfLConnectSheet({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

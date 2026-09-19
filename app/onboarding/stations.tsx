@@ -587,7 +587,7 @@ export default function StationsScreen() {
                         isNativeGlassAvailable ? (
                           <GlassView
                             glassEffectStyle="regular"
-                            colorScheme="light"
+                            colorScheme="dark"
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />
@@ -679,7 +679,7 @@ export default function StationsScreen() {
                         isNativeGlassAvailable ? (
                           <GlassView
                             glassEffectStyle="regular"
-                            colorScheme="light"
+                            colorScheme="dark"
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />

@@ -185,22 +185,13 @@ const DepartureCard = memo(function DepartureCard({
       testID={`departure-card-${stationId}`}
     >
       <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
-        {!reduceTransparency && (
-          isNativeGlassAvailable ? (
-            <GlassView
-              glassEffectStyle="regular"
-              colorScheme="light"
-              pointerEvents="none"
-              style={StyleSheet.absoluteFillObject}
-            />
-          ) : (
-            <BlurView
-              intensity={GLASS.blurIntensity}
-              tint={GLASS.blurTint}
-              pointerEvents="none"
-              style={StyleSheet.absoluteFillObject}
-            />
-          )
+        {!reduceTransparency && isNativeGlassAvailable && (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            pointerEvents="none"
+            style={StyleSheet.absoluteFillObject}
+          />
         )}
 
         {/* Specular top highlight falloff across upper curved surface */}
@@ -214,9 +205,9 @@ const DepartureCard = memo(function DepartureCard({
               top: 0,
               left: 0,
               right: 0,
-              height: 14,
-              borderTopLeftRadius: 14,
-              borderTopRightRadius: 14,
+              height: 18,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
             }}
             pointerEvents="none"
           />
@@ -389,7 +380,7 @@ export default DepartureCard;
 const styles = StyleSheet.create({
   outerContainer: {
     marginBottom: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'visible',
     position: 'relative',
   },
@@ -400,7 +391,7 @@ const styles = StyleSheet.create({
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   pressable: {

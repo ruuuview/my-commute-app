@@ -239,7 +239,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

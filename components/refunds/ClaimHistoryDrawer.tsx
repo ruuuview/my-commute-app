@@ -98,7 +98,7 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

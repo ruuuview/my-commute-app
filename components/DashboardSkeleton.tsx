@@ -45,12 +45,8 @@ const SkeletonLineCard: React.FC = () => {
   const reduceTransparency = useReduceTransparency();
   return (
     <View style={[styles.lineCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
-      {!reduceTransparency && (
-        isNativeGlassAvailable ? (
-          <GlassView glassEffectStyle="regular" colorScheme="light" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-        ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-        )
+      {!reduceTransparency && isNativeGlassAvailable && (
+        <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
       )}
       <View style={styles.colorBarPlaceholder} />
       <View style={styles.lineCardContent}>
@@ -66,12 +62,8 @@ const SkeletonStationCard: React.FC = () => {
   const reduceTransparency = useReduceTransparency();
   return (
     <View style={[styles.stationCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
-      {!reduceTransparency && (
-        isNativeGlassAvailable ? (
-          <GlassView glassEffectStyle="regular" colorScheme="light" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-        ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-        )
+      {!reduceTransparency && isNativeGlassAvailable && (
+        <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
       )}
       <View style={styles.stationHeader}>
         <ShimmerBar width={140} height={16} />
@@ -154,7 +146,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stationCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,

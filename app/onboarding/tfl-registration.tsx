@@ -200,7 +200,7 @@ export default function TflRegistrationScreen() {
               isNativeGlassAvailable ? (
                 <GlassView
                   glassEffectStyle="regular"
-                  colorScheme="light"
+                  colorScheme="dark"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />

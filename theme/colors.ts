@@ -76,18 +76,18 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
   blurIntensity: 35,
-  // Adaptive Apple material tint: light optical frost prevents dark absorption on colored gradients
-  blurTint: 'systemUltraThinMaterialLight' as const,
+  // Adaptive Apple material tint: dark optical frost prevents milky wash on colored gradients
+  blurTint: 'systemUltraThinMaterialDark' as const,
   // Card base frosted tint — calibrated Apple luminous translucency (not flat dark, not opaque white)
   background: 'rgba(255, 255, 255, 0.12)',
   // Hairline perimeter specular rim
-  borderColor: 'rgba(255, 255, 255, 0.16)',
-  borderWidth: 0.75,
+  borderColor: 'rgba(255, 255, 255, 0.20)',
+  borderWidth: 1.0,
   // Directional fallbacks (authentic Apple liquid glass overhead lighting)
   borderTop: 'rgba(255, 255, 255, 0.48)',
-  borderSides: 'rgba(255, 255, 255, 0.14)',
-  borderSide: 'rgba(255, 255, 255, 0.14)',
-  borderBottom: 'rgba(255, 255, 255, 0.08)',
+  borderSides: 'rgba(255, 255, 255, 0.18)',
+  borderSide: 'rgba(255, 255, 255, 0.18)',
+  borderBottom: 'rgba(255, 255, 255, 0.10)',
   // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
   specularStart: 'rgba(255, 255, 255, 0.22)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',

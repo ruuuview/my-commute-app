@@ -91,17 +91,13 @@ export const ConfirmationCard: React.FC<Props> = ({ onDismiss }) => {
         />
       ) : (
         <View style={[styles.card, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
-          {!reduceTransparency && (
-            isNativeGlassAvailable ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme="light"
-                style={StyleSheet.absoluteFillObject}
-                pointerEvents="none"
-              />
-            ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-            )
+          {!reduceTransparency && isNativeGlassAvailable && (
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme="dark"
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
           )}
           <Text style={styles.question}>{question}</Text>
           <View style={styles.buttons}>
@@ -152,17 +148,13 @@ const InlineFixCard: React.FC<{
 
   return (
     <View style={[styles.card, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
-      {!reduceTransparency && (
-        isNativeGlassAvailable ? (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="light"
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-        )
+      {!reduceTransparency && isNativeGlassAvailable && (
+        <GlassView
+          glassEffectStyle="regular"
+          colorScheme="dark"
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
       )}
       <Text style={styles.question}>{station.name} is...</Text>
       <View style={styles.inlineChips}>

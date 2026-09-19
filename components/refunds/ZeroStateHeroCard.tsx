@@ -76,7 +76,7 @@ export function ZeroStateHeroCard({
         isNativeGlassAvailable ? (
           <GlassView
             glassEffectStyle="regular"
-            colorScheme="light"
+            colorScheme="dark"
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />

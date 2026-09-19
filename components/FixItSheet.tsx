@@ -106,7 +106,7 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 style={StyleSheet.absoluteFill}
                 pointerEvents="none"
               />

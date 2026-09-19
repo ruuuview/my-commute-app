@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import Animated, {
@@ -1114,17 +1113,13 @@ const MyCommuteDashboard: React.FC = () => {
                           onPressOut={notificationsOffPress.onPressOut}
                           style={[dash.arrivalBanner, notificationsOffPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
-                          {!reduceTransparency && (
-                            isNativeGlassAvailable ? (
-                              <GlassView
-                                glassEffectStyle="regular"
-                                colorScheme="light"
-                                style={StyleSheet.absoluteFillObject}
-                                pointerEvents="none"
-                              />
-                            ) : (
-                              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-                            )
+                          {!reduceTransparency && isNativeGlassAvailable && (
+                            <GlassView
+                              glassEffectStyle="regular"
+                              colorScheme="dark"
+                              style={StyleSheet.absoluteFillObject}
+                              pointerEvents="none"
+                            />
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
                           <Text style={dash.arrivalBannerText}>
@@ -1149,17 +1144,13 @@ const MyCommuteDashboard: React.FC = () => {
                           onPressOut={snoozedPress.onPressOut}
                           style={[dash.arrivalBanner, snoozedPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
-                          {!reduceTransparency && (
-                            isNativeGlassAvailable ? (
-                              <GlassView
-                                glassEffectStyle="regular"
-                                colorScheme="light"
-                                style={StyleSheet.absoluteFillObject}
-                                pointerEvents="none"
-                              />
-                            ) : (
-                              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-                            )
+                          {!reduceTransparency && isNativeGlassAvailable && (
+                            <GlassView
+                              glassEffectStyle="regular"
+                              colorScheme="dark"
+                              style={StyleSheet.absoluteFillObject}
+                              pointerEvents="none"
+                            />
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
                           <Text style={dash.arrivalBannerText}>
@@ -1207,18 +1198,11 @@ const MyCommuteDashboard: React.FC = () => {
                         isNativeGlassAvailable ? (
                           <GlassView
                             glassEffectStyle="regular"
-                            colorScheme="light"
+                            colorScheme="dark"
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />
-                        ) : (
-                          <BlurView
-                            intensity={GLASS.blurIntensity}
-                            tint={GLASS.blurTint}
-                            style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
-                            pointerEvents="none"
-                          />
-                        )
+                        ) : null
                       )}
                       <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
                       <Text style={dash.addCardText}>Add your first station</Text>
@@ -1340,13 +1324,11 @@ const MyCommuteDashboard: React.FC = () => {
               isNativeGlassAvailable ? (
                 <GlassView
                   glassEffectStyle="regular"
-                  colorScheme="light"
+                  colorScheme="dark"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
-              ) : (
-                <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-              )
+              ) : null
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
           </BouncyPressable>
@@ -1675,11 +1657,12 @@ const dash = StyleSheet.create({
   promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
   addStationCard: {
     alignSelf: 'stretch',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
+    backgroundColor: GLASS.background,
     height: 68,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1687,9 +1670,6 @@ const dash = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     marginBottom: 12,
-  },
-  addCardBlur: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(15,20,70,0.85)' : 'transparent',
   },
   addCardIcon: {
     marginRight: 10,

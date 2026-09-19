@@ -546,7 +546,7 @@ export default function RefundsScreen() {
               isNativeGlassAvailable ? (
                 <GlassView
                   glassEffectStyle="regular"
-                  colorScheme="light"
+                  colorScheme="dark"
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
@@ -650,7 +650,7 @@ export default function RefundsScreen() {
             isNativeGlassAvailable ? (
               <GlassView
                 glassEffectStyle="regular"
-                colorScheme="light"
+                colorScheme="dark"
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />

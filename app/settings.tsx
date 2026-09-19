@@ -1201,11 +1201,11 @@ const styles = StyleSheet.create({
   cardOuter: {
     borderRadius: 16,
     marginBottom: 4,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   cardInner: {
     paddingVertical: 6,

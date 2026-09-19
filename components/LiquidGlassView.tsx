@@ -71,6 +71,9 @@ export const LiquidGlassView = memo(function LiquidGlassView({
               : Platform.OS === 'android'
               ? '#0E0E14'
               : GLASS.background,
+            borderColor: reduceTransparency
+              ? 'rgba(255, 255, 255, 0.20)'
+              : (borderColor || GLASS.borderColor),
             borderTopColor: reduceTransparency
               ? 'rgba(255, 255, 255, 0.20)'
               : (borderTopColor || GLASS.borderTop),
@@ -123,5 +126,6 @@ const styles = StyleSheet.create({
   innerGlassBody: {
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
   },
 });

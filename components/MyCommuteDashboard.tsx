@@ -1123,7 +1123,7 @@ const MyCommuteDashboard: React.FC = () => {
                                 pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={45} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
@@ -1158,7 +1158,7 @@ const MyCommuteDashboard: React.FC = () => {
                                 pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={45} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
@@ -1213,7 +1213,7 @@ const MyCommuteDashboard: React.FC = () => {
                           />
                         ) : (
                           <BlurView
-                            intensity={20}
+                            intensity={GLASS.blurIntensity}
                             tint="systemUltraThinMaterialDark"
                             style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
                             pointerEvents="none"

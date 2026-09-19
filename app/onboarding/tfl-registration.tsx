@@ -36,6 +36,8 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
+import { isNativeGlassAvailable, GlassView } from '../../utils/glassAvailability';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TFL_REGISTRATION_URL — PLACEHOLDER, NEEDS CONFIRMING.
@@ -43,16 +45,18 @@ import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
 // contactless journey history (the 12-month window Refund Radar needs).
 // Default is the contactless/account sign-in landing page. Confirm the exact
 // deep-link target with product before launch — it may be a specific
-// "manage journey history" or "register an Oyster card" URL.
+// TfL URL path for contactless web access.
 // ─────────────────────────────────────────────────────────────────────────────
-const TFL_REGISTRATION_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account';
+const TFL_REGISTRATION_URL = 'https://contactless.tfl.gov.uk';
 
 export default function TflRegistrationScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { from } = useLocalSearchParams<{ from?: string }>();
-
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ from?: string }>();
+  const from = params.from;
+  const isPostActivation = from === 'radar';
+  const reduceTransparency = useReduceTransparency();
   const setTflRegistered = useUserPreferencesStore((s) => s.setTflRegistered);
   const completeOnboarding = useUserPreferencesStore((s) => s.completeOnboarding);
 
@@ -191,12 +195,24 @@ export default function TflRegistrationScreen() {
           </Text>
 
           {/* Glass explainer card — 4px top accent bar, PREMIUM_GLASS behind it */}
-          <View style={styles.cardWrap}>
-            <BlurView
-              intensity={20}
-              tint="light"
-              style={StyleSheet.absoluteFillObject}
-            />
+          <View style={[styles.cardWrap, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+            {!reduceTransparency && (
+              isNativeGlassAvailable ? (
+                <GlassView
+                  glassEffectStyle="regular"
+                  colorScheme="dark"
+                  style={StyleSheet.absoluteFillObject}
+                  pointerEvents="none"
+                />
+              ) : (
+                <BlurView
+                  intensity={20}
+                  tint="systemUltraThinMaterialDark"
+                  style={StyleSheet.absoluteFillObject}
+                  pointerEvents="none"
+                />
+              )
+            )}
             <View style={styles.accentBar} />
             <View style={styles.cardInner}>
               <View style={styles.compareRow}>
@@ -366,6 +382,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
   },
   accentBar: {

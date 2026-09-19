@@ -40,6 +40,8 @@ import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
+import { isNativeGlassAvailable, GlassView } from '../../utils/glassAvailability';
+import { useReduceTransparency } from '../../hooks/useReduceTransparency';
 
 // ─── Module-level constants ─────────────────────────────────────────────────
 const MAJOR_INTERCHANGE_IDS = new Set([
@@ -50,6 +52,7 @@ const MAJOR_INTERCHANGE_IDS = new Set([
 ]);
 
 export default function StationsScreen() {
+  const reduceTransparency = useReduceTransparency();
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -573,13 +576,25 @@ export default function StationsScreen() {
                   renderItem={({ item }) => (
                     <Pressable
                       onPress={() => handleRecentPress(item)}
-                      style={styles.recentSearchCard}
+                      style={[styles.recentSearchCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                     >
-                      <BlurView
-                        intensity={45}
-                        tint="dark"
-                        style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
-                      />
+                      {!reduceTransparency && (
+                        isNativeGlassAvailable ? (
+                          <GlassView
+                            glassEffectStyle="regular"
+                            colorScheme="dark"
+                            style={StyleSheet.absoluteFillObject}
+                            pointerEvents="none"
+                          />
+                        ) : (
+                          <BlurView
+                            intensity={45}
+                            tint="systemUltraThinMaterialDark"
+                            style={[StyleSheet.absoluteFillObject, styles.recentCardBlur]}
+                            pointerEvents="none"
+                          />
+                        )
+                      )}
                       <Text style={styles.recentSearchText} numberOfLines={1}>
                         {tflCapitalise(cleanDisplayStationName(item.name))}
                       </Text>
@@ -650,11 +665,23 @@ export default function StationsScreen() {
                       style={({ pressed }) => [
                         styles.addAnotherCard,
                         pressed && styles.addAnotherCardPressed,
+                        reduceTransparency && { backgroundColor: '#1C1C1E' },
                       ]}
                       accessibilityRole="button"
                       accessibilityLabel={pinnedStations.length === 1 ? 'Add destination station' : 'Add another station'}
                     >
-                      <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+                      {!reduceTransparency && (
+                        isNativeGlassAvailable ? (
+                          <GlassView
+                            glassEffectStyle="regular"
+                            colorScheme="dark"
+                            style={StyleSheet.absoluteFillObject}
+                            pointerEvents="none"
+                          />
+                        ) : (
+                          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                        )
+                      )}
                       <View style={styles.addAnotherIconCircle}>
                         <Ionicons name="add" size={16} color="#FFFFFF" />
                       </View>
@@ -972,6 +999,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
   recentCardBlur: {
     backgroundColor: GLASS.background,

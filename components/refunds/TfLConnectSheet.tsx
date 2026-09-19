@@ -145,10 +145,16 @@ export default function TfLConnectSheet({
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 85 : 100}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
           )}
 
@@ -163,17 +169,6 @@ export default function TfLConnectSheet({
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
               style={StyleSheet.absoluteFillObject}
-              pointerEvents="none"
-            />
-          )}
-
-          {/* Top specular rim catch-light */}
-          {!reduceTransparency && (
-            <LinearGradient
-              colors={[GLASS.specularStart, GLASS.specularEnd]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.specularTopSheen}
               pointerEvents="none"
             />
           )}
@@ -216,13 +211,6 @@ export default function TfLConnectSheet({
 
             {/* The single recommended card — Full Protection (28 Days) */}
             <View style={styles.recommendedCard}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.18)', 'rgba(255, 255, 255, 0.00)']}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={styles.cardSpecularTop}
-                pointerEvents="none"
-              />
 
               <View style={styles.cardRow}>
                 <View style={styles.cardIconWrap}>
@@ -309,27 +297,12 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.65,
     shadowRadius: 24,
     elevation: 20,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    zIndex: 10,
-  },
-  cardSpecularTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    zIndex: 2,
   },
   dragHandle: {
     width: 38,
@@ -397,6 +370,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: 'rgba(255, 255, 255, 0.09)',
     overflow: 'hidden',
     position: 'relative',

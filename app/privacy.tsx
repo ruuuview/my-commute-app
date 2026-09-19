@@ -7,12 +7,15 @@ import { BlurView } from 'expo-blur';
 import Animated from 'react-native-reanimated';
 import { GLASS } from '../theme/colors';
 import { usePressAnimation } from '../hooks/usePressAnimation';
+import { isNativeGlassAvailable, GlassView } from '../utils/glassAvailability';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function PrivacyScreen() {
   const { back } = useRouter();
   const backPress = usePressAnimation('back_btn');
+  const reduceTransparency = useReduceTransparency();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -33,8 +36,19 @@ export default function PrivacyScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.card, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            )
+          )}
           <Text style={styles.lastUpdated}>Last updated: July 2026</Text>
 
           <Text style={styles.bodyText}>
@@ -113,6 +127,8 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     marginTop: 8,
   },

@@ -437,19 +437,12 @@ export function LineDetailModal({
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint="dark"
+                tint="systemUltraThinMaterialDark"
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
             )
           )}
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.specularTopSheen}
-          />
 
           {/* ── Content wrapper: scrollable when content is long, flexGrow: 0 shrink-wraps short content ── */}
           <ScrollView
@@ -602,20 +595,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.55,
     shadowRadius: 20,
     elevation: 16,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
-  },
-
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
   },
 
   popupFade: {

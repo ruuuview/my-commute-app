@@ -116,10 +116,16 @@ export function SlaSurveyModal({
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 70 : 100}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
           )}
           
@@ -134,16 +140,6 @@ export function SlaSurveyModal({
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
-
-          {!reduceTransparency && (
-            <LinearGradient
-              colors={[GLASS.specularStart, GLASS.specularEnd]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.specularTopSheen}
-              pointerEvents="none"
-            />
-          )}
 
           <View style={styles.modalHeader}>
             <Clock size={24} color="#38BDF8" weight="bold" />
@@ -198,6 +194,8 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     gap: 16,
     overflow: 'hidden',
     shadowColor: '#000000',
@@ -205,14 +203,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.75,
     shadowRadius: 24,
     elevation: 20,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    zIndex: 10,
   },
   modalHeader: {
     flexDirection: 'row',

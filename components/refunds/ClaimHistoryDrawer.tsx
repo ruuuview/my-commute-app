@@ -99,10 +99,16 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={Platform.OS === 'ios' ? 85 : 100} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 85 : 100}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
           )}
 
@@ -115,14 +121,6 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.specularTopSheen}
             pointerEvents="none"
           />
 
@@ -256,20 +254,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     backgroundColor: Platform.OS === 'ios' ? GLASS.background : '#0E0E14',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.65,
     shadowRadius: 24,
     elevation: 20,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    zIndex: 10,
   },
   innerContent: {
     paddingHorizontal: 20,

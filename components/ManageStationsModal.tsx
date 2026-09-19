@@ -82,12 +82,14 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
             glassEffectStyle="regular"
             colorScheme="dark"
             style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
           />
         ) : (
           <BlurView
             intensity={GLASS.blurIntensity}
-            tint="dark"
+            tint="systemUltraThinMaterialDark"
             style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
           />
         )}
         <View style={styles.compactCardContent}>
@@ -322,9 +324,10 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
               glassEffectStyle="regular"
               colorScheme="dark"
               style={StyleSheet.absoluteFill}
+              pointerEvents="none"
             />
           ) : (
-            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={80} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFill} pointerEvents="none" />
           )}
 
           {/* Drag handle */}
@@ -456,6 +459,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,
@@ -592,6 +596,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
   compactCardContent: {
     flex: 1,

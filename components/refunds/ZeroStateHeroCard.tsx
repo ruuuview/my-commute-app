@@ -4,7 +4,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Broadcast, ShieldCheck } from 'phosphor-react-native';
 import Animated, {
   useSharedValue,
@@ -78,20 +77,18 @@ export function ZeroStateHeroCard({
           <GlassView
             glassEffectStyle="regular"
             colorScheme="dark"
+            pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="systemUltraThinMaterialDark"
+            pointerEvents="none"
+            style={StyleSheet.absoluteFillObject}
+          />
         )
       )}
-
-      <LinearGradient
-        colors={[GLASS.specularStart, GLASS.specularEnd]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-        style={styles.specularTopSheen}
-      />
 
       <View style={styles.fill}>
         <View style={styles.topRow}>
@@ -147,16 +144,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     marginBottom: 16,
     position: 'relative',
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 20,
   },
   fill: {
     padding: 22,

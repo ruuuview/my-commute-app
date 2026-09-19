@@ -9,15 +9,16 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MASTER_CANVAS } from '../theme/colors';
 import type { Severity } from './MyCommuteDashboard';
 
-const STATUS_GRADIENTS: Record<Severity, readonly [string, string]> = {
-  good: ['#0d5c2e', '#000000'],
-  minor: ['#a86400', '#000000'],
-  severe: ['#7a0e0e', '#000000'],
-  suspended: ['#5c0a0a', '#000000'],
-  offline: ['#1a1a2e', '#000000'],
-  unknown: ['#1a1a2e', '#000000'],
+const STATUS_GRADIENTS: Record<Severity, readonly [string, string, string]> = {
+  good: MASTER_CANVAS.DASHBOARD_GOOD,
+  minor: MASTER_CANVAS.DASHBOARD_MINOR,
+  severe: MASTER_CANVAS.DASHBOARD_SEVERE,
+  suspended: MASTER_CANVAS.DASHBOARD_SEVERE,
+  offline: MASTER_CANVAS.DASHBOARD_OFFLINE,
+  unknown: MASTER_CANVAS.DASHBOARD_OFFLINE,
 } as const;
 
 interface Props {

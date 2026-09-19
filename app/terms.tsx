@@ -5,9 +5,12 @@ import { useRouter, Stack } from 'expo-router';
 import { CaretLeft } from 'phosphor-react-native';
 import { BlurView } from 'expo-blur';
 import { GLASS } from '../theme/colors';
+import { isNativeGlassAvailable, GlassView } from '../utils/glassAvailability';
+import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
 export default function TermsScreen() {
   const { back } = useRouter();
+  const reduceTransparency = useReduceTransparency();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -23,8 +26,19 @@ export default function TermsScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.card, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            )
+          )}
           <Text style={styles.lastUpdated}>Last updated: July 2026</Text>
 
           <Text style={styles.bodyText}>
@@ -105,6 +119,8 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     marginTop: 8,
   },

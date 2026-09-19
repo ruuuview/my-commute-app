@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   Clock,
@@ -113,20 +112,18 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
           <GlassView
             glassEffectStyle="regular"
             colorScheme="dark"
+            pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint="systemUltraThinMaterialDark"
+            pointerEvents="none"
+            style={StyleSheet.absoluteFillObject}
+          />
         )
       )}
-
-      <LinearGradient
-        colors={[GLASS.specularStart, GLASS.specularEnd]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-        style={styles.specularTopSheen}
-      />
 
       <View style={styles.cardBody}>
         {/* Top Header Row: Line Badge + Countdown + Ghost Dismiss */}
@@ -209,7 +206,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
         {/* Action Area: Frosted Filed State vs Full Apple Liquid Glass CTA */}
         {locallyFiledAtMs != null ? (
           <View style={styles.filedStatusBanner}>
-            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={20} tint="systemUltraThinMaterialDark" pointerEvents="none" style={StyleSheet.absoluteFillObject} />
             <CheckCircle size={15} color="#10B981" weight="fill" />
             <Text style={styles.filedStatusText}>
               Filed — Awaiting TfL 10-day review
@@ -222,14 +219,7 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
             accessibilityRole="button"
             accessibilityLabel="File a claim on TfL"
           >
-            <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.30)', 'rgba(255, 255, 255, 0.00)']}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              pointerEvents="none"
-              style={styles.buttonSpecularSheen}
-            />
+            <BlurView intensity={25} tint="systemUltraThinMaterialDark" pointerEvents="none" style={StyleSheet.absoluteFillObject} />
             <ArrowSquareOut size={16} color="#FFFFFF" weight="bold" />
             <Text style={styles.primaryCtaText}>
               File a Claim ↗
@@ -249,17 +239,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: Platform.OS === 'android' ? '#0E0E14' : GLASS.background,
     marginBottom: 16,
     position: 'relative',
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 20,
-    zIndex: 2,
   },
   cardBody: {
     padding: 16,
@@ -407,19 +391,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderTopColor: 'rgba(255, 255, 255, 0.45)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     marginTop: 4,
     position: 'relative',
-  },
-  buttonSpecularSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
   },
   primaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',

@@ -3,7 +3,6 @@ import React, { memo } from 'react';
 import { View, StyleSheet, Pressable, Text, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, useReducedMotion } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -94,19 +93,18 @@ const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress })
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
           )}
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.specularTopSheen}
-          />
           <View style={styles.tabs}>
             {tabs.map(tab => (
               <TabButton
@@ -150,14 +148,9 @@ const styles = StyleSheet.create({
     backgroundColor: GLASS.background,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     alignSelf: 'center',
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
   },
   tabs: {
     flexDirection: 'row',

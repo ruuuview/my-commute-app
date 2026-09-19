@@ -108,9 +108,10 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
                 glassEffectStyle="regular"
                 colorScheme="dark"
                 style={StyleSheet.absoluteFill}
+                pointerEvents="none"
               />
             ) : (
-              <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+              <BlurView intensity={80} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFill} pointerEvents="none" />
             )
           )}
 
@@ -232,6 +233,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,

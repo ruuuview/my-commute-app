@@ -2,7 +2,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
@@ -54,6 +53,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
   intensity = GLASS.blurIntensity,
   tint = 'dark',
   specular = true,
+  borderTopColor,
   borderColor = GLASS.borderColor,
   testID,
 }: LiquidGlassViewProps) {
@@ -71,7 +71,12 @@ export const LiquidGlassView = memo(function LiquidGlassView({
               : Platform.OS === 'android'
               ? '#0E0E14'
               : GLASS.background,
-            borderColor: reduceTransparency ? 'rgba(255, 255, 255, 0.20)' : borderColor,
+            borderTopColor: reduceTransparency
+              ? 'rgba(255, 255, 255, 0.20)'
+              : (borderTopColor || GLASS.borderTop),
+            borderBottomColor: reduceTransparency
+              ? 'rgba(255, 255, 255, 0.20)'
+              : GLASS.borderBottom,
           },
           contentStyle,
         ]}
@@ -88,25 +93,14 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           ) : (
             <BlurView
               intensity={intensity}
-              tint={tint}
+              tint={tint === 'dark' ? 'systemUltraThinMaterialDark' : tint}
               pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           )
         )}
 
-        {/* Layer 2: Specular Top Rim Catch-Light (Physical Glass Highlight) */}
-        {specular && !reduceTransparency && (
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.specularTopSheen}
-          />
-        )}
-
-        {/* Layer 3: Content */}
+        {/* Layer 2: Content */}
         {children}
       </View>
     </View>
@@ -129,12 +123,5 @@ const styles = StyleSheet.create({
   innerGlassBody: {
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 22,
   },
 });

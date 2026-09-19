@@ -18,7 +18,6 @@ import { STATUS_SHORT } from '../constants/statusLabels';
 import { getSeverityColor } from '../utils/getSeverityColor';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StatusBezel } from './StatusBezel';
 import { GLASS } from '../theme/colors';
@@ -239,6 +238,12 @@ export const LineCard = memo(function LineCard({
             borderColor: mode === 'select' && selected
               ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
               : GLASS.borderColor,
+            borderTopColor: mode === 'select' && selected
+              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+              : GLASS.borderTop,
+            borderBottomColor: mode === 'select' && selected
+              ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+              : GLASS.borderBottom,
           },
           pressAnim.animatedStyle,
           mode === 'display' ? pressAnim.liftBorderStyle : null,
@@ -249,12 +254,14 @@ export const LineCard = memo(function LineCard({
             <GlassView
               glassEffectStyle="regular"
               colorScheme="dark"
+              pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           ) : (
             <BlurView
               intensity={GLASS.blurIntensity}
-              tint="dark"
+              tint="systemUltraThinMaterialDark"
+              pointerEvents="none"
               style={StyleSheet.absoluteFillObject}
             />
           )
@@ -272,14 +279,6 @@ export const LineCard = memo(function LineCard({
             ]}
           />
         )}
-
-        <LinearGradient
-          colors={[GLASS.specularStart, GLASS.specularEnd]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          pointerEvents="none"
-          style={styles.specularTopSheen}
-        />
 
         <View
           style={[
@@ -573,12 +572,5 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 18,
     textAlign: 'center',
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
   },
 });

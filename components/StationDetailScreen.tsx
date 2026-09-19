@@ -19,7 +19,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Train } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -33,7 +33,6 @@ import { NORTHERN_SHADES } from '../constants/lineColors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { getSeverityColor } from '../utils/getSeverityColor';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
 let isNativeGlassAvailable = false;
@@ -293,21 +292,17 @@ export default function StationDetailScreen({
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
-          )}
-
-          {!reduceTransparency && (
-            <LinearGradient
-              colors={[GLASS.specularStart, GLASS.specularEnd]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              pointerEvents="none"
-              style={s.specularTopSheen}
-            />
           )}
 
           {/* Line header: color bar + name in small caps */}
@@ -575,13 +570,8 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
 
   lineHeader: {

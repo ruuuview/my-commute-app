@@ -17,7 +17,6 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
-import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import * as Location from 'expo-location'
 import { MapPin, Bell, ShieldCheck, X } from 'phosphor-react-native'
@@ -98,7 +97,7 @@ export default function PermissionExplainerModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={40} tint="systemUltraThinMaterialDark" pointerEvents="none" style={StyleSheet.absoluteFill} />
 
         <View
           style={[
@@ -118,22 +117,17 @@ export default function PermissionExplainerModal({
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={70}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
-          )}
-
-          {/* Layer 2: Specular Top Rim Catch-Light */}
-          {!reduceTransparency && (
-            <LinearGradient
-              colors={[GLASS.specularStart, GLASS.specularEnd]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              pointerEvents="none"
-              style={styles.specularTopSheen}
-            />
           )}
 
           <Pressable
@@ -204,6 +198,8 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
@@ -211,13 +207,6 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
     alignItems: 'center',
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 20,
   },
   closeButton: {
     position: 'absolute',

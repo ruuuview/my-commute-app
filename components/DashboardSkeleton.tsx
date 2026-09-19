@@ -47,9 +47,9 @@ const SkeletonLineCard: React.FC = () => {
     <View style={[styles.lineCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
       {!reduceTransparency && (
         isNativeGlassAvailable ? (
-          <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} />
+          <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.colorBarPlaceholder} />
@@ -68,9 +68,9 @@ const SkeletonStationCard: React.FC = () => {
     <View style={[styles.stationCard, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
       {!reduceTransparency && (
         isNativeGlassAvailable ? (
-          <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} />
+          <GlassView glassEffectStyle="regular" colorScheme="dark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.stationHeader}>
@@ -133,6 +133,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     marginBottom: 8,
     overflow: 'hidden',
   },
@@ -155,6 +157,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     minHeight: 110,
     paddingHorizontal: 16,
     paddingVertical: 16,

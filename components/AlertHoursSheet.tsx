@@ -21,7 +21,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,7 +37,6 @@ import {
 } from 'phosphor-react-native';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { GLASS } from '../theme/colors';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
 let isNativeGlassAvailable = false;
@@ -190,20 +189,17 @@ export const AlertHoursSheet: React.FC<Props> = ({ visible, onClose }) => {
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
-          )}
-          {!reduceTransparency && (
-            <LinearGradient
-              colors={[GLASS.specularStart, GLASS.specularEnd]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              pointerEvents="none"
-              style={styles.specularTopSheen}
-            />
           )}
 
           {/* Header */}
@@ -490,6 +486,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
     maxHeight: '90%',
     shadowColor: '#000000',
@@ -497,13 +494,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.55,
     shadowRadius: 24,
     elevation: 16,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
   },
   header: {
     flexDirection: 'row',

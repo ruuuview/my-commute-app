@@ -25,7 +25,6 @@ import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
-import { LinearGradient } from 'expo-linear-gradient';
 
 let isNativeGlassAvailable = false;
 try {
@@ -241,23 +240,18 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
               <BlurView
                 intensity={80}
-                tint="dark"
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             )
           )}
-          <LinearGradient
-            colors={[GLASS.specularStart, GLASS.specularEnd]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-            style={styles.specularTopSheen}
-          />
           {/* Drag handle */}
           <View style={styles.dragHandleWrap}>
             <View style={styles.dragHandle} />
@@ -323,6 +317,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.55,
@@ -396,13 +391,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: '#DC2626',
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 24,
-    zIndex: 1,
   },
 });

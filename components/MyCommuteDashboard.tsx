@@ -1120,9 +1120,10 @@ const MyCommuteDashboard: React.FC = () => {
                                 glassEffectStyle="regular"
                                 colorScheme="dark"
                                 style={StyleSheet.absoluteFillObject}
+                                pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                              <BlurView intensity={45} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
@@ -1154,9 +1155,10 @@ const MyCommuteDashboard: React.FC = () => {
                                 glassEffectStyle="regular"
                                 colorScheme="dark"
                                 style={StyleSheet.absoluteFillObject}
+                                pointerEvents="none"
                               />
                             ) : (
-                              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+                              <BlurView intensity={45} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                             )
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
@@ -1207,12 +1209,14 @@ const MyCommuteDashboard: React.FC = () => {
                             glassEffectStyle="regular"
                             colorScheme="dark"
                             style={StyleSheet.absoluteFillObject}
+                            pointerEvents="none"
                           />
                         ) : (
                           <BlurView
                             intensity={20}
-                            tint="dark"
+                            tint="systemUltraThinMaterialDark"
                             style={[StyleSheet.absoluteFillObject, dash.addCardBlur]}
+                            pointerEvents="none"
                           />
                         )
                       )}
@@ -1338,9 +1342,10 @@ const MyCommuteDashboard: React.FC = () => {
                   glassEffectStyle="regular"
                   colorScheme="dark"
                   style={StyleSheet.absoluteFillObject}
+                  pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+                <BlurView intensity={24} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
@@ -1586,6 +1591,8 @@ const dash = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1682,6 +1689,8 @@ const dash = StyleSheet.create({
     borderRadius: 18,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     height: 68,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1713,6 +1722,8 @@ const dash = StyleSheet.create({
     borderRadius: 16,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
   },
   arrivalBannerText: {

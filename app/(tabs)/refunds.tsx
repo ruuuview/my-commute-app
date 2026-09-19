@@ -60,6 +60,8 @@ import {
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { GLASS, CANVAS_LONDON_NIGHT } from '../../theme/colors'
+import { isNativeGlassAvailable, GlassView } from '../../utils/glassAvailability'
+import { useReduceTransparency } from '../../hooks/useReduceTransparency'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
 import {
   COLOR_EMERALD,
@@ -160,6 +162,7 @@ function SignalLockHero({
 
 export default function RefundsScreen() {
   const insets = useSafeAreaInsets()
+  const reduceTransparency = useReduceTransparency()
 
   const tflAccountStatus = useUserPreferencesStore((s) => s.tflAccountStatus)
   const setTflAccountStatus = useUserPreferencesStore((s) => s.setTflAccountStatus)
@@ -531,7 +534,7 @@ export default function RefundsScreen() {
         </View>
         {tflAccountStatus !== 'NOT_SET' && (
           <Pressable
-            style={styles.statusHeaderPill}
+            style={[styles.statusHeaderPill, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
               setConnectSheetVisible(true)
@@ -539,7 +542,18 @@ export default function RefundsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Change TfL registration"
           >
-            <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFillObject} />
+            {!reduceTransparency && (
+              isNativeGlassAvailable ? (
+                <GlassView
+                  glassEffectStyle="regular"
+                  colorScheme="dark"
+                  style={StyleSheet.absoluteFillObject}
+                  pointerEvents="none"
+                />
+              ) : (
+                <BlurView intensity={25} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              )
+            )}
             <ShieldCheck size={14} color="#0098D4" weight="fill" />
             <Text style={styles.statusHeaderPillText}>
               {tflAccountStatus === 'REGISTERED_28_DAY' ? '28-Day' : '7-Day'}
@@ -627,11 +641,23 @@ export default function RefundsScreen() {
           style={({ pressed }) => [
             styles.historyCard,
             pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+            reduceTransparency && { backgroundColor: '#1C1C1E' },
           ]}
           accessibilityRole="button"
           accessibilityLabel="View claim history and receipts"
         >
-          <BlurView intensity={GLASS.blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
+          {!reduceTransparency && (
+            isNativeGlassAvailable ? (
+              <GlassView
+                glassEffectStyle="regular"
+                colorScheme="dark"
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            ) : (
+              <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+            )
+          )}
           <View style={styles.historyCardContent}>
             <View style={styles.historyCardLeft}>
               <View style={styles.historyIconCircle}>
@@ -800,6 +826,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   statusHeaderPillText: {
@@ -986,6 +1014,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     position: 'relative',
   },

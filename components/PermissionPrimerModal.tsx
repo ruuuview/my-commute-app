@@ -12,7 +12,6 @@ import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -89,22 +88,17 @@ export function PermissionPrimerModal() {
               <GlassView
                 glassEffectStyle="regular"
                 colorScheme="dark"
+                pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />
             ) : (
-              <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
+              <BlurView
+                intensity={80}
+                tint="systemUltraThinMaterialDark"
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
             )
-          )}
-
-          {/* Layer 2: Specular Top Rim Catch-Light */}
-          {!reduceTransparency && (
-            <LinearGradient
-              colors={[GLASS.specularStart, GLASS.specularEnd]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              pointerEvents="none"
-              style={styles.specularTopSheen}
-            />
           )}
 
           <View style={styles.handle} />
@@ -149,6 +143,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -8 },
@@ -158,13 +153,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     gap: 14,
-  },
-  specularTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 20,
   },
   handle: {
     alignSelf: 'center',

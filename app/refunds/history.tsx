@@ -37,6 +37,8 @@ import {
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { SlaSurveyModal } from '../../components/refunds/SlaSurveyModal'
 import { GLASS, CANVAS_LONDON_NIGHT } from '../../theme/colors'
+import { isNativeGlassAvailable, GlassView } from '../../utils/glassAvailability'
+import { useReduceTransparency } from '../../hooks/useReduceTransparency'
 import {
   loopStateOf,
   daysLeftUntil,
@@ -124,9 +126,22 @@ const ReceiptCard = React.memo(({ claim }: { claim: RadarClaim }) => {
               ? 'Not eligible (statutory)'
               : 'Closed'
 
+  const reduceTransparency = useReduceTransparency()
+
   return (
-    <View style={styles.cardOuter}>
-      <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFillObject} />
+    <View style={[styles.cardOuter, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+      {!reduceTransparency && (
+        isNativeGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            colorScheme="dark"
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+        ) : (
+          <BlurView intensity={45} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+        )
+      )}
       <View style={styles.cardFill}>
         <View style={styles.cardHeader}>
           <Icon size={18} color={iconColor} weight="bold" />
@@ -424,6 +439,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
   cardFill: {
     padding: 14,

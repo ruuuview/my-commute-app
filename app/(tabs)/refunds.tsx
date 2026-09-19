@@ -551,7 +551,7 @@ export default function RefundsScreen() {
                   pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={25} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <ShieldCheck size={14} color="#0098D4" weight="fill" />
@@ -825,10 +825,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: GLASS.background,
   },
   statusHeaderPillText: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -853,8 +853,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    backgroundColor: GLASS.background,
   },
   feedSummaryCardContent: {
     flexDirection: 'row',
@@ -926,16 +928,13 @@ const styles = StyleSheet.create({
   coverageBox: {
     borderRadius: 18,
     borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    backgroundColor: GLASS.background,
     padding: 16,
     gap: 8,
     marginTop: 4,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 5,
   },
   coverageTitleRow: {
     flexDirection: 'row',
@@ -953,11 +952,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
   },
   unlockPillText: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -996,13 +990,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     marginTop: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.40,
-    shadowRadius: 10,
-    elevation: 4,
   },
   historyRowText: {
     fontSize: 14,
@@ -1012,11 +1003,11 @@ const styles = StyleSheet.create({
   historyCard: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: GLASS.background,
     position: 'relative',
   },
   historyCardContent: {

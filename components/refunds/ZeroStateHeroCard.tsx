@@ -224,10 +224,6 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 3.5,
     backgroundColor: '#34D399',
-    shadowColor: '#34D399',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
   },
   liveText: {
     fontFamily: 'SpaceGrotesk_700Bold',

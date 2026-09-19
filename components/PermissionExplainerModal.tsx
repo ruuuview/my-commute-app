@@ -201,11 +201,6 @@ const styles = StyleSheet.create({
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
     alignItems: 'center',
   },
   closeButton: {

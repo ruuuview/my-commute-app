@@ -298,11 +298,6 @@ const styles = StyleSheet.create({
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.65,
-    shadowRadius: 24,
-    elevation: 20,
   },
   dragHandle: {
     width: 38,
@@ -458,11 +453,6 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.90)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
   },
   primaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',

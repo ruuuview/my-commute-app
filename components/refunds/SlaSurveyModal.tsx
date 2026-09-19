@@ -198,11 +198,6 @@ const styles = StyleSheet.create({
     borderBottomColor: GLASS.borderBottom,
     gap: 16,
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.75,
-    shadowRadius: 24,
-    elevation: 20,
   },
   modalHeader: {
     flexDirection: 'row',

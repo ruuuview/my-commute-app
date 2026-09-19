@@ -256,11 +256,6 @@ const styles = StyleSheet.create({
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     backgroundColor: Platform.OS === 'ios' ? GLASS.background : '#0E0E14',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.65,
-    shadowRadius: 24,
-    elevation: 20,
   },
   innerContent: {
     paddingHorizontal: 20,

@@ -134,11 +134,6 @@ const styles = StyleSheet.create({
   outerShadowWrapper: {
     borderRadius: 32,
     overflow: 'visible',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 12,
     alignSelf: 'center',
   },
   blurContainer: {
@@ -179,12 +174,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.40)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     borderRadius: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.30,
-    shadowRadius: 6,
-    elevation: 3,
   },
   tabLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

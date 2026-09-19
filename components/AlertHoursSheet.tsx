@@ -489,11 +489,6 @@ const styles = StyleSheet.create({
     borderTopColor: GLASS.borderTop,
     overflow: 'hidden',
     maxHeight: '90%',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 24,
-    elevation: 16,
   },
   header: {
     flexDirection: 'row',

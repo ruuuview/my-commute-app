@@ -1345,7 +1345,7 @@ const MyCommuteDashboard: React.FC = () => {
                   pointerEvents="none"
                 />
               ) : (
-                <BlurView intensity={24} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
               )
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
@@ -1574,15 +1574,11 @@ const dash = StyleSheet.create({
   headerBtnDone: {
     backgroundColor: '#007AFF',
     borderColor: 'rgba(255, 255, 255, 0.40)',
-    shadowColor: '#007AFF',
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
   },
   floatingDoneContainer: {
     position: 'absolute',
     right: 16,
     zIndex: 9999,
-    elevation: 20,
   },
   floatingDoneBtn: {
     height: 34,
@@ -1596,10 +1592,6 @@ const dash = StyleSheet.create({
     backgroundColor: Platform.OS === 'android' ? 'rgba(25, 25, 25, 0.92)' : 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
   },
   floatingDoneText: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -1612,7 +1604,6 @@ const dash = StyleSheet.create({
     left: 16,
     right: 16,
     zIndex: 9998,
-    elevation: 25,
   },
   undoToastContent: {
     flexDirection: 'row',
@@ -1624,10 +1615,8 @@ const dash = StyleSheet.create({
     backgroundColor: 'rgba(25, 25, 30, 0.94)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
   undoToastText: {
     fontFamily: 'SpaceGrotesk_500Medium',

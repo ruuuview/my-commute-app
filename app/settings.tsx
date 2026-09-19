@@ -1142,11 +1142,6 @@ const styles = StyleSheet.create({
   },
   attentionCardOuter: {
     marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 4,
   },
   attentionContent: {
     flexDirection: 'row',

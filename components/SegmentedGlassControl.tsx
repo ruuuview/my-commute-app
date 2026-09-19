@@ -169,11 +169,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: GLASS.borderWidth,
     borderColor: 'rgba(255, 255, 255, 0.22)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
   segmentCardInactive: {
     backgroundColor: 'transparent',

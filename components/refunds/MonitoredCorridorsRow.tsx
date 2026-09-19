@@ -63,11 +63,8 @@ function chipStyle(brandColor: string, borderColor: string) {
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: GLASS.borderWidth,
     borderColor: borderColor,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   };
 }
 

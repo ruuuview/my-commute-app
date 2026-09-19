@@ -139,7 +139,7 @@ const ReceiptCard = React.memo(({ claim }: { claim: RadarClaim }) => {
             pointerEvents="none"
           />
         ) : (
-          <BlurView intensity={45} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+          <BlurView intensity={GLASS.blurIntensity} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFillObject} pointerEvents="none" />
         )
       )}
       <View style={styles.cardFill}>
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   },
   cardFill: {
     padding: 14,
-    backgroundColor: 'rgba(18, 26, 43, 0.75)',
+    backgroundColor: GLASS.background,
     gap: 8,
   },
   cardHeader: {

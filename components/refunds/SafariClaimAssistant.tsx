@@ -346,11 +346,6 @@ const styles = StyleSheet.create({
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.75,
-    shadowRadius: 24,
-    elevation: 20,
   },
   dragHandle: {
     width: 38,
@@ -470,11 +465,6 @@ const styles = StyleSheet.create({
   primaryFooterPressable: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#0098D4',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.50,
-    shadowRadius: 14,
-    elevation: 8,
   },
   primaryFooterGradient: {
     paddingVertical: 15,

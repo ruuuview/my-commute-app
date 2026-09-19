@@ -532,7 +532,6 @@ const styles = StyleSheet.create({
     top: -7,
     left: -7,
     zIndex: 9999,
-    elevation: 20,
   },
   deleteBadge: {
     width: 24,
@@ -543,10 +542,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
   },
   deleteIcon: {
     color: '#FFFFFF',

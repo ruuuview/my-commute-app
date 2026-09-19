@@ -2,6 +2,7 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GLASS } from '../../theme/colors';
 
 export interface SolariFlapTileProps {
   char: string;
@@ -76,12 +77,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B0E17',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     position: 'relative',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.50,
-    shadowRadius: 5,
-    elevation: 4,
   },
   upperFlap: {
     width: '100%',

@@ -12,7 +12,7 @@ export const SolariCurrencyRow = memo(function SolariCurrencyRow({
   const pounds = Math.floor(amountPence / 100);
   const penceRemainder = amountPence % 100;
   const penceStr = penceRemainder.toString().padStart(2, '0');
-  const poundStr = pounds.toString();
+  const poundStr = pounds.toString().padStart(2, '0');
 
   const targetChars = useMemo(
     () => ['£', ...poundStr.split(''), '.', ...penceStr.split('')],

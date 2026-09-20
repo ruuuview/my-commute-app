@@ -96,22 +96,19 @@ export function ZeroStateHeroCard({
 
       <View style={styles.fill}>
         <View style={styles.topRow}>
-          {/* LEFT: pulsing ring + DELAY WATCHDOG eyebrow */}
+          {/* LEFT: pulsing ring + RADAR ACTIVE status */}
           <View style={styles.leftGroup}>
             <Animated.View style={[styles.pulsingRingContainer, ringStyle]}>
-              <Broadcast size={18} color="#0098D4" weight="bold" />
+              <Broadcast size={15} color="#0098D4" weight="bold" />
             </Animated.View>
-            <View>
-              <Text style={styles.eyebrow}>DELAY WATCHDOG</Text>
-              <Text style={styles.statusSub}>Keeping TfL honest 24/7</Text>
-            </View>
+            <Text style={styles.eyebrow}>RADAR ACTIVE</Text>
           </View>
 
           {/* RIGHT: Live Pulse & optional 28D Protected badge */}
           <View style={styles.rightGroup}>
             {isRegistered28Day && (
               <View style={styles.protectedBadge}>
-                <ShieldCheck size={12} color="#34D399" weight="fill" />
+                <ShieldCheck size={11} color="#34D399" weight="fill" />
                 <Text style={styles.protectedText}>28D PROTECTED</Text>
               </View>
             )}
@@ -122,27 +119,20 @@ export function ZeroStateHeroCard({
           </View>
         </View>
 
-        {/* Hero status headline & split-flap amount */}
+        {/* Centered Slogan — Unconstrained & High-Contrast */}
+        <Text style={styles.sloganText}>{"Your delay is money. We're counting."}</Text>
+
+        {/* Mechanical Solari Split-Flap Board */}
         <View style={styles.heroBlock}>
-          <Text style={[styles.heroTag, hasClaims && styles.activeHeroTag]}>
-            {hasClaims
-              ? `ACTION REQUIRED · ${activeClaimsCount} ${activeClaimsCount === 1 ? 'CLAIM' : 'CLAIMS'} READY`
-              : 'ALL CORRIDORS CLEAR'}
-          </Text>
           <SolariCurrencyRow amountPence={totalClaimablePence} />
         </View>
 
-        {/* Reassurance or Action instruction */}
-        <View style={styles.bodyBlock}>
-          <Text style={styles.bodyTitle}>
-            {hasClaims ? 'Unclaimed TfL Refund Value' : 'No Delays Queued'}
-          </Text>
-          <Text style={styles.bodyCaption}>
-            {hasClaims
-              ? 'Eligible TfL delays detected on your commute. Tap any claim below to launch with TfL.'
-              : 'When TfL delays your commute by 15+ mins, your refund claim queues here automatically.'}
-          </Text>
-        </View>
+        {/* Sleek 1-Line Explanation Caption */}
+        <Text style={styles.bodyCaption}>
+          {hasClaims
+            ? 'Eligible TfL delays detected on your commute. Tap any claim below to launch with TfL.'
+            : 'When TfL delays your commute by 15+ mins, your refund claim queues here automatically.'}
+        </Text>
       </View>
     </View>
   );
@@ -152,19 +142,19 @@ ZeroStateHeroCard.displayName = 'ZeroStateHeroCard';
 
 const styles = StyleSheet.create({
   outer: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
-    marginBottom: 16,
+    marginBottom: 14,
     position: 'relative',
   },
   fill: {
-    padding: 22,
-    gap: 14,
+    padding: 16,
+    gap: 10,
   },
   topRow: {
     flexDirection: 'row',
@@ -175,12 +165,12 @@ const styles = StyleSheet.create({
   leftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   pulsingRingContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(0, 152, 212, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -189,14 +179,9 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 11,
-    letterSpacing: 0.8,
-    color: '#FFFFFF',
-  },
-  statusSub: {
-    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 10.5,
-    color: 'rgba(255, 255, 255, 0.50)',
+    letterSpacing: 0.8,
+    color: 'rgba(255, 255, 255, 0.60)',
   },
   rightGroup: {
     flexDirection: 'row',
@@ -207,26 +192,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
     backgroundColor: 'rgba(52, 211, 153, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(52, 211, 153, 0.30)',
   },
   protectedText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10,
-    letterSpacing: 0.6,
+    fontSize: 9.5,
+    letterSpacing: 0.5,
     color: '#34D399',
   },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     backgroundColor: 'rgba(52, 211, 153, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(52, 211, 153, 0.30)',
@@ -236,9 +221,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 184, 0, 0.40)',
   },
   liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#34D399',
   },
   activeLiveDot: {
@@ -246,45 +231,33 @@ const styles = StyleSheet.create({
   },
   liveText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10.5,
+    fontSize: 10,
     letterSpacing: 0.8,
     color: '#34D399',
   },
   activeLiveText: {
     color: '#FFB800',
   },
-  heroBlock: {
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  heroTag: {
+  sloganText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: '#34D399',
-    marginBottom: 6,
-  },
-  activeHeroTag: {
-    color: '#FFB800',
-  },
-  bodyBlock: {
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-  },
-  bodyTitle: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15,
+    fontSize: 13.5,
     color: '#FFFFFF',
     textAlign: 'center',
-    letterSpacing: -0.2,
+    letterSpacing: 0.1,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  heroBlock: {
+    alignItems: 'center',
+    paddingVertical: 2,
   },
   bodyCaption: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12.5,
-    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
+    paddingHorizontal: 4,
   },
 });
 

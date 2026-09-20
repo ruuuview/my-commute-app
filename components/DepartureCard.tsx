@@ -22,7 +22,6 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
@@ -45,15 +44,6 @@ import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import { useShallow } from 'zustand/react/shallow';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
@@ -185,10 +175,10 @@ const DepartureCard = memo(function DepartureCard({
       testID={`departure-card-${stationId}`}
     >
       <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
-        {!reduceTransparency && isNativeGlassAvailable && (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="dark"
+        {!reduceTransparency && (
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint={GLASS.blurTint}
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
@@ -212,6 +202,13 @@ const DepartureCard = memo(function DepartureCard({
             pointerEvents="none"
           />
         )}
+
+        {/* Dedicated Apple Glass Border Overlay (guaranteed on top of BlurView & wash) */}
+        <Animated.View
+          style={[styles.borderOverlay, pressAnim.liftBorderStyle]}
+          pointerEvents="none"
+        />
+
 
         <Pressable
           onPress={isEditing ? undefined : handlePress}
@@ -394,6 +391,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
+  borderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+  },
+
   pressable: {
     paddingHorizontal: 14,
     paddingTop: 12,

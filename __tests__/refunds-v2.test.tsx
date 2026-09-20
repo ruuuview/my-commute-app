@@ -31,7 +31,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import LifetimeMetricsCard from '../components/refunds/LifetimeMetricsCard';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
 import { SlaSurveyModal } from '../components/refunds/SlaSurveyModal';
-import ZeroStateHeroCard from '../components/refunds/ZeroStateHeroCard';
+import { ZeroStateHeroCard } from '../components/refunds/ZeroStateHeroCard';
 import {
   isSurveySnoozed,
   snoozeSurvey,
@@ -39,7 +39,7 @@ import {
 
 // ── Lightweight reanimated stub (hook under test only uses these symbols) ──
 jest.mock('react-native-reanimated', () => {
-  const { View } = require('react-native');
+  const { View } = jest.requireActual('react-native');
   return {
     __esModule: true,
     default: {
@@ -255,11 +255,11 @@ describe('Radar v2 — 6. Day-14 survey snooze (regression: /review catch)', () 
 describe('Radar v2 — 7. ZeroStateHeroCard 10/10 & Disappearing Coverage Architecture', () => {
   it('renders live breathing indicator and canonical 2-line reassurance', async () => {
     const screen = await render(<ZeroStateHeroCard checkedAtIso={null} isRegistered28Day={false} />);
-    expect(screen.getByText('RADAR SENTINEL')).toBeTruthy();
+    expect(screen.getByText('DELAY WATCHDOG')).toBeTruthy();
     expect(screen.getByText('LIVE')).toBeTruthy();
     expect(screen.getByText('ALL CORRIDORS CLEAR')).toBeTruthy();
-    expect(screen.getByText('No Delays Detected Today')).toBeTruthy();
-    expect(screen.getByText(/Monitoring your lines 24\/7/)).toBeTruthy();
+    expect(screen.getByText('No Delays Queued')).toBeTruthy();
+    expect(screen.getByText(/delays your commute by 15\+ mins/)).toBeTruthy();
     expect(screen.queryByText('28D PROTECTED')).toBeNull();
   });
 

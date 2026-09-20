@@ -2,6 +2,7 @@
 import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
@@ -72,9 +73,7 @@ export const LiquidGlassView = memo(function LiquidGlassView({
             backgroundColor: reduceTransparency
               ? '#1C1C1E'
               : GLASS.background,
-            borderColor: reduceTransparency
-              ? 'rgba(255, 255, 255, 0.20)'
-              : (borderColor || GLASS.borderColor),
+            borderColor: effectiveBorderColor,
             borderTopColor: reduceTransparency
               ? 'rgba(255, 255, 255, 0.20)'
               : (borderTopColor || GLASS.borderTop),
@@ -85,16 +84,14 @@ export const LiquidGlassView = memo(function LiquidGlassView({
           contentStyle,
         ]}
       >
-        {/* Layer 1: Native Glass Effect (Liquid Glass when compiled) */}
+        {/* Layer 1: Native Glass Effect (Liquid Glass when compiled) / Optical Frosted Blur Fallback */}
         {!reduceTransparency && (Platform.OS === 'ios' || Platform.OS === 'web') && (
-          isNativeGlassAvailable ? (
-            <GlassView
-              glassEffectStyle="regular"
-              colorScheme="dark"
-              pointerEvents="none"
-              style={StyleSheet.absoluteFillObject}
-            />
-          ) : null
+          <BlurView
+            intensity={intensity || GLASS.blurIntensity}
+            tint={(tint as any) || GLASS.blurTint}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFillObject}
+          />
         )}
 
         {/* Layer 2: Physical specular top sheen (simulates light refraction across curved glass) */}
@@ -115,6 +112,25 @@ export const LiquidGlassView = memo(function LiquidGlassView({
             pointerEvents="none"
           />
         )}
+
+        {/* Dedicated Apple Glass Border Overlay (guaranteed on top of BlurView & wash) */}
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius,
+              borderWidth: GLASS.borderWidth,
+              borderColor: effectiveBorderColor,
+              borderTopColor: reduceTransparency
+                ? 'rgba(255, 255, 255, 0.20)'
+                : (borderTopColor || GLASS.borderTop),
+              borderBottomColor: reduceTransparency
+                ? 'rgba(255, 255, 255, 0.20)'
+                : GLASS.borderBottom,
+            },
+          ]}
+          pointerEvents="none"
+        />
 
         {/* Layer 3: Content */}
         {children}

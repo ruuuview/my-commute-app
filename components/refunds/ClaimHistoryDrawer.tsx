@@ -95,21 +95,12 @@ export const ClaimHistoryDrawer: React.FC<ClaimHistoryDrawerProps> = ({
 
         <View style={[styles.sheetContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
           {!reduceTransparency && (
-            isNativeGlassAvailable ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme="dark"
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            ) : (
-              <BlurView
-                intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
-                tint={GLASS.blurTint}
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            )
+            <BlurView
+              intensity={Platform.OS === 'ios' ? GLASS.blurIntensity : 100}
+              tint={GLASS.blurTint}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFillObject}
+            />
           )}
 
           <LinearGradient

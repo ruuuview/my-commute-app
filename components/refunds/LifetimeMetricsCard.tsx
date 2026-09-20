@@ -33,16 +33,7 @@ const LifetimeMetricsCard: React.FC<LifetimeMetricsCardProps> = ({
       accessibilityLabel={`Lifetime recovered ${formatPence(recoveredTotalPence)} across ${settledCount} settled claims`}
     >
       {!reduceTransparency && (
-        isNativeGlassAvailable ? (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="dark"
-            style={styles.blurFill}
-            pointerEvents="none"
-          />
-        ) : (
-          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={styles.blurFill} pointerEvents="none" />
-        )
+        <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={styles.blurFill} pointerEvents="none" />
       )}
       <View style={styles.glassFill}>
         <View style={styles.content}>

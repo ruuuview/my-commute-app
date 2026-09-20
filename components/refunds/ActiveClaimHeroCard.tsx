@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   Clock,
@@ -108,21 +109,29 @@ const ActiveClaimHeroCard: React.FC<ActiveClaimHeroCardProps> = ({
   return (
     <View style={[styles.outerContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
       {!reduceTransparency && (
-        isNativeGlassAvailable ? (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="dark"
-            pointerEvents="none"
-            style={StyleSheet.absoluteFillObject}
-          />
-        ) : (
+        <>
           <BlurView
             intensity={GLASS.blurIntensity}
             tint={GLASS.blurTint}
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
-        )
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 20,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+            }}
+            pointerEvents="none"
+          />
+        </>
       )}
 
       <View style={styles.cardBody}>

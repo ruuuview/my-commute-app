@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -7,8 +7,15 @@ import {
   FlatList,
   Pressable,
   useWindowDimensions,
-  Platform,
+  PanResponder,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../utils/sound';
@@ -23,17 +30,7 @@ import { getSeverityLabel, getSeverityRank } from '../utils/getSeverityColor';
 
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
@@ -214,6 +211,43 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
     );
   };
 
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      translateY.value = 0;
+    }
+  }, [visible, translateY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.value = gestureState.dy;
+        } else {
+          translateY.value = gestureState.dy * 0.15;
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 90 || gestureState.vy > 0.4) {
+          translateY.value = withTiming(sheetMaxHeight || 600, { duration: 180 }, (finished) => {
+            if (finished) {
+              runOnJS(onClose)();
+            }
+          });
+        } else {
+          translateY.value = withSpring(0, { damping: 22, stiffness: 300, mass: 0.8 });
+        }
+      },
+    })
+  ).current;
+
+  const sheetAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
   return (
     <Modal
       visible={visible}
@@ -232,33 +266,24 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
         />
 
         {/* Bottom sheet — sizes to content, capped at 85% of screen height */}
-        <View
-          style={[styles.sheet, { maxHeight: sheetMaxHeight }, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
+        <Animated.View
+          style={[styles.sheet, { maxHeight: sheetMaxHeight }, reduceTransparency && { backgroundColor: '#1C1C1E' }, sheetAnimStyle]}
         >
           {!reduceTransparency && (
-            isNativeGlassAvailable ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme="dark"
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            ) : (
-              <BlurView
-                intensity={GLASS.blurIntensity}
-                tint={GLASS.blurTint}
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            )
+            <BlurView
+              intensity={GLASS.blurIntensity}
+              tint={GLASS.blurTint}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFillObject}
+            />
           )}
           {/* Drag handle */}
-          <View style={styles.dragHandleWrap}>
+          <View style={styles.dragHandleWrap} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
           </View>
 
           {/* Header */}
-          <View style={styles.header}>
+          <View style={styles.header} {...panResponder.panHandlers}>
             <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
               Manage lines
               {selectedLines.length > 0 && (
@@ -292,7 +317,7 @@ export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
             ]}
             showsVerticalScrollIndicator={false}
           />
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

@@ -10,12 +10,17 @@ import {
   Platform,
   KeyboardAvoidingView,
   useWindowDimensions,
+  PanResponder,
 } from 'react-native';
 import Animated, {
   useReducedMotion,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { GLASS } from '../theme/colors';
@@ -32,15 +37,6 @@ import { getPillColors } from '../utils/pillColors';
 
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -77,21 +73,6 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
       ]}
     >
       <Animated.View style={[styles.compactCardInner, !reducedMotion && pressAnim.animatedStyle]}>
-        {isNativeGlassAvailable ? (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="dark"
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        ) : (
-          <BlurView
-            intensity={GLASS.blurIntensity}
-            tint={GLASS.blurTint}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-        )}
         <View style={styles.compactCardContent}>
           <View style={styles.compactMainRow}>
             <Text style={styles.compactStationName} numberOfLines={1} ellipsizeMode="tail">
@@ -300,6 +281,43 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
     Math.max(screenHeight - insets.top - insets.bottom, screenHeight * 0.5)
   );
 
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      translateY.value = 0;
+    }
+  }, [visible, translateY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.value = gestureState.dy;
+        } else {
+          translateY.value = gestureState.dy * 0.15;
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 90 || gestureState.vy > 0.4) {
+          translateY.value = withTiming(sheetHeight || 600, { duration: 180 }, (finished) => {
+            if (finished) {
+              runOnJS(handleClose)();
+            }
+          });
+        } else {
+          translateY.value = withSpring(0, { damping: 22, stiffness: 300, mass: 0.8 });
+        }
+      },
+    })
+  ).current;
+
+  const sheetAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
   return (
     <Modal
       visible={visible}
@@ -318,20 +336,11 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
         />
 
         {/* Bottom sheet with explicit bounded height so FlatList scrolls */}
-        <View style={[styles.sheet, { height: sheetHeight }]}>
-          {isNativeGlassAvailable ? (
-            <GlassView
-              glassEffectStyle="regular"
-              colorScheme="dark"
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-            />
-          ) : (
-            <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
-          )}
+        <Animated.View style={[styles.sheet, { height: sheetHeight }, sheetAnimStyle]}>
+          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
           {/* Drag handle */}
-          <View style={styles.dragHandleWrap}>
+          <View style={styles.dragHandleWrap} {...panResponder.panHandlers}>
             <View style={styles.dragHandle} />
           </View>
 
@@ -341,7 +350,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
             keyboardVerticalOffset={0}
           >
             {/* Header */}
-            <View style={styles.header}>
+            <View style={styles.header} {...panResponder.panHandlers}>
               <Text style={styles.title} allowFontScaling maxFontSizeMultiplier={1.3}>
                 Manage stations
                 {pinnedStations.length > 0 && (
@@ -434,7 +443,7 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
               />
             </View>
           </KeyboardAvoidingView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

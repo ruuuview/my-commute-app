@@ -2,8 +2,9 @@
 // Radar v2 State A' hero — live surveillance radar card with pristine Apple Liquid Glass.
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Broadcast, ShieldCheck } from 'phosphor-react-native';
 import Animated, {
   useSharedValue,
@@ -15,27 +16,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GLASS } from '../../theme/colors';
 import { SolariCurrencyRow } from './SolariCurrencyRow';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../../hooks/useReduceTransparency';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 export function ZeroStateHeroCard({
   checkedAtIso = null,
   isRegistered28Day = false,
+  totalClaimablePence = 0,
+  activeClaimsCount = 0,
 }: {
   checkedAtIso?: string | null;
   isRegistered28Day?: boolean;
+  totalClaimablePence?: number;
+  activeClaimsCount?: number;
 }) {
   const reducedMotion = useReducedMotion();
   const reduceTransparency = useReduceTransparency();
+  const hasClaims = activeClaimsCount > 0 && totalClaimablePence > 0;
 
   // Slow breathing pulse on the surveillance ring
   const ringPulse = useSharedValue(0);
@@ -73,33 +69,41 @@ export function ZeroStateHeroCard({
   return (
     <View style={[styles.outer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
       {!reduceTransparency && (
-        isNativeGlassAvailable ? (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="dark"
-            pointerEvents="none"
-            style={StyleSheet.absoluteFillObject}
-          />
-        ) : (
+        <>
           <BlurView
             intensity={GLASS.blurIntensity}
             tint={GLASS.blurTint}
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
-        )
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 20,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+            }}
+            pointerEvents="none"
+          />
+        </>
       )}
 
       <View style={styles.fill}>
         <View style={styles.topRow}>
-          {/* LEFT: pulsing ring + RADAR SENTINEL eyebrow */}
+          {/* LEFT: pulsing ring + DELAY WATCHDOG eyebrow */}
           <View style={styles.leftGroup}>
             <Animated.View style={[styles.pulsingRingContainer, ringStyle]}>
               <Broadcast size={18} color="#0098D4" weight="bold" />
             </Animated.View>
             <View>
-              <Text style={styles.eyebrow}>RADAR SENTINEL</Text>
-              <Text style={styles.statusSub}>Continuous 24/7</Text>
+              <Text style={styles.eyebrow}>DELAY WATCHDOG</Text>
+              <Text style={styles.statusSub}>Keeping TfL honest 24/7</Text>
             </View>
           </View>
 
@@ -111,24 +115,32 @@ export function ZeroStateHeroCard({
                 <Text style={styles.protectedText}>28D PROTECTED</Text>
               </View>
             )}
-            <View style={styles.liveBadge}>
-              <Animated.View style={[styles.liveDot, dotStyle]} />
-              <Text style={styles.liveText}>LIVE</Text>
+            <View style={[styles.liveBadge, hasClaims && styles.activeLiveBadge]}>
+              <Animated.View style={[styles.liveDot, hasClaims && styles.activeLiveDot, dotStyle]} />
+              <Text style={[styles.liveText, hasClaims && styles.activeLiveText]}>LIVE</Text>
             </View>
           </View>
         </View>
 
         {/* Hero status headline & split-flap amount */}
         <View style={styles.heroBlock}>
-          <Text style={styles.heroTag}>ALL CORRIDORS CLEAR</Text>
-          <SolariCurrencyRow amountPence={0} />
+          <Text style={[styles.heroTag, hasClaims && styles.activeHeroTag]}>
+            {hasClaims
+              ? `ACTION REQUIRED · ${activeClaimsCount} ${activeClaimsCount === 1 ? 'CLAIM' : 'CLAIMS'} READY`
+              : 'ALL CORRIDORS CLEAR'}
+          </Text>
+          <SolariCurrencyRow amountPence={totalClaimablePence} />
         </View>
 
-        {/* Strict 2-line clean reassurance */}
+        {/* Reassurance or Action instruction */}
         <View style={styles.bodyBlock}>
-          <Text style={styles.bodyTitle}>No Delays Detected Today</Text>
+          <Text style={styles.bodyTitle}>
+            {hasClaims ? 'Unclaimed TfL Refund Value' : 'No Delays Queued'}
+          </Text>
           <Text style={styles.bodyCaption}>
-            Monitoring your lines 24/7. Eligible delays over 15 mins queue here automatically.
+            {hasClaims
+              ? 'Eligible TfL delays detected on your commute. Tap any claim below to launch with TfL.'
+              : 'When TfL delays your commute by 15+ mins, your refund claim queues here automatically.'}
           </Text>
         </View>
       </View>
@@ -219,17 +231,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(52, 211, 153, 0.30)',
   },
+  activeLiveBadge: {
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    borderColor: 'rgba(255, 184, 0, 0.40)',
+  },
   liveDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
     backgroundColor: '#34D399',
   },
+  activeLiveDot: {
+    backgroundColor: '#FFB800',
+  },
   liveText: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 10.5,
     letterSpacing: 0.8,
     color: '#34D399',
+  },
+  activeLiveText: {
+    color: '#FFB800',
   },
   heroBlock: {
     alignItems: 'center',
@@ -241,6 +263,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: '#34D399',
     marginBottom: 6,
+  },
+  activeHeroTag: {
+    color: '#FFB800',
   },
   bodyBlock: {
     alignItems: 'center',

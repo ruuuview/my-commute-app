@@ -1,5 +1,5 @@
 import React, { useEffect, useState, memo } from 'react';
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -19,20 +19,10 @@ import { getSeverityColor } from '../utils/getSeverityColor';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StatusBezel } from './StatusBezel';
 import { GLASS } from '../theme/colors';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 function withAlpha(hexColor: string, alpha: string): string {
   const hex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
@@ -131,9 +121,6 @@ export const LineCard = memo(function LineCard({
 
   const opacityVal = useSharedValue(0);
 
-  const shadowOpacityBase = 0;
-  const shadowRadiusBase = 0;
-  const elevationBase = 0;
 
   const jiggleStyle = useJiggle(jiggle, index, isActive);
   const [touchReady, setTouchReady] = useState(true);
@@ -168,9 +155,9 @@ export const LineCard = memo(function LineCard({
 
     if (mode === 'select') {
       if (selected) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
       } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
       }
 
       if (onPress) onPress();
@@ -187,7 +174,7 @@ export const LineCard = memo(function LineCard({
     if (disabled) return;
     if (isEditing) return; // body never drags — the grabber owns that
     if (onLongPress) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => { });
       onLongPress();
     }
   };
@@ -204,7 +191,6 @@ export const LineCard = memo(function LineCard({
 
   // Zero shadow invariant per Apple Liquid Glass design standard (no drop/glow shadows)
   const selectedShadowStyle = null;
-  const unselectedBorder = GLASS.borderColor;
 
   return (
     <Animated.View
@@ -237,10 +223,10 @@ export const LineCard = memo(function LineCard({
           mode === 'display' ? pressAnim.liftBorderStyle : null,
         ]}
       >
-        {!reduceTransparency && isNativeGlassAvailable && (
-          <GlassView
-            glassEffectStyle="regular"
-            colorScheme="dark"
+        {!reduceTransparency && (
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint={GLASS.blurTint}
             pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
@@ -278,6 +264,27 @@ export const LineCard = memo(function LineCard({
           />
         )}
 
+        {/* Dedicated Apple Glass Border Overlay (guaranteed on top of BlurView & wash) */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius: cardRadius,
+              borderWidth: mode === 'select' && selected ? (isNorthern ? 1.75 : 1.5) : GLASS.borderWidth,
+              borderColor: mode === 'select' && selected
+                ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+                : GLASS.borderColor,
+              borderTopColor: mode === 'select' && selected
+                ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+                : GLASS.borderTop,
+              borderBottomColor: mode === 'select' && selected
+                ? (isNorthern ? NORTHERN_SHADES.highlightBorder : withAlpha(line.color, 'E6'))
+                : GLASS.borderBottom,
+            },
+            mode === 'display' ? pressAnim.liftBorderStyle : null,
+          ]}
+          pointerEvents="none"
+        />
         <View
           style={[
             styles.accentBar,
@@ -434,7 +441,7 @@ export const LineCard = memo(function LineCard({
                 onPressIn={deletePressAnim.onPressIn}
                 onPressOut={deletePressAnim.onPressOut}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => { });
                   onDelete(line.id);
                 }}
                 testID={`line-card-delete-${line.id}`}

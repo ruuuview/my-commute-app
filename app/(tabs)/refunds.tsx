@@ -31,6 +31,7 @@ import * as Notifications from 'expo-notifications'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
 import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Animated, {
@@ -60,7 +61,6 @@ import {
 import { useUserPreferencesStore } from '../../store/userPreferencesStore'
 import { OnboardingGradient } from '../../components/OnboardingGradient'
 import { GLASS, CANVAS_LONDON_NIGHT } from '../../theme/colors'
-import { isNativeGlassAvailable, GlassView } from '../../utils/glassAvailability'
 import { useReduceTransparency } from '../../hooks/useReduceTransparency'
 import { PREMIUM_SPRING_CONFIG } from '../../theme/physics'
 import {
@@ -80,82 +80,27 @@ import {
   type RadarClaim,
 } from '../../components/refunds/types'
 
-// ── Rolling odometer (JS rAF, easeOutExpo over 450ms) ──────────────────────
+// ── API helper ─────────────────────────────────────────────────────────────
 
-function OdometerAmount({ targetPence, play }: { targetPence: number; play: boolean }) {
-  const [pence, setPence] = useState(play ? 0 : targetPence)
-
-  useEffect(() => {
-    if (!play) {
-      setPence(targetPence)
-      return
-    }
-    let raf = 0
-    const start = Date.now()
-    const tick = () => {
-      const t = Math.min(1, (Date.now() - start) / SIGNAL_LOCK_DURATION_MS)
-      // easeOutExpo
-      const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t)
-      setPence(Math.round(targetPence * eased))
-      if (t < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [play, targetPence])
-
-  return <Text style={styles.signalLockAmount}>{formatPence(pence)}</Text>
-}
-
-// ── Signal Lock transition overlay (Test A choreography) ───────────────────
-
-function SignalLockHero({
-  claim,
-  onDone,
-}: {
-  claim: RadarClaim
-  onDone: () => void
-}) {
-  const reducedMotion = useReducedMotion()
-  const progress = useSharedValue(0)
-  const heroScale = useSharedValue(reducedMotion ? 1 : 0.92)
-
-  useEffect(() => {
-    progress.value = reducedMotion ? 1 : withTiming(1, { duration: SIGNAL_LOCK_DURATION_MS })
-    heroScale.value = reducedMotion
-      ? 1
-      : withSpring(1, PREMIUM_SPRING_CONFIG)
-    const t = setTimeout(onDone, SIGNAL_LOCK_DURATION_MS + 550)
-    return () => clearTimeout(t)
-  }, [progress, heroScale, reducedMotion, onDone])
-
-  const dotStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      [COLOR_EMERALD, COLOR_AMBER]
-    ),
-    transform: [{ scale: 1 + 0.35 * Math.sin(progress.value * Math.PI) }],
-  }))
-
-  const heroStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heroScale.value }],
-    opacity: 0.4 + 0.6 * progress.value,
-  }))
-
-  return (
-    <Animated.View style={[styles.signalLockOuter, heroStyle]}>
-      <View style={styles.signalLockTopRow}>
-        <View style={styles.signalLockDotWrap}>
-          <Animated.View style={[styles.signalLockDot, dotStyle]} />
-          <Text style={styles.signalLockEyebrow}>DELAY DETECTED</Text>
-        </View>
-      </View>
-      <OdometerAmount targetPence={claim.amountPence} play={!reducedMotion} />
-      <Text style={styles.signalLockCaption}>
-        Eligible for estimated refund · preparing your claim
-      </Text>
-    </Animated.View>
-  )
+async function patchClaim(
+  id: number,
+  body: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    const { userId, apiKey } = await ensureDeviceIdentity()
+    const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify(body),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 // ── Main Screen ────────────────────────────────────────────────────────────
@@ -331,11 +276,16 @@ export default function RefundsScreen() {
 
   const activeClaims = useMemo(
     () =>
-      claims.filter((c) => {
+      claims.filter((c: RadarClaim) => {
         if (loopStateOf(c) !== 'eligible') return false
         return !(dismissedClaims || []).includes(String(c.id))
       }),
     [claims, dismissedClaims]
+  )
+
+  const totalClaimablePence = useMemo(
+    () => activeClaims.reduce((sum: number, c: RadarClaim) => sum + (c.amountPence || 0), 0),
+    [activeClaims]
   )
 
 
@@ -543,16 +493,7 @@ export default function RefundsScreen() {
             accessibilityLabel="Change TfL registration"
           >
             {!reduceTransparency && (
-              isNativeGlassAvailable ? (
-                <GlassView
-                  glassEffectStyle="regular"
-                  colorScheme="dark"
-                  style={StyleSheet.absoluteFillObject}
-                  pointerEvents="none"
-                />
-              ) : (
-                <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-              )
+              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             )}
             <ShieldCheck size={14} color="#0098D4" weight="fill" />
             <Text style={styles.statusHeaderPillText}>
@@ -561,10 +502,70 @@ export default function RefundsScreen() {
           </Pressable>
         )}
       </View>
+
+      {/* Persistent Master Solari Board — ALWAYS visible showing total accumulated unclaimed earnings */}
+      <ZeroStateHeroCard
+        checkedAtIso={lastEvaluatedAt}
+        isRegistered28Day={tflAccountStatus === 'REGISTERED_28_DAY'}
+        totalClaimablePence={totalClaimablePence}
+        activeClaimsCount={activeClaims.length}
+      />
+
+      {/* Coverage tier (Unlinked: NOT_SET or UNREGISTERED_7_DAY) — Shown when 0 active claims */}
+      {activeClaims.length === 0 && tflAccountStatus !== 'REGISTERED_28_DAY' && (
+        <Pressable
+          onPress={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+            setConnectSheetVisible(true)
+          }}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.coverageBox,
+            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Coverage: 7-Day Basic. Tap to unlock 28 days."
+        >
+          {!reduceTransparency && (
+            <>
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint={GLASS.blurTint}
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+              <LinearGradient
+                colors={[GLASS.specularStart, GLASS.specularEnd]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 16,
+                  borderTopLeftRadius: 18,
+                  borderTopRightRadius: 18,
+                }}
+                pointerEvents="none"
+              />
+            </>
+          )}
+          <View style={styles.coverageTitleRow}>
+            <Text style={styles.coverageTitle}>Coverage: 7-Day Basic</Text>
+            <View style={styles.unlockPill}>
+              <Text style={styles.unlockPillText}>Unlock 28 Days →</Text>
+            </View>
+          </View>
+          <Text style={styles.coverageBody}>
+            TfL wipes journey history after 7 days. Connect your account to protect 28 days of refunds.
+          </Text>
+        </Pressable>
+      )}
     </View>
   )
 
-  const renderEmpty = () => {
+  const renderEmptyOrLoading = () => {
     if (loading) {
       return (
         <View style={styles.emptyContainer}>
@@ -592,47 +593,13 @@ export default function RefundsScreen() {
       )
     }
 
-    return (
-      <View>
-        <ZeroStateHeroCard
-          checkedAtIso={lastEvaluatedAt}
-          isRegistered28Day={tflAccountStatus === 'REGISTERED_28_DAY'}
-        />
-
-        {/* Coverage tier (Unlinked: NOT_SET or UNREGISTERED_7_DAY) — Completely vanishes when REGISTERED_28_DAY */}
-        {tflAccountStatus !== 'REGISTERED_28_DAY' && (
-          <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-              setConnectSheetVisible(true)
-            }}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.coverageBox,
-              pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Coverage: 7-Day Basic. Tap to unlock 28 days."
-          >
-            <View style={styles.coverageTitleRow}>
-              <Text style={styles.coverageTitle}>Coverage: 7-Day Basic</Text>
-              <View style={styles.unlockPill}>
-                <Text style={styles.unlockPillText}>Unlock 28 Days →</Text>
-              </View>
-            </View>
-            <Text style={styles.coverageBody}>
-              TfL wipes journey history after 7 days. Connect your account to protect 28 days of refunds.
-            </Text>
-          </Pressable>
-        )}
-      </View>
-    )
+    return null
   }
 
   const renderFooter = () => {
     return (
       <View style={{ marginTop: 16, gap: 14 }}>
-        {/* Quick action: Claim History & Receipts (flat matte glass, zero iOS 7 specular sheen) */}
+        {/* Quick action: Claim History & Receipts */}
         <Pressable
           onPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -647,16 +614,29 @@ export default function RefundsScreen() {
           accessibilityLabel="View claim history and receipts"
         >
           {!reduceTransparency && (
-            isNativeGlassAvailable ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme="dark"
+            <>
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint={GLASS.blurTint}
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
-            ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-            )
+              <LinearGradient
+                colors={[GLASS.specularStart, GLASS.specularEnd]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 16,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                }}
+                pointerEvents="none"
+              />
+            </>
           )}
           <View style={styles.historyCardContent}>
             <View style={styles.historyCardLeft}>
@@ -691,30 +671,23 @@ export default function RefundsScreen() {
       <OnboardingGradient />
 
       <View style={{ flex: 1, paddingTop: insets.top }}>
-        <FlatList<{ type: 'CLAIM'; item: RadarClaim } | { type: 'EMPTY' }>
+        <FlatList<RadarClaim>
           style={styles.list}
-          data={activeClaims.length === 0
-            ? [{ type: 'EMPTY' as const }]
-            : activeClaims.map((item) => ({ type: 'CLAIM' as const, item }))}
-          keyExtractor={(entry) =>
-            entry.type === 'CLAIM' ? String(entry.item.id) : 'empty'
-          }
-          renderItem={({ item }) =>
-            item.type === 'CLAIM' ? (
-              <ActiveClaimHeroCard
-                key={item.item.id}
-                claim={item.item}
-                onFile={handleFile}
-                onDismiss={handleDismiss}
-                onOpenPortal={() => void handleClaimPress(item.item)}
-                filing={Boolean(filingIds[item.item.id])}
-                locallyFiledAtMs={submittedClaims[String(item.item.id)] ?? null}
-              />
-            ) : (
-              renderEmpty()
-            )
-          }
+          data={activeClaims}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <ActiveClaimHeroCard
+              key={item.id}
+              claim={item}
+              onFile={handleFile}
+              onDismiss={handleDismiss}
+              onOpenPortal={() => void handleClaimPress(item)}
+              filing={Boolean(filingIds[item.id])}
+              locallyFiledAtMs={submittedClaims[String(item.id)] ?? null}
+            />
+          )}
           ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmptyOrLoading}
           ListFooterComponent={renderFooter}
           contentContainerStyle={[
             styles.listContent,
@@ -770,27 +743,82 @@ export default function RefundsScreen() {
   )
 }
 
-// ── API helper ─────────────────────────────────────────────────────────────
+// ── Rolling odometer (JS rAF, easeOutExpo over 450ms) ──────────────────────
 
-async function patchClaim(
-  id: number,
-  body: Record<string, unknown>
-): Promise<boolean> {
-  try {
-    const { userId, apiKey } = await ensureDeviceIdentity()
-    const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify(body),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
+function OdometerAmount({ targetPence, play }: { targetPence: number; play: boolean }) {
+  const [pence, setPence] = useState(play ? 0 : targetPence)
+
+  useEffect(() => {
+    if (!play) {
+      setPence(targetPence)
+      return
+    }
+    let raf = 0
+    const start = Date.now()
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - start) / SIGNAL_LOCK_DURATION_MS)
+      // easeOutExpo
+      const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t)
+      setPence(Math.round(targetPence * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [play, targetPence])
+
+  return <Text style={styles.signalLockAmount}>{formatPence(pence)}</Text>
+}
+
+// ── Signal Lock transition overlay (Test A choreography) ───────────────────
+
+function SignalLockHero({
+  claim,
+  onDone,
+}: {
+  claim: RadarClaim
+  onDone: () => void
+}) {
+  const reducedMotion = useReducedMotion()
+  const progress = useSharedValue(0)
+  const heroScale = useSharedValue(reducedMotion ? 1 : 0.92)
+
+  useEffect(() => {
+    progress.value = reducedMotion ? 1 : withTiming(1, { duration: SIGNAL_LOCK_DURATION_MS })
+    heroScale.value = reducedMotion
+      ? 1
+      : withSpring(1, PREMIUM_SPRING_CONFIG)
+    const t = setTimeout(onDone, SIGNAL_LOCK_DURATION_MS + 550)
+    return () => clearTimeout(t)
+  }, [progress, heroScale, reducedMotion, onDone])
+
+  const dotStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [COLOR_EMERALD, COLOR_AMBER]
+    ),
+    transform: [{ scale: 1 + 0.35 * Math.sin(progress.value * Math.PI) }],
+  }))
+
+  const heroStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heroScale.value }],
+    opacity: 0.4 + 0.6 * progress.value,
+  }))
+
+  return (
+    <Animated.View style={[styles.signalLockOuter, heroStyle]}>
+      <View style={styles.signalLockTopRow}>
+        <View style={styles.signalLockDotWrap}>
+          <Animated.View style={[styles.signalLockDot, dotStyle]} />
+          <Text style={styles.signalLockEyebrow}>DELAY DETECTED</Text>
+        </View>
+      </View>
+      <OdometerAmount targetPence={claim.amountPence} play={!reducedMotion} />
+      <Text style={styles.signalLockCaption}>
+        Eligible for estimated refund · preparing your claim
+      </Text>
+    </Animated.View>
+  )
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────
@@ -927,6 +955,8 @@ const styles = StyleSheet.create({
   // ── Coverage Tier (The Upsell) ───
   coverageBox: {
     borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,

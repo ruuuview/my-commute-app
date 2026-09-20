@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import Animated, {
@@ -334,6 +335,8 @@ const section = StyleSheet.create({
     borderRadius: 14,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
+    borderTopColor: PREMIUM_BUTTON.borderTopColor,
+    borderBottomColor: PREMIUM_BUTTON.borderBottomColor,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: PREMIUM_BUTTON.background,
@@ -1113,13 +1116,22 @@ const MyCommuteDashboard: React.FC = () => {
                           onPressOut={notificationsOffPress.onPressOut}
                           style={[dash.arrivalBanner, notificationsOffPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
-                          {!reduceTransparency && isNativeGlassAvailable && (
-                            <GlassView
-                              glassEffectStyle="regular"
-                              colorScheme="dark"
-                              style={StyleSheet.absoluteFillObject}
-                              pointerEvents="none"
-                            />
+                          {!reduceTransparency && (
+                            isNativeGlassAvailable ? (
+                              <GlassView
+                                glassEffectStyle="regular"
+                                colorScheme="dark"
+                                style={StyleSheet.absoluteFillObject}
+                                pointerEvents="none"
+                              />
+                            ) : (
+                              <BlurView
+                                intensity={GLASS.blurIntensity}
+                                tint={GLASS.blurTint}
+                                style={StyleSheet.absoluteFillObject}
+                                pointerEvents="none"
+                              />
+                            )
                           )}
                           <Ionicons name="notifications-off-outline" size={16} color="#FFA500" />
                           <Text style={dash.arrivalBannerText}>
@@ -1144,13 +1156,22 @@ const MyCommuteDashboard: React.FC = () => {
                           onPressOut={snoozedPress.onPressOut}
                           style={[dash.arrivalBanner, snoozedPress.animatedStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}
                         >
-                          {!reduceTransparency && isNativeGlassAvailable && (
-                            <GlassView
-                              glassEffectStyle="regular"
-                              colorScheme="dark"
-                              style={StyleSheet.absoluteFillObject}
-                              pointerEvents="none"
-                            />
+                          {!reduceTransparency && (
+                            isNativeGlassAvailable ? (
+                              <GlassView
+                                glassEffectStyle="regular"
+                                colorScheme="dark"
+                                style={StyleSheet.absoluteFillObject}
+                                pointerEvents="none"
+                              />
+                            ) : (
+                              <BlurView
+                                intensity={GLASS.blurIntensity}
+                                tint={GLASS.blurTint}
+                                style={StyleSheet.absoluteFillObject}
+                                pointerEvents="none"
+                              />
+                            )
                           )}
                           <Ionicons name="alarm-outline" size={16} color="#007AFF" />
                           <Text style={dash.arrivalBannerText}>
@@ -1202,7 +1223,14 @@ const MyCommuteDashboard: React.FC = () => {
                             style={StyleSheet.absoluteFillObject}
                             pointerEvents="none"
                           />
-                        ) : null
+                        ) : (
+                          <BlurView
+                            intensity={GLASS.blurIntensity}
+                            tint={GLASS.blurTint}
+                            style={StyleSheet.absoluteFillObject}
+                            pointerEvents="none"
+                          />
+                        )
                       )}
                       <Ionicons name="add" size={20} color="rgba(255,255,255,0.40)" style={dash.addCardIcon} />
                       <Text style={dash.addCardText}>Add your first station</Text>
@@ -1328,7 +1356,14 @@ const MyCommuteDashboard: React.FC = () => {
                   style={StyleSheet.absoluteFillObject}
                   pointerEvents="none"
                 />
-              ) : null
+              ) : (
+                <BlurView
+                  intensity={GLASS.blurIntensity}
+                  tint={GLASS.blurTint}
+                  style={StyleSheet.absoluteFillObject}
+                  pointerEvents="none"
+                />
+              )
             )}
             <Text style={dash.floatingDoneText}>Done</Text>
           </BouncyPressable>
@@ -1529,6 +1564,8 @@ const dash = StyleSheet.create({
     borderRadius: 17,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
+    borderTopColor: PREMIUM_BUTTON.borderTopColor,
+    borderBottomColor: PREMIUM_BUTTON.borderBottomColor,
     backgroundColor: PREMIUM_BUTTON.background,
     shadowColor: PREMIUM_BUTTON.shadowColor,
     shadowOffset: PREMIUM_BUTTON.shadowOffset,
@@ -1544,6 +1581,8 @@ const dash = StyleSheet.create({
     borderRadius: 14,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
+    borderTopColor: PREMIUM_BUTTON.borderTopColor,
+    borderBottomColor: PREMIUM_BUTTON.borderBottomColor,
     backgroundColor: PREMIUM_BUTTON.background,
     shadowColor: PREMIUM_BUTTON.shadowColor,
     shadowOffset: PREMIUM_BUTTON.shadowOffset,

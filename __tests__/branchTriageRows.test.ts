@@ -69,62 +69,62 @@ describe('Branch Triage Regression Suite (Turn 15 Audit & Option A Contracts)', 
   // ── ROW 2: Canonical Branch Registry Data ────────────────────────
   describe('Row 2: Canonical Line Branch Registry (REROUTE_LINE_BRANCHES)', () => {
     test('Piccadilly line: contains only genuine western branches; excludes northern trunk termini', () => {
-      const piccadilly = REROUTE_LINE_BRANCHES['piccadilly'] || [];
+      const piccadilly: string[] = REROUTE_LINE_BRANCHES['piccadilly'] || [];
       // Must NOT invent branches for northern trunk stations
       expect(piccadilly).not.toContain('Cockfosters branch');
       expect(piccadilly).not.toContain('Arnos Grove branch');
       // Must contain genuine western branches
-      expect(piccadilly.some(b => b.toLowerCase().includes('heathrow'))).toBe(true);
-      expect(piccadilly.some(b => b.toLowerCase().includes('uxbridge'))).toBe(true);
+      expect(piccadilly.some((b: string) => b.toLowerCase().includes('heathrow'))).toBe(true);
+      expect(piccadilly.some((b: string) => b.toLowerCase().includes('uxbridge'))).toBe(true);
     });
 
     test('Metropolitan line: western branches split; excludes eastern terminus', () => {
-      const met = REROUTE_LINE_BRANCHES['metropolitan'] || [];
+      const met: string[] = REROUTE_LINE_BRANCHES['metropolitan'] || [];
       // Must NOT treat eastern terminus Aldgate as a branch
       expect(met).not.toContain('Aldgate branch');
       // Must separately include Amersham and Chesham (not lumped together)
-      expect(met.some(b => b.toLowerCase().includes('amersham') && !b.toLowerCase().includes('chesham'))).toBe(true);
-      expect(met.some(b => b.toLowerCase().includes('chesham'))).toBe(true);
-      expect(met.some(b => b.toLowerCase().includes('watford'))).toBe(true);
-      expect(met.some(b => b.toLowerCase().includes('uxbridge'))).toBe(true);
+      expect(met.some((b: string) => b.toLowerCase().includes('amersham') && !b.toLowerCase().includes('chesham'))).toBe(true);
+      expect(met.some((b: string) => b.toLowerCase().includes('chesham'))).toBe(true);
+      expect(met.some((b: string) => b.toLowerCase().includes('watford'))).toBe(true);
+      expect(met.some((b: string) => b.toLowerCase().includes('uxbridge'))).toBe(true);
     });
 
     test('District line: includes Upminster eastern trunk and all western branches', () => {
-      const district = REROUTE_LINE_BRANCHES['district'] || [];
+      const district: string[] = REROUTE_LINE_BRANCHES['district'] || [];
       // Must include Upminster (eastern corridor)
-      expect(district.some(b => b.toLowerCase().includes('upminster'))).toBe(true);
-      expect(district.some(b => b.toLowerCase().includes('wimbledon'))).toBe(true);
-      expect(district.some(b => b.toLowerCase().includes('richmond'))).toBe(true);
-      expect(district.some(b => b.toLowerCase().includes('ealing broadway'))).toBe(true);
-      expect(district.some(b => b.toLowerCase().includes('edgware road'))).toBe(true);
+      expect(district.some((b: string) => b.toLowerCase().includes('upminster'))).toBe(true);
+      expect(district.some((b: string) => b.toLowerCase().includes('wimbledon'))).toBe(true);
+      expect(district.some((b: string) => b.toLowerCase().includes('richmond'))).toBe(true);
+      expect(district.some((b: string) => b.toLowerCase().includes('ealing broadway'))).toBe(true);
+      expect(district.some((b: string) => b.toLowerCase().includes('edgware road'))).toBe(true);
     });
 
     test('Northern line: includes Mill Hill East spur and Battersea Power Station branch', () => {
-      const northern = REROUTE_LINE_BRANCHES['northern'] || [];
-      expect(northern.some(b => b.toLowerCase().includes('mill hill east'))).toBe(true);
-      expect(northern.some(b => b.toLowerCase().includes('battersea'))).toBe(true);
-      expect(northern.some(b => b.toLowerCase().includes('bank'))).toBe(true);
-      expect(northern.some(b => b.toLowerCase().includes('charing cross'))).toBe(true);
-      expect(northern.some(b => b.toLowerCase().includes('edgware'))).toBe(true);
-      expect(northern.some(b => b.toLowerCase().includes('high barnet'))).toBe(true);
+      const northern: string[] = REROUTE_LINE_BRANCHES['northern'] || [];
+      expect(northern.some((b: string) => b.toLowerCase().includes('mill hill east'))).toBe(true);
+      expect(northern.some((b: string) => b.toLowerCase().includes('battersea'))).toBe(true);
+      expect(northern.some((b: string) => b.toLowerCase().includes('bank'))).toBe(true);
+      expect(northern.some((b: string) => b.toLowerCase().includes('charing cross'))).toBe(true);
+      expect(northern.some((b: string) => b.toLowerCase().includes('edgware'))).toBe(true);
+      expect(northern.some((b: string) => b.toLowerCase().includes('high barnet'))).toBe(true);
     });
 
     test('Central line: distinguishes loop branches (Newbury Park vs Woodford)', () => {
-      const central = REROUTE_LINE_BRANCHES['central'] || [];
+      const central: string[] = REROUTE_LINE_BRANCHES['central'] || [];
       // Must distinguish Hainault loop branches
-      expect(central.some(b => b.toLowerCase().includes('newbury park'))).toBe(true);
-      expect(central.some(b => b.toLowerCase().includes('woodford'))).toBe(true);
-      expect(central.some(b => b.toLowerCase().includes('west ruislip'))).toBe(true);
-      expect(central.some(b => b.toLowerCase().includes('ealing broadway'))).toBe(true);
-      expect(central.some(b => b.toLowerCase().includes('epping'))).toBe(true);
+      expect(central.some((b: string) => b.toLowerCase().includes('newbury park'))).toBe(true);
+      expect(central.some((b: string) => b.toLowerCase().includes('woodford'))).toBe(true);
+      expect(central.some((b: string) => b.toLowerCase().includes('west ruislip'))).toBe(true);
+      expect(central.some((b: string) => b.toLowerCase().includes('ealing broadway'))).toBe(true);
+      expect(central.some((b: string) => b.toLowerCase().includes('epping'))).toBe(true);
     });
 
     test('Elizabeth line: covers western and eastern branches', () => {
-      const liz = REROUTE_LINE_BRANCHES['elizabeth'] || [];
-      expect(liz.some(b => b.toLowerCase().includes('reading'))).toBe(true);
-      expect(liz.some(b => b.toLowerCase().includes('heathrow'))).toBe(true);
-      expect(liz.some(b => b.toLowerCase().includes('shenfield'))).toBe(true);
-      expect(liz.some(b => b.toLowerCase().includes('abbey wood'))).toBe(true);
+      const liz: string[] = REROUTE_LINE_BRANCHES['elizabeth'] || [];
+      expect(liz.some((b: string) => b.toLowerCase().includes('reading'))).toBe(true);
+      expect(liz.some((b: string) => b.toLowerCase().includes('heathrow'))).toBe(true);
+      expect(liz.some((b: string) => b.toLowerCase().includes('shenfield'))).toBe(true);
+      expect(liz.some((b: string) => b.toLowerCase().includes('abbey wood'))).toBe(true);
     });
   });
 

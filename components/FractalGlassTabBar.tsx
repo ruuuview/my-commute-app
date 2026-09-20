@@ -99,7 +99,7 @@ const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress })
             ) : (
               <BlurView
                 intensity={GLASS.blurIntensity}
-                tint={GLASS.blurTint}
+                tint="systemChromeMaterial"
                 pointerEvents="none"
                 style={StyleSheet.absoluteFillObject}
               />

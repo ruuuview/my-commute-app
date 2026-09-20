@@ -75,21 +75,21 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
-  blurIntensity: 35,
-  // Adaptive Apple material tint: dark optical frost prevents milky wash on colored gradients
-  blurTint: 'systemUltraThinMaterialDark' as const,
-  // Card base frosted tint — calibrated Apple luminous translucency (not flat dark, not opaque white)
+  blurIntensity: 30,
+  // Deterministic optical material: fixed rendering over dynamic background gradients
+  blurTint: 'dark' as const,
+  // Card base frosted tint — calibrated Apple translucency (position-invariant)
   background: 'rgba(255, 255, 255, 0.12)',
   // Hairline perimeter specular rim
-  borderColor: 'rgba(255, 255, 255, 0.20)',
+  borderColor: 'rgba(255, 255, 255, 0.28)',
   borderWidth: 1.0,
   // Directional fallbacks (authentic Apple liquid glass overhead lighting)
-  borderTop: 'rgba(255, 255, 255, 0.48)',
-  borderSides: 'rgba(255, 255, 255, 0.18)',
-  borderSide: 'rgba(255, 255, 255, 0.18)',
-  borderBottom: 'rgba(255, 255, 255, 0.10)',
+  borderTop: 'rgba(255, 255, 255, 0.55)',
+  borderSides: 'rgba(255, 255, 255, 0.25)',
+  borderSide: 'rgba(255, 255, 255, 0.25)',
+  borderBottom: 'rgba(255, 255, 255, 0.18)',
   // Specular top-rim catch-light sheen (makes top edge brightly illuminated)
-  specularStart: 'rgba(255, 255, 255, 0.22)',
+  specularStart: 'rgba(255, 255, 255, 0.28)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',
   // Zero shadows behind cards per design specification
   shadowColor: 'transparent',
@@ -101,8 +101,10 @@ export const GLASS = {
 
 export const PREMIUM_BUTTON = {
   background: 'rgba(255, 255, 255, 0.12)',
-  borderWidth: 1.25,
-  borderColor: 'rgba(255, 255, 255, 0.38)',
+  borderWidth: 1.0,
+  borderColor: 'rgba(255, 255, 255, 0.40)',
+  borderTopColor: 'rgba(255, 255, 255, 0.60)',
+  borderBottomColor: 'rgba(255, 255, 255, 0.35)',
   shadowColor: 'transparent',
   shadowOffset: { width: 0, height: 0 },
   shadowOpacity: 0,

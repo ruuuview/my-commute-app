@@ -9,7 +9,7 @@ import {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { useLiveReducedMotion } from './useJiggle';
+import { useLiveReducedMotion } from './useReducedMotion';
 import { pressFeedback } from '../utils/pressFeedback';
 
 // ── Timing ──────────────────────────────────────────────────────────

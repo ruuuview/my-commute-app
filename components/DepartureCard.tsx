@@ -3,11 +3,7 @@
  * ─────────────────────────────────────────────────────────────────
  * Expanded departure card showing station header + up to 3 arrival rows.
  * Tap → calls onCardTap (opens StationDetailScreen via router push).
- * Long-press → triggers jiggle/edit mode in parent.
- *
- * PRESERVED:
- *  • usePressAnimation for tactile scale feedback
- *  • hideCard search-collapse Reanimated logic
+ * Long-press → triggers direct drag reordering.
  * ─────────────────────────────────────────────────────────────────
  */
 
@@ -17,12 +13,9 @@ import {
   View,
   Text,
   Pressable,
-  Platform,
-  AccessibilityInfo,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import Animated, {
@@ -30,15 +23,10 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  SharedValue,
-  FadeIn,
-  FadeOut,
-  ZoomIn,
-  ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
-import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
+import { useLiveReducedMotion } from '../hooks/useReducedMotion';
+import { GLASS } from '../theme/colors';
 import { useStationArrivals } from '../services/stationArrivalsStore';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -76,9 +64,6 @@ export interface DepartureCardProps {
   hideCard?: boolean;
   index?: number;
   isActive?: boolean;
-  jiggle?: JiggleDriver;
-  globalJiggle?: SharedValue<number>;
-  isEditing?: boolean;
   drag?: () => void;
   onDelete?: (stationId: string) => void;
   onMoveUp?: (index: number) => void;
@@ -87,33 +72,22 @@ export interface DepartureCardProps {
 }
 
 // ─── Main component ──────────────────────────────────────────────
-const DepartureCard = memo(function DepartureCard({
+export const DepartureCard = memo(function DepartureCard({
   stationId,
   stationName,
   onLongPress,
   onCardTap,
   hideCard = false,
-  index = 0,
   isActive = false,
-  jiggle,
-  isEditing = false,
   drag,
-  onDelete,
-  onMoveUp,
-  onMoveDown,
-  totalStations = 1,
 }: DepartureCardProps) {
   const reducedMotion = useLiveReducedMotion();
   const reduceTransparency = useReduceTransparency();
-  // Pause interval polling during edit mode so updates don't shift layout mid-drag
-  const { arrivals, loading } = useStationArrivals(stationId, { enabled: !isEditing });
+  const { arrivals, loading } = useStationArrivals(stationId);
 
   const selectedLines = useUserPreferencesStore(useShallow(s => s.selectedLines || []));
 
   const pressAnim = usePressAnimation('departure_card', false, isActive);
-  const deletePressAnim = usePressAnimation('line_deselect', false);
-  // Uniform jiggle with alternating polarity by list index
-  const jiggleStyle = useJiggle(jiggle, index, isActive);
 
   // ── Derived values ───────────────────────────────────────────
   const cleanName = String(stationName ?? '')
@@ -123,8 +97,6 @@ const DepartureCard = memo(function DepartureCard({
     )
     .trim();
 
-  // Route raw arrivals through the single-source line selector (AGENTS.md §0):
-  // the card shows only the user's selected lines, re-filtered live on change.
   const visibleArrivals = useMemo(
     () => getVisibleArrivals(arrivals, selectedLines),
     [arrivals, selectedLines]
@@ -151,17 +123,18 @@ const DepartureCard = memo(function DepartureCard({
     marginBottom: collapseMargin.value,
   }));
 
-  // ── Tap handler ───────────────────────────────────────────────
+  // ── Tap & Long Press handlers ──────────────────────────────────
   const handlePress = () => {
-    if (isEditing) return; // Inactive in edit mode
     pressAnim.onPress(() => {
       onCardTap?.(stationId, stationName);
     });
   };
 
   const handleBodyLongPress = () => {
-    if (isEditing) return; // Body never drags — grabber owns drag
-    if (onLongPress) {
+    if (drag) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      drag();
+    } else if (onLongPress) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       onLongPress();
     }
@@ -171,10 +144,17 @@ const DepartureCard = memo(function DepartureCard({
 
   return (
     <Animated.View
-      style={[styles.outerContainer, containerAnimStyle, jiggleStyle]}
+      style={[styles.outerContainer, containerAnimStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+      <Animated.View
+        style={[
+          styles.innerGlass,
+          pressAnim.animatedStyle,
+          pressAnim.liftBorderStyle,
+          reduceTransparency && { backgroundColor: '#1C1C1E' },
+        ]}
+      >
         {!reduceTransparency && (
           <BlurView
             intensity={GLASS.blurIntensity}
@@ -203,29 +183,20 @@ const DepartureCard = memo(function DepartureCard({
           />
         )}
 
-        {/* Dedicated Apple Glass Border Overlay (guaranteed on top of BlurView & wash) */}
+        {/* Dedicated Apple Glass Border Overlay */}
         <Animated.View
           style={[styles.borderOverlay, pressAnim.liftBorderStyle]}
           pointerEvents="none"
         />
 
-
         <Pressable
-          onPress={isEditing ? undefined : handlePress}
+          onPress={handlePress}
           pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
           unstable_pressDelay={80}
-          delayLongPress={700}
-          onLongPress={isEditing ? undefined : handleBodyLongPress}
-          onPressIn={() => {
-            if (!isEditing) {
-              pressAnim.onPressIn();
-            }
-          }}
-          onPressOut={() => {
-            if (!isEditing) {
-              pressAnim.onPressOut();
-            }
-          }}
+          delayLongPress={300}
+          onLongPress={handleBodyLongPress}
+          onPressIn={pressAnim.onPressIn}
+          onPressOut={pressAnim.onPressOut}
           style={styles.pressable}
           testID={`departure-card-pressable-${stationId}`}
         >
@@ -234,55 +205,6 @@ const DepartureCard = memo(function DepartureCard({
             <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
               {cleanName}
             </Text>
-
-            {/* Dedicated reorder grabber in edit mode */}
-            {isEditing && drag && (
-              <Animated.View
-                entering={FadeIn.duration(150)}
-                exiting={FadeOut.duration(100)}
-                style={styles.grabberContainer}
-              >
-                <Pressable
-                  onLongPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                    drag();
-                  }}
-                  delayLongPress={150}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="adjustable"
-                  accessibilityLabel={`Reorder ${cleanName}`}
-                  accessibilityHint="Swipe up or down to reorder this station"
-                  accessibilityValue={{ text: `Position ${index + 1} of ${totalStations}` }}
-                  accessibilityActions={[
-                    { name: 'increment', label: 'Move Up' },
-                    { name: 'decrement', label: 'Move Down' },
-                  ]}
-                  onAccessibilityAction={(event) => {
-                    if (event.nativeEvent.actionName === 'increment') {
-                      if (index > 0) {
-                        onMoveUp?.(index);
-                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                        AccessibilityInfo.announceForAccessibility(
-                          `${cleanName} moved up to position ${index} of ${totalStations}`
-                        );
-                      }
-                    } else if (event.nativeEvent.actionName === 'decrement') {
-                      if (index < totalStations - 1) {
-                        onMoveDown?.(index);
-                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                        AccessibilityInfo.announceForAccessibility(
-                          `${cleanName} moved down to position ${index + 2} of ${totalStations}`
-                        );
-                      }
-                    }
-                  }}
-                  style={styles.grabberButton}
-                  testID={`departure-card-grabber-${stationId}`}
-                >
-                  <Ionicons name="reorder-three-outline" size={22} color="rgba(255, 255, 255, 0.45)" />
-                </Pressable>
-              </Animated.View>
-            )}
           </View>
 
           {/* Subtle glass divider to give definition to the station name */}
@@ -336,36 +258,6 @@ const DepartureCard = memo(function DepartureCard({
           )}
         </Pressable>
       </Animated.View>
-
-      {/* iOS-Style Delete Badge matching LineCard exactly */}
-      {isEditing && onDelete && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(100)}
-          style={styles.deleteBadgeContainer}
-        >
-          <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
-            <Animated.View style={deletePressAnim.animatedStyle}>
-              <Pressable
-                style={styles.deleteBadge}
-                hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-                onPressIn={deletePressAnim.onPressIn}
-                onPressOut={deletePressAnim.onPressOut}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
-                  onDelete(stationId);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${cleanName}`}
-                accessibilityHint={`Removes ${cleanName} from your pinned commute stations`}
-                testID={`departure-card-delete-${stationId}`}
-              >
-                <Text style={styles.deleteIcon}>−</Text>
-              </Pressable>
-            </Animated.View>
-          </Animated.View>
-        </Animated.View>
-      )}
     </Animated.View>
   );
 });
@@ -376,7 +268,6 @@ export default DepartureCard;
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   outerContainer: {
-    marginBottom: 12,
     borderRadius: 16,
     overflow: 'visible',
     position: 'relative',
@@ -399,126 +290,88 @@ const styles = StyleSheet.create({
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
   },
-
   pressable: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    width: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    minHeight: 28,
+  },
+  stationName: {
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255, 255, 255, 0.95)',
+    flex: 1,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    marginBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 10,
   },
-  stationName: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
-    color: '#FFFFFF',
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    paddingVertical: 4,
   },
-  grabberContainer: {
-    marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  grabberButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  deleteBadgeContainer: {
-    position: 'absolute',
-    top: -7,
-    left: -7,
-    zIndex: 9999,
-  },
-  deleteBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FF3B30',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  deleteIcon: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 18,
-    textAlign: 'center',
+  emptyText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    paddingVertical: 4,
   },
   arrivalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
-    gap: 6,
   },
   lineBar: {
     width: 3,
-    height: 16,
+    height: 14,
     borderRadius: 2,
+    marginRight: 8,
   },
   arrLineName: {
-    width: 72,
+    width: 80,
+    fontSize: 12,
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginRight: 8,
   },
   destPlatform: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
+    alignItems: 'center',
+    marginRight: 8,
   },
   arrDest: {
+    flex: 1,
+    fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    flexShrink: 1,
-  },
-  arrPlatform: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   arrVia: {
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.45)',
   },
+  arrPlatform: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginLeft: 6,
+  },
   arrTime: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.65)',
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255, 255, 255, 0.95)',
+    minWidth: 44,
     textAlign: 'right',
-    minWidth: 48,
   },
   arrTimeDue: {
-    ...DUE_TIME_STYLE,
-  },
-  loadingText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    paddingVertical: 4,
-  },
-  emptyText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    paddingVertical: 4,
+    color: '#34C759',
   },
 });

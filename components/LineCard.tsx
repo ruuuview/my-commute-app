@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo } from 'react';
+import React, { useEffect, memo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -12,7 +12,7 @@ import Animated, {
   ZoomOut,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { useLiveReducedMotion } from '../hooks/useReducedMotion';
 import * as Haptics from 'expo-haptics';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { getSeverityColor } from '../utils/getSeverityColor';
@@ -55,13 +55,13 @@ function StatusSkeleton() {
           borderRadius: 4,
           backgroundColor: 'rgba(255,255,255,0.12)',
         },
-        style
+        style,
       ]}
     />
   );
 }
 
-interface LineCardProps {
+export interface LineCardProps {
   line: {
     id: string;
     name: string;
@@ -81,12 +81,10 @@ interface LineCardProps {
 
   // Dashboard modes & properties:
   mode?: 'select' | 'display';
-  isEditing?: boolean;
   onDelete?: (id: string) => void;
   drag?: () => void;
   isActive?: boolean;
   index?: number;
-  jiggle?: JiggleDriver;
   onMoveUp?: (index: number) => void;
   onMoveDown?: (index: number) => void;
 }
@@ -101,14 +99,8 @@ export const LineCard = memo(function LineCard({
   statusLabel,
   cardHeight = ONBOARDING_CARD_HEIGHT,
   mode = 'select',
-  isEditing = false,
-  onDelete,
   drag,
   isActive = false,
-  index = 0,
-  jiggle,
-  onMoveUp,
-  onMoveDown,
 }: LineCardProps) {
   const reduceTransparency = useReduceTransparency();
   const isSlim = cardHeight <= 48;
@@ -120,18 +112,6 @@ export const LineCard = memo(function LineCard({
   const cardPaddingLeft = isSlim ? 30 : 34;
 
   const opacityVal = useSharedValue(0);
-
-
-  const jiggleStyle = useJiggle(jiggle, index, isActive);
-  const [touchReady, setTouchReady] = useState(true);
-
-  useEffect(() => {
-    if (!isEditing) {
-      setTouchReady(false);
-      const t = setTimeout(() => setTouchReady(true), 150);
-      return () => clearTimeout(t);
-    }
-  }, [isEditing]);
 
   useEffect(() => {
     if (statusType !== 'loading') {
@@ -147,17 +127,15 @@ export const LineCard = memo(function LineCard({
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled, isActive);
-  const deletePressAnim = usePressAnimation('line_deselect', disabled);
 
   const handlePress = () => {
     if (disabled) return;
-    if (isEditing || !touchReady) return;
 
     if (mode === 'select') {
       if (selected) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
 
       if (onPress) onPress();
@@ -166,39 +144,28 @@ export const LineCard = memo(function LineCard({
     }
   };
 
-  // The card body is PASSIVE in edit mode — drag() lives only on the dedicated
-  // grabber. Full-surface drag activation hijacked vertical scrolls (the same
-  // trap DepartureCard had). Body long-press only enters edit mode when NOT
-  // already editing.
   const handleLongPress = () => {
     if (disabled) return;
-    if (isEditing) return; // body never drags — the grabber owns that
-    if (onLongPress) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => { });
+    if (drag) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      drag();
+    } else if (onLongPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       onLongPress();
     }
   };
 
-  // Resolve status text colors — canonical severity colors come from the
-  // single source of truth (utils/getSeverityColor.ts, AGENTS.md §0):
-  // code takes precedence, text parsing is the fallback. Non-severity UI
-  // states (error / offline / unknown) are not TfL statuses and stay local.
   let statusTextColor = getSeverityColor(line.status_severity, statusLabel).color;
   if (statusType === 'error') statusTextColor = '#FF3B30';
   else if (statusType === 'offline' || statusType === 'unknown') statusTextColor = 'rgba(255, 255, 255, 0.55)';
 
   const isNorthern = line.id === 'northern';
 
-  // Zero shadow invariant per Apple Liquid Glass design standard (no drop/glow shadows)
-  const selectedShadowStyle = null;
-
   return (
     <Animated.View
       style={[
         styles.outerCard,
         { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
-        selectedShadowStyle,
-        jiggleStyle,
       ]}
     >
       <Animated.View
@@ -264,7 +231,7 @@ export const LineCard = memo(function LineCard({
           />
         )}
 
-        {/* Dedicated Apple Glass Border Overlay (guaranteed on top of BlurView & wash) */}
+        {/* Dedicated Apple Glass Border Overlay */}
         <Animated.View
           style={[
             StyleSheet.absoluteFillObject,
@@ -298,26 +265,21 @@ export const LineCard = memo(function LineCard({
         />
 
         <Pressable
-          onPress={isEditing ? undefined : handlePress}
+          onPress={handlePress}
           pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
           unstable_pressDelay={80}
-          delayLongPress={700}
-          onLongPress={isEditing ? undefined : handleLongPress}
-          onPressIn={() => {
-            if (!isEditing) {
-              pressAnim.onPressIn();
-            }
-          }}
-          onPressOut={() => {
-            if (!isEditing) pressAnim.onPressOut();
-          }}
+          delayLongPress={300}
+          onLongPress={handleLongPress}
+          onPressIn={pressAnim.onPressIn}
+          onPressOut={pressAnim.onPressOut}
           style={StyleSheet.absoluteFillObject}
+          testID={`line-card-${line.id}`}
         >
           <View
             style={[
               isSlim ? styles.cardContentSingleRow : styles.cardContentDoubleRow,
               { paddingLeft: cardPaddingLeft },
-              mode === 'select' && selected && { paddingRight: 40 }
+              mode === 'select' && selected && { paddingRight: 40 },
             ]}
           >
             <Text
@@ -349,43 +311,6 @@ export const LineCard = memo(function LineCard({
                     </Animated.View>
                   )}
                 </View>
-
-                {/* Dedicated reorder grabber — the ONLY drag activator.
-                    Edit mode is dashboard-only (slim cards); onboarding never edits. */}
-                {isEditing && drag && (
-                  <Animated.View
-                    entering={FadeIn.duration(150)}
-                    exiting={FadeOut.duration(100)}
-                    style={styles.grabberContainer}
-                  >
-                    <Pressable
-                      onLongPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        drag();
-                      }}
-                      delayLongPress={150}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      accessibilityRole="adjustable"
-                      accessibilityLabel={`Reorder ${line.name}`}
-                      accessibilityHint="Long-press, then use Move Up and Move Down actions to reorder this line"
-                      accessibilityActions={[
-                        { name: 'increment', label: 'Move Up' },
-                        { name: 'decrement', label: 'Move Down' },
-                      ]}
-                      onAccessibilityAction={(event) => {
-                        if (event.nativeEvent.actionName === 'increment') {
-                          onMoveUp?.(index);
-                        } else if (event.nativeEvent.actionName === 'decrement') {
-                          onMoveDown?.(index);
-                        }
-                      }}
-                      style={styles.grabberButton}
-                      testID={`line-card-grabber-${line.id}`}
-                    >
-                      <Ionicons name="reorder-three-outline" size={22} color="rgba(255, 255, 255, 0.45)" />
-                    </Pressable>
-                  </Animated.View>
-                )}
               </>
             ) : (
               <View style={styles.statusSubRow}>
@@ -405,7 +330,7 @@ export const LineCard = memo(function LineCard({
         </Pressable>
 
         {/* Selection Badge (select mode only) */}
-        {mode === 'select' && selected && !isEditing && (
+        {mode === 'select' && selected && (
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(100)}
@@ -423,39 +348,11 @@ export const LineCard = memo(function LineCard({
             </Animated.View>
           </Animated.View>
         )}
-
-
       </Animated.View>
-
-      {isEditing && onDelete && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(100)}
-          style={styles.deleteBadgeContainer}
-        >
-          <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
-            <Animated.View style={deletePressAnim.animatedStyle}>
-              <Pressable
-                style={styles.deleteBadge}
-                hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-                onPressIn={deletePressAnim.onPressIn}
-                onPressOut={deletePressAnim.onPressOut}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => { });
-                  onDelete(line.id);
-                }}
-                testID={`line-card-delete-${line.id}`}
-              >
-                <Text style={styles.deleteIcon}>−</Text>
-              </Pressable>
-            </Animated.View>
-          </Animated.View>
-        </Animated.View>
-      )}
     </Animated.View>
   );
-}
-);
+});
+
 LineCard.displayName = 'LineCard';
 
 const styles = StyleSheet.create({
@@ -532,41 +429,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  grabberContainer: {
-    marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  grabberButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  deleteBadgeContainer: {
-    position: 'absolute',
-    top: -7,
-    left: -7,
-    zIndex: 9999,
-  },
-  deleteBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FF3B30',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  deleteIcon: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 18,
-    textAlign: 'center',
   },
 });

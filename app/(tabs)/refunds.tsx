@@ -136,11 +136,19 @@ export default function RefundsScreen() {
   const fetchClaims = useCallback(async (isRefresh = false) => {
     try {
       setError(null)
-      const { userId, apiKey } = await ensureDeviceIdentity()
+      let { userId, apiKey } = await ensureDeviceIdentity()
       if (!isRefresh) setLoading(true)
-      const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims`, {
+      let res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims`, {
         headers: { 'x-user-id': userId, 'x-api-key': apiKey },
       })
+      if (res.status === 401) {
+        const refreshed = await ensureDeviceIdentity(true)
+        userId = refreshed.userId
+        apiKey = refreshed.apiKey
+        res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/claims`, {
+          headers: { 'x-user-id': userId, 'x-api-key': apiKey },
+        })
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: ClaimsResponse = await res.json()
       setLastEvaluatedAt(json.evaluatedAt || new Date().toISOString())

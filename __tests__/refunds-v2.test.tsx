@@ -255,10 +255,9 @@ describe('Radar v2 — 6. Day-14 survey snooze (regression: /review catch)', () 
 describe('Radar v2 — 7. ZeroStateHeroCard 10/10 & Disappearing Coverage Architecture', () => {
   it('renders live breathing indicator and canonical 2-line reassurance', async () => {
     const screen = await render(<ZeroStateHeroCard checkedAtIso={null} isRegistered28Day={false} />);
-    expect(screen.getByText('DELAY WATCHDOG')).toBeTruthy();
+    expect(screen.getByText('RADAR ACTIVE')).toBeTruthy();
     expect(screen.getByText('LIVE')).toBeTruthy();
-    expect(screen.getByText('ALL CORRIDORS CLEAR')).toBeTruthy();
-    expect(screen.getByText('No Delays Queued')).toBeTruthy();
+    expect(screen.getByText("Your delay is money. We're counting.")).toBeTruthy();
     expect(screen.getByText(/delays your commute by 15\+ mins/)).toBeTruthy();
     expect(screen.queryByText('28D PROTECTED')).toBeNull();
   });

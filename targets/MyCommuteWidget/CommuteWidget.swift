@@ -115,7 +115,10 @@ struct CommuteEntry: TimelineEntry {
     let isFailure: Bool
 
     var worstLine: CommuteLine? {
-        lines.max(by: { $0.level.rank < $1.level.rank })
+        if let disrupted = lines.filter({ $0.level.rank > 0 }).max(by: { $0.level.rank < $1.level.rank }) {
+            return disrupted
+        }
+        return lines.first
     }
 
     var disruptedLines: [CommuteLine] {
@@ -236,8 +239,14 @@ struct CommuteProvider: TimelineProvider {
               let cachedLines = try? JSONDecoder().decode([CommuteLine].self, from: data) else {
             return nil
         }
-        let filtered = cachedLines.filter { cl in savedLines.contains { $0.id == cl.id } }
-        return filtered.isEmpty ? cachedLines : filtered
+        let linesMap = Dictionary(uniqueKeysWithValues: cachedLines.map { ($0.id.lowercased(), $0) })
+        let ordered = savedLines.compactMap { linesMap[$0.id.lowercased()] }
+        if !ordered.isEmpty {
+            return ordered
+        }
+        let savedSet = Set(savedLines.map { $0.id.lowercased() })
+        let filtered = cachedLines.filter { savedSet.contains($0.id.lowercased()) }
+        return filtered.isEmpty ? nil : filtered
     }
 
     private func fetchRawData() async -> ([CommuteLine], Bool, String?) {
@@ -305,11 +314,14 @@ struct CommuteProvider: TimelineProvider {
         request.timeoutInterval = 7
         let (data, _) = try await URLSession.shared.data(for: request)
         let response = try JSONDecoder().decode([TfLLine].self, from: data)
-        return response.compactMap { tflLine in
+        let unordered = response.compactMap { tflLine -> CommuteLine? in
             guard let saved = savedLines.first(where: { $0.id.caseInsensitiveCompare(tflLine.id) == .orderedSame }),
                   let status = tflLine.lineStatuses.max(by: { getSeverityRank($0.statusSeverity) < getSeverityRank($1.statusSeverity) }) else { return nil }
             return CommuteLine(id: tflLine.id, name: saved.name, status: status.statusSeverityDescription, severity: status.statusSeverity)
         }
+        let linesMap = Dictionary(uniqueKeysWithValues: unordered.map { ($0.id.lowercased(), $0) })
+        let ordered = savedLines.compactMap { linesMap[$0.id.lowercased()] }
+        return ordered.isEmpty ? unordered : ordered
     }
 }
 

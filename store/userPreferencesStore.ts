@@ -7,6 +7,8 @@ import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
 import { sanitiseStationName } from '../data/tflStations';
 import { STORE_VERSION, runMigrations } from './migrations';
 
+import { syncToWidget } from '../utils/widgetSync';
+
 const storage = createMMKV();
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
@@ -480,9 +482,12 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         } finally {
           if (state) {
             state.setHasHydrated(true);
+            void syncToWidget(state.selectedLines);
           } else {
             setTimeout(() => {
               useUserPreferencesStore.setState({ _hasHydrated: true });
+              const curr = useUserPreferencesStore.getState().selectedLines;
+              if (curr) void syncToWidget(curr);
             }, 0);
           }
         }
@@ -490,3 +495,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }
   )
 );
+
+let prevSelectedLines: string[] = [];
+useUserPreferencesStore.subscribe((state) => {
+  if (state.selectedLines && state.selectedLines !== prevSelectedLines) {
+    prevSelectedLines = state.selectedLines;
+    void syncToWidget(state.selectedLines);
+  }
+});

@@ -8,7 +8,9 @@ export const syncToWidget = async (selectedLines: string[]) => {
     if (!selectedLines || !Array.isArray(selectedLines)) {
       return;
     }
-    await LiveActivityService.syncWidgetCache(selectedLines);
+    if (typeof LiveActivityService?.syncWidgetCache === 'function') {
+      await LiveActivityService.syncWidgetCache(selectedLines);
+    }
   } catch (error) {
     console.error('❌ Widget Sync Failed:', error);
   }

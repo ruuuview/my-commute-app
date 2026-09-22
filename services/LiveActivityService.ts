@@ -633,7 +633,9 @@ export class LiveActivityService {
 
       let statusesJson = '';
       if (customStatuses && customStatuses.length > 0) {
-        statusesJson = JSON.stringify(customStatuses);
+        const selectedSet = new Set(lines.map(id => normaliseLineId(id)));
+        const filteredStatuses = customStatuses.filter(s => selectedSet.has(normaliseLineId(s.id)));
+        statusesJson = JSON.stringify(filteredStatuses);
       } else {
         const baselineStatuses = linesArray.map(l => ({
           id: l.id,

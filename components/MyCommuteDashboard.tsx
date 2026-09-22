@@ -43,6 +43,9 @@ import { deleteCachedArrivals } from '../services/stationArrivalsStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
+import LiveActivityService from '../services/LiveActivityService';
+import { normaliseLineId } from '../utils/normaliseLineId';
+import { tflCapitalise } from '../utils/tflCapitalise';
 import { useWorstStatus, computeWorstStatus } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { Gear } from 'phosphor-react-native';
@@ -660,6 +663,21 @@ const MyCommuteDashboard: React.FC = () => {
 
       // Populate global line status store so StationDetailScreen reads live severity
       useLineDataStore.getState().setLines(freshLines);
+
+      // Sync fresh line statuses & severities to WidgetKit AppGroup cache
+      if (Platform.OS === 'ios' && selectedLines && selectedLines.length > 0) {
+        const customStatuses = selectedLines.map((id: string) => {
+          const norm = normaliseLineId(id).cleanLineId;
+          const lineObj = freshLines.find((l: any) => l.id === id || l.id === norm);
+          return {
+            id,
+            name: lineObj?.name || tflCapitalise(id),
+            status: lineObj?.status || 'Good service',
+            severity: lineObj?.status_severity ?? 10,
+          };
+        });
+        void LiveActivityService.syncWidgetCache(selectedLines, customStatuses);
+      }
 
       const fresh: DashboardData = {
         lines: freshLines,

@@ -11,16 +11,65 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Severity } from './MyCommuteDashboard';
 
-const STATUS_GRADIENTS: Record<Severity, readonly [string, string, string]> = {
-  good: ['#0e6633', '#0a4623', '#062e17'],
-  minor: ['#b36b00', '#6e3f00', '#422600'],
-  severe: ['#8b1212', '#580e0e', '#360a0a'],
-  suspended: ['#6e0c0c', '#480a0a', '#2c0606'],
-  offline: ['#222740', '#181c30', '#101322'],
-  unknown: ['#222740', '#181c30', '#101322'],
+const STATUS_GRADIENTS: Record<
+  Severity,
+  { colors: readonly [string, string, string, string]; locations: readonly [number, number, number, number] }
+> = {
+  good: {
+    colors: ['#004D25', '#003319', '#051A0E', '#020804'],
+    locations: [0, 0.28, 0.65, 1.0],
+  },
+  minor: {
+    colors: ['#663D00', '#422700', '#211400', '#0A0600'],
+    locations: [0, 0.28, 0.65, 1.0],
+  },
+  severe: {
+    colors: ['#660F0F', '#420A0A', '#210505', '#0A0202'],
+    locations: [0, 0.28, 0.65, 1.0],
+  },
+  suspended: {
+    colors: ['#660F0F', '#420A0A', '#210505', '#0A0202'],
+    locations: [0, 0.28, 0.65, 1.0],
+  },
+  offline: {
+    colors: ['#003380', '#001C52', '#070E24', '#02040A'],
+    locations: [0, 0.28, 0.65, 1.0],
+  },
+  unknown: {
+    colors: ['#003380', '#001C52', '#070E24', '#02040A'],
+    locations: [0, 0.28, 0.65, 1.0],
+  },
 } as const;
 
-const GRADIENT_LOCATIONS = [0, 0.45, 1.0] as const;
+const ATMOSPHERIC_BLOOMS: Record<
+  Severity,
+  { colors: readonly [string, string, string]; locations: readonly [number, number, number] }
+> = {
+  good: {
+    colors: ['rgba(52, 211, 153, 0.32)', 'rgba(16, 185, 129, 0.12)', 'transparent'],
+    locations: [0, 0.45, 0.90],
+  },
+  minor: {
+    colors: ['rgba(245, 158, 11, 0.32)', 'rgba(217, 119, 6, 0.12)', 'transparent'],
+    locations: [0, 0.45, 0.90],
+  },
+  severe: {
+    colors: ['rgba(239, 68, 68, 0.32)', 'rgba(220, 38, 38, 0.12)', 'transparent'],
+    locations: [0, 0.45, 0.90],
+  },
+  suspended: {
+    colors: ['rgba(239, 68, 68, 0.32)', 'rgba(220, 38, 38, 0.12)', 'transparent'],
+    locations: [0, 0.45, 0.90],
+  },
+  offline: {
+    colors: ['rgba(0, 102, 204, 0.32)', 'rgba(0, 51, 128, 0.12)', 'transparent'],
+    locations: [0, 0.45, 0.90],
+  },
+  unknown: {
+    colors: ['rgba(0, 102, 204, 0.32)', 'rgba(0, 51, 128, 0.12)', 'transparent'],
+    locations: [0, 0.45, 0.90],
+  },
+} as const;
 
 interface Props {
   severity: Severity;
@@ -36,16 +85,19 @@ export function DashboardGradient({ severity, children }: Props) {
   // [bottom layer (outgoing), top layer (incoming)]
   const [layers, setLayers] = useState<[Severity, Severity]>([initialSeverity, initialSeverity]);
 
-  const onTransitionComplete = React.useCallback((resolved: Severity) => {
-    setLayers([resolved, resolved]);
-    crossfadeOpacity.value = 0;
-    prevSeverityRef.current = resolved;
-  }, [crossfadeOpacity]);
+  const onTransitionComplete = React.useCallback(
+    (resolved: Severity) => {
+      setLayers([resolved, resolved]);
+      crossfadeOpacity.value = 0;
+      prevSeverityRef.current = resolved;
+    },
+    [crossfadeOpacity]
+  );
 
   useEffect(() => {
     // Normalise and handle fallback
     const resolvedSeverity: Severity = STATUS_GRADIENTS[severity] ? severity : 'good';
-    
+
     if (resolvedSeverity === prevSeverityRef.current) return;
 
     if (prevSeverityRef.current === 'unknown' || reducedMotion) {
@@ -68,6 +120,12 @@ export function DashboardGradient({ severity, children }: Props) {
     opacity: crossfadeOpacity.value,
   }));
 
+  const bottomGrad = STATUS_GRADIENTS[layers[0]] || STATUS_GRADIENTS.unknown;
+  const bottomBloom = ATMOSPHERIC_BLOOMS[layers[0]] || ATMOSPHERIC_BLOOMS.unknown;
+
+  const topGrad = STATUS_GRADIENTS[layers[1]] || STATUS_GRADIENTS.unknown;
+  const topBloom = ATMOSPHERIC_BLOOMS[layers[1]] || ATMOSPHERIC_BLOOMS.unknown;
+
   return (
     <View
       style={StyleSheet.absoluteFillObject}
@@ -76,23 +134,37 @@ export function DashboardGradient({ severity, children }: Props) {
       accessibilityElementsHidden={true}
       importantForAccessibility="no-hide-descendants"
     >
-      {/* Bottom layer — current / outgoing gradient */}
+      {/* Bottom layer — current / outgoing base flow + bloom */}
       <LinearGradient
-        colors={STATUS_GRADIENTS[layers[0]] || STATUS_GRADIENTS.unknown}
-        locations={GRADIENT_LOCATIONS}
+        colors={bottomGrad.colors}
+        locations={bottomGrad.locations}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
+      <LinearGradient
+        colors={bottomBloom.colors}
+        locations={bottomBloom.locations}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.7 }}
       />
 
-      {/* Top layer — incoming gradient, cross-fades in over 800ms */}
+      {/* Top layer — incoming base flow + bloom (cross-fades over 500ms) */}
       <Animated.View style={[StyleSheet.absoluteFillObject, topLayerStyle]}>
         <LinearGradient
-          colors={STATUS_GRADIENTS[layers[1]] || STATUS_GRADIENTS.unknown}
-          locations={GRADIENT_LOCATIONS}
+          colors={topGrad.colors}
+          locations={topGrad.locations}
           style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+        />
+        <LinearGradient
+          colors={topBloom.colors}
+          locations={topBloom.locations}
+          style={StyleSheet.absoluteFillObject}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.7 }}
         />
       </Animated.View>
 

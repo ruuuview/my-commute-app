@@ -37,13 +37,15 @@ async function createProfile(): Promise<{ userId: string; apiKey: string }> {
 
 // Idempotent + concurrency-safe: concurrent callers share one in-flight
 // creation, so onboarding finish and a claims fetch can race safely.
-export async function ensureDeviceIdentity(): Promise<{ userId: string; apiKey: string }> {
-  const [storedUserId, storedApiKey] = await Promise.all([
-    AsyncStorage.getItem(USER_ID_KEY),
-    AsyncStorage.getItem(API_KEY_KEY),
-  ])
-  if (storedUserId && storedApiKey) {
-    return { userId: storedUserId, apiKey: storedApiKey }
+export async function ensureDeviceIdentity(forceRefresh = false): Promise<{ userId: string; apiKey: string }> {
+  if (!forceRefresh) {
+    const [storedUserId, storedApiKey] = await Promise.all([
+      AsyncStorage.getItem(USER_ID_KEY),
+      AsyncStorage.getItem(API_KEY_KEY),
+    ])
+    if (storedUserId && storedApiKey) {
+      return { userId: storedUserId, apiKey: storedApiKey }
+    }
   }
   if (!identityPromise) {
     identityPromise = createProfile().finally(() => {

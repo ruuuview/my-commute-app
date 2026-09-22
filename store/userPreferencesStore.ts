@@ -287,6 +287,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           } else {
             lines.push(id);
           }
+          void syncToWidget(lines);
           return { selectedLines: lines };
         });
       },
@@ -316,6 +317,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         });
       },
       reorderLines: (order: string[]) => {
+        void syncToWidget(order);
         set({ selectedLines: order });
       },
       reorderStations: (order: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => {

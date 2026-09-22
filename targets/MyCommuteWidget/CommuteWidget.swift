@@ -140,21 +140,16 @@ struct CommuteEntry: TimelineEntry {
 private let kAppGroupID = "group.com.mycommute.app"
 
 struct CommuteProvider: TimelineProvider {
-    private static let defaultLines: [SavedLine] = [
-        SavedLine(id: "victoria", name: "Victoria"),
-        SavedLine(id: "jubilee", name: "Jubilee"),
-        SavedLine(id: "northern", name: "Northern"),
-        SavedLine(id: "central", name: "Central"),
-        SavedLine(id: "piccadilly", name: "Piccadilly"),
-        SavedLine(id: "elizabeth", name: "Elizabeth")
-    ]
-
     func placeholder(in context: Context) -> CommuteEntry {
         CommuteEntry(date: Date(), fetchDate: nil, lines: [], debugMessage: nil, isStale: false, isFailure: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CommuteEntry) -> Void) {
-        let savedLines = (try? readSavedLines()) ?? Self.defaultLines
+        let savedLines = readSavedLines()
+        if savedLines.isEmpty {
+            completion(CommuteEntry(date: Date(), fetchDate: nil, lines: [], debugMessage: nil, isStale: false, isFailure: false))
+            return
+        }
         let lastFetch = readLastFetchDate()
         if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
             completion(CommuteEntry(date: Date(), fetchDate: lastFetch, lines: cached, debugMessage: nil, isStale: false, isFailure: false))
@@ -232,6 +227,7 @@ struct CommuteProvider: TimelineProvider {
     }
 
     private func readPreWarmedCache(for savedLines: [SavedLine]) -> [CommuteLine]? {
+        guard !savedLines.isEmpty else { return nil }
         guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else { return nil }
         let rawJson = userDefaults.string(forKey: "cachedLineStatuses") ?? userDefaults.string(forKey: "cachedTfLStatus")
         guard let jsonString = rawJson,
@@ -250,7 +246,10 @@ struct CommuteProvider: TimelineProvider {
     }
 
     private func fetchRawData() async -> ([CommuteLine], Bool, String?) {
-        let savedLines = (try? readSavedLines()) ?? Self.defaultLines
+        let savedLines = readSavedLines()
+        guard !savedLines.isEmpty else {
+            return ([], false, nil)
+        }
         
         do {
             let commuteLines = try await fetchTfLStatus(for: savedLines)
@@ -269,7 +268,7 @@ struct CommuteProvider: TimelineProvider {
             if let cached = readPreWarmedCache(for: savedLines), !cached.isEmpty {
                 return (cached, true, "Offline · Cached data shown")
             }
-            // Airplane-safe first run: fallback to saved/default lines with offline badge
+            // Airplane-safe first run: fallback to saved lines with offline badge
             let fallbackLines = savedLines.map {
                 CommuteLine(id: $0.id, name: $0.name, status: "Offline · Tap ↻ to check", severity: 10)
             }
@@ -277,17 +276,26 @@ struct CommuteProvider: TimelineProvider {
         }
     }
 
-    private func readSavedLines() throws -> [SavedLine] {
+    private func readSavedLines() -> [SavedLine] {
         guard let userDefaults = UserDefaults(suiteName: kAppGroupID) else {
-            return Self.defaultLines
+            logger.error("[CommuteWidget] App Group UserDefaults unavailable: \(kAppGroupID)")
+            return []
         }
-        guard let jsonString = userDefaults.string(forKey: "myLines"),
-              let data = jsonString.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode([SavedLine].self, from: data),
-              !decoded.isEmpty else {
-            return Self.defaultLines
+        guard let jsonString = userDefaults.string(forKey: "myLines") else {
+            logger.info("[CommuteWidget] myLines key not present in UserDefaults (unconfigured state)")
+            return []
         }
-        return decoded
+        guard let data = jsonString.data(using: .utf8) else {
+            logger.error("[CommuteWidget] myLines UTF-8 data conversion failed")
+            return []
+        }
+        do {
+            let decoded = try JSONDecoder().decode([SavedLine].self, from: data)
+            return decoded
+        } catch {
+            logger.error("[CommuteWidget] myLines JSON decoding failed: \(error.localizedDescription). Raw payload: \(jsonString)")
+            return []
+        }
     }
 
     private func getSeverityRank(_ severity: Int) -> Int {
@@ -304,6 +312,7 @@ struct CommuteProvider: TimelineProvider {
     }
 
     private func fetchTfLStatus(for savedLines: [SavedLine]) async throws -> [CommuteLine] {
+        guard !savedLines.isEmpty else { return [] }
         let ids = savedLines.map { $0.id }.joined(separator: ",")
         let urlString = "https://api.tfl.gov.uk/Line/" + ids + "/Status"
         guard let url = URL(string: urlString) else {

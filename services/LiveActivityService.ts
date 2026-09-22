@@ -41,6 +41,18 @@ import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { computeDetour } from './detourComputer';
 
+export interface SavedLinePayload {
+  id: string;   // Canonical TfL line ID slug (e.g. 'jubilee', 'elizabeth')
+  name: string; // Display name (e.g. 'Jubilee', 'Elizabeth line')
+}
+
+export interface WidgetLineStatusPayload {
+  id: string;
+  name: string;
+  status: string;
+  severity: number;
+}
+
 // Detect Expo Go where custom native modules are unsupported by design
 export const isExpoGo =
   Constants.appOwnership === 'expo' ||
@@ -625,19 +637,36 @@ export class LiveActivityService {
         ? selectedLines
         : (useUserPreferencesStore?.getState?.()?.selectedLines || []);
 
-      const linesArray = (lines && lines.length > 0)
-        ? lines.map(id => ({ id: normaliseLineId(id), name: tflCapitalise(id) }))
+      const linesArray: SavedLinePayload[] = (lines && lines.length > 0)
+        ? lines.map(rawId => ({
+            id: normaliseLineId(rawId).cleanLineId,
+            name: tflCapitalise(rawId),
+          }))
         : [];
+
+      // Pre-write validation guard: ensure no malformed objects poison the App Group
+      const isMalformed = linesArray.some(l => typeof l.id !== 'string' || typeof l.name !== 'string' || !l.id || !l.name);
+      if (isMalformed) {
+        console.error('[LiveActivityService] Blocked malformed widget payload from poisoning App Group:', linesArray);
+        return;
+      }
 
       const linesJson = JSON.stringify(linesArray);
 
       let statusesJson = '';
       if (customStatuses && customStatuses.length > 0) {
-        const selectedSet = new Set(lines.map(id => normaliseLineId(id)));
-        const filteredStatuses = customStatuses.filter(s => selectedSet.has(normaliseLineId(s.id)));
+        const selectedSet = new Set(lines.map(id => normaliseLineId(id).cleanLineId));
+        const filteredStatuses: WidgetLineStatusPayload[] = customStatuses
+          .filter(s => selectedSet.has(normaliseLineId(s.id).cleanLineId))
+          .map(s => ({
+            id: normaliseLineId(s.id).cleanLineId,
+            name: s.name,
+            status: s.status,
+            severity: s.severity,
+          }));
         statusesJson = JSON.stringify(filteredStatuses);
       } else {
-        const baselineStatuses = linesArray.map(l => ({
+        const baselineStatuses: WidgetLineStatusPayload[] = linesArray.map(l => ({
           id: l.id,
           name: l.name,
           status: 'Good Service',

@@ -35,19 +35,17 @@ import { useLiveReducedMotion } from './useReducedMotion';
 export { useLiveReducedMotion };
 
 // ── Tuning knobs ──
-export const JIGGLE_MAX_DEG = 0.6;        // Base rotation. ±1.9pt corners on a 361pt card.
-                                           // Owner knob: raise toward 0.8 max — beyond that,
-                                           // 12pt gaps start pumping again.
-export const JIGGLE_BASE_PERIOD_MS = 380; // Snappy Apple-style wobble cadence (~380ms per sway).
-export const JIGGLE_IN_MS = 220;          // Entry ramp — masks phase start, no angle snap.
-export const JIGGLE_OUT_MS = 280;         // Exit settle — wobble eases to flat.
-export const JIGGLE_BOB_PT = 0.9;         // Vertical float, quarter-phase offset from rotation.
+export const JIGGLE_MAX_DEG = 0.5;        // Uniform angle: ±0.5° (±1.57pt corner travel on a 361pt card)
+export const JIGGLE_PERIOD_MS = 380;     // Snappy Apple-style wobble cadence (~380ms full cycle)
+export const JIGGLE_BASE_PERIOD_MS = JIGGLE_PERIOD_MS;
+export const JIGGLE_IN_MS = 220;          // Entry ramp — masks phase start, no angle snap
+export const JIGGLE_OUT_MS = 280;         // Exit settle — wobble eases to flat
+export const JIGGLE_VERTICAL_LIFT_PT = 0.6; // Uniform vertical bob
+export const JIGGLE_BOB_PT = JIGGLE_VERTICAL_LIFT_PT; // Legacy alias
 export const JIGGLE_ENTRY_POP = 1.015;    // One-shot scale acknowledgment on entering edit mode.
-                                           // Set to 1 to disable the pop entirely.
 
 // Legacy aliases (kept so no stray import breaks)
 export const JIGGLE_DEG = JIGGLE_MAX_DEG;
-export const JIGGLE_PERIOD_MS = JIGGLE_BASE_PERIOD_MS;
 
 const TWO_PI = Math.PI * 2;
 
@@ -56,24 +54,6 @@ export interface JiggleDriver {
   amplitude: SharedValue<number>;
   /** JS-side mirror of the active state so per-card clocks start/stop with the mode. */
   active: boolean;
-}
-
-/** mulberry32 single-step. Deterministic per-card "wobble character":
- *  same seed → same phase/period/amplitude on every render. No unseeded RNG
- *  here — re-rolling character on re-render reads as the card glitching. */
-function seededUnit(seed: number): number {
-  let t = (seed + 0x6d2b79f5) | 0;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function stringToSeed(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
 }
 
 /** ONE instance per dashboard. Owns the shared amplitude envelope (entry ramp +
@@ -98,47 +78,38 @@ export function useJiggleDriver(isEditing: boolean): JiggleDriver {
 }
 
 /** Per-card consumer. Emits transform + zIndex.
- *  Each card gets its OWN clock with a seeded phase offset, period (±15%), and
- *  amplitude (±20%) — the SpringBoard recipe. Ensemble result: at any instant
- *  cards lean at different angles, drifting in and out of alignment, never all
- *  synchronized in one direction or locked in opposition.
- *  Accepts `seed`: either a stable string ID (e.g. stationId) or numeric index. */
-export function useJiggle(driver: JiggleDriver | undefined, seed: string | number, isActive: boolean) {
+ *  Uniform Apple-style jiggle:
+ *  - Uniform frequency (380ms) and uniform angle (0.50°) across all cards.
+ *  - Strict alternating polarity based on index % 2 (L, R, L, R).
+ *  - In-phase vertical float (0.6pt) so all cards buoy harmonically.
+ *  - Harmonic pendulum easing (Easing.inOut(Easing.sin)) for natural physical swing.
+ *  - Background cards continue wobbling during drag while the active card eases flat via isActive.
+ */
+export function useJiggle(driver: JiggleDriver | undefined, indexOrSeed: number | string = 0, isActive: boolean = false) {
   const phase = useSharedValue(0);
   const activeProgress = useSharedValue(isActive ? 1 : 0);
   const settleScale = useSharedValue(1);
 
-  const numericSeed = typeof seed === 'string' ? stringToSeed(seed) : seed;
-
-  // Stable per-card wobble character (seeded — survives re-renders and reorders):
-  const character = useMemo(
-    () => ({
-      offset: seededUnit(numericSeed) * TWO_PI,                                           // starting angle
-      period: JIGGLE_BASE_PERIOD_MS * (0.85 + 0.3 * seededUnit(numericSeed + 101)),       // ±15% — periods drift apart
-      deg: JIGGLE_MAX_DEG * (0.8 + 0.4 * seededUnit(numericSeed + 202)),                  // ±20% amplitude variety
-      bob: JIGGLE_BOB_PT * (0.7 + 0.6 * seededUnit(numericSeed + 303)),                   // float variety
-    }),
-    [numericSeed]
-  );
+  const index = typeof indexOrSeed === 'number' ? indexOrSeed : 0;
+  const rotationOffset = index % 2 === 0 ? 0 : Math.PI;
 
   // Dragged card eases flat + lifts (no angle snap at drag start).
   useEffect(() => {
     activeProgress.value = withTiming(isActive ? 1 : 0, { duration: 120, easing: Easing.out(Easing.quad) });
   }, [isActive, activeProgress]);
 
-  // Per-card clock. Starts with the mode; on exit the clock freezes and the
-  // shared amplitude envelope eases the card to flat — that IS the settle.
+  // Per-card clock. Synchronized loop with index % 2 polarity alternation and harmonic sine easing.
   useEffect(() => {
     if (driver?.active) {
-      phase.value = character.offset;
+      phase.value = 0;
       phase.value = withRepeat(
-        withTiming(character.offset + TWO_PI, { duration: character.period, easing: Easing.linear }),
+        withTiming(TWO_PI, { duration: JIGGLE_PERIOD_MS, easing: Easing.inOut(Easing.sin) }),
         -1,
         false // non-reversed is CORRECT: sin(offset) === sin(offset + 2π) — seamless loop
       );
       // One-shot entry acknowledgment: tiny scale pop, staggered down the list.
       settleScale.value = withDelay(
-        Math.min((numericSeed % 8) * 20, 160),
+        Math.min((index % 8) * 20, 160),
         withSequence(
           withTiming(JIGGLE_ENTRY_POP, { duration: 110, easing: Easing.out(Easing.quad) }),
           withSpring(1, { damping: 16, stiffness: 220 })
@@ -149,7 +120,7 @@ export function useJiggle(driver: JiggleDriver | undefined, seed: string | numbe
       cancelAnimation(settleScale);
       settleScale.value = withTiming(1, { duration: 140 });
     }
-  }, [driver?.active, character, numericSeed, phase, settleScale]);
+  }, [driver?.active, index, phase, settleScale]);
 
   // Unmount: no orphaned UI-thread loops.
   useEffect(
@@ -162,10 +133,9 @@ export function useJiggle(driver: JiggleDriver | undefined, seed: string | numbe
 
   return useAnimatedStyle(() => {
     const env = (driver ? driver.amplitude.value : 0) * (1 - activeProgress.value);
-    const deg = Math.sin(phase.value) * character.deg * env;
-    // Quarter-phase float: card is centered at max tilt, bobs through center —
-    // the "resting on glass" feel. Transform-only: never touches layout.
-    const dy = Math.cos(phase.value) * character.bob * env;
+    const deg = Math.sin(phase.value + rotationOffset) * JIGGLE_MAX_DEG * env;
+    // In-phase vertical float: all cards bob buoyantly on the same water level
+    const dy = Math.cos(phase.value) * JIGGLE_VERTICAL_LIFT_PT * env;
     return {
       transform: [
         { translateY: dy },

@@ -899,7 +899,7 @@ const MyCommuteDashboard: React.FC = () => {
             statusLabel={item.status || 'Good service'}
             cardHeight={46}
             mode="display"
-            isEditing={isEditing && !isDraggingLine}
+            isEditing={isEditing}
             onDelete={removeLine}
             drag={isEditing ? drag : undefined}
             isActive={isActive}
@@ -912,7 +912,7 @@ const MyCommuteDashboard: React.FC = () => {
         </View>
       </ScaleDecorator>
     );
-  }, [isEditing, isDraggingLine, sortedLines, removeLine, jiggle, handleEdit, handleMoveLineUp, handleMoveLineDown]);
+  }, [isEditing, sortedLines, removeLine, jiggle, handleEdit, handleMoveLineUp, handleMoveLineDown]);
   const worstStatus = useWorstStatus(selectedLines);
   const networkSeverity = useMemo(() => {
     if (staleState === 'offline') return 'offline';

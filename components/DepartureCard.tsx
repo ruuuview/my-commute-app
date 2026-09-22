@@ -112,8 +112,8 @@ const DepartureCard = memo(function DepartureCard({
 
   const pressAnim = usePressAnimation('departure_card', false, isActive);
   const deletePressAnim = usePressAnimation('line_deselect', false);
-  // Seed jiggle by stationId so phase stays stable across list reorder
-  const jiggleStyle = useJiggle(jiggle, stationId || index, isActive);
+  // Uniform jiggle with alternating polarity by list index
+  const jiggleStyle = useJiggle(jiggle, index, isActive);
 
   // ── Derived values ───────────────────────────────────────────
   const cleanName = String(stationName ?? '')

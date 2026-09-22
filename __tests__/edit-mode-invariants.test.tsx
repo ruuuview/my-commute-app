@@ -19,36 +19,32 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
   const useJiggleSrc = fs.readFileSync(useJigglePath, 'utf8');
   const stationArrivalsStoreSrc = fs.readFileSync(stationArrivalsStorePath, 'utf8');
 
-  describe('Rule: Organic Apple-Style Jiggle (RATIFIED: jiggle retained — "make it better, don\'t kill it")', () => {
+  describe('Rule: Flagship Apple-Style Jiggle Invariants', () => {
     it('both card types attach jiggleStyle to their outer container (one shared engine)', () => {
       expect(departureCardSrc).toMatch(/style=\{\[styles\.outerContainer,\s*containerAnimStyle,\s*jiggleStyle\]\}/);
       expect(lineCardSrc).toMatch(/jiggleStyle/);
     });
 
-    it('rotation is budgeted for wide cards: 0.6° base (±1.9pt corners on a 361pt card)', () => {
-      expect(useJiggleSrc).toMatch(/JIGGLE_MAX_DEG\s*=\s*0\.6\b/);
+    it('rotation is uniform across all cards: 0.5° base', () => {
+      expect(useJiggleSrc).toMatch(/JIGGLE_MAX_DEG\s*=\s*0\.5\b/);
     });
 
-    it('cadence is tuned for snappy Apple-style wobble: base period around 380ms', () => {
-      const m = useJiggleSrc.match(/JIGGLE_BASE_PERIOD_MS\s*=\s*(\d+)/);
+    it('cadence is tuned for snappy Apple-style wobble: period is 380ms', () => {
+      const m = useJiggleSrc.match(/JIGGLE_PERIOD_MS\s*=\s*(\d+)/);
       expect(m).not.toBeNull();
-      expect(parseInt(m![1], 10)).toBeLessThanOrEqual(500);
-      expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(300);
+      expect(parseInt(m![1], 10)).toBe(380);
     });
 
-    it('no lockstep schemes: neither golden-angle spread nor ± parity antiphase', () => {
-      expect(useJiggleSrc).not.toContain('GOLDEN_ANGLE');
-      expect(useJiggleSrc).not.toMatch(/index\s*%\s*2\s*===\s*0\s*\)\s*\?\s*1\s*:\s*-1/);
+    it('vertical lift is uniform across all cards: 0.6pt', () => {
+      expect(useJiggleSrc).toMatch(/JIGGLE_VERTICAL_LIFT_PT\s*=\s*0\.6\b/);
     });
 
-    it('per-card wobble character is seeded and render-stable (no Math.random re-rolls)', () => {
-      expect(useJiggleSrc).toMatch(/Math\.imul/);
-      expect(useJiggleSrc).not.toContain('Math.random');
-      expect(useJiggleSrc).toMatch(/useMemo\(\s*\(\)\s*=>\s*\(\{[\s\S]*?offset:/);
+    it('alternates left/right polarity strictly by index % 2', () => {
+      expect(useJiggleSrc).toMatch(/rotationOffset\s*=\s*index\s*%\s*2\s*===\s*0\s*\?\s*0\s*:\s*Math\.PI/);
     });
 
-    it('periods are decorrelated per card (±15% jitter) so alignment never locks', () => {
-      expect(useJiggleSrc).toMatch(/0\.85\s*\+\s*0\.3\s*\*\s*seededUnit/);
+    it('uses harmonic sine pendulum easing (Easing.inOut(Easing.sin))', () => {
+      expect(useJiggleSrc).toMatch(/easing:\s*Easing\.inOut\(Easing\.sin\)/);
     });
 
     it('jiggle honors Reduce Motion (no rotation or bob when enabled)', () => {

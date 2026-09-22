@@ -38,7 +38,7 @@ export { useLiveReducedMotion };
 export const JIGGLE_MAX_DEG = 0.6;        // Base rotation. ±1.9pt corners on a 361pt card.
                                            // Owner knob: raise toward 0.8 max — beyond that,
                                            // 12pt gaps start pumping again.
-export const JIGGLE_BASE_PERIOD_MS = 820; // One full sway per ~0.8s (v2 was 340ms — 2.4× too fast).
+export const JIGGLE_BASE_PERIOD_MS = 380; // Snappy Apple-style wobble cadence (~380ms per sway).
 export const JIGGLE_IN_MS = 220;          // Entry ramp — masks phase start, no angle snap.
 export const JIGGLE_OUT_MS = 280;         // Exit settle — wobble eases to flat.
 export const JIGGLE_BOB_PT = 0.9;         // Vertical float, quarter-phase offset from rotation.

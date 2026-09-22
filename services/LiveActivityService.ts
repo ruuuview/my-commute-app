@@ -623,7 +623,7 @@ export class LiveActivityService {
     try {
       const lines = (selectedLines && selectedLines.length > 0)
         ? selectedLines
-        : useUserPreferencesStore.getState().selectedLines;
+        : (useUserPreferencesStore?.getState?.()?.selectedLines || []);
 
       const linesArray = (lines && lines.length > 0)
         ? lines.map(id => ({ id: normaliseLineId(id), name: tflCapitalise(id) }))

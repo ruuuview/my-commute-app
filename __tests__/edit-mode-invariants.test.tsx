@@ -29,10 +29,11 @@ describe('Edit Mode & Scroll Lock Mechanical Invariants', () => {
       expect(useJiggleSrc).toMatch(/JIGGLE_MAX_DEG\s*=\s*0\.6\b/);
     });
 
-    it('cadence is calm: base period ≥ 800ms (340ms lockstep flicker retired)', () => {
+    it('cadence is tuned for snappy Apple-style wobble: base period around 380ms', () => {
       const m = useJiggleSrc.match(/JIGGLE_BASE_PERIOD_MS\s*=\s*(\d+)/);
       expect(m).not.toBeNull();
-      expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(800);
+      expect(parseInt(m![1], 10)).toBeLessThanOrEqual(500);
+      expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(300);
     });
 
     it('no lockstep schemes: neither golden-angle spread nor ± parity antiphase', () => {

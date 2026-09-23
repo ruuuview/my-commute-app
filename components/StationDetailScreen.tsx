@@ -19,8 +19,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Train } from 'phosphor-react-native';
+import { CaretLeft, Train } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -28,21 +27,12 @@ import { DashboardGradient } from './DashboardGradient';
 
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useLineDataStore, LineStatus } from '../store/lineDataStore';
-import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
+import { GLASS, DUE_TIME_STYLE, PREMIUM_BUTTON } from '../theme/colors';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { getSeverityColor } from '../utils/getSeverityColor';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 type Departure = NormalizedDeparture;
 
@@ -288,21 +278,12 @@ export default function StationDetailScreen({
       >
         <View style={[s.lineCardInner, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
           {!reduceTransparency && (
-            isNativeGlassAvailable ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme="dark"
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            ) : (
-              <BlurView
-                intensity={GLASS.blurIntensity}
-                tint={GLASS.blurTint}
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            )
+            <BlurView
+              intensity={GLASS.blurIntensity}
+              tint={GLASS.blurTint}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFillObject}
+            />
           )}
 
           {/* Line header: color bar + name in small caps */}
@@ -353,18 +334,34 @@ export default function StationDetailScreen({
       {/* Header bar */}
       <View style={[s.headerContainer, { paddingTop: safeAreaTop }]}>
         <View style={s.header}>
-          {/* Left: back button */}
+          {/* Left: Apple Liquid Glass Back Button */}
           <Pressable
             onPress={() => router.back()}
-            hitSlop={8}
-            style={s.backLink}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={({ pressed }: { pressed: boolean }) => [
+              s.backLink,
+              pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+            ]}
             testID="station-screen-back"
+            accessibilityLabel="Back to dashboard"
+            accessibilityRole="button"
           >
-            <Text style={s.backLinkText}>‹ Back</Text>
+            {!reduceTransparency && (
+              <BlurView
+                intensity={GLASS.blurIntensity}
+                tint={GLASS.blurTint}
+                pointerEvents="none"
+                style={StyleSheet.absoluteFillObject}
+              />
+            )}
+            <View style={s.backContentRow}>
+              <CaretLeft size={16} weight="bold" color="#FFFFFF" />
+              <Text style={s.backLinkText}>Back</Text>
+            </View>
           </Pressable>
 
           {/* Center: station eyebrow + name (perfectly centered on screen) */}
-          <View style={s.stationNameContainer}>
+          <View style={s.stationNameContainer} pointerEvents="none">
             <Text style={s.eyebrowLabel}>STATION</Text>
             <Text style={s.stationName} numberOfLines={1} testID="screen-station-name">
               {cleanName}
@@ -373,9 +370,17 @@ export default function StationDetailScreen({
         </View>
       </View>
 
-      {/* Segmented Control */}
+      {/* Segmented Control - Apple Liquid Glass Pills */}
       <View style={s.segmentContainer}>
-        <View style={s.segmentTrack}>
+        <View style={[s.segmentTrack, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+          {!reduceTransparency && (
+            <BlurView
+              intensity={GLASS.blurIntensity}
+              tint={GLASS.blurTint}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFillObject}
+            />
+          )}
           <Pressable
             onPress={() => {
               if (showAll) {
@@ -383,7 +388,13 @@ export default function StationDetailScreen({
                 toggleFilter(stationId);
               }
             }}
-            style={[s.segmentTab, !showAll && s.segmentTabActive]}
+            style={({ pressed }: { pressed: boolean }) => [
+              s.segmentTab,
+              !showAll && s.segmentTabActive,
+              pressed && { opacity: 0.8 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Show your pinned lines"
           >
             <Text style={[s.segmentTabText, !showAll ? s.segmentTabTextActive : s.segmentTabTextInactive]}>
               Your lines
@@ -396,7 +407,13 @@ export default function StationDetailScreen({
                 toggleFilter(stationId);
               }
             }}
-            style={[s.segmentTab, showAll && s.segmentTabActive]}
+            style={({ pressed }: { pressed: boolean }) => [
+              s.segmentTab,
+              showAll && s.segmentTabActive,
+              pressed && { opacity: 0.8 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Show all lines for this station"
           >
             <Text style={[s.segmentTabText, showAll ? s.segmentTabTextActive : s.segmentTabTextInactive]}>
               All lines
@@ -468,25 +485,46 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     height: 44,
     marginTop: 4,
+    position: 'relative',
   },
   backLink: {
     position: 'absolute',
     left: 0,
-    height: '100%',
+    top: 4,
+    zIndex: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    borderTopColor: PREMIUM_BUTTON.borderTopColor,
+    borderBottomColor: PREMIUM_BUTTON.borderBottomColor,
+    backgroundColor: PREMIUM_BUTTON.background,
+    shadowColor: PREMIUM_BUTTON.shadowColor,
+    shadowOffset: PREMIUM_BUTTON.shadowOffset,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
+    elevation: PREMIUM_BUTTON.elevation,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingRight: 16,
+  },
+  backContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   backLinkText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.80)',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   stationNameContainer: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: '65%',
+    maxWidth: '60%',
   },
   eyebrowLabel: {
     fontFamily: 'SpaceGrotesk_500Medium',
@@ -506,38 +544,52 @@ const s = StyleSheet.create({
   },
   segmentContainer: {
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 14,
     marginBottom: 8,
   },
   segmentTrack: {
     flexDirection: 'row',
+    height: 38,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 16,
-    padding: 2,
-    borderWidth: GLASS.borderWidth,
-    borderColor: GLASS.borderColor,
+    borderRadius: 19,
+    padding: 3,
+    overflow: 'hidden',
+    borderWidth: 1.0,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopColor: 'rgba(255, 255, 255, 0.24)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   segmentTab: {
     flex: 1,
-    paddingVertical: 7,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
   },
   segmentTabActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(255, 255, 255, 0.40)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1.0,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderTopColor: 'rgba(255, 255, 255, 0.45)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.10)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.20,
+    shadowRadius: 3,
+    elevation: 2,
   },
   segmentTabText: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 12,
+    fontSize: 13,
   },
   segmentTabTextActive: {
     color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   segmentTabTextInactive: {
-    color: 'rgba(255, 255, 255, 0.40)',
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   freshnessFooter: {
     fontFamily: 'SpaceGrotesk_400Regular',
@@ -558,31 +610,41 @@ const s = StyleSheet.create({
 
   // ── Line section glass card —─────────────────────────────────
   lineCardOuter: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'visible',
+    position: 'relative',
   },
   lineCardInner: {
     backgroundColor: GLASS.background,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
   },
+  specularHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
 
   lineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   lineHeaderDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     marginBottom: 8,
   },
   lineColorBar: {
@@ -592,8 +654,8 @@ const s = StyleSheet.create({
   },
   lineHeaderName: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -612,13 +674,13 @@ const s = StyleSheet.create({
   },
   arrivalDest: {
     flex: 1,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.90)',
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: '#FFFFFF',
   },
   arrivalPlatform: {
     fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11,
+    fontSize: 11.5,
     color: 'rgba(255,255,255,0.45)',
     marginRight: 4,
   },
@@ -629,8 +691,8 @@ const s = StyleSheet.create({
   },
   depTime: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
+    fontSize: 14,
+    color: '#FFFFFF',
     fontWeight: '500',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],

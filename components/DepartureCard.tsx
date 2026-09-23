@@ -133,18 +133,20 @@ const DepartureCard = memo(function DepartureCard({
   const displayArrivals = visibleArrivals.slice(0, MAX_ROWS);
 
   // ── Search-collapse animation (hideCard prop) ─────────────────
+  const targetMargin = isEditing ? 12 : 0;
   const collapseOpacity = useSharedValue(hideCard ? 0 : 1);
-  const collapseMargin = useSharedValue(hideCard ? 0 : 12);
+  const collapseMargin = useSharedValue(hideCard ? 0 : targetMargin);
 
   useEffect(() => {
+    const nextMargin = isEditing ? 12 : 0;
     if (reducedMotion) {
       collapseOpacity.value = hideCard ? 0 : 1;
-      collapseMargin.value = hideCard ? 0 : 12;
+      collapseMargin.value = hideCard ? 0 : nextMargin;
     } else {
       collapseOpacity.value = withTiming(hideCard ? 0 : 1, { duration: 150 });
-      collapseMargin.value = withSpring(hideCard ? 0 : 12, { damping: 22, stiffness: 240 });
+      collapseMargin.value = withSpring(hideCard ? 0 : nextMargin, { damping: 22, stiffness: 240 });
     }
-  }, [hideCard, reducedMotion, collapseOpacity, collapseMargin]);
+  }, [hideCard, reducedMotion, isEditing, collapseOpacity, collapseMargin]);
 
   const containerAnimStyle = useAnimatedStyle(() => ({
     opacity: collapseOpacity.value,
@@ -376,13 +378,12 @@ export default DepartureCard;
 // ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   outerContainer: {
-    marginBottom: 12,
     borderRadius: 16,
     overflow: 'visible',
     position: 'relative',
   },
   innerGlass: {
-    flex: 1,
+    width: '100%',
     backgroundColor: GLASS.background,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,

@@ -16,27 +16,27 @@ const STATUS_GRADIENTS: Record<
   { colors: readonly [string, string, string, string]; locations: readonly [number, number, number, number] }
 > = {
   good: {
-    colors: ['#004D25', '#003319', '#051A0E', '#020804'],
+    colors: ['#00381B', '#002613', '#051A0E', '#020804'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   minor: {
-    colors: ['#663D00', '#422700', '#211400', '#0A0600'],
+    colors: ['#3A2300', '#261700', '#140C00', '#060300'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   severe: {
-    colors: ['#660F0F', '#420A0A', '#210505', '#0A0202'],
+    colors: ['#3A0808', '#260505', '#140303', '#060101'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   suspended: {
-    colors: ['#660F0F', '#420A0A', '#210505', '#0A0202'],
+    colors: ['#3A0808', '#260505', '#140303', '#060101'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   offline: {
-    colors: ['#003380', '#001C52', '#070E24', '#02040A'],
+    colors: ['#002257', '#001438', '#070E24', '#02040A'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   unknown: {
-    colors: ['#003380', '#001C52', '#070E24', '#02040A'],
+    colors: ['#002257', '#001438', '#070E24', '#02040A'],
     locations: [0, 0.28, 0.65, 1.0],
   },
 } as const;
@@ -46,27 +46,27 @@ const ATMOSPHERIC_BLOOMS: Record<
   { colors: readonly [string, string, string]; locations: readonly [number, number, number] }
 > = {
   good: {
-    colors: ['rgba(52, 211, 153, 0.32)', 'rgba(16, 185, 129, 0.12)', 'transparent'],
+    colors: ['rgba(52, 211, 153, 0.12)', 'rgba(16, 185, 129, 0.04)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   minor: {
-    colors: ['rgba(245, 158, 11, 0.32)', 'rgba(217, 119, 6, 0.12)', 'transparent'],
+    colors: ['rgba(245, 158, 11, 0.12)', 'rgba(217, 119, 6, 0.04)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   severe: {
-    colors: ['rgba(239, 68, 68, 0.32)', 'rgba(220, 38, 38, 0.12)', 'transparent'],
+    colors: ['rgba(239, 68, 68, 0.12)', 'rgba(220, 38, 38, 0.04)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   suspended: {
-    colors: ['rgba(239, 68, 68, 0.32)', 'rgba(220, 38, 38, 0.12)', 'transparent'],
+    colors: ['rgba(239, 68, 68, 0.12)', 'rgba(220, 38, 38, 0.04)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   offline: {
-    colors: ['rgba(0, 102, 204, 0.32)', 'rgba(0, 51, 128, 0.12)', 'transparent'],
+    colors: ['rgba(0, 102, 204, 0.12)', 'rgba(0, 51, 128, 0.04)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   unknown: {
-    colors: ['rgba(0, 102, 204, 0.32)', 'rgba(0, 51, 128, 0.12)', 'transparent'],
+    colors: ['rgba(0, 102, 204, 0.12)', 'rgba(0, 51, 128, 0.04)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
 } as const;

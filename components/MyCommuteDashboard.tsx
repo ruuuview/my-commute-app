@@ -43,7 +43,7 @@ import { deleteCachedArrivals } from '../services/stationArrivalsStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTflPoller } from '../hooks/useTflPoller';
-import LiveActivityService from '../services/LiveActivityService';
+import { LiveActivityService } from '../services/LiveActivityService';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { useWorstStatus, computeWorstStatus } from '../hooks/useWorstStatus';
@@ -57,6 +57,7 @@ import { useJiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard'; // memoized
+import { AppleSwipeableRow } from './AppleSwipeableRow';
 import { NestableScrollContainer, NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DashboardGrid from './DashboardGrid';
 import { LineDetailModal } from './LineDetailModal';
@@ -1055,22 +1056,30 @@ const MyCommuteDashboard: React.FC = () => {
                           ref={el => { if (el) itemRefs.current[item.id] = el; }}
                           style={{ height: 46, marginBottom: 12 }}
                         >
-                          <LineCard
-                            line={item}
-                            selected={false}
-                            onPress={handlePress}
-                            statusType={severity}
-                            statusLabel={item.status || 'Good service'}
+                          <AppleSwipeableRow
+                            onDelete={() => removeLine(item.id)}
                             cardHeight={46}
-                            mode="display"
-                            isEditing={false}
-                            onDelete={removeLine}
-                            index={idx}
-                            jiggle={jiggle}
-                            onLongPress={handleEdit}
-                            onMoveUp={handleMoveLineUp}
-                            onMoveDown={handleMoveLineDown}
-                          />
+                            cardRadius={16}
+                            marginBottom={0}
+                            testID={`swipe-line-${item.id}`}
+                          >
+                            <LineCard
+                              line={item}
+                              selected={false}
+                              onPress={handlePress}
+                              statusType={severity}
+                              statusLabel={item.status || 'Good service'}
+                              cardHeight={46}
+                              mode="display"
+                              isEditing={false}
+                              onDelete={removeLine}
+                              index={idx}
+                              jiggle={jiggle}
+                              onLongPress={handleEdit}
+                              onMoveUp={handleMoveLineUp}
+                              onMoveDown={handleMoveLineDown}
+                            />
+                          </AppleSwipeableRow>
                         </View>
                       );
                     })

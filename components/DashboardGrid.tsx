@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
+import { AppleSwipeableRow } from './AppleSwipeableRow';
 import { JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
 import { pressFeedback } from '../utils/pressFeedback';
 
@@ -189,14 +190,21 @@ export default function DashboardGrid({
       <View style={styles.container} testID="dashboard-grid">
         {stations.map((item, index) => (
           <StaggeredEntranceWrapper key={item.id} index={index} skipEntrance={skipEntrance}>
-            <DepartureCard
-              stationId={item.id}
-              stationName={item.name}
-              onLongPress={onLongPressCard}
-              onCardTap={handleCardTap}
-              index={index}
-              jiggle={jiggle}
-            />
+            <AppleSwipeableRow
+              onDelete={() => onDelete(item.id)}
+              cardRadius={16}
+              marginBottom={12}
+              testID={`swipe-departure-${item.id}`}
+            >
+              <DepartureCard
+                stationId={item.id}
+                stationName={item.name}
+                onLongPress={onLongPressCard}
+                onCardTap={handleCardTap}
+                index={index}
+                jiggle={jiggle}
+              />
+            </AppleSwipeableRow>
           </StaggeredEntranceWrapper>
         ))}
       </View>

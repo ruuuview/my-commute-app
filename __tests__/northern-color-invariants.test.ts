@@ -59,7 +59,6 @@ describe('Northern Line Poka-Yoke Invariants', () => {
     const checkedFiles = [
       'LineCard.tsx',
       'DepartureCard.tsx',
-      'LineDetailModal.tsx',
       'StationCard.tsx',
       'StationDetailScreen.tsx',
       'RerouteScreen.tsx',

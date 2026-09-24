@@ -6,20 +6,21 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
-  useReducedMotion,
 } from 'react-native-reanimated';
+import { useLiveReducedMotion } from '../hooks/useReducedMotion';
 import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
 
 interface StatusBezelProps {
   statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | string;
+  statusLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType, style }) => {
+export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType, statusLabel, style }) => {
   const pulse = useSharedValue(1);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useLiveReducedMotion();
 
-  const normalizedStatus = statusType.toLowerCase();
+  const checkText = `${statusType ?? ''} ${statusLabel ?? ''}`.toLowerCase();
 
   useEffect(() => {
     if (reducedMotion) {
@@ -28,42 +29,38 @@ export const StatusBezel: React.FC<StatusBezelProps> = React.memo(({ statusType,
     }
 
     const shouldBlink =
-      normalizedStatus.includes('suspended') ||
-      normalizedStatus.includes('suspend') ||
-      normalizedStatus.includes('closure') ||
-      normalizedStatus.includes('closed');
+      checkText.includes('suspended') ||
+      checkText.includes('suspend') ||
+      checkText.includes('closure') ||
+      checkText.includes('closed') ||
+      checkText.includes('part closure');
     if (shouldBlink) {
       pulse.value = 1;
       pulse.value = withRepeat(
-        withTiming(0.2, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.15, { duration: 600, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
     } else {
       pulse.value = 1;
     }
-  }, [normalizedStatus, reducedMotion, pulse]);
+  }, [checkText, reducedMotion, pulse]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return { opacity: pulse.value };
   });
 
   let color = '#636366'; // Default suspended/closure/error/loading color
-  if (normalizedStatus.includes('good')) {
+  if (checkText.includes('good')) {
     color = STATUS_SEVERITY_COLORS.good;
-  } else if (normalizedStatus.includes('minor') || normalizedStatus.includes('delay')) {
-    if (normalizedStatus.includes('severe')) {
-      color = STATUS_SEVERITY_COLORS.severe;
-    } else {
-      color = STATUS_SEVERITY_COLORS.minor;
-    }
-  } else if (normalizedStatus.includes('severe')) {
-    color = STATUS_SEVERITY_COLORS.severe;
+  } else if (checkText.includes('minor') || checkText.includes('reduced')) {
+    color = STATUS_SEVERITY_COLORS.minor;
   } else if (
-    normalizedStatus.includes('suspended') ||
-    normalizedStatus.includes('suspend') ||
-    normalizedStatus.includes('closure') ||
-    normalizedStatus.includes('closed')
+    checkText.includes('severe') ||
+    checkText.includes('suspended') ||
+    checkText.includes('suspend') ||
+    checkText.includes('closure') ||
+    checkText.includes('closed')
   ) {
     color = STATUS_SEVERITY_COLORS.severe;
   }

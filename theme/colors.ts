@@ -75,7 +75,7 @@ export const SETTINGS_BACKGROUND_GRADIENT = {
 // ─── Glassmorphism tokens (single source of truth) ─────────────────────────
 export const GLASS = {
   // Live optical blur intensity (authentic Apple frosted glass)
-  blurIntensity: 45,
+  blurIntensity: 35,
   // Optical material: dark material allows background saturation to shine through clearly
   blurTint: 'dark' as const,
   // Transparent base: zero chalky/smoggy white wash

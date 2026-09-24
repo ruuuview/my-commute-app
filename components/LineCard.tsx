@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo } from 'react';
+import React, { useEffect, memo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -10,9 +10,10 @@ import Animated, {
   FadeOut,
   ZoomIn,
   ZoomOut,
+  LinearTransition,
 } from 'react-native-reanimated';
 import { usePressAnimation } from '../hooks/usePressAnimation';
-import { useJiggle, JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { useLiveReducedMotion } from '../hooks/useJiggle';
 import * as Haptics from 'expo-haptics';
 import { STATUS_SHORT } from '../constants/statusLabels';
 import { ONBOARDING_CARD_HEIGHT } from '../constants/layout';
@@ -81,14 +82,18 @@ interface LineCardProps {
 
   // Dashboard modes & properties:
   mode?: 'select' | 'display';
-  isEditing?: boolean;
   onDelete?: (id: string) => void;
   drag?: () => void;
   isActive?: boolean;
   index?: number;
-  jiggle?: JiggleDriver;
   onMoveUp?: (index: number) => void;
   onMoveDown?: (index: number) => void;
+
+  // Inline Accordion Expansion properties:
+  isExpanded?: boolean;
+  onOpenReroute?: () => void;
+  stationImpacted?: boolean;
+  reasonText?: string;
 }
 
 export const LineCard = memo(function LineCard({
@@ -101,17 +106,19 @@ export const LineCard = memo(function LineCard({
   statusLabel,
   cardHeight = ONBOARDING_CARD_HEIGHT,
   mode = 'select',
-  isEditing = false,
   onDelete,
   drag,
   isActive = false,
   index = 0,
-  jiggle,
   onMoveUp,
   onMoveDown,
+  isExpanded = false,
+  onOpenReroute,
+  stationImpacted = false,
+  reasonText,
 }: LineCardProps) {
   const reduceTransparency = useReduceTransparency();
-  const isSlim = cardHeight <= 48;
+  const isSlim = mode === 'display' || cardHeight <= 48;
   const cardRadius = isSlim ? 16 : 18;
   const lineNameFontSize = cardHeight >= 44 ? 14 : (isSlim ? 13 : 14);
   const lineNameFontFamily = isSlim ? 'SpaceGrotesk_600SemiBold' : 'SpaceGrotesk_700Bold';
@@ -120,18 +127,6 @@ export const LineCard = memo(function LineCard({
   const cardPaddingLeft = isSlim ? 30 : 34;
 
   const opacityVal = useSharedValue(0);
-
-
-  const jiggleStyle = useJiggle(jiggle, index, isActive);
-  const [touchReady, setTouchReady] = useState(true);
-
-  useEffect(() => {
-    if (!isEditing) {
-      setTouchReady(false);
-      const t = setTimeout(() => setTouchReady(true), 150);
-      return () => clearTimeout(t);
-    }
-  }, [isEditing]);
 
   useEffect(() => {
     if (statusType !== 'loading') {
@@ -147,11 +142,9 @@ export const LineCard = memo(function LineCard({
 
   const configKey = selected ? 'line_deselect' : 'line_select';
   const pressAnim = usePressAnimation(configKey, disabled, isActive);
-  const deletePressAnim = usePressAnimation('line_deselect', disabled);
 
   const handlePress = () => {
     if (disabled) return;
-    if (isEditing || !touchReady) return;
 
     if (mode === 'select') {
       if (selected) {
@@ -166,15 +159,13 @@ export const LineCard = memo(function LineCard({
     }
   };
 
-  // The card body is PASSIVE in edit mode — drag() lives only on the dedicated
-  // grabber. Full-surface drag activation hijacked vertical scrolls (the same
-  // trap DepartureCard had). Body long-press only enters edit mode when NOT
-  // already editing.
   const handleLongPress = () => {
     if (disabled) return;
-    if (isEditing) return; // body never drags — the grabber owns that
-    if (onLongPress) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => { });
+    if (drag) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+      drag();
+    } else if (onLongPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
       onLongPress();
     }
   };
@@ -192,18 +183,33 @@ export const LineCard = memo(function LineCard({
   // Zero shadow invariant per Apple Liquid Glass design standard (no drop/glow shadows)
   const selectedShadowStyle = null;
 
+  const rawReason = reasonText || line.reason || '';
+  const cleanStatusLabel = (statusLabel || '').toLowerCase().trim();
+  const cleanReason = rawReason.toLowerCase().trim();
+  const shouldShowReason = Boolean(
+    rawReason.length > 0 &&
+    cleanReason !== cleanStatusLabel &&
+    cleanReason !== 'good service' &&
+    !cleanReason.startsWith('good service')
+  );
+
+  const isDisrupted = statusType !== 'good' && statusType !== 'loading';
+
   return (
     <Animated.View
+      layout={LinearTransition.springify().damping(18).stiffness(160)}
       style={[
         styles.outerCard,
-        { height: cardHeight, borderRadius: cardRadius, zIndex: 1 },
+        mode === 'select'
+          ? { height: cardHeight, borderRadius: cardRadius, zIndex: 1 }
+          : { minHeight: 46, borderRadius: cardRadius, zIndex: 1 },
         selectedShadowStyle,
-        jiggleStyle,
       ]}
     >
       <Animated.View
         style={[
           styles.cardInner,
+          mode === 'display' && isExpanded ? styles.cardInnerExpanded : null,
           {
             borderRadius: cardRadius,
             backgroundColor: reduceTransparency ? '#1C1C1E' : GLASS.background,
@@ -285,39 +291,59 @@ export const LineCard = memo(function LineCard({
           ]}
           pointerEvents="none"
         />
+
+        {/* Vertical Accent Color Bar */}
         <View
           style={[
             styles.accentBar,
             {
               backgroundColor: isNorthern ? NORTHERN_SHADES.accentBar : line.color,
               left: leftAccentBarPosition,
-              height: isSlim ? (cardHeight - 16) : 36,
-              top: (cardHeight - (isSlim ? (cardHeight - 16) : 36)) / 2,
+              height: mode === 'display' ? 30 : (isSlim ? (cardHeight - 16) : 36),
+              top: mode === 'display' ? 8 : (cardHeight - (isSlim ? (cardHeight - 16) : 36)) / 2,
             },
           ]}
         />
 
+        {/* Header Clickable Row */}
         <Pressable
-          onPress={isEditing ? undefined : handlePress}
+          onPress={handlePress}
           pressRetentionOffset={{ top: 10, left: 10, right: 10, bottom: 10 }}
           unstable_pressDelay={80}
-          delayLongPress={700}
-          onLongPress={isEditing ? undefined : handleLongPress}
-          onPressIn={() => {
-            if (!isEditing) {
-              pressAnim.onPressIn();
+          delayLongPress={220}
+          onLongPress={handleLongPress}
+          onPressIn={() => pressAnim.onPressIn()}
+          onPressOut={() => pressAnim.onPressOut()}
+          accessibilityRole="adjustable"
+          accessibilityState={{ expanded: isExpanded }}
+          accessibilityLabel={`${line.name}, ${statusLabel}`}
+          accessibilityHint={
+            mode === 'display'
+              ? (isExpanded ? 'Double-tap to collapse line details' : 'Double-tap to expand line details and alternative routes')
+              : undefined
+          }
+          accessibilityActions={
+            mode === 'display'
+              ? [
+                { name: 'increment', label: 'Move Up' },
+                { name: 'decrement', label: 'Move Down' },
+              ]
+              : undefined
+          }
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'increment') {
+              onMoveUp?.(index);
+            } else if (event.nativeEvent.actionName === 'decrement') {
+              onMoveDown?.(index);
             }
           }}
-          onPressOut={() => {
-            if (!isEditing) pressAnim.onPressOut();
-          }}
-          style={StyleSheet.absoluteFillObject}
+          style={mode === 'display' ? styles.displayHeaderPressable : StyleSheet.absoluteFillObject}
         >
           <View
             style={[
               isSlim ? styles.cardContentSingleRow : styles.cardContentDoubleRow,
               { paddingLeft: cardPaddingLeft },
-              mode === 'select' && selected && { paddingRight: 40 }
+              mode === 'select' && selected && { paddingRight: 40 },
             ]}
           >
             <Text
@@ -341,51 +367,14 @@ export const LineCard = memo(function LineCard({
                           <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor, marginRight: 8 }]} numberOfLines={1}>
                             {STATUS_SHORT[statusLabel] || statusLabel}
                           </Text>
-                          <StatusBezel statusType={statusType} />
+                          <StatusBezel statusType={statusType} statusLabel={statusLabel} />
                         </>
                       ) : (
-                        <StatusBezel statusType={statusType} />
+                        <StatusBezel statusType={statusType} statusLabel={statusLabel} />
                       )}
                     </Animated.View>
                   )}
                 </View>
-
-                {/* Dedicated reorder grabber — the ONLY drag activator.
-                    Edit mode is dashboard-only (slim cards); onboarding never edits. */}
-                {isEditing && drag && (
-                  <Animated.View
-                    entering={FadeIn.duration(150)}
-                    exiting={FadeOut.duration(100)}
-                    style={styles.grabberContainer}
-                  >
-                    <Pressable
-                      onLongPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        drag();
-                      }}
-                      delayLongPress={150}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      accessibilityRole="adjustable"
-                      accessibilityLabel={`Reorder ${line.name}`}
-                      accessibilityHint="Long-press, then use Move Up and Move Down actions to reorder this line"
-                      accessibilityActions={[
-                        { name: 'increment', label: 'Move Up' },
-                        { name: 'decrement', label: 'Move Down' },
-                      ]}
-                      onAccessibilityAction={(event) => {
-                        if (event.nativeEvent.actionName === 'increment') {
-                          onMoveUp?.(index);
-                        } else if (event.nativeEvent.actionName === 'decrement') {
-                          onMoveDown?.(index);
-                        }
-                      }}
-                      style={styles.grabberButton}
-                      testID={`line-card-grabber-${line.id}`}
-                    >
-                      <Ionicons name="reorder-three-outline" size={22} color="rgba(255, 255, 255, 0.45)" />
-                    </Pressable>
-                  </Animated.View>
-                )}
               </>
             ) : (
               <View style={styles.statusSubRow}>
@@ -393,7 +382,7 @@ export const LineCard = memo(function LineCard({
                   <StatusSkeleton />
                 ) : (
                   <Animated.View style={[styles.statusRowLayout, animatedStatusStyle]}>
-                    <StatusBezel statusType={statusType} />
+                    <StatusBezel statusType={statusType} statusLabel={statusLabel} />
                     <Text style={[styles.statusText, { fontSize: statusTextFontSize, color: statusTextColor }]} numberOfLines={1}>
                       {STATUS_SHORT[statusLabel] || statusLabel}
                     </Text>
@@ -405,7 +394,7 @@ export const LineCard = memo(function LineCard({
         </Pressable>
 
         {/* Selection Badge (select mode only) */}
-        {mode === 'select' && selected && !isEditing && (
+        {mode === 'select' && selected && (
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(100)}
@@ -424,57 +413,93 @@ export const LineCard = memo(function LineCard({
           </Animated.View>
         )}
 
+        {/* Inline Accordion Expanded Body (display mode only) */}
+        {mode === 'display' && isExpanded && (
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(140)}
+            style={styles.expandedContainer}
+          >
+            {/* Subtle frosted divider line */}
+            <View style={styles.expandedDivider} />
+
+            {/* Station impact badge (ONLY for disrupted lines) */}
+            {isDisrupted && (
+              stationImpacted ? (
+                <View style={styles.stationImpactPill}>
+                  <View style={styles.stationImpactDot} />
+                  <Text style={styles.stationImpactText}>Station Impacted</Text>
+                </View>
+              ) : (
+                <View style={styles.stationUnaffectedPill}>
+                  <View style={styles.stationUnaffectedDot} />
+                  <Text style={styles.stationUnaffectedText}>Your Stations Unaffected</Text>
+                </View>
+              )
+            )}
+
+            {/* Disruption detail text or Good Service text */}
+            {shouldShowReason ? (
+              <Text style={styles.disruptionReasonText}>
+                {rawReason}
+              </Text>
+            ) : (
+              <Text style={styles.goodServiceDetailText}>
+                {statusLabel ? `${statusLabel} across the entire line.` : 'Good service across the entire line.'}
+              </Text>
+            )}
+
+            {/* See alternative routes CTA button */}
+            {onOpenReroute && isDisrupted && (
+              <Pressable
+                onPress={onOpenReroute}
+                style={styles.rerouteCTAButton}
+                accessibilityRole="button"
+                accessibilityLabel="See alternative routes"
+                accessibilityHint="Opens alternative transport routes and travel options"
+              >
+                <Text style={styles.rerouteCTAText}>See alternative routes</Text>
+                <Ionicons name="chevron-forward" size={14} color="rgba(255, 255, 255, 0.70)" />
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
 
       </Animated.View>
-
-      {isEditing && onDelete && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(100)}
-          style={styles.deleteBadgeContainer}
-        >
-          <Animated.View entering={ZoomIn.duration(200).springify()} exiting={ZoomOut.duration(100)}>
-            <Animated.View style={deletePressAnim.animatedStyle}>
-              <Pressable
-                style={styles.deleteBadge}
-                hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-                onPressIn={deletePressAnim.onPressIn}
-                onPressOut={deletePressAnim.onPressOut}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => { });
-                  onDelete(line.id);
-                }}
-                testID={`line-card-delete-${line.id}`}
-              >
-                <Text style={styles.deleteIcon}>−</Text>
-              </Pressable>
-            </Animated.View>
-          </Animated.View>
-        </Animated.View>
-      )}
     </Animated.View>
   );
-}
-);
+});
+
 LineCard.displayName = 'LineCard';
 
 const styles = StyleSheet.create({
   outerCard: {
-    flex: 1,
+    width: '100%',
     borderRadius: 16,
     position: 'relative',
   },
   cardInner: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
+  },
+  cardInnerExpanded: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    paddingBottom: 10,
+  },
+  displayHeaderPressable: {
+    width: '100%',
+    height: 46,
+    justifyContent: 'center',
   },
   accentBar: {
     position: 'absolute',
     left: 14,
     width: 3,
     borderRadius: 2,
+    zIndex: 2,
   },
   cardContentSingleRow: {
     flex: 1,
@@ -533,40 +558,107 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  grabberContainer: {
-    marginLeft: 8,
+  expandedContainer: {
+    width: '100%',
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  expandedDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  stationImpactPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.25)',
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    borderRadius: 9999,
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
-  grabberButton: {
-    width: 32,
-    height: 32,
+  stationImpactDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  stationImpactText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: '#EF4444',
+  },
+  stationUnaffectedPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.25)',
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    borderRadius: 9999,
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
-  deleteBadgeContainer: {
-    position: 'absolute',
-    top: -7,
-    left: -7,
-    zIndex: 9999,
+  stationUnaffectedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
   },
-  deleteBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FF3B30',
+  stationUnaffectedText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: '#34D399',
+  },
+  goodServiceDetailText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginHorizontal: 16,
+    marginBottom: 6,
+  },
+  disruptionReasonText: {
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  rerouteCTAButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 2,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
-  deleteIcon: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 18,
-    textAlign: 'center',
+  rerouteCTAText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12.5,
+    color: 'rgba(255, 255, 255, 0.90)',
+    letterSpacing: 0.3,
   },
 });

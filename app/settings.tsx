@@ -27,8 +27,6 @@ import * as Notifications from 'expo-notifications';
 import * as ExpoLocation from 'expo-location';
 import * as Calendar from 'expo-calendar';
 import { useShallow } from 'zustand/react/shallow';
-import Animated from 'react-native-reanimated';
-
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import { syncGeofencesAsync } from '../services/backgroundTask';
@@ -40,8 +38,7 @@ import { DiagnosticsModal } from '../components/DiagnosticsModal';
 import { LiquidGlassView } from '../components/LiquidGlassView';
 import { SegmentedGlassControl } from '../components/SegmentedGlassControl';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
-import { usePressAnimation } from '../hooks/usePressAnimation';
-import { SETTINGS_BACKGROUND_GRADIENT, CANVAS_LONDON_NIGHT } from '../theme/colors';
+import { SETTINGS_BACKGROUND_GRADIENT, CANVAS_LONDON_NIGHT, PREMIUM_BUTTON } from '../theme/colors';
 
 const TFL_CONTACTLESS_PORTAL_URL = 'https://tfl.gov.uk/fares/contactless-and-oyster-account';
 
@@ -74,7 +71,6 @@ function IconBadge({ icon, backgroundColor, borderColor }: IconBadgeProps) {
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const backAnim = usePressAnimation('back_btn', false);
 
   // ── Store Selectors (Zustand + MMKV) ──────────────────────────────
   const {
@@ -443,20 +439,24 @@ export default function SettingsScreen() {
       <View style={[styles.mainWrapper, { paddingTop: insets.top }]}>
         {/* Navigation Header */}
         <View style={styles.header}>
-          <Animated.View style={backAnim.animatedStyle}>
-            <Pressable 
-              style={styles.backButton} 
-              onPress={() => router.back()}
-              onPressIn={backAnim.onPressIn}
-              onPressOut={backAnim.onPressOut}
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-            >
-              <CaretLeft size={28} color="#FFFFFF" />
-            </Pressable>
-          </Animated.View>
+          <Pressable 
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Back to dashboard"
+            accessibilityRole="button"
+            testID="settings-back-button"
+          >
+            <CaretLeft size={18} color="rgba(255, 255, 255, 0.85)" weight="regular" />
+          </Pressable>
           <Text style={styles.headerTitle}>Settings</Text>
-          <View style={{ width: 44 }} />
+          <View style={{ width: 34 }} />
         </View>
 
         <ScrollView 
@@ -1123,8 +1123,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+    borderTopColor: PREMIUM_BUTTON.borderTopColor,
+    borderBottomColor: PREMIUM_BUTTON.borderBottomColor,
+    backgroundColor: PREMIUM_BUTTON.background,
+    shadowColor: PREMIUM_BUTTON.shadowColor,
+    shadowOffset: PREMIUM_BUTTON.shadowOffset,
+    shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
+    shadowRadius: PREMIUM_BUTTON.shadowRadius,
+    elevation: PREMIUM_BUTTON.elevation,
     alignItems: 'center',
     justifyContent: 'center',
   },

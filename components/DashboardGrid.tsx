@@ -8,12 +8,11 @@ import Animated, {
   withTiming,
   withDelay,
   Easing,
-  SharedValue,
 } from 'react-native-reanimated';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
 import { AppleSwipeableRow } from './AppleSwipeableRow';
-import { JiggleDriver, useLiveReducedMotion } from '../hooks/useJiggle';
+import { useLiveReducedMotion } from '../hooks/useJiggle';
 import { pressFeedback } from '../utils/pressFeedback';
 
 // ─── Per-card wrapper: stagger entrance animation ──────────────────
@@ -63,13 +62,7 @@ StaggeredEntranceWrapper.displayName = 'StaggeredEntranceWrapper';
 // ─── DashboardGrid ────────────────────────────────────────────────
 export interface DashboardGridProps {
   stations: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[];
-  /** Driven by isEditing in parent — controls jiggle + edit badges */
-  isJiggling: boolean;
-  /** Called when background tap should exit jiggle mode */
-  onExitJiggle: () => void;
   onDelete: (id: string) => void;
-  /** Optional callback for card long-press */
-  onLongPressCard?: () => void;
   /** Called whenever scroll should be enabled/disabled in the parent ScrollView */
   onScrollEnabledChange: (enabled: boolean) => void;
   /** Called when a station card is tapped — navigates to full-screen StationDetailScreen */
@@ -77,21 +70,16 @@ export interface DashboardGridProps {
   /** Triggered when the drag reordering finishes */
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
-  jiggle?: JiggleDriver;
-  globalJiggle?: SharedValue<number>;
   skipEntrance?: boolean;
 }
 
 export default function DashboardGrid({
   stations,
-  isJiggling,
   onDelete,
-  onLongPressCard,
   onScrollEnabledChange,
   onStationTap,
   onReorderStations,
   simultaneousHandlers,
-  jiggle,
   skipEntrance = false,
 }: DashboardGridProps) {
   // ── Unmount safety cleanup: unconditionally unlock scroll ─────────
@@ -137,10 +125,9 @@ export default function DashboardGrid({
   // ── Card tap handler: navigate to full-screen StationDetailScreen ─
   const handleCardTap = useCallback(
     (stationId: string, stationName: string) => {
-      if (isJiggling) return; // Block popup while in jiggle/edit mode
       onStationTap?.(stationId, stationName);
     },
-    [isJiggling, onStationTap]
+    [onStationTap]
   );
 
   const renderItem = useCallback(
@@ -148,29 +135,35 @@ export default function DashboardGrid({
       const index = getIndex() ?? stations.findIndex(s => s.id === item.id);
 
       const handleDragWithScrollLock = () => {
-        // Lock parent scroll immediately on grabber long press before drag movement starts
         onScrollEnabledChange(false);
         drag();
       };
 
       return (
-        <ScaleDecorator activeScale={1.03}>
-          <DepartureCard
-            stationId={item.id}
-            stationName={item.name}
-            onLongPress={onLongPressCard}
-            onCardTap={handleCardTap}
-            index={index}
-            isActive={isActive}
-            jiggle={jiggle}
-            isEditing={true}
-            drag={handleDragWithScrollLock}
-            onDelete={onDelete}
-            onMoveUp={handleMoveUp}
-            onMoveDown={handleMoveDown}
-            totalStations={stations.length}
-          />
-        </ScaleDecorator>
+        <StaggeredEntranceWrapper index={index} skipEntrance={skipEntrance}>
+          <AppleSwipeableRow
+            onDelete={() => onDelete(item.id)}
+            cardRadius={16}
+            marginBottom={12}
+            disabled={isActive}
+            testID={`swipe-departure-${item.id}`}
+          >
+            <ScaleDecorator activeScale={1.03}>
+              <DepartureCard
+                stationId={item.id}
+                stationName={item.name}
+                onCardTap={handleCardTap}
+                index={index}
+                isActive={isActive}
+                drag={handleDragWithScrollLock}
+                onDelete={onDelete}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                totalStations={stations.length}
+              />
+            </ScaleDecorator>
+          </AppleSwipeableRow>
+        </StaggeredEntranceWrapper>
       );
     },
     [
@@ -178,38 +171,11 @@ export default function DashboardGrid({
       onDelete,
       handleMoveUp,
       handleMoveDown,
-      jiggle,
-      onLongPressCard,
       handleCardTap,
       onScrollEnabledChange,
+      skipEntrance,
     ]
   );
-
-  if (!isJiggling) {
-    return (
-      <View style={styles.container} testID="dashboard-grid">
-        {stations.map((item, index) => (
-          <StaggeredEntranceWrapper key={item.id} index={index} skipEntrance={skipEntrance}>
-            <AppleSwipeableRow
-              onDelete={() => onDelete(item.id)}
-              cardRadius={16}
-              marginBottom={12}
-              testID={`swipe-departure-${item.id}`}
-            >
-              <DepartureCard
-                stationId={item.id}
-                stationName={item.name}
-                onLongPress={onLongPressCard}
-                onCardTap={handleCardTap}
-                index={index}
-                jiggle={jiggle}
-              />
-            </AppleSwipeableRow>
-          </StaggeredEntranceWrapper>
-        ))}
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container} testID="dashboard-grid">

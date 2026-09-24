@@ -11,62 +11,62 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Severity } from './MyCommuteDashboard';
 
-const STATUS_GRADIENTS: Record<
+export const STATUS_GRADIENTS: Record<
   Severity,
   { colors: readonly [string, string, string, string]; locations: readonly [number, number, number, number] }
 > = {
   good: {
-    colors: ['#00381B', '#002613', '#051A0E', '#020804'],
+    colors: ['#004D25', '#002E16', '#07170B', '#020603'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   minor: {
-    colors: ['#3A2300', '#261700', '#140C00', '#060300'],
+    colors: ['#603600', '#3A2100', '#180D02', '#060300'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   severe: {
-    colors: ['#3A0808', '#260505', '#140303', '#060101'],
+    colors: ['#7A1414', '#480A0A', '#1C0404', '#050101'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   suspended: {
-    colors: ['#3A0808', '#260505', '#140303', '#060101'],
+    colors: ['#500A0A', '#300505', '#140202', '#040101'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   offline: {
-    colors: ['#002257', '#001438', '#070E24', '#02040A'],
+    colors: ['#003380', '#001C52', '#070E24', '#02040A'],
     locations: [0, 0.28, 0.65, 1.0],
   },
   unknown: {
-    colors: ['#002257', '#001438', '#070E24', '#02040A'],
+    colors: ['#003380', '#001C52', '#070E24', '#02040A'],
     locations: [0, 0.28, 0.65, 1.0],
   },
 } as const;
 
-const ATMOSPHERIC_BLOOMS: Record<
+export const ATMOSPHERIC_BLOOMS: Record<
   Severity,
   { colors: readonly [string, string, string]; locations: readonly [number, number, number] }
 > = {
   good: {
-    colors: ['rgba(52, 211, 153, 0.12)', 'rgba(16, 185, 129, 0.04)', 'transparent'],
+    colors: ['rgba(16, 185, 129, 0.24)', 'rgba(5, 150, 105, 0.08)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   minor: {
-    colors: ['rgba(245, 158, 11, 0.12)', 'rgba(217, 119, 6, 0.04)', 'transparent'],
+    colors: ['rgba(245, 158, 11, 0.24)', 'rgba(217, 119, 6, 0.08)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   severe: {
-    colors: ['rgba(239, 68, 68, 0.12)', 'rgba(220, 38, 38, 0.04)', 'transparent'],
+    colors: ['rgba(239, 68, 68, 0.24)', 'rgba(185, 28, 28, 0.08)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   suspended: {
-    colors: ['rgba(239, 68, 68, 0.12)', 'rgba(220, 38, 38, 0.04)', 'transparent'],
+    colors: ['rgba(185, 28, 28, 0.20)', 'rgba(127, 29, 29, 0.06)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   offline: {
-    colors: ['rgba(0, 102, 204, 0.12)', 'rgba(0, 51, 128, 0.04)', 'transparent'],
+    colors: ['rgba(0, 102, 204, 0.24)', 'rgba(0, 51, 128, 0.08)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
   unknown: {
-    colors: ['rgba(0, 102, 204, 0.12)', 'rgba(0, 51, 128, 0.04)', 'transparent'],
+    colors: ['rgba(0, 102, 204, 0.24)', 'rgba(0, 51, 128, 0.08)', 'transparent'],
     locations: [0, 0.45, 0.90],
   },
 } as const;

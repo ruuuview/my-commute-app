@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as Haptics from 'expo-haptics';
 import { SegmentedGlassControl } from '../components/SegmentedGlassControl';
 import { LiquidGlassView, GlassSurface } from '../components/LiquidGlassView';
+import { LineCard } from '../components/LineCard';
 import * as useReducedMotionModule from '../hooks/useReducedMotion';
 import * as useReduceTransparencyModule from '../hooks/useReduceTransparency';
 
@@ -156,7 +157,6 @@ describe('Accessibility & Universal Compliance Invariants', () => {
   });
 
   describe('Catch B: BlurView Allowlist Gate (No Unaudited Direct BlurViews)', () => {
-    // Audited components permitted to import expo-blur
     const APPROVED_BLUR_FILES = new Set([
       'LiquidGlassView.tsx',
       'FractalGlassTabBar.tsx',
@@ -167,7 +167,6 @@ describe('Accessibility & Universal Compliance Invariants', () => {
       'FixItSheet.tsx',
       'PermissionPrimerModal.tsx',
       'PermissionExplainerModal.tsx',
-      'LineDetailModal.tsx',
       'StationCard.tsx',
       'StationDetailScreen.tsx',
       'DashboardSkeleton.tsx',
@@ -209,6 +208,40 @@ describe('Accessibility & Universal Compliance Invariants', () => {
       const unapproved = filesWithBlur.filter((file) => !APPROVED_BLUR_FILES.has(file));
 
       expect(unapproved).toEqual([]);
+    });
+  });
+
+  describe('LineCard Inline Accordion Accessibility Invariants', () => {
+    test('LineCard announces expanded state and hint correctly', async () => {
+      const { getByRole, rerender } = await render(
+        <LineCard
+          line={{ id: 'victoria', name: 'Victoria', color: '#0098D4', status: 'Minor Delays', status_severity: 9 }}
+          selected={false}
+          statusType="minor"
+          statusLabel="Minor Delays"
+          mode="display"
+          isExpanded={false}
+        />
+      );
+
+      const button = getByRole('adjustable');
+      expect(button.props.accessibilityState).toEqual({ expanded: false });
+      expect(button.props.accessibilityHint).toBe('Double-tap to expand line details and alternative routes');
+
+      await rerender(
+        <LineCard
+          line={{ id: 'victoria', name: 'Victoria', color: '#0098D4', status: 'Minor Delays', status_severity: 9, reason: 'Signal failure at Oxford Circus' }}
+          selected={false}
+          statusType="minor"
+          statusLabel="Minor Delays"
+          mode="display"
+          isExpanded={true}
+        />
+      );
+
+      const expandedButton = getByRole('adjustable');
+      expect(expandedButton.props.accessibilityState).toEqual({ expanded: true });
+      expect(expandedButton.props.accessibilityHint).toBe('Double-tap to collapse line details');
     });
   });
 });

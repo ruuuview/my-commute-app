@@ -17,6 +17,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { CaretLeft, Train } from 'phosphor-react-native';
@@ -30,6 +31,7 @@ import { useLineDataStore, LineStatus } from '../store/lineDataStore';
 import { GLASS, DUE_TIME_STYLE, PREMIUM_BUTTON } from '../theme/colors';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import { fetchNormalizedStationArrivals, NormalizedDeparture } from '../services/apiService';
+import { getCachedArrivals } from '../services/stationArrivalsStore';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { getSeverityColor } from '../utils/getSeverityColor';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
@@ -99,11 +101,13 @@ export default function StationDetailScreen({
   const router = useRouter();
   const { top: safeAreaTop } = useSafeAreaInsets();
   const reduceTransparency = useReduceTransparency();
-  const [departures, setDepartures] = useState<Departure[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+  const initialDepartures = getCachedArrivals(stationId);
+  const [departures, setDepartures] = useState<Departure[]>(initialDepartures ?? []);
+  const [loading, setLoading] = useState<boolean>(!initialDepartures?.length);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [fetchedAt, setFetchedAt] = useState<Date | null>(() => (initialDepartures?.length ? new Date() : null));
   const requestIdRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
   // Read line statuses from the global store (populated by MyCommuteDashboard poller)
   const lineStoreLines = useLineDataStore(state => state.lines);
@@ -174,29 +178,48 @@ export default function StationDetailScreen({
     return `${Math.floor(secs / 60)}m ago`;
   }, [fetchedAt]);
 
-  // ── Fetch departures (single source of truth) ─────────────────
-  const loadDepartures = useCallback(async (showLoader: boolean = false) => {
-    const requestId = ++requestIdRef.current;
+  // ── Fetch departures (single source of truth with failure preservation & race guard) ─
+  const loadDepartures = useCallback(async (isInitial: boolean = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    const currentReqId = ++requestIdRef.current;
     try {
-      if (showLoader) setLoading(true);
+      if (isInitial && !initialDepartures?.length) {
+        setLoading(true);
+      }
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
       const data = await fetchNormalizedStationArrivals(stationId, controller.signal);
       clearTimeout(timeoutId);
 
-      if (requestId !== requestIdRef.current) return;
-
-      setDepartures(data.departures);
-      setFetchedAt(new Date());
+      // Invariant #6: Sequence check so slower earlier requests don't clobber newer ones
+      if (currentReqId === requestIdRef.current) {
+        setDepartures(data.departures);
+        setFetchedAt(new Date());
+      }
     } catch (e) {
       console.log('[StationDetailScreen] departures error:', e);
+      // Invariant #5: NEVER call setDepartures([]) on failure — retain existing cached arrivals
     } finally {
-      if (requestId === requestIdRef.current) {
-        if (showLoader) setLoading(false);
+      isFetchingRef.current = false;
+      // Invariant #4: Guaranteed transient state reset in finally
+      if (isInitial && currentReqId === requestIdRef.current) {
+        setLoading(false);
       }
     }
-  }, [stationId]);
+  }, [stationId, initialDepartures?.length]);
+
+  const handlePullToRefresh = useCallback(async () => {
+    setIsPullRefreshing(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await loadDepartures(false);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } finally {
+      setIsPullRefreshing(false);
+    }
+  }, [loadDepartures]);
 
   useEffect(() => {
     loadDepartures(true);
@@ -334,30 +357,22 @@ export default function StationDetailScreen({
       {/* Header bar */}
       <View style={[s.headerContainer, { paddingTop: safeAreaTop }]}>
         <View style={s.header}>
-          {/* Left: Apple Liquid Glass Back Button */}
+          {/* Left: Dashboard Settings-Style Circular Glass Back Button */}
           <Pressable
-            onPress={() => router.back()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={({ pressed }: { pressed: boolean }) => [
-              s.backLink,
-              pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
+            style={({ pressed }) => [
+              s.backButton,
+              pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
             ]}
-            testID="station-screen-back"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Back to dashboard"
             accessibilityRole="button"
+            testID="station-screen-back"
           >
-            {!reduceTransparency && (
-              <BlurView
-                intensity={GLASS.blurIntensity}
-                tint={GLASS.blurTint}
-                pointerEvents="none"
-                style={StyleSheet.absoluteFillObject}
-              />
-            )}
-            <View style={s.backContentRow}>
-              <CaretLeft size={16} weight="bold" color="#FFFFFF" />
-              <Text style={s.backLinkText}>Back</Text>
-            </View>
+            <CaretLeft size={18} color="rgba(255, 255, 255, 0.85)" weight="regular" />
           </Pressable>
 
           {/* Center: station eyebrow + name (perfectly centered on screen) */}
@@ -384,7 +399,7 @@ export default function StationDetailScreen({
           <Pressable
             onPress={() => {
               if (showAll) {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                 toggleFilter(stationId);
               }
             }}
@@ -403,7 +418,7 @@ export default function StationDetailScreen({
           <Pressable
             onPress={() => {
               if (!showAll) {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                 toggleFilter(stationId);
               }
             }}
@@ -438,6 +453,13 @@ export default function StationDetailScreen({
           contentContainerStyle={s.scrollContent}
           showsVerticalScrollIndicator={false}
           testID="screen-scroll-body"
+          refreshControl={
+            <RefreshControl
+              refreshing={isPullRefreshing}
+              onRefresh={handlePullToRefresh}
+              tintColor="rgba(255,255,255,0.6)"
+            />
+          }
         >
           {filteredGroups.pinned.map((group, idx) => renderLineSection(group, idx))}
 
@@ -487,15 +509,13 @@ const s = StyleSheet.create({
     marginTop: 4,
     position: 'relative',
   },
-  backLink: {
+  backButton: {
     position: 'absolute',
     left: 0,
     top: 4,
-    zIndex: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    overflow: 'hidden',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
     borderTopColor: PREMIUM_BUTTON.borderTopColor,
@@ -506,19 +526,9 @@ const s = StyleSheet.create({
     shadowOpacity: PREMIUM_BUTTON.shadowOpacity,
     shadowRadius: PREMIUM_BUTTON.shadowRadius,
     elevation: PREMIUM_BUTTON.elevation,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  backLinkText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
+    zIndex: 10,
   },
   stationNameContainer: {
     flexDirection: 'column',

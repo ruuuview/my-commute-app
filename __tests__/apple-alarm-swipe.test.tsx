@@ -94,7 +94,6 @@ describe('AppleSwipeableRow Invariants & Contrast', () => {
             statusLabel={label}
             cardHeight={46}
             mode="display"
-            isEditing={false}
           />
         );
 

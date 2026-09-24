@@ -190,6 +190,17 @@ export default function RefundsHistoryScreen() {
     }
   }, [])
 
+  const handlePullToRefresh = useCallback(async () => {
+    setRefreshing(true)
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    try {
+      await fetchClaims(true)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [fetchClaims])
+
   useEffect(() => {
     void fetchClaims()
   }, [fetchClaims])
@@ -342,10 +353,7 @@ export default function RefundsHistoryScreen() {
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true)
-                  void fetchClaims(true)
-                }}
+                onRefresh={handlePullToRefresh}
                 tintColor="#0098D4"
                 colors={['#0098D4']}
               />

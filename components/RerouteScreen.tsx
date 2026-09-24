@@ -43,6 +43,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  PanResponder,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -50,8 +51,10 @@ import Animated, {
   withTiming,
   withSequence,
   withRepeat,
+  withSpring,
   Easing,
   useReducedMotion,
+  runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,8 +67,18 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { STATUS_SEVERITY_COLORS } from '../utils/getSeverityColor';
+import { STATUS_SEVERITY_COLORS, getSeverityColor } from '../utils/getSeverityColor';
 import { getBranchSuggestedRoute, buildRerouteLinks } from './rerouteHelpers';
+
+// ─── Canonical TfL status display strings ─────────────────────────
+// CEO-approved Option B: replace in-app "Affected"/"Running fine" with the
+// official TfL vocabulary riders already know from station boards.
+// Source: getSeverityColor 3-tier labels (§0 single-source) → display copy.
+const TFL_STATUS_DISPLAY: Record<'good' | 'minor' | 'severe', string> = {
+  good: 'Good service',
+  minor: 'Minor delays',
+  severe: 'Severe delays',
+};
 
 let isNativeGlassAvailable = false;
 try {
@@ -250,7 +263,11 @@ export default function RerouteScreen({
     suggestedRoute
   );
 
-  // ── Slide-up animation ─────────────────────────────────────────
+  // ── Slide-up animation + swipe-down dismiss gesture ────────────
+  // Gesture contract (matches ManageStationsModal):
+  //   • drag handle + header zone are the pan target
+  //   • downward drag follows finger; upward drag is resisted (0.15x)
+  //   • release: dy > 90 or vy > 0.4 → dismiss; otherwise spring back
   const translateY = useSharedValue(visible ? 0 : 900);
 
   useEffect(() => {
@@ -260,6 +277,31 @@ export default function RerouteScreen({
       translateY.value = withTiming(visible ? 0 : 900, { duration: 380, easing: Easing.out(Easing.ease) });
     }
   }, [visible, reducedMotion, translateY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 2,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.value = gestureState.dy;
+        } else {
+          translateY.value = gestureState.dy * 0.15;
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 90 || gestureState.vy > 0.4) {
+          translateY.value = withTiming(SHEET_MAX_HEIGHT + 60, { duration: 180 }, (finished) => {
+            if (finished) {
+              runOnJS(onClose)();
+            }
+          });
+        } else {
+          translateY.value = withSpring(0, { damping: 22, stiffness: 300, mass: 0.8 });
+        }
+      },
+    })
+  ).current;
 
   const sheetAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -404,20 +446,24 @@ export default function RerouteScreen({
 
   const renderHeader = () => (
     <>
-      {/* Drag handle (matches modal convention) */}
-      <View style={s.handle} />
+      {/* Drag handle — pan target for swipe-down dismiss (matches modal convention) */}
+      <View {...panResponder.panHandlers}>
+        <View style={s.handle} />
+      </View>
 
-      {/* Back — ‹ Back, 44x44pt touch target */}
-      <Pressable
-        onPress={handleBack}
-        hitSlop={12}
-        style={s.backButton}
-        accessibilityLabel="Back"
-        accessibilityRole="button"
-      >
-        <ICON.back size={22} color="rgba(255,255,255,0.80)" />
-        <Text style={s.backText}>Back</Text>
-      </Pressable>
+      {/* Back — glass pill framing (matches ManageStationsModal donePill tokens), 44x44pt touch target */}
+      <View {...panResponder.panHandlers}>
+        <Pressable
+          onPress={handleBack}
+          hitSlop={12}
+          style={s.backButton}
+          accessibilityLabel="Back"
+          accessibilityRole="button"
+        >
+          <ICON.back size={16} color="rgba(255,255,255,0.80)" />
+          <Text style={s.backText}>Back</Text>
+        </Pressable>
+      </View>
 
       {/* Line header with 4px LINE_COLORS accent bar */}
       <View style={s.lineHeaderRow}>
@@ -470,6 +516,12 @@ export default function RerouteScreen({
               const isAffected = status === 'affected';
               const isHighlighted = branch === activeTerminus;
               const activeTier = branch === resolvedTerminus ? highlightTier : 'high';
+              // Canonical TfL label via the §0 single-source severity map.
+              // Affected branches carry the line's severity code; unaffected
+              // branches resolve to 'good' → "Good service".
+              const severityResult = isAffected
+                ? getSeverityColor(severity)
+                : { color: STATUS_SEVERITY_COLORS.good, label: 'good' as const };
               return (
                 <Pressable
                   key={branch}
@@ -480,30 +532,27 @@ export default function RerouteScreen({
                   ]}
                   onPress={() => handleBranchTap(branch)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${branch} branch`}
+                  accessibilityLabel={`${branch} branch, ${TFL_STATUS_DISPLAY[severityResult.label]}`}
                   accessibilityState={{ selected: isHighlighted }}
                 >
                   <Text
                     style={s.branchCardName}
-                    numberOfLines={1}
+                    numberOfLines={2}
                     ellipsizeMode="tail"
                   >
                     {branch}
                   </Text>
-                  <View style={s.branchCardRight}>
-                    <Text style={s.branchCardStatus}>
-                      {isAffected ? 'Affected' : 'Running fine'}
+                  <View style={s.branchCardStatusRow}>
+                    <Text
+                      style={[s.branchCardStatus, { color: severityResult.color }]}
+                      numberOfLines={1}
+                    >
+                      {TFL_STATUS_DISPLAY[severityResult.label]}
                     </Text>
                     <View
                       style={[
                         s.branchStatusDot,
-                        {
-                          backgroundColor: isAffected
-                            ? severity !== undefined && (severity === 9 || severity === 7)
-                              ? STATUS_SEVERITY_COLORS.minor
-                              : STATUS_SEVERITY_COLORS.severe
-                            : STATUS_SEVERITY_COLORS.good,
-                        },
+                        { backgroundColor: severityResult.color },
                       ]}
                     />
                   </View>
@@ -585,19 +634,25 @@ export default function RerouteScreen({
   );
 
   const renderUnaffectedState = () => (
-    // EQUAL WEIGHT: same glass card, same accent bar, same typography as affected.
-    // No CTA. No lesser build. This is half the product, not an afterthought.
+    // EQUAL WEIGHT: the unaffected state gets the same dark glass card
+    // treatment as the suggested-route card — 3.5px emerald accent bar,
+    // canonical TfL header, directional specular borders. No lesser build.
     <View style={s.body}>
-      <View style={s.runningFineRow}>
-        <View style={s.runningFineDot} />
-        <Text style={s.runningFineLabel}>Running fine — no action needed</Text>
-      </View>
+      <View style={s.unaffectedCard}>
+        <View style={s.unaffectedAccentBar} />
+        <View style={s.unaffectedCardInner}>
+          <View style={s.runningFineRow}>
+            <View style={s.runningFineDot} />
+            <Text style={s.runningFineLabel}>Good service — no action needed</Text>
+          </View>
 
-      <Text style={s.disruptionReason} numberOfLines={3} ellipsizeMode="tail">
-        {otherBranchName
-          ? `The disruption is on the ${otherBranchName} branch, not yours.`
-          : 'The disruption does not affect your route.'}
-      </Text>
+          <Text style={s.disruptionReason} numberOfLines={3} ellipsizeMode="tail">
+            {otherBranchName
+              ? `The disruption is on the ${otherBranchName} branch, not yours.`
+              : 'The disruption does not affect your route.'}
+          </Text>
+        </View>
+      </View>
 
       {/* Rule 33 — GOT IT dismiss button */}
       <BouncyPressable onPress={onClose} style={s.gotItButton}>
@@ -850,8 +905,15 @@ const s = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     minHeight: 44, // 44x44pt touch target (Rule)
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    paddingRight: 12,
     marginBottom: 4,
   },
   backText: {
@@ -921,11 +983,37 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 10,
     marginBottom: 16,
+  },
+  // ── Unaffected-state glass card (equal weight to suggested route) ──
+  unaffectedCard: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    backgroundColor: GLASS.background,
+    marginBottom: 4,
+  },
+  unaffectedAccentBar: {
+    width: 3.5,
+    backgroundColor: '#34D399',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+  },
+  unaffectedCardInner: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   suggestedRouteHeaderRow: {
     flexDirection: 'row',
@@ -1088,18 +1176,18 @@ const s = StyleSheet.create({
   },
   branchGridCard: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 9999,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     overflow: 'hidden',
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    minHeight: 44,
-    gap: 10,
+    paddingVertical: 8,
+    minHeight: 52,
+    gap: 2,
   },
   // High confidence / manual selection highlight — premium status-neutral white.
   branchGridCardEmerald: {
@@ -1113,10 +1201,10 @@ const s = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.80)',
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  branchCardRight: {
+  branchCardStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flexShrink: 0,
   },
   branchStatusDot: {
@@ -1125,10 +1213,10 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   branchCardName: {
-    flex: 1,
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 13,
     color: '#FFFFFF',
+    alignSelf: 'stretch',
   },
   branchCardStatus: {
     fontFamily: 'SpaceGrotesk_500Medium',

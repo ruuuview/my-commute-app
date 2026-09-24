@@ -2,6 +2,8 @@
  * MyCommuteDashboard.tsx
  * ─────────────────────────────────────────────────────────────────
  * "Refined Transit Intelligence" — Bloomberg Terminal × Apple Maps
+ * Direct Manipulation Metaphor: Modeless elastic swipe-to-delete,
+ * direct long-press drag-to-reorder, zero edit mode chrome.
  * ─────────────────────────────────────────────────────────────────
  */
 
@@ -47,10 +49,9 @@ import { tflCapitalise } from '../utils/tflCapitalise';
 import { useWorstStatus, computeWorstStatus } from '../hooks/useWorstStatus';
 import { Ionicons } from '@expo/vector-icons';
 import { Gear } from 'phosphor-react-native';
-// ✅ Modal now managed HERE, not upstream
 import { ManageLinesModal } from './ManageLinesModal';
 import { ManageStationsModal } from './ManageStationsModal';
-import { useLiveReducedMotion } from '../hooks/useJiggle';
+import { useLiveReducedMotion } from '../hooks/useReducedMotion';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { DashboardGradient } from './DashboardGradient';
 import { LineCard } from './LineCard'; // memoized
@@ -86,7 +87,6 @@ try {
   isNativeGlassAvailable = false;
 }
 
-
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -109,9 +109,6 @@ interface DashboardData {
   lines: LineData[];
 }
 
-// Branch destinations per line — expanded to support 2x2 grid for 4-branch lines.
-// (Mirror of StationCard.LINE_TERMINALS; kept local because that map isn't exported.)
-// Lines with 4 branches get a 2x2 grid in RerouteScreen; 2-branch lines keep the old flow.
 export const REROUTE_LINE_BRANCHES: Record<string, string[]> = {
   central: [
     'Epping branch',
@@ -223,14 +220,6 @@ const REROUTE_SUGGESTIONS: Record<string, { description: string; extraTimeMinute
   },
 };
 
-
-
-// ─── Severity mapping ─────────────────────────────────────────────
-// Code→label mapping is delegated to the single source of truth in
-// utils/getSeverityColor.ts (AGENTS.md §0). Only the dashboard's own
-// network-state detection (offline/loading/unknown text) stays local —
-// those states are NOT TfL statuses and getSeverityColor deliberately
-// defaults unrecognized input to 'good'.
 function getDashboardSeverity(statusText: string, statusSeverity?: number): Severity {
   const text = String(statusText ?? '').toLowerCase();
   if (text.includes('offline') || text.includes('connection') || text.includes('loading') || text.includes('unknown')) {
@@ -239,7 +228,6 @@ function getDashboardSeverity(statusText: string, statusSeverity?: number): Seve
   return getSeverityColor(statusSeverity, statusText).label;
 }
 
-// ─── Smart Heartbeat Dot ─────────────────────────────────────────
 const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
   const opacity = useSharedValue(0.8);
   const reducedMotion = useLiveReducedMotion();
@@ -281,13 +269,6 @@ const NetworkHealthDot = memo(({ severity }: { severity: Severity }) => {
 });
 NetworkHealthDot.displayName = 'NetworkHealthDot';
 
-// ─── Status configuration removed in favor of direct styling in LinePill
-
-
-// ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
-
-// ─── Reusable DepartureCard handles dynamic station arrivals and visual rendering
-
 // ─── Section header ───────────────────────────────────────────────
 const SectionHeader: React.FC<{
   title: string;
@@ -315,6 +296,7 @@ const SectionHeader: React.FC<{
     )}
   </View>
 );
+
 const section = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 4 },
   title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 11, letterSpacing: 0.1, color: 'rgba(255,255,255,0.45)' },
@@ -336,57 +318,43 @@ const section = StyleSheet.create({
     elevation: PREMIUM_BUTTON.elevation,
   },
   addBtnText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
     color: '#FFFFFF',
     lineHeight: 18,
-    textAlign: 'center',
   },
 });
 
-// ─── Stale Status Text ──────────────────────────────────────────────
-const StaleStatusText: React.FC<{ staleState: string | null; staleMinutes: number }> = ({ staleState, staleMinutes }) => {
-  const opacity = useSharedValue(0);
-  const reducedMotion = useLiveReducedMotion();
-  const [displayText, setDisplayText] = useState('');
-
-  useEffect(() => {
-    if (staleState === 'offline') setDisplayText(`Offline · Data is ${staleMinutes}m old`);
-    else if (staleState === 'tfl-error') setDisplayText(`TfL unavailable · Last updated ${staleMinutes}m ago`);
-    else if (staleState === 'tfl-delayed') setDisplayText(`TfL data delayed · Last updated ${staleMinutes}m ago`);
-  }, [staleState, staleMinutes]);
-
-  useEffect(() => {
-    if (staleState !== null) {
-      if (reducedMotion) {
-        opacity.value = 0.7;
-      } else {
-        opacity.value = 0.4;
-        opacity.value = withRepeat(
-          withTiming(0.9, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
-          -1,
-          true
-        );
-      }
-    } else {
-      cancelAnimation(opacity);
-      opacity.value = withTiming(0, { duration: 300 });
-    }
-  }, [staleState, reducedMotion, opacity]);
-
-  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  if (!displayText) return null;
-
+function StaleStatusText({ staleState, staleMinutes }: { staleState: import('../hooks/useTflPoller').StaleState; staleMinutes: number }) {
+  if (staleState === 'offline') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <NetworkHealthDot severity="offline" />
+        <Text style={dash.staleText} accessibilityLabel="Network offline, displaying cached TfL transit data">
+          Offline — cached data
+        </Text>
+      </View>
+    );
+  }
+  if (staleState === 'tfl-error' || staleState === 'tfl-delayed') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <NetworkHealthDot severity="minor" />
+        <Text style={dash.staleText} accessibilityLabel={`Transit data updated ${staleMinutes} minutes ago`}>
+          Updated {staleMinutes}m ago
+        </Text>
+      </View>
+    );
+  }
   return (
-    <Animated.Text style={[dash.staleText, animStyle]}>
-      {displayText}
-    </Animated.Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <NetworkHealthDot severity="good" />
+      <Text style={[dash.staleText, { color: 'rgba(255, 255, 255, 0.45)' }]} accessibilityLabel="Transit network status is live">
+        Live service
+      </Text>
+    </View>
   );
-};
-
-// ─── Staggered Card Wrapper ──────────────────────────────────────
-
+}
 
 // ─── Session-Level Intent Deduplication Sets ──────────────────────
 // Survives React component unmount/remount cycles during tab switching
@@ -394,34 +362,9 @@ const sessionConsumedManageLinesNonces = new Set<string>();
 const sessionConsumedNotificationNonces = new Set<string>();
 const sessionConsumedLegacyLineIds = new Set<string>();
 
-// ─── Main Dashboard ───────────────────────────────────────────────
-const MyCommuteDashboard: React.FC = () => {
+// ─── Main Dashboard Component ─────────────────────────────────────
+export function MyCommuteDashboard() {
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<any>(null);
-  const reduceTransparency = useReduceTransparency();
-
-  const { resetOnboarding, selectedLines, selectedStations, removeLine, removeStation, reorderStations, reorderLines, lastKnownData, setLastKnown, labelsConfirmed, hasSeenConfirmationCard, completedJourneys, arrivalNotificationsEnabled, arrivalSnoozeExpiry, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry } = useUserPreferencesStore(useShallow((s: any) => ({
-    resetOnboarding: s.resetOnboarding,
-    selectedLines: s.selectedLines || [],
-    selectedStations: s.pinnedStations || [],
-    removeLine: s.toggleLine,
-    removeStation: s.unpinStation,
-    reorderStations: s.reorderStations,
-    reorderLines: s.reorderLines,
-    lastKnownData: s.lastKnownData || [],
-    setLastKnown: s.setLastKnown,
-    labelsConfirmed: s.labelsConfirmed ?? false,
-    hasSeenConfirmationCard: s.hasSeenConfirmationCard ?? false,
-    completedJourneys: s.completedJourneys ?? 0,
-    arrivalNotificationsEnabled: s.arrivalNotificationsEnabled ?? true,
-    arrivalSnoozeExpiry: s.arrivalSnoozeExpiry ?? null,
-    setArrivalNotificationsEnabled: s.setArrivalNotificationsEnabled,
-    setArrivalSnoozeExpiry: s.setArrivalSnoozeExpiry,
-  })));
-
-  const notificationsOffPress = usePressAnimation('departure_card');
-  const snoozedPress = usePressAnimation('departure_card');
-
   const router = useRouter();
   const searchParams = useLocalSearchParams<{
     openRerouteLineId?: string;
@@ -429,16 +372,219 @@ const MyCommuteDashboard: React.FC = () => {
     notificationNonce?: string;
     manageLines?: string;
   }>();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [stationModalVisible, setStationModalVisible] = useState(false);
-  const [data, setData] = useState<DashboardData>({ lines: lastKnownData });
+  const reduceTransparency = useReduceTransparency();
+
+  const [data, setData] = useState<DashboardData>({ lines: [] });
   const [rerouteLine, setRerouteLine] = useState<LineData | null>(null);
   const [rerouteInitialSection, setRerouteInitialSection] = useState<'overview' | 'alternatives'>('overview');
   const lastConsumedNonceRef = useRef<string | null>(null);
   const lastConsumedLegacyLineRef = useRef<string | null>(null);
   const lastConsumedManageLinesNonceRef = useRef<string | null>(null);
 
-  // Auto-open manage lines modal or unified disruption briefing when navigated via deep link/intent
+  const {
+    selectedLines,
+    pinnedStations,
+    resetOnboarding,
+    removeLine,
+    reorderLines,
+    removeStation,
+    reorderStations,
+    lastKnownData,
+    setLastKnown,
+    arrivalNotificationsEnabled,
+    setArrivalNotificationsEnabled,
+    arrivalSnoozeExpiry,
+    setArrivalSnoozeExpiry,
+    labelsConfirmed,
+    completedJourneys,
+    hasSeenConfirmationCard,
+  } = useUserPreferencesStore(
+    useShallow((s) => ({
+      selectedLines: s.selectedLines || [],
+      pinnedStations: s.pinnedStations || [],
+      resetOnboarding: s.resetOnboarding,
+      removeLine: s.toggleLine,
+      reorderLines: s.reorderLines,
+      removeStation: s.unpinStation,
+      reorderStations: s.reorderStations,
+      lastKnownData: s.lastKnownData || [],
+      setLastKnown: s.setLastKnown,
+      arrivalNotificationsEnabled: s.arrivalNotificationsEnabled,
+      setArrivalNotificationsEnabled: s.setArrivalNotificationsEnabled,
+      arrivalSnoozeExpiry: s.arrivalSnoozeExpiry,
+      setArrivalSnoozeExpiry: s.setArrivalSnoozeExpiry,
+      labelsConfirmed: s.labelsConfirmed,
+      completedJourneys: s.completedJourneys,
+      hasSeenConfirmationCard: s.hasSeenConfirmationCard,
+    }))
+  );
+
+  const selectedStations = useMemo(() => pinnedStations || [], [pinnedStations]);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [stationModalVisible, setStationModalVisible] = useState(false);
+  const [expandedLineId, setExpandedLineId] = useState<string | null>(null);
+  const { scrollEnabled, setScrollEnabled } = useScrollLock();
+  const [pendingDelete, setPendingDelete] = useState<{
+    station: any;
+    index: number;
+  } | null>(null);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scrollRef = useRef<any>(null);
+
+  const isScrollingRef = useRef(false);
+  const pendingDataRef = useRef<DashboardData | null>(null);
+  const hasCompletedFirstEntrance = useRef(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      hasCompletedFirstEntrance.current = true;
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const applyPendingData = useCallback(() => {
+    isScrollingRef.current = false;
+    if (pendingDataRef.current) {
+      setData(pendingDataRef.current);
+      pendingDataRef.current = null;
+    }
+  }, []);
+
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, { signal });
+      if (!response.ok) {
+        return { status: response.status };
+      }
+
+      const raw = await response.json();
+
+      const freshLines: LineData[] = raw.map((item: any) => ({
+        id: String(item?.id ?? ''),
+        name: String(item?.name ?? ''),
+        color: LINE_IDENTITY_COLORS[String(item?.id ?? '')] || '#888',
+        status: String(item?.status ?? ''),
+        status_severity: item?.status_severity ?? 10,
+        reason: String(item?.reason ?? ''),
+      }));
+
+      // Aggregate Overground branches into a single virtual 'overground' line
+      const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
+      let worstBranch: any = null;
+      let worstSeverityRank = -1;
+
+      let foundAny = false;
+      OVERGROUND_BRANCH_IDS.forEach((branchId) => {
+        const branchData = freshLines.find((l: any) => l.id === branchId);
+        if (branchData) {
+          foundAny = true;
+          const rank = getSeverityRank(branchData.status_severity, branchData.status);
+          if (rank > worstSeverityRank) {
+            worstSeverityRank = rank;
+            worstBranch = branchData;
+          }
+        }
+      });
+
+      if (foundAny && worstBranch) {
+        freshLines.push({
+          id: 'overground',
+          name: 'London Overground',
+          color: LINE_IDENTITY_COLORS.overground || '#EE7C0E',
+          status: worstBranch.status,
+          status_severity: worstBranch.status_severity,
+          reason: worstBranch.reason,
+        });
+      } else {
+        freshLines.push({
+          id: 'overground',
+          name: 'London Overground',
+          color: LINE_IDENTITY_COLORS.overground || '#EE7C0E',
+          status: 'Good service',
+          status_severity: 10,
+          reason: '',
+        });
+      }
+
+      // Populate global line status store
+      useLineDataStore.getState().setLines(freshLines as any);
+
+      // Sync fresh line statuses to WidgetKit AppGroup cache
+      if (Platform.OS === 'ios' && selectedLines && selectedLines.length > 0) {
+        const customStatuses = selectedLines.map((id: string) => {
+          const norm = normaliseLineId(id);
+          const lineObj = freshLines.find((l: any) => l.id === id || l.id === norm);
+          return {
+            id,
+            name: lineObj?.name || tflCapitalise(id),
+            status: lineObj?.status || 'Good service',
+            severity: lineObj?.status_severity ?? 10,
+          };
+        });
+        void LiveActivityService.syncWidgetCache(selectedLines, customStatuses);
+      }
+
+      const fresh: DashboardData = {
+        lines: freshLines,
+      };
+
+      if (isScrollingRef.current) {
+        pendingDataRef.current = fresh;
+      } else {
+        setData(fresh);
+      }
+
+      const linesMap = useLineDataStore.getState().lines;
+      const communityReports = useLineDataStore.getState().communityReports;
+      const worst = computeWorstStatus(selectedLines, linesMap, communityReports);
+      setLastKnown(worst, freshLines);
+
+      return { status: response.status, lastUpdated: raw[0]?.updated_at };
+    } catch (err: any) {
+      console.log('[MyCommuteDashboard] Fetch error:', err);
+      throw err;
+    }
+  }, [selectedLines, setLastKnown]);
+
+  const {
+    forceRefresh,
+    isLoading,
+    staleState,
+    staleMinutes,
+  } = useTflPoller(fetchData, lastKnownData && lastKnownData.length > 0);
+
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const notificationsOffPress = usePressAnimation('departure_card', false);
+  const snoozedPress = usePressAnimation('departure_card', false);
+
+  const onRefresh = useCallback(async () => {
+    setIsPullRefreshing(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    try {
+      await forceRefresh();
+    } finally {
+      setIsPullRefreshing(false);
+    }
+  }, [forceRefresh]);
+
+  const myLines = useMemo(() => {
+    return selectedLines.map((id) => {
+      const match = data.lines.find((l) => l.id.toLowerCase() === id.toLowerCase());
+      if (match) return match;
+      return {
+        id,
+        name: tflCapitalise(id),
+        color: LINE_IDENTITY_COLORS[id] || '#8E8E93',
+        status: staleState === 'offline'
+          ? 'Offline'
+          : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
+        status_severity: staleState ? 0 : 10,
+      };
+    });
+  }, [selectedLines, data.lines, staleState]);
+
   useEffect(() => {
     // 1. Manage lines deep link / intent
     if (searchParams.manageLines) {
@@ -482,18 +628,17 @@ const MyCommuteDashboard: React.FC = () => {
         console.warn('[MyCommuteDashboard] Failed to parse notificationIntent:', err);
       }
     } else if (searchParams.openRerouteLineId) {
-      // Backward compatibility with direct line param
-      targetLineId = String(searchParams.openRerouteLineId).toLowerCase();
+      targetLineId = normaliseLineId(String(searchParams.openRerouteLineId)).lineId;
       action = 'show-reroute';
       sessionConsumedLegacyLineIds.add(String(searchParams.openRerouteLineId));
       lastConsumedLegacyLineRef.current = searchParams.openRerouteLineId;
     }
 
     if (targetLineId) {
-      const matched = data.lines.find(l => l.id.toLowerCase() === targetLineId);
+      const matched = data.lines.find((l) => l.id.toLowerCase() === targetLineId!.toLowerCase());
       const lineData: LineData = matched || {
         id: targetLineId,
-        name: `${targetLineId.charAt(0).toUpperCase() + targetLineId.slice(1)} line`,
+        name: tflCapitalise(targetLineId),
         color: LINE_IDENTITY_COLORS[targetLineId] || '#8E8E93',
         status: 'Severe Delays',
         status_severity: 6,
@@ -501,7 +646,6 @@ const MyCommuteDashboard: React.FC = () => {
       };
 
       if (action === 'show-reroute') {
-        // Quick Action [View Reroute 🚇] from expanded banner
         setRerouteInitialSection(initialSection);
         setRerouteLine(lineData);
       } else {
@@ -510,7 +654,6 @@ const MyCommuteDashboard: React.FC = () => {
         setExpandedLineId(targetLineId);
       }
 
-      // Consume-once: clear navigation params so re-renders or drawer dismissals don't resurrect
       router.setParams({
         notificationIntent: '',
         notificationNonce: '',
@@ -519,191 +662,12 @@ const MyCommuteDashboard: React.FC = () => {
     }
   }, [searchParams.manageLines, searchParams.notificationIntent, searchParams.notificationNonce, searchParams.openRerouteLineId, data.lines, router]);
 
-  const { scrollEnabled, setScrollEnabled } = useScrollLock();
-
-  const isScrollingRef = useRef(false);
-  const pendingDataRef = useRef<DashboardData | null>(null);
-  const hasCompletedFirstEntrance = useRef(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      hasCompletedFirstEntrance.current = true;
-    }, 1500);
-    return () => clearTimeout(t);
-  }, []);
-
-  const applyPendingData = useCallback(() => {
-    isScrollingRef.current = false;
-    if (pendingDataRef.current) {
-      setData(pendingDataRef.current);
-      pendingDataRef.current = null;
-      console.log('[MyCommuteDashboard] Applied deferred scroll data update');
-    }
-  }, []);
-
-  const [expandedLineId, setExpandedLineId] = useState<string | null>(null);
-
-  // ── Reroute state ── (declared above)
-
-
-
-  // ✅ Permissions: the dashboard is a ZERO permission-ask surface per the
-  // remediation plan Phase 4 (#2) — no session-count triggers, no auto
-  // prompts. All permission asks route through store/permissionOrchestrator
-  // from their feature triggers (onboarding, settings, Tier 1 upgrade).
-
-  const fetchData = useCallback(async (signal?: AbortSignal) => {
-    try {
-      // 1. Fetch lines
-      const response = await fetch(`${APP_CONFIG.BACKEND_URL}/api/lines`, { signal });
-      if (!response.ok) {
-        return { status: response.status };
-      }
-
-      const raw = await response.json();
-
-      const freshLines = raw.map((item: any) => ({
-        id: String(item?.id ?? ''),
-        name: String(item?.name ?? ''),
-        color: LINE_IDENTITY_COLORS[String(item?.id ?? '')] || '#888',
-        status: String(item?.status ?? ''),
-        status_severity: item?.status_severity ?? 10,
-        reason: String(item?.reason ?? ''),
-      }));
-
-      // Aggregate Overground branches into a single virtual 'overground' line
-      const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
-      let worstBranch: any = null;
-      let worstSeverityRank = -1;
-
-      let foundAny = false;
-      OVERGROUND_BRANCH_IDS.forEach(branchId => {
-        const branchData = freshLines.find((l: any) => l.id === branchId);
-        if (branchData) {
-          foundAny = true;
-          // Canonical severity rank — single source of truth (was a local
-          // getRank copy that could silently diverge from utils/getSeverityColor).
-          const rank = getSeverityRank(branchData.status_severity, branchData.status);
-          if (rank > worstSeverityRank) {
-            worstSeverityRank = rank;
-            worstBranch = branchData;
-          }
-        }
-      });
-
-      if (foundAny && worstBranch) {
-        freshLines.push({
-          id: 'overground',
-          name: 'London Overground',
-          color: LINE_IDENTITY_COLORS.overground || '#EE7C0E',
-          status: worstBranch.status,
-          status_severity: worstBranch.status_severity,
-          reason: worstBranch.reason,
-        });
-      } else {
-        freshLines.push({
-          id: 'overground',
-          name: 'London Overground',
-          color: LINE_IDENTITY_COLORS.overground || '#EE7C0E',
-          status: 'Good service',
-          status_severity: 10,
-          reason: '',
-        });
-      }
-
-      // Populate global line status store so StationDetailScreen reads live severity
-      useLineDataStore.getState().setLines(freshLines);
-
-      // Sync fresh line statuses & severities to WidgetKit AppGroup cache
-      if (Platform.OS === 'ios' && selectedLines && selectedLines.length > 0) {
-        const customStatuses = selectedLines.map((id: string) => {
-          const norm = normaliseLineId(id).cleanLineId;
-          const lineObj = freshLines.find((l: any) => l.id === id || l.id === norm);
-          return {
-            id,
-            name: lineObj?.name || tflCapitalise(id),
-            status: lineObj?.status || 'Good service',
-            severity: lineObj?.status_severity ?? 10,
-          };
-        });
-        void LiveActivityService.syncWidgetCache(selectedLines, customStatuses);
-      }
-
-      const fresh: DashboardData = {
-        lines: freshLines,
-      };
-
-      if (isScrollingRef.current) {
-        pendingDataRef.current = fresh;
-      } else {
-        setData(fresh);
-      }
-
-      const linesMap = useLineDataStore.getState().lines;
-      const communityReports = useLineDataStore.getState().communityReports;
-      const worst = computeWorstStatus(selectedLines, linesMap, communityReports);
-      setLastKnown(worst, freshLines);
-
-      return { status: response.status, lastUpdated: raw[0]?.updated_at };
-    } catch (err: any) {
-      console.log('Fetch error');
-      throw err;
-    }
-  }, [selectedLines, setLastKnown]);
-
-  const { forceRefresh, isLoading, staleState, staleMinutes } = useTflPoller(fetchData, lastKnownData && lastKnownData.length > 0);
-
-  const myLines = useMemo(() => {
-    return selectedLines
-      .map((id: string) => {
-        const found = data.lines.find((l: LineData) => l.id === id);
-        if (found) return found;
-        return {
-          id,
-          name: id.charAt(0).toUpperCase() + id.slice(1).replace('-', ' '),
-          color: LINE_IDENTITY_COLORS[id] || '#888',
-          status: staleState === 'offline'
-            ? 'Offline'
-            : (staleState === 'tfl-error' ? 'Connection error' : 'Loading status...'),
-          status_severity: staleState ? 0 : 10,
-        };
-      });
-  }, [data.lines, selectedLines, staleState]);
-
-  const hasContent = myLines.length > 0 || selectedStations.length > 0;
-  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    setIsPullRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      await forceRefresh();
-    } finally {
-      setIsPullRefreshing(false);
-    }
-  }, [forceRefresh]);
-
-
-
-  const [pendingDelete, setPendingDelete] = useState<{
-    station: any;
-    index: number;
-  } | null>(null);
-  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleDeleteStation = useCallback((stationId: string) => {
-    if (deleteTimeoutRef.current) {
-      clearTimeout(deleteTimeoutRef.current);
-      deleteTimeoutRef.current = null;
-    }
-    if (pendingDelete) {
-      deleteCachedArrivals(pendingDelete.station.id);
-    }
-
     const currentStations = useUserPreferencesStore.getState().pinnedStations || [];
     const index = currentStations.findIndex((s: any) => s.id === stationId);
     const station = currentStations[index];
 
+    deleteCachedArrivals(stationId);
     removeStation(stationId);
 
     if (station) {
@@ -714,7 +678,7 @@ const MyCommuteDashboard: React.FC = () => {
         deleteTimeoutRef.current = null;
       }, 4000);
     }
-  }, [pendingDelete, removeStation]);
+  }, [removeStation]);
 
   const handleUndoDelete = useCallback(() => {
     if (deleteTimeoutRef.current) {
@@ -834,6 +798,8 @@ const MyCommuteDashboard: React.FC = () => {
     if (staleState === 'offline') return 'offline';
     return worstStatus as Severity;
   }, [staleState, worstStatus]);
+
+  const hasContent = selectedLines.length > 0 || selectedStations.length > 0;
 
   return (
     <View style={dash.root}>
@@ -961,14 +927,12 @@ const MyCommuteDashboard: React.FC = () => {
 
               {sortedLines.length > 0 && selectedStations.length > 0 && (
                 <>
-                  {/* Confirmation card — after first tracked commute, before confirmed */}
                   {selectedStations.length > 0 && completedJourneys > 0 && !labelsConfirmed && !hasSeenConfirmationCard && (
                     <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
                       <ConfirmationCard />
                     </View>
                   )}
 
-                  {/* Arrival banner — only when confirmation card is NOT showing */}
                   {selectedStations.length > 0 && !(!labelsConfirmed && !hasSeenConfirmationCard && completedJourneys > 0) && (() => {
                     const isSnoozed = arrivalSnoozeExpiry && Date.now() < arrivalSnoozeExpiry;
                     if (arrivalNotificationsEnabled === false) {
@@ -1097,12 +1061,6 @@ const MyCommuteDashboard: React.FC = () => {
           onClose={() => setStationModalVisible(false)}
         />
 
-
-
-        {/* Reroute Screen — full-screen slide-up with the inline direction grid.
-            RerouteContainer computes branches/statuses/mode/links AND runs the
-            direction engine (useAutoDetectBranch), passing the resolved branch,
-            source, and confidence through so the grid can pre-highlight. */}
         {rerouteLine && (
           <RerouteContainer
             rerouteLine={rerouteLine}
@@ -1146,13 +1104,9 @@ const MyCommuteDashboard: React.FC = () => {
       )}
     </View>
   );
-};
+}
 
 // ─── Reroute Container ─────────────────────────────────────────────
-// Owns all reroute data computation (extracted from the old inline IIFE in the
-// dashboard JSX) and runs useAutoDetectBranch so RerouteScreen receives real
-// resolved-terminus / source / confidence data for the pre-highlighted inline
-// direction grid. Rendered only while a reroute line is active.
 interface RerouteContainerProps {
   rerouteLine: LineData;
   selectedStations: { id: string; name: string; lines?: string[]; role?: string }[];
@@ -1161,7 +1115,6 @@ interface RerouteContainerProps {
 }
 
 function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'overview', onClose }: RerouteContainerProps) {
-  // Station the reroute is scoped to: pinned station on line -> home/work -> first pinned -> empty fallback
   const scopedStation =
     selectedStations.find((st) =>
       Array.isArray(st.lines) ? st.lines.includes(rerouteLine.id) : false
@@ -1171,26 +1124,20 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
   const stationId = scopedStation?.id || '';
   const stationName = scopedStation?.name;
 
-  // Direction engine — session → notification → history → pinned/manual.
-  // Drives the pre-highlighted grid tile + source caption in RerouteScreen.
   const { result } = useAutoDetectBranch(rerouteLine.id, stationId || undefined, stationName);
 
-  // Expanded branch data supporting up to 4 destinations per line (2x2 grid).
   const branches = REROUTE_LINE_BRANCHES[rerouteLine.id] || [];
   const defaultTerminus = branches[0] || rerouteLine.name;
   const otherTerminus = branches[1] || '';
 
-  // Engine-resolved terminus — only when fully resolved (not ambiguous).
   const engineBranch =
     result.branch && !('possibleBranches' in result.branch)
       ? (result.branch as ResolvedBranch)
       : null;
 
-  // Match the engine's resolved route, branchId, or terminus to our grid tiles
   const matchedEngineBranch = engineBranch
     ? branches.find((b) => {
       const bLower = b.toLowerCase().replace(/\bbranch\b/g, '').trim();
-      // 1. Direct or substring match with terminus
       if (
         engineBranch.terminus &&
         (b.toLowerCase() === engineBranch.terminus.toLowerCase() ||
@@ -1200,7 +1147,6 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
       ) {
         return true;
       }
-      // 2. Check routeName / branchId (e.g. "Edgware ↔ Morden via Bank" or "edgware-via-bank" -> "Bank branch")
       if (
         engineBranch.routeName &&
         bLower.length >= 3 &&
@@ -1219,7 +1165,6 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
     })
     : null;
 
-  // Fallback: the line's default terminus (branches[0])
   const resolvedTerminus =
     matchedEngineBranch ??
     (branches.includes(engineBranch?.terminus ?? '')
@@ -1228,7 +1173,6 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
   const resolvedSource = engineBranch ? result.source : 'manual';
   const resolvedConfidence = engineBranch ? result.confidence : 'low';
 
-  // Per-branch status: parse disruption reason with stopword-safe matching.
   const reasonText = rerouteLine.reason || rerouteLine.status || '';
   const lineWide = isLineWideDisruption(reasonText, rerouteLine.status);
 
@@ -1241,8 +1185,6 @@ function RerouteContainer({ rerouteLine, selectedStations, initialSection = 'ove
       acc[branch] = 'affected';
     } else {
       const isMentioned = isBranchMentioned(branch, reasonText);
-      // If specific branch is mentioned, mark affected.
-      // If no branch mentioned at all (and not line-wide), default resolved tile to affected (never false calm).
       acc[branch] =
         isMentioned || (!hasMentionedBranch && branch === resolvedTerminus)
           ? 'affected'
@@ -1359,7 +1301,6 @@ const dash = StyleSheet.create({
     color: '#0A84FF',
   },
   subheadingArea: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-
   staleText: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 12,
@@ -1376,41 +1317,6 @@ const dash = StyleSheet.create({
   primaryBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk_700Bold', color: '#0A0A0F' },
   ghostBtn: { height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' },
   ghostBtnTxt: { fontSize: 16, fontFamily: 'SpaceGrotesk_600SemiBold', color: 'rgba(255,255,255,0.6)' },
-  promptScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  promptCard: { backgroundColor: '#141424', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 24, width: '100%', maxWidth: 340, alignItems: 'center' },
-  promptIcon: { marginBottom: 16 },
-  promptTitle: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 20, color: '#FFFFFF', textAlign: 'center', marginBottom: 12 },
-  promptText: { fontFamily: 'SpaceGrotesk_400Regular', fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  promptActions: { width: '100%', gap: 12 },
-  promptBtn: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  promptBtnPrimary: { backgroundColor: '#FFFFFF' },
-  promptBtnTextPrimary: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 15, color: '#0A0A0F' },
-  promptBtnTextSecondary: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)' },
-  addStationCard: {
-    alignSelf: 'stretch',
-    borderRadius: 16,
-    borderWidth: GLASS.borderWidth,
-    borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
-    backgroundColor: GLASS.background,
-    height: 68,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    position: 'relative',
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  addCardIcon: {
-    marginRight: 10,
-  },
-  addCardText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.50)',
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-  },
-
   arrivalBanner: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,10 +1,18 @@
+/**
+ * DepartureCard.tsx
+ * ─────────────────────────────────────────────────────────────────
+ * Expanded departure card showing station header + up to 3 arrival rows.
+ * Tap → calls onCardTap (opens StationDetailScreen via router push).
+ * Long-press → triggers direct drag reordering.
+ * ─────────────────────────────────────────────────────────────────
+ */
+
 import React, { useEffect, useMemo, memo } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   Pressable,
-  Platform,
   AccessibilityInfo,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -65,7 +73,7 @@ export interface DepartureCardProps {
 }
 
 // ─── Main component ──────────────────────────────────────────────
-const DepartureCard = memo(function DepartureCard({
+export const DepartureCard = memo(function DepartureCard({
   stationId,
   stationName,
   onLongPress,
@@ -74,7 +82,6 @@ const DepartureCard = memo(function DepartureCard({
   index = 0,
   isActive = false,
   drag,
-  onDelete,
   onMoveUp,
   onMoveDown,
   totalStations = 1,
@@ -95,8 +102,6 @@ const DepartureCard = memo(function DepartureCard({
     )
     .trim();
 
-  // Route raw arrivals through the single-source line selector (AGENTS.md §0):
-  // the card shows only the user's selected lines, re-filtered live on change.
   const visibleArrivals = useMemo(
     () => getVisibleArrivals(arrivals, selectedLines),
     [arrivals, selectedLines]
@@ -147,7 +152,14 @@ const DepartureCard = memo(function DepartureCard({
       style={[styles.outerContainer, containerAnimStyle]}
       testID={`departure-card-${stationId}`}
     >
-      <Animated.View style={[styles.innerGlass, pressAnim.animatedStyle, pressAnim.liftBorderStyle, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
+      <Animated.View
+        style={[
+          styles.innerGlass,
+          pressAnim.animatedStyle,
+          pressAnim.liftBorderStyle,
+          reduceTransparency && { backgroundColor: '#1C1C1E' },
+        ]}
+      >
         {!reduceTransparency && (
           <BlurView
             intensity={GLASS.blurIntensity}
@@ -288,7 +300,7 @@ const DepartureCard = memo(function DepartureCard({
                       </Text>
                     ) : null}
                   </View>
-                  <Text style={[styles.arrTime, isDue && styles.arrTimeDue]} numberOfLines={1}>
+                  <Text style={[styles.arrTime, isDue && styles.arrTimeDue, DUE_TIME_STYLE]} numberOfLines={1}>
                     {timeText}
                   </Text>
                 </View>
@@ -329,91 +341,88 @@ const styles = StyleSheet.create({
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
   },
-
   pressable: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    width: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    minHeight: 28,
+  },
+  stationName: {
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255, 255, 255, 0.95)',
+    flex: 1,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    marginBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 10,
   },
-  stationName: {
-    flex: 1,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 16,
-    color: '#FFFFFF',
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    paddingVertical: 4,
+  },
+  emptyText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    paddingVertical: 4,
   },
   arrivalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
-    gap: 6,
   },
   lineBar: {
     width: 3,
-    height: 16,
+    height: 14,
     borderRadius: 2,
+    marginRight: 8,
   },
   arrLineName: {
-    width: 72,
+    width: 80,
+    fontSize: 12,
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginRight: 8,
   },
   destPlatform: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
+    alignItems: 'center',
+    marginRight: 8,
   },
   arrDest: {
+    flex: 1,
+    fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    flexShrink: 1,
-  },
-  arrPlatform: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   arrVia: {
-    fontFamily: 'SpaceGrotesk_400Regular',
     fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
     color: 'rgba(255, 255, 255, 0.45)',
   },
+  arrPlatform: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginLeft: 6,
+  },
   arrTime: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.65)',
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255, 255, 255, 0.95)',
+    minWidth: 44,
     textAlign: 'right',
-    minWidth: 48,
   },
   arrTimeDue: {
-    ...DUE_TIME_STYLE,
-  },
-  loadingText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    paddingVertical: 4,
-  },
-  emptyText: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    paddingVertical: 4,
+    color: '#34C759',
   },
 });
-

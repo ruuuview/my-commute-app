@@ -56,13 +56,13 @@ function StatusSkeleton() {
           borderRadius: 4,
           backgroundColor: 'rgba(255,255,255,0.12)',
         },
-        style
+        style,
       ]}
     />
   );
 }
 
-interface LineCardProps {
+export interface LineCardProps {
   line: {
     id: string;
     name: string;

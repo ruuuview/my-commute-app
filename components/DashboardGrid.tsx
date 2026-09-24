@@ -1,73 +1,17 @@
 import React, { memo, useCallback, useEffect } from 'react';
 import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import DepartureCard from './DepartureCard';
 import { AppleSwipeableRow } from './AppleSwipeableRow';
-import { useLiveReducedMotion } from '../hooks/useJiggle';
 import { pressFeedback } from '../utils/pressFeedback';
 
-// ─── Per-card wrapper: stagger entrance animation ──────────────────
-interface StaggeredEntranceWrapperProps {
-  children: React.ReactNode;
-  index: number;
-  skipEntrance?: boolean;
-}
-
-const StaggeredEntranceWrapper = memo(
-  ({ children, index, skipEntrance = false }: StaggeredEntranceWrapperProps) => {
-    const entranceY = useSharedValue(skipEntrance ? 0 : 16);
-    const opacity = useSharedValue(skipEntrance ? 1 : 0);
-    const reducedMotion = useLiveReducedMotion();
-
-    // Entrance animation: runs once on mount
-    useEffect(() => {
-      if (skipEntrance || reducedMotion) {
-        entranceY.value = 0;
-        opacity.value = 1;
-        return;
-      }
-      const delay = 120 + index * 60;
-      entranceY.value = withDelay(
-        delay,
-        withSpring(0, { damping: 22, stiffness: 200 })
-      );
-      opacity.value = withDelay(
-        delay,
-        withTiming(1, { duration: 320, easing: Easing.out(Easing.poly(4)) })
-      );
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      opacity: opacity.value,
-      transform: [
-        { translateY: entranceY.value },
-      ],
-    }));
-
-    return <Animated.View style={animatedStyle}>{children}</Animated.View>;
-  }
-);
-StaggeredEntranceWrapper.displayName = 'StaggeredEntranceWrapper';
-
-// ─── DashboardGrid ────────────────────────────────────────────────
 export interface DashboardGridProps {
   stations: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[];
   onDelete: (id: string) => void;
   /** Called whenever scroll should be enabled/disabled in the parent ScrollView */
   onScrollEnabledChange: (enabled: boolean) => void;
-  /** Called when a station card is tapped — navigates to full-screen StationDetailScreen */
   onStationTap?: (stationId: string, stationName: string) => void;
-  /** Triggered when the drag reordering finishes */
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
   skipEntrance?: boolean;
@@ -82,14 +26,12 @@ export default function DashboardGrid({
   simultaneousHandlers,
   skipEntrance = false,
 }: DashboardGridProps) {
-  // ── Unmount safety cleanup: unconditionally unlock scroll ─────────
   useEffect(() => {
     return () => {
       onScrollEnabledChange(true);
     };
   }, [onScrollEnabledChange]);
 
-  // ── VoiceOver / Accessibility non-gesture reorder handlers ────────
   const handleMoveUp = useCallback(
     (currentIndex: number) => {
       if (currentIndex <= 0) return;
@@ -122,7 +64,6 @@ export default function DashboardGrid({
     [stations, onReorderStations]
   );
 
-  // ── Card tap handler: navigate to full-screen StationDetailScreen ─
   const handleCardTap = useCallback(
     (stationId: string, stationName: string) => {
       onStationTap?.(stationId, stationName);
@@ -140,30 +81,28 @@ export default function DashboardGrid({
       };
 
       return (
-        <StaggeredEntranceWrapper index={index} skipEntrance={skipEntrance}>
-          <AppleSwipeableRow
-            onDelete={() => onDelete(item.id)}
-            cardRadius={16}
-            marginBottom={12}
-            disabled={isActive}
-            testID={`swipe-departure-${item.id}`}
-          >
-            <ScaleDecorator activeScale={1.03}>
-              <DepartureCard
-                stationId={item.id}
-                stationName={item.name}
-                onCardTap={handleCardTap}
-                index={index}
-                isActive={isActive}
-                drag={handleDragWithScrollLock}
-                onDelete={onDelete}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
-                totalStations={stations.length}
-              />
-            </ScaleDecorator>
-          </AppleSwipeableRow>
-        </StaggeredEntranceWrapper>
+        <AppleSwipeableRow
+          onDelete={() => onDelete(item.id)}
+          cardRadius={16}
+          marginBottom={12}
+          disabled={isActive}
+          testID={`swipe-departure-${item.id}`}
+        >
+          <ScaleDecorator activeScale={1.03}>
+            <DepartureCard
+              stationId={item.id}
+              stationName={item.name}
+              onCardTap={handleCardTap}
+              index={index}
+              isActive={isActive}
+              drag={handleDragWithScrollLock}
+              onDelete={onDelete}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+              totalStations={stations.length}
+            />
+          </ScaleDecorator>
+        </AppleSwipeableRow>
       );
     },
     [
@@ -176,6 +115,10 @@ export default function DashboardGrid({
       skipEntrance,
     ]
   );
+
+  if (stations.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container} testID="dashboard-grid">

@@ -68,6 +68,7 @@ import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { STATUS_SEVERITY_COLORS, getSeverityColor } from '../utils/getSeverityColor';
+import { StatusBezel } from './StatusBezel';
 import { getBranchSuggestedRoute, buildRerouteLinks } from './rerouteHelpers';
 
 // ─── Canonical TfL status display strings ─────────────────────────
@@ -115,9 +116,7 @@ const ICON = {
 // (theme/colors.ts) uses blurIntensity=45 + rgba(255,255,255,0.07). The master
 // plan text said intensity=20 / rgba(0,0,0,0.28), but the live app was tuned
 // away from that. We consume GLASS so Reroute stays consistent with every other
-// card (DepartureCard, StationCard) and retunes in one place. Only the 4px
-// LINE_COLORS accent bar is Reroute-specific (kept local).
-const ACCENT_BAR_HEIGHT = 4;
+// card (DepartureCard, StationCard) and retunes in one place.
 
 // ─── Height constraints (Rule 32) ─────────────────────────────────
 // App is locked to portrait (app.json "orientation": "portrait"), so static
@@ -311,9 +310,9 @@ export default function RerouteScreen({
   const prevVisible = React.useRef(visible);
   useEffect(() => {
     if (visible && !prevVisible.current) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
     } else if (!visible && prevVisible.current) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     }
     prevVisible.current = visible;
   }, [visible]);
@@ -418,14 +417,14 @@ export default function RerouteScreen({
 
   // ── Open handlers ─────────────────────────────────────────────
   const handleOpenGoogleMaps = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Linking.openURL(effectiveGoogleMapsUrl).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+    Linking.openURL(effectiveGoogleMapsUrl).catch(() => { });
     onClose();
   };
   const handleOpenCitymapper = () => {
     if (!citymapperAvailable) return; // gated — absent, never greyed
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Linking.openURL(effectiveCitymapperUrl).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+    Linking.openURL(effectiveCitymapperUrl).catch(() => { });
     onClose();
   };
 
@@ -434,7 +433,7 @@ export default function RerouteScreen({
   // fetch effect for the tapped branch — the same re-trigger the old
   // "Change" button used, now wired to grid taps.
   const handleBranchTap = (branch: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     setInternalBranch(branch);
   };
 
@@ -465,25 +464,25 @@ export default function RerouteScreen({
         </Pressable>
       </View>
 
-      {/* Line header with 4px LINE_COLORS accent bar */}
+      {/* Line header — prominent 3.5×22 vertical accent bar + 22pt bold name */}
       <View style={s.lineHeaderRow}>
         <View
           style={[
             s.lineColorBar,
-            { backgroundColor: lineColor, height: ACCENT_BAR_HEIGHT },
+            { backgroundColor: lineColor },
             (lineId === 'northern' || lineColor === '#000000') && {
               borderWidth: 0.5,
               borderColor: NORTHERN_SHADES.highlightBorder,
             },
           ]}
         />
-        <Text style={s.lineHeaderName}>{lineName.toUpperCase()}</Text>
+        <Text style={s.lineHeaderName}>{lineName}</Text>
       </View>
 
       {/* Disruption resolved banner if line has cleared */}
       {isCleared && (
         <View style={s.clearedBadge}>
-          <View style={s.clearedDot} />
+          <StatusBezel statusType="good" />
           <Text style={s.clearedText}>
             Disruption resolved — Good service resumed
           </Text>
@@ -549,12 +548,7 @@ export default function RerouteScreen({
                     >
                       {TFL_STATUS_DISPLAY[severityResult.label]}
                     </Text>
-                    <View
-                      style={[
-                        s.branchStatusDot,
-                        { backgroundColor: severityResult.color },
-                      ]}
-                    />
+                    <StatusBezel statusType={severityResult.label} />
                   </View>
                 </Pressable>
               );
@@ -642,7 +636,7 @@ export default function RerouteScreen({
         <View style={s.unaffectedAccentBar} />
         <View style={s.unaffectedCardInner}>
           <View style={s.runningFineRow}>
-            <View style={s.runningFineDot} />
+            <StatusBezel statusType="good" />
             <Text style={s.runningFineLabel}>Good service — no action needed</Text>
           </View>
 
@@ -746,7 +740,7 @@ export default function RerouteScreen({
                       key={b}
                       onPress={() => {
                         setInternalBranch(b);
-                        Haptics.selectionAsync().catch(() => {});
+                        Haptics.selectionAsync().catch(() => { });
                       }}
                       style={[
                         s.twoBranchChip,
@@ -800,7 +794,7 @@ export default function RerouteScreen({
             />
             <Pressable
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                 scrollRef.current?.scrollToEnd({ animated: true });
               }}
               style={s.scrollBadge}
@@ -929,15 +923,15 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   lineColorBar: {
-    width: 3,
+    width: 3.5,
+    height: 22,
     borderRadius: 2,
   },
   lineHeaderName: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
+    fontSize: 22,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   clearedBadge: {
     flexDirection: 'row',
@@ -951,13 +945,7 @@ const s = StyleSheet.create({
     marginTop: 8,
     marginBottom: 6,
   },
-  clearedDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#34C759',
-    marginRight: 8,
-  },
+
   clearedText: {
     fontSize: 12,
     fontWeight: '600',
@@ -1067,12 +1055,7 @@ const s = StyleSheet.create({
     gap: 7,
     marginBottom: 6,
   },
-  runningFineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: STATUS_SEVERITY_COLORS.good,
-  },
+
   runningFineLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 13,
@@ -1130,8 +1113,8 @@ const s = StyleSheet.create({
   },
   primaryCta: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    minHeight: 48, // 44x44pt+ target
+    borderRadius: 22,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1144,13 +1127,15 @@ const s = StyleSheet.create({
   },
   secondaryCta: {
     backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 24,
-    minHeight: 48,
+    borderRadius: 22,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     paddingHorizontal: 16,
   },
   secondaryCtaText: {
@@ -1179,15 +1164,17 @@ const s = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 9999,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
     overflow: 'hidden',
     paddingHorizontal: 14,
     paddingVertical: 8,
     minHeight: 52,
-    gap: 2,
+    gap: 3,
   },
   // High confidence / manual selection highlight — premium status-neutral white.
   branchGridCardEmerald: {
@@ -1206,11 +1193,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexShrink: 0,
-  },
-  branchStatusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   branchCardName: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

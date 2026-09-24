@@ -176,6 +176,25 @@ const DepartureCard = memo(function DepartureCard({
           />
         )}
 
+        {/* Specular bottom catch-light sheen across lower curved surface */}
+        {!reduceTransparency && (
+          <LinearGradient
+            colors={[GLASS.specularEnd, GLASS.specularStart]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 12,
+              borderBottomLeftRadius: 16,
+              borderBottomRightRadius: 16,
+            }}
+            pointerEvents="none"
+          />
+        )}
+
         {/* Dedicated Apple Glass Border Overlay (guaranteed on top of BlurView & wash) */}
         <Animated.View
           style={[styles.borderOverlay, pressAnim.liftBorderStyle]}

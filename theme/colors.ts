@@ -81,13 +81,13 @@ export const GLASS = {
   // Transparent base: zero chalky/smoggy white wash
   background: 'transparent',
   // Hairline perimeter specular rim
-  borderColor: 'rgba(255, 255, 255, 0.18)',
+  borderColor: 'rgba(255, 255, 255, 0.28)',
   borderWidth: 1.0,
   // Directional fallbacks (authentic Apple liquid glass overhead lighting)
-  borderTop: 'rgba(255, 255, 255, 0.35)',
-  borderSides: 'rgba(255, 255, 255, 0.16)',
-  borderSide: 'rgba(255, 255, 255, 0.16)',
-  borderBottom: 'rgba(255, 255, 255, 0.10)',
+  borderTop: 'rgba(255, 255, 255, 0.30)',
+  borderSides: 'rgba(255, 255, 255, 0.25)',
+  borderSide: 'rgba(255, 255, 255, 0.25)',
+  borderBottom: 'rgba(255, 255, 255, 0.30)',
   // Specular top-rim catch-light sheen (crisp overhead illumination)
   specularStart: 'rgba(255, 255, 255, 0.18)',
   specularEnd: 'rgba(255, 255, 255, 0.00)',

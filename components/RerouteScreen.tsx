@@ -41,7 +41,7 @@ import {
   View,
   Linking,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   Platform,
   PanResponder,
 } from 'react-native';
@@ -49,10 +49,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  withSequence,
-  withRepeat,
   withSpring,
-  Easing,
   useReducedMotion,
   runOnJS,
 } from 'react-native-reanimated';
@@ -63,137 +60,56 @@ import { BlurView } from 'expo-blur';
 import { GLASS } from '../theme/colors';
 import { NORTHERN_SHADES } from '../constants/lineColors';
 import type { DetectionSource } from '../hooks/useAutoDetectBranch';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useReduceTransparency } from '../hooks/useReduceTransparency';
-import { CaretLeft, CaretDown, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { CaretLeft, Warning, MapTrifold, MapPinLine, CheckCircle } from 'phosphor-react-native';
 import { STATUS_SEVERITY_COLORS, getSeverityColor } from '../utils/getSeverityColor';
 import { StatusBezel } from './StatusBezel';
 import { getBranchSuggestedRoute, buildRerouteLinks } from './rerouteHelpers';
+import { SCREEN_PADDING } from '../constants/layout';
 
 // ─── Canonical TfL status display strings ─────────────────────────
-// CEO-approved Option B: replace in-app "Affected"/"Running fine" with the
-// official TfL vocabulary riders already know from station boards.
-// Source: getSeverityColor 3-tier labels (§0 single-source) → display copy.
 const TFL_STATUS_DISPLAY: Record<'good' | 'minor' | 'severe', string> = {
   good: 'Good service',
   minor: 'Minor delays',
   severe: 'Severe delays',
 };
 
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
-
-// ─── Icons ────────────────────────────────────────────────────────
-// The design system mandates Phosphor icons only (AGENTS.md: "Icons: Phosphor
-// only"). This repo currently ships @expo/vector-icons (Ionicons) and does NOT
-// have @phosphor-icons/react-native installed, so a hard Phosphor import would
-// break the build. We alias the icon set here behind a single name so that when
-// the Phosphor package is added, only this alias block changes. Until then it
-// resolves to Ionicons — the closest available glyphs. FLAGGED: swap to real
-// Phosphor once the dependency is installed.
 // ICON mapping — maps semantic names to Phosphor components.
 const ICON = {
   back: CaretLeft,
-  chevronDown: CaretDown,
   signalFail: Warning,
   googleMaps: MapTrifold,
   citymapper: MapPinLine,
   fine: CheckCircle,
 } as const;
 
-// We read disruption from the P0 cache, never re-fetch TfL. The cache is the
-// single source of truth for Reroute (see tier2Cache.ts SINGLE-WRITE DISCIPLINE).
-
-// ─── Glass tokens ─────────────────────────────────────────────────
-// CEO decision: the SHIPPED app is the source of truth. The shared GLASS token
-// (theme/colors.ts) uses blurIntensity=45 + rgba(255,255,255,0.07). The master
-// plan text said intensity=20 / rgba(0,0,0,0.28), but the live app was tuned
-// away from that. We consume GLASS so Reroute stays consistent with every other
-// card (DepartureCard, StationCard) and retunes in one place.
-
-// ─── Height constraints (Rule 32) ─────────────────────────────────
-// App is locked to portrait (app.json "orientation": "portrait"), so static
-// Dimensions at module scope is safe (mirrors LineDetailModal's proven
-// MAX_POPUP_HEIGHT pattern).
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.72; // Generous height to reveal suggested route and CTAs
-// Sum of: 4px handle + 14px handle margin-bottom + 10px sheet paddingTop + 14px header margin-bottom + 6px backButton margin-bottom
-const SHEET_HEADER_OFFSET = 48;
-
 // ─── Types ────────────────────────────────────────────────────────
 
 export type RerouteMode = 'affected' | 'unaffected' | 'empty';
 
 export interface RerouteScreenProps {
-  /** Modal visibility. */
   visible: boolean;
-  /** Close handler. */
   onClose: () => void;
-  /**
-   * Branch grid — 2+ destinations for this line.
-   * Lines with >2 entries render an ALWAYS-VISIBLE inline grid at the top of
-   * the drawer; ≤2-branch lines skip the grid and render the resolved branch
-   * directly (no ambiguity, no forced confirmation).
-   */
   branches?: string[];
-  /**
-   * Per-branch disruption status, computed from the TfL disruption reason.
-   * 'affected' = branch is mentioned in the disruption text.
-   * 'unaffected' = branch is not mentioned (likely running fine).
-   */
   branchStatuses?: Record<string, 'affected' | 'unaffected'>;
-  /** Which of the three states to render. */
   mode: RerouteMode;
-  /** Line identity — drives the accent bar + header. */
   lineId: string;
   lineName: string;
   lineColor: string;
-  /** Suggested alternate route (affected mode only). */
   suggestedRoute?: {
-    description: string; // e.g. 'Take Bank branch to Euston\nCross-platform to Charing Cross branch'
+    description: string;
     extraTimeMinutes: number;
   };
-  /**
-   * The other branch's name, used in unaffected copy.
-   * e.g. 'Edgware' → "The disruption is on the Edgware branch, not yours."
-   */
   otherBranchName?: string;
-  /** Google Maps deep link — primary CTA, ALWAYS present in affected mode. */
   googleMapsUrl?: string;
-  /** Citymapper deep link — secondary CTA, canOpenURL gated. */
   citymapperUrl?: string;
-  /**
-   * Optional explicit station id. When provided, on open we re-read the Tier 2
-   * cache for that station so the sheet reflects the freshest disruption we have
-   * (we never refetch TfL from here).
-   */
   stationId?: string;
-  /** TfL severity code for this line. Used to determine dot color in branch grid:
-   *  unaffected → green, affected+minor(9,7) → amber, affected+severe/suspended(≤6) → red. */
   severity?: number;
-  /**
-   * The branch the direction engine resolved (useAutoDetectBranch) — the
-   * pre-highlighted tile + the branch live-time is fetched for on open.
-   */
   resolvedTerminus?: string;
-  /** Source of the direction-engine resolution — drives highlight + caption. */
   resolvedSource?: DetectionSource;
-  /** Confidence of the resolution — drives highlight strength. */
   resolvedConfidence?: 'high' | 'medium' | 'low';
-  /** Deep-link target anchor: if 'alternatives', immediately scroll to alternative route card. */
   initialSection?: 'overview' | 'alternatives';
-  /** Live revalidation: true if the disruption has resolved since the alert was fired. */
   isCleared?: boolean;
 }
-
-// ─── Component ────────────────────────────────────────────────────
 
 export default function RerouteScreen({
   visible,
@@ -217,27 +133,11 @@ export default function RerouteScreen({
   isCleared = false,
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
-  const reduceTransparency = useReduceTransparency();
 
-  // Auto-scroll to alternatives section if opened via quick action
-  useEffect(() => {
-    if (visible && initialSection === 'alternatives') {
-      const timer = setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: 320, animated: !reducedMotion });
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [visible, initialSection, reducedMotion]);
-
-  // ── Branch selection ────────────────────────────────────────────
-  // internalBranch = the branch currently driving content + live fetch.
-  // null = nothing selected yet → fall back to the dashboard-computed mode.
   const [internalBranch, setInternalBranch] = useState<string | null>(null);
 
-  // On open (or when the engine's resolution arrives while nothing is tapped),
-  // pre-select the resolved branch so the content below the grid and the live
-  // fetch both target the pre-highlighted tile.
   useEffect(() => {
     if (!visible) return;
     if (resolvedTerminus && branches?.includes(resolvedTerminus)) {
@@ -247,40 +147,34 @@ export default function RerouteScreen({
     }
   }, [visible, resolvedTerminus, branches]);
 
-  // The branch live-time is fetched for. Engine resolution wins; user tap wins
-  // over everything; final fallback is the line's first branch (the same
-  // default the dashboard's mode computation uses).
   const activeTerminus =
     internalBranch ||
     resolvedTerminus ||
     (branches && branches.length > 0 ? branches[0] : lineName);
 
-  // Dynamic branch-specific suggested route
   const resolvedSuggestedRoute = getBranchSuggestedRoute(
     lineId,
     activeTerminus,
     suggestedRoute
   );
 
-  // ── Slide-up animation + swipe-down dismiss gesture ────────────
-  // Gesture contract (matches ManageStationsModal):
-  //   • drag handle + header zone are the pan target
-  //   • downward drag follows finger; upward drag is resisted (0.15x)
-  //   • release: dy > 90 or vy > 0.4 → dismiss; otherwise spring back
-  const translateY = useSharedValue(visible ? 0 : 900);
+  const sheetMaxHeight = Math.min(
+    screenHeight * 0.85,
+    Math.max(screenHeight - insets.top - insets.bottom, screenHeight * 0.5)
+  );
+
+  const translateY = useSharedValue(0);
 
   useEffect(() => {
-    if (reducedMotion) {
-      translateY.value = visible ? 0 : 900;
-    } else {
-      translateY.value = withTiming(visible ? 0 : 900, { duration: 380, easing: Easing.out(Easing.ease) });
+    if (visible) {
+      translateY.value = 0;
     }
-  }, [visible, reducedMotion, translateY]);
+  }, [visible, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 2,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
           translateY.value = gestureState.dy;
@@ -289,8 +183,8 @@ export default function RerouteScreen({
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 90 || gestureState.vy > 0.4) {
-          translateY.value = withTiming(SHEET_MAX_HEIGHT + 60, { duration: 180 }, (finished) => {
+        if (gestureState.dy > 20 || gestureState.vy > 0.1) {
+          translateY.value = withTiming(sheetMaxHeight || 600, { duration: 160 }, (finished) => {
             if (finished) {
               runOnJS(onClose)();
             }
@@ -302,11 +196,10 @@ export default function RerouteScreen({
     })
   ).current;
 
-  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+  const sheetAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
 
-  // ── Haptics on open AND close (impact only — no sound) ─────────
   const prevVisible = React.useRef(visible);
   useEffect(() => {
     if (visible && !prevVisible.current) {
@@ -317,28 +210,15 @@ export default function RerouteScreen({
     prevVisible.current = visible;
   }, [visible]);
 
-  // effectiveMode drives affected/unaffected/empty content below the grid.
-  // When a tile is selected its own branchStatus wins; otherwise the
-  // dashboard-computed mode (which used the line's default branch).
   const effectiveMode = internalBranch && branchStatuses
     ? (branchStatuses[internalBranch] === 'affected' ? 'affected' : 'unaffected')
     : mode;
 
-  // ── Pre-highlight tier from the direction engine ────────────────
-  // high (session / notification / strong history pattern) → emerald solid.
-  // medium (history with weak pattern) → soft-orange (old "Change" pill token).
-  // none (pinned/manual fallthrough, or nothing resolved) → neutral grid.
-  // The UI must never assert confidence the engine doesn't have.
   const highlightTier: 'high' | 'medium' | 'none' = (() => {
     if (!resolvedTerminus || !resolvedSource) return 'none';
     if (resolvedSource === 'session' || resolvedSource === 'notification') return 'high';
     if (resolvedSource === 'history') return resolvedConfidence === 'high' ? 'high' : 'medium';
-    // Pinned station = deterministic topology (user's own home/work station
-    // past the branch split) — same confidence class as session/notification.
     if (resolvedSource === 'pinned') return 'high';
-    // Manual/default fallthrough — the grid must still be pre-highlighted
-    // (plan), but at a softer tier: it's the app's default terminus, not a
-    // confident direction-engine assertion.
     if (resolvedSource === 'manual') return 'medium';
     return 'none';
   })();
@@ -352,134 +232,62 @@ export default function RerouteScreen({
           ? 'From your last tap'
           : 'Usual route';
 
-  // Dynamic links updated to the currently active branch
   const dynamicLinks = buildRerouteLinks(activeTerminus);
   const effectiveGoogleMapsUrl = internalBranch ? dynamicLinks.googleMapsUrl : (googleMapsUrl || dynamicLinks.googleMapsUrl);
   const effectiveCitymapperUrl = internalBranch ? dynamicLinks.citymapperUrl : (citymapperUrl || dynamicLinks.citymapperUrl);
 
-  // ── Citymapper availability (canOpenURL gate) ─────────────────
-  // Rule 11: the Citymapper button is ABSENT (not greyed) when not installed.
-  const [citymapperAvailable, setCitymapperAvailable] = useState(false);
-  useEffect(() => {
-    if (visible && effectiveMode === 'affected') {
-      Linking.canOpenURL(effectiveCitymapperUrl)
-        .then(setCitymapperAvailable)
-        .catch(() => setCitymapperAvailable(false));
-    } else {
-      setCitymapperAvailable(false);
-    }
-  }, [visible, effectiveMode, effectiveCitymapperUrl]);
-
-  // ── Scroll affordance — persistent track + animated bouncing chevron ──
-  const scrollRef = useRef<ScrollView>(null);
-  const [scrollMetrics, setScrollMetrics] = useState({ content: 0, layout: 0, offset: 0 });
-  const fadeOpacity = useSharedValue(0);
-  const arrowBounce = useSharedValue(0);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      arrowBounce.value = 0;
-    } else {
-      arrowBounce.value = withRepeat(
-        withSequence(
-          withTiming(-4, { duration: 600, easing: Easing.inOut(Easing.sin) }),
-          withTiming(4, { duration: 600, easing: Easing.inOut(Easing.sin) })
-        ),
-        -1,
-        true
-      );
-    }
-  }, [reducedMotion, arrowBounce]);
-
-  const arrowAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: arrowBounce.value }],
-  }));
-
-  useEffect(() => {
-    const { content, layout, offset } = scrollMetrics;
-    const canScroll = content > layout + 4;
-    const atEnd = offset + layout >= content - 40;
-    const show = canScroll && !atEnd;
-    fadeOpacity.value = withTiming(show ? 1 : 0, { duration: 180 });
-  }, [scrollMetrics, fadeOpacity]);
-
-  const handleSheetScroll = (e: any) => {
-    const offset = e?.nativeEvent?.contentOffset?.y ?? 0;
-    setScrollMetrics(m => ({ ...m, offset }));
-  };
-  const handleSheetContentSize = (_w: number, h: number) => {
-    setScrollMetrics(m => ({ ...m, content: h }));
-  };
-  const handleSheetLayout = (e: any) => {
-    const layoutHeight = e?.nativeEvent?.layout?.height ?? 0;
-    setScrollMetrics(m => ({ ...m, layout: layoutHeight }));
-  };
-
-  // ── Open handlers ─────────────────────────────────────────────
   const handleOpenGoogleMaps = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     Linking.openURL(effectiveGoogleMapsUrl).catch(() => { });
     onClose();
   };
+
   const handleOpenCitymapper = () => {
-    if (!citymapperAvailable) return; // gated — absent, never greyed
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
-    Linking.openURL(effectiveCitymapperUrl).catch(() => { });
+    Linking.openURL(effectiveCitymapperUrl).catch(() => {
+      const webUrl = effectiveCitymapperUrl.replace(/^citymapper:\/\//, 'https://citymapper.com/');
+      Linking.openURL(webUrl).catch(() => { });
+    });
     onClose();
   };
 
-  // ── Tile tap: re-target inline (no grid↔detail navigation anymore).
-  // Setting internalBranch changes activeTerminus, which re-fires the live
-  // fetch effect for the tapped branch — the same re-trigger the old
-  // "Change" button used, now wired to grid taps.
   const handleBranchTap = (branch: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     setInternalBranch(branch);
   };
 
-  // ── Back handler: with the grid inline there's no second step to return
-  // from — Back always closes the drawer.
-  const handleBack = () => {
-    onClose();
-  };
-
   const renderHeader = () => (
     <>
-      {/* Drag handle — pan target for swipe-down dismiss (matches modal convention) */}
-      <View {...panResponder.panHandlers}>
-        <View style={s.handle} />
+      <View style={s.dragHandleWrap} {...panResponder.panHandlers}>
+        <View style={s.dragHandle} />
       </View>
 
-      {/* Back — glass pill framing (matches ManageStationsModal donePill tokens), 44x44pt touch target */}
-      <View {...panResponder.panHandlers}>
+      <View style={s.headerRow}>
+        <View style={s.lineTitleGroup} {...panResponder.panHandlers}>
+          <View
+            style={[
+              s.lineColorBar,
+              { backgroundColor: lineColor },
+              (lineId === 'northern' || lineColor === '#000000') && {
+                borderWidth: 0.5,
+                borderColor: NORTHERN_SHADES.highlightBorder,
+              },
+            ]}
+          />
+          <Text style={s.lineHeaderName} numberOfLines={1}>{lineName}</Text>
+        </View>
+
         <Pressable
-          onPress={handleBack}
-          hitSlop={12}
-          style={s.backButton}
-          accessibilityLabel="Back"
+          onPress={onClose}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={s.backPill}
+          accessibilityLabel="Back, close reroute"
           accessibilityRole="button"
         >
-          <ICON.back size={16} color="rgba(255,255,255,0.80)" />
           <Text style={s.backText}>Back</Text>
         </Pressable>
       </View>
 
-      {/* Line header — prominent 3.5×22 vertical accent bar + 22pt bold name */}
-      <View style={s.lineHeaderRow}>
-        <View
-          style={[
-            s.lineColorBar,
-            { backgroundColor: lineColor },
-            (lineId === 'northern' || lineColor === '#000000') && {
-              borderWidth: 0.5,
-              borderColor: NORTHERN_SHADES.highlightBorder,
-            },
-          ]}
-        />
-        <Text style={s.lineHeaderName}>{lineName}</Text>
-      </View>
-
-      {/* Disruption resolved banner if line has cleared */}
       {isCleared && (
         <View style={s.clearedBadge}>
           <StatusBezel statusType="good" />
@@ -491,71 +299,81 @@ export default function RerouteScreen({
     </>
   );
 
-  // ── Inline branch grid — ALWAYS visible at the top of the drawer for
-  // multi-branch lines. No hidden second step, no "Change" button: the
-  // resolution is shown up front, and tapping a tile swaps the content below.
   const renderBranchGrid = () => {
     if (!branches || branches.length < 2) return null;
-    // Split branches into pairs for rows (2x2 for 4-branch lines)
-    const rows: string[][] = [];
-    for (let i = 0; i < branches.length; i += 2) {
-      rows.push(branches.slice(i, i + 2));
-    }
 
     return (
       <View style={s.branchGridBody}>
-        {/* Static header — line name only, no terminus asserted in copy */}
         <Text style={s.branchGridTitle}>
-          {`${lineName.replace(/\s*line\s*$/i, '').trim()} — where are you headed?`}
+          Where are you headed?
         </Text>
-        {rows.map((row, ri) => (
-          <View key={ri} style={s.branchGridRow}>
-            {row.map((branch) => {
-              const status = branchStatuses?.[branch];
-              const isAffected = status === 'affected';
-              const isHighlighted = branch === activeTerminus;
-              const activeTier = branch === resolvedTerminus ? highlightTier : 'high';
-              // Canonical TfL label via the §0 single-source severity map.
-              // Affected branches carry the line's severity code; unaffected
-              // branches resolve to 'good' → "Good service".
-              const severityResult = isAffected
-                ? getSeverityColor(severity)
-                : { color: STATUS_SEVERITY_COLORS.good, label: 'good' as const };
-              return (
-                <Pressable
-                  key={branch}
-                  style={[
-                    s.branchGridCard,
-                    isHighlighted && activeTier === 'high' && s.branchGridCardEmerald,
-                    isHighlighted && activeTier === 'medium' && s.branchGridCardOrange,
-                  ]}
-                  onPress={() => handleBranchTap(branch)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${branch} branch, ${TFL_STATUS_DISPLAY[severityResult.label]}`}
-                  accessibilityState={{ selected: isHighlighted }}
-                >
+
+        <View style={s.branchGridContainer}>
+          {branches.map((branch) => {
+            const status = branchStatuses?.[branch];
+            const isAffected = status === 'affected';
+            const isHighlighted = branch === activeTerminus;
+            const activeTier = branch === resolvedTerminus ? highlightTier : 'high';
+            const severityResult = isAffected
+              ? getSeverityColor(severity)
+              : { color: STATUS_SEVERITY_COLORS.good, label: 'good' as const };
+            const cleanName = branch.replace(/\s*branch\s*$/i, '').trim();
+
+            return (
+              <Pressable
+                key={branch}
+                style={({ pressed }) => [
+                  s.branchCard,
+                  isHighlighted && activeTier === 'high' && s.branchCardSelected,
+                  isHighlighted && activeTier === 'medium' && s.branchCardMedium,
+                  pressed && { opacity: 0.65 },
+                ]}
+                onPress={() => handleBranchTap(branch)}
+                accessibilityRole="button"
+                accessibilityLabel={`${cleanName}, ${TFL_STATUS_DISPLAY[severityResult.label]}`}
+                accessibilityState={{ selected: isHighlighted }}
+              >
+                <View style={s.branchCardContent}>
                   <Text
                     style={s.branchCardName}
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.75}
                   >
-                    {branch}
+                    {cleanName}
                   </Text>
-                  <View style={s.branchCardStatusRow}>
-                    <Text
-                      style={[s.branchCardStatus, { color: severityResult.color }]}
-                      numberOfLines={1}
+
+                  <View style={s.branchPillRow}>
+                    <View
+                      style={[
+                        s.compactPillItem,
+                        { borderColor: `${severityResult.color}4D` },
+                      ]}
                     >
-                      {TFL_STATUS_DISPLAY[severityResult.label]}
-                    </Text>
+                      <View
+                        style={[
+                          s.compactPillColorLayer,
+                          { backgroundColor: `${severityResult.color}15` },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          s.compactPillText,
+                          { color: severityResult.color },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {TFL_STATUS_DISPLAY[severityResult.label]}
+                      </Text>
+                    </View>
                     <StatusBezel statusType={severityResult.label} />
                   </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-        {/* Source caption — under the highlighted tile ONLY */}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {highlightCaption && activeTerminus === resolvedTerminus && (
           <View style={s.branchGridCaptionRow}>
             <View
@@ -573,64 +391,50 @@ export default function RerouteScreen({
 
   const renderAffectedState = () => (
     <View style={s.body}>
-      {/* Suggested route glass card — static dark glass (no live blur: iOS
-          UIVisualEffectView janks scroll; flat translucent fill reads as
-          frosted at a fraction of the cost) */}
       {resolvedSuggestedRoute && (
         <View style={s.suggestedRouteCard}>
-          <View style={s.suggestedRouteHeaderRow}>
-            <Text style={s.suggestedRouteTitle}>Suggested route</Text>
-            {resolvedSuggestedRoute.platform && (
-              <View style={s.platformBadge}>
-                <Text style={s.platformBadgeText}>{resolvedSuggestedRoute.platform}</Text>
-              </View>
-            )}
+          <View style={s.suggestedRouteHeaderPill}>
+            <Text style={s.suggestedRouteHeaderText}>Suggested route</Text>
           </View>
-          <Text style={s.suggestedRouteDesc}>{resolvedSuggestedRoute.description}</Text>
+          <Text style={s.suggestedRouteDesc}>
+            {resolvedSuggestedRoute.description}
+          </Text>
         </View>
       )}
 
-      {/* CTAs — Side-by-Side if both available, full-width if single */}
-      <View style={[s.ctaSection, citymapperAvailable && s.ctaSectionRow]}>
-        {/* Google Maps CTA */}
+      <View style={s.ctaSection}>
         <BouncyPressable
           onPress={handleOpenGoogleMaps}
-          style={[s.primaryCta, citymapperAvailable && s.ctaHalfWidth]}
+          style={s.primaryCta}
         >
           <ICON.googleMaps
-            size={17}
+            size={15}
             color="#07103a"
             style={{ marginRight: 6 }}
           />
           <Text style={s.primaryCtaText} numberOfLines={1}>
-            {citymapperAvailable ? 'Google Maps' : 'Open in Google Maps'}
+            Google Maps
           </Text>
         </BouncyPressable>
 
-        {/* Citymapper CTA — only if installed */}
-        {citymapperAvailable && (
-          <BouncyPressable
-            onPress={handleOpenCitymapper}
-            style={[s.secondaryCta, s.ctaHalfWidth]}
-          >
-            <ICON.citymapper
-              size={17}
-              color="rgba(255,255,255,0.90)"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={s.secondaryCtaText} numberOfLines={1}>
-              Citymapper
-            </Text>
-          </BouncyPressable>
-        )}
+        <BouncyPressable
+          onPress={handleOpenCitymapper}
+          style={s.secondaryCta}
+        >
+          <ICON.citymapper
+            size={15}
+            color="rgba(255,255,255,0.85)"
+            style={{ marginRight: 6 }}
+          />
+          <Text style={s.secondaryCtaText} numberOfLines={1}>
+            Citymapper
+          </Text>
+        </BouncyPressable>
       </View>
     </View>
   );
 
   const renderUnaffectedState = () => (
-    // EQUAL WEIGHT: the unaffected state gets the same dark glass card
-    // treatment as the suggested-route card — 3.5px emerald accent bar,
-    // canonical TfL header, directional specular borders. No lesser build.
     <View style={s.body}>
       <View style={s.unaffectedCard}>
         <View style={s.unaffectedAccentBar} />
@@ -642,13 +446,12 @@ export default function RerouteScreen({
 
           <Text style={s.disruptionReason} numberOfLines={3} ellipsizeMode="tail">
             {otherBranchName
-              ? `The disruption is on the ${otherBranchName} branch, not yours.`
+              ? `The disruption is on the ${otherBranchName.replace(/\s*branch\s*$/i, '').trim()} branch, not yours.`
               : 'The disruption does not affect your route.'}
           </Text>
         </View>
       </View>
 
-      {/* Rule 33 — GOT IT dismiss button */}
       <BouncyPressable onPress={onClose} style={s.gotItButton}>
         <Text style={s.gotItButtonText}>Got it</Text>
       </BouncyPressable>
@@ -656,7 +459,6 @@ export default function RerouteScreen({
   );
 
   const renderEmptyState = () => (
-    // Single line, no forced card.
     <View style={s.body}>
       <View style={s.emptyStateRow}>
         <ICON.fine size={22} color="rgba(255,255,255,0.35)" />
@@ -665,72 +467,43 @@ export default function RerouteScreen({
     </View>
   );
 
-  // Render the direction selector whenever there are 2 or more endpoints/branches
   const hasGrid = Boolean(branches && branches.length >= 2);
-  const hasOverflow = scrollMetrics.content > scrollMetrics.layout + 4;
-  const trackHeight = Math.max(0, scrollMetrics.layout - 56);
-  const rawThumbHeight = scrollMetrics.content > 0 ? (scrollMetrics.layout / scrollMetrics.content) * trackHeight : 0;
-  const thumbHeight = Math.max(28, Math.min(trackHeight, rawThumbHeight));
-  const maxScrollOffset = Math.max(1, scrollMetrics.content - scrollMetrics.layout);
-  const scrollProgress = Math.min(1, Math.max(0, scrollMetrics.offset / maxScrollOffset));
-  const thumbTop = scrollProgress * Math.max(0, trackHeight - thumbHeight);
 
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="none"
+      transparent={true}
       presentationStyle="overFullScreen"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={s.overlay}>
-        {/* Backdrop tap closes */}
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      <View style={s.root}>
+        <Pressable
+          style={s.backdrop}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss reroute screen"
+        />
 
-        <Animated.View
-          style={[
-            s.sheet,
-            { paddingBottom: insets.bottom + 16 },
-            reduceTransparency && { backgroundColor: '#1C1C1E' },
-            sheetAnimatedStyle,
-          ]}
-        >
-          {/* Apple liquid glass — the plain s.sheet View owns layout + clip */}
-          {!reduceTransparency && (
-            isNativeGlassAvailable ? (
-              <GlassView
-                glassEffectStyle="regular"
-                colorScheme="dark"
-                style={StyleSheet.absoluteFillObject}
-                pointerEvents="none"
-              />
-            ) : (
-              <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-            )
-          )}
-          <View style={[StyleSheet.absoluteFillObject, s.sheetTint]} pointerEvents="none" />
-          <View style={[StyleSheet.absoluteFillObject, s.sheetRim]} pointerEvents="none" />
+        <Animated.View style={[s.sheet, { maxHeight: sheetMaxHeight }, sheetAnimStyle]}>
+          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
+
+          {/* Top fixed gesture handle & header outside scrollview */}
+          <View style={s.topBarArea} {...panResponder.panHandlers}>
+            {renderHeader()}
+          </View>
 
           <ScrollView
-            ref={scrollRef}
             style={s.scroll}
-            contentContainerStyle={s.scrollContent}
+            contentContainerStyle={[
+              s.scrollContent,
+              { paddingBottom: insets.bottom + 24 },
+            ]}
             showsVerticalScrollIndicator={false}
-            scrollEnabled
-            nestedScrollEnabled
-            onScroll={handleSheetScroll}
-            scrollEventThrottle={16}
-            onContentSizeChange={handleSheetContentSize}
-            onLayout={handleSheetLayout}
+            keyboardShouldPersistTaps="handled"
           >
-            {renderHeader()}
-
-            {/* Inline, permanently-visible grid — the entire point of
-                "one step not two". */}
             {hasGrid && renderBranchGrid()}
 
-            {/* Non-grid lines (≤2 branches: Victoria, Bakerloo, Jubilee, …):
-                interactive 2-branch destination selector so user can tap their direction in 1 touch */}
             {!hasGrid && branches && branches.length > 0 && (
               <View style={s.twoBranchRow}>
                 {branches.slice(0, 2).map((b) => {
@@ -754,8 +527,10 @@ export default function RerouteScreen({
                           isSelected && s.twoBranchTextSelected,
                         ]}
                         numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.75}
                       >
-                        Towards {b}
+                        Towards {b.replace(/\s*branch\s*$/i, '').trim()}
                       </Text>
                     </Pressable>
                   );
@@ -769,44 +544,6 @@ export default function RerouteScreen({
                 ? renderUnaffectedState()
                 : renderEmptyState()}
           </ScrollView>
-
-          {/* Persistent visual scrollbar track & thumb on the right side */}
-          {hasOverflow && (
-            <View pointerEvents="none" style={s.scrollbarTrack}>
-              <View
-                style={[
-                  s.scrollbarThumb,
-                  {
-                    height: thumbHeight,
-                    transform: [{ translateY: thumbTop }],
-                  },
-                ]}
-              />
-            </View>
-          )}
-
-          {/* Scroll affordance — bottom fade + animated bouncing chevron badge */}
-          <Animated.View pointerEvents="box-none" style={[s.scrollFade, { opacity: fadeOpacity }]}>
-            <LinearGradient
-              colors={['rgba(12,12,18,0)', 'rgba(12,12,18,0.92)']}
-              style={StyleSheet.absoluteFillObject}
-              pointerEvents="none"
-            />
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
-                scrollRef.current?.scrollToEnd({ animated: true });
-              }}
-              style={s.scrollBadge}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Scroll to bottom"
-            >
-              <Animated.View style={arrowAnimStyle}>
-                <ICON.chevronDown size={20} color="#FFFFFF" />
-              </Animated.View>
-            </Pressable>
-          </Animated.View>
         </Animated.View>
       </View>
     </Modal>
@@ -816,111 +553,60 @@ export default function RerouteScreen({
 // ─── Styles ───────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  overlay: {
+  root: {
     flex: 1,
-    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    flex: 1,
   },
   sheet: {
-    position: 'relative',
-    maxHeight: SHEET_MAX_HEIGHT, // Rule 32 — strictly under 50% screen height
-    overflow: 'hidden', // clip guard: inner glass can never extend past screen bottom
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
     borderTopWidth: GLASS.borderWidth,
     borderLeftWidth: GLASS.borderWidth,
     borderRightWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
-    paddingHorizontal: 16,
-    paddingTop: 8,
   },
-  sheetTint: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  sheetRim: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: GLASS.borderTop,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+  topBarArea: {
+    paddingHorizontal: SCREEN_PADDING,
   },
   scroll: {
     flexGrow: 0,
-    maxHeight: SHEET_MAX_HEIGHT - SHEET_HEADER_OFFSET,
+    flexShrink: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingHorizontal: SCREEN_PADDING,
   },
-  scrollFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 72,
+  dragHandleWrap: {
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
-  scrollbarTrack: {
-    position: 'absolute',
-    right: 5,
-    top: 75,
-    bottom: 25,
-    width: 3.5,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  scrollbarThumb: {
-    width: 3.5,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-  },
-  scrollBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(28, 28, 42, 0.90)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  handle: {
-    width: 36,
+  dragHandle: {
+    width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignSelf: 'center',
-    marginBottom: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
-  backButton: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 44, // 44x44pt touch target (Rule)
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
-    borderTopColor: GLASS.borderTop,
-    borderBottomColor: GLASS.borderBottom,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    marginBottom: 4,
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    width: '100%',
   },
-  backText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.80)',
-    marginLeft: 2,
-  },
-  lineHeaderRow: {
+  lineTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    flex: 1,
+    marginRight: 12,
   },
   lineColorBar: {
     width: 3.5,
@@ -931,7 +617,22 @@ const s = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 22,
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.8,
+  },
+  backPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  backText: {
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255, 255, 255, 0.80)',
   },
   clearedBadge: {
     flexDirection: 'row',
@@ -942,10 +643,8 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    marginTop: 8,
-    marginBottom: 6,
+    marginBottom: 10,
   },
-
   clearedText: {
     fontSize: 12,
     fontWeight: '600',
@@ -955,7 +654,7 @@ const s = StyleSheet.create({
 
   // ── Body ──────────────────────────────────────────────────────
   body: {
-    paddingTop: 2,
+    paddingTop: 4,
     paddingBottom: 4,
   },
   disruptionReason: {
@@ -965,21 +664,48 @@ const s = StyleSheet.create({
     lineHeight: 17,
   },
 
-  // ── Suggested route card (static dark glass — no live blur) ──
+  // ── Suggested route card ───────────────────────────────────────
   suggestedRouteCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
   },
-  // ── Unaffected-state glass card (equal weight to suggested route) ──
+  suggestedRouteHeaderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+    borderTopColor: 'rgba(255, 255, 255, 0.35)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.10)',
+    paddingVertical: 3.5,
+    paddingHorizontal: 9.5,
+    borderRadius: 9999,
+    marginBottom: 8,
+  },
+  suggestedRouteHeaderText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  suggestedRouteDesc: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13.5,
+    color: 'rgba(255,255,255,0.90)',
+    lineHeight: 19,
+  },
+
+  // ── Unaffected ────────────────────────────────────────────────
   unaffectedCard: {
     flexDirection: 'row',
     borderRadius: 14,
@@ -1003,59 +729,12 @@ const s = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 10,
   },
-  suggestedRouteHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  suggestedRouteTitle: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  platformBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: GLASS.borderColor,
-  },
-  platformBadgeText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 11,
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  suggestedRouteDesc: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 13.5,
-    color: 'rgba(255,255,255,0.90)',
-    lineHeight: 19,
-    marginBottom: 8,
-  },
-  extraTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  extraTimeText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 12.5,
-    color: 'rgba(255,255,255,0.50)',
-  },
-
-  // ── Unaffected ────────────────────────────────────────────────
   runningFineRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
     marginBottom: 6,
   },
-
   runningFineLabel: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 13,
@@ -1077,13 +756,13 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.40)',
   },
 
-  // ── Got it dismiss (Rule 33) ──────────────────────────────────
+  // ── Got it dismiss ───────────────────────────────────────────
   gotItButton: {
     alignSelf: 'center',
     backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 26,
-    minHeight: 44,
-    paddingHorizontal: 28,
+    borderRadius: 20,
+    minHeight: 38,
+    paddingHorizontal: 24,
     paddingVertical: 8,
     marginTop: 12,
     borderWidth: GLASS.borderWidth,
@@ -1091,44 +770,39 @@ const s = StyleSheet.create({
   },
   gotItButtonText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 14.5,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.80)',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
-  // ── CTAs ──────────────────────────────────────────────────────
+  // ── CTAs (Compact row, not full width) ────────────────────────
   ctaSection: {
-    gap: 8,
-    marginTop: 0,
-  },
-  ctaSectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: 10,
-  },
-  ctaHalfWidth: {
-    flex: 1,
-    paddingHorizontal: 8,
+    marginTop: 6,
+    marginBottom: 10,
   },
   primaryCta: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    minHeight: 44,
+    borderRadius: 20,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   primaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15.5,
+    fontSize: 13,
     color: '#07103a',
   },
   secondaryCta: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 22,
-    minHeight: 44,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 20,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1137,83 +811,106 @@ const s = StyleSheet.create({
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   secondaryCtaText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 15.5,
-    color: 'rgba(255,255,255,0.80)',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
 
-  // ── Branch Grid (inline, always visible) ─────────────────────
+  // ── Branch Grid ───────────────────────────────────────────────
   branchGridBody: {
-    paddingVertical: 6,
+    paddingVertical: 4,
+    marginBottom: 8,
   },
   branchGridTitle: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 18,
+    fontSize: 16,
     color: '#FFFFFF',
     marginBottom: 10,
+    letterSpacing: -0.2,
   },
-  branchGridRow: {
+  branchGridContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 8,
-    marginBottom: 8,
   },
-  branchGridCard: {
-    flex: 1,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+  branchCard: {
+    width: '48.5%',
     borderRadius: 14,
     borderWidth: GLASS.borderWidth,
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
+    backgroundColor: GLASS.background,
     overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    minHeight: 52,
-    gap: 3,
+    minHeight: 58,
+    marginBottom: 2,
   },
-  // High confidence / manual selection highlight — premium status-neutral white.
-  branchGridCardEmerald: {
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  // Medium confidence highlight — premium status-neutral translucent white.
-  branchGridCardOrange: {
+  branchCardSelected: {
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.80)',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: '#FFFFFF',
+    borderTopColor: '#FFFFFF',
+    borderBottomColor: '#FFFFFF',
+    borderLeftColor: '#FFFFFF',
+    borderRightColor: '#FFFFFF',
+    backgroundColor: GLASS.background,
   },
-  branchCardStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  branchCardMedium: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.60)',
+    borderTopColor: 'rgba(255, 255, 255, 0.60)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.60)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.60)',
+    borderRightColor: 'rgba(255, 255, 255, 0.60)',
+    backgroundColor: GLASS.background,
+  },
+  branchCardContent: {
+    paddingHorizontal: 11,
+    paddingVertical: 8,
     gap: 6,
-    flexShrink: 0,
+    justifyContent: 'center',
   },
   branchCardName: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 13,
-    color: '#FFFFFF',
-    alignSelf: 'stretch',
+    color: 'rgba(255, 255, 255, 0.95)',
   },
-  branchCardStatus: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.50)',
-    letterSpacing: 0.3,
+  branchPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
   },
-  // Source caption — under the highlighted tile ONLY
+  compactPillItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    position: 'relative',
+    flexShrink: 1,
+  },
+  compactPillColorLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  compactPillText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
   branchGridCaptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2,
-    marginBottom: 6,
-    paddingLeft: 6,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingLeft: 4,
   },
   branchGridCaptionDot: {
     width: 6,
@@ -1227,12 +924,12 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // ── Two-branch destination selector (≤2-branch lines) ──
+  // ── Two-branch destination selector ───────────────────────────
   twoBranchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   twoBranchChip: {
     flex: 1,
@@ -1240,12 +937,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    backgroundColor: GLASS.background,
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderBottomColor: GLASS.borderBottom,
   },
   twoBranchChipSelected: {
     backgroundColor: 'rgba(16, 185, 129, 0.16)',
@@ -1270,3 +969,5 @@ const s = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
   },
 });
+
+

@@ -442,21 +442,6 @@ export const LineCard = memo(function LineCard({
             {/* Subtle frosted divider line */}
             <View style={styles.expandedDivider} />
 
-            {/* Station impact badge (ONLY for disrupted lines) */}
-            {isDisrupted && (
-              stationImpacted ? (
-                <View style={styles.stationImpactPill}>
-                  <View style={styles.stationImpactDot} />
-                  <Text style={styles.stationImpactText}>Station Impacted</Text>
-                </View>
-              ) : (
-                <View style={styles.stationUnaffectedPill}>
-                  <View style={styles.stationUnaffectedDot} />
-                  <Text style={styles.stationUnaffectedText}>Your Stations Unaffected</Text>
-                </View>
-              )
-            )}
-
             {/* Disruption detail text or Good Service text */}
             {shouldShowReason ? (
               <Text style={styles.disruptionReasonText}>
@@ -587,60 +572,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     marginHorizontal: 16,
     marginBottom: 8,
-  },
-  stationImpactPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: 'rgba(255, 59, 48, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.25)',
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-    borderRadius: 9999,
-    marginHorizontal: 16,
-    marginBottom: 8,
-  },
-  stationImpactDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
-  },
-  stationImpactText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: '#EF4444',
-  },
-  stationUnaffectedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.25)',
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-    borderRadius: 9999,
-    marginHorizontal: 16,
-    marginBottom: 8,
-  },
-  stationUnaffectedDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#34D399',
-  },
-  stationUnaffectedText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 10,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: '#34D399',
   },
   goodServiceDetailText: {
     fontFamily: 'SpaceGrotesk_400Regular',

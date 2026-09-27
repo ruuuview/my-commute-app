@@ -36,6 +36,24 @@ import { useShallow } from 'zustand/react/shallow';
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
+const NIGHT_TUBE_SET = new Set(['central', 'jubilee', 'northern', 'piccadilly', 'victoria']);
+
+function getStationNightTubeStatus(lineIds: string[]) {
+  const hasNightTube = lineIds.some(id => NIGHT_TUBE_SET.has(id.toLowerCase()));
+  if (!hasNightTube) return null;
+
+  const now = new Date();
+  const day = now.getDay();
+  const hours = now.getHours();
+
+  if ((day === 6 || day === 0) && hours >= 0 && hours < 5) {
+    return { label: 'Running All Night', active: true };
+  }
+  if ((day === 5 || day === 6) && hours >= 5) {
+    return { label: 'Night Tube Tonight', active: false };
+  }
+  return null;
+}
 
 function cleanDestinationName(dest: string | null | undefined): string {
   if (!dest) return 'Unknown';
@@ -106,6 +124,14 @@ export const DepartureCard = memo(function DepartureCard({
     () => getVisibleArrivals(arrivals, selectedLines),
     [arrivals, selectedLines]
   );
+
+  const stationLines = useMemo(() => {
+    return arrivals.map(a => a.lineId.toLowerCase());
+  }, [arrivals]);
+
+  const nightTubeStatus = useMemo(() => {
+    return getStationNightTubeStatus(stationLines);
+  }, [stationLines]);
 
   const displayArrivals = visibleArrivals.slice(0, MAX_ROWS);
 
@@ -256,6 +282,12 @@ export const DepartureCard = memo(function DepartureCard({
             <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
               {cleanName}
             </Text>
+            {nightTubeStatus ? (
+              <View style={styles.nightTubeCapsule}>
+                <Text style={styles.nightTubeMoon}>🌙</Text>
+                <Text style={styles.nightTubeCapsuleText}>{nightTubeStatus.label}</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Subtle glass divider to give definition to the station name */}
@@ -343,24 +375,48 @@ const styles = StyleSheet.create({
   },
   pressable: {
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 11,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 28,
+    minHeight: 20,
   },
   stationName: {
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 13.5,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    letterSpacing: -0.1,
     color: 'rgba(255, 255, 255, 0.95)',
     flex: 1,
   },
+  nightTubeCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  nightTubeMoon: {
+    fontSize: 9,
+    marginRight: 3,
+  },
+  nightTubeCapsuleText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 9.5,
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: 0.1,
+  },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: 7,
+    marginBottom: 8,
   },
   loadingText: {
     color: 'rgba(255, 255, 255, 0.4)',

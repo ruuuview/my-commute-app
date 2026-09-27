@@ -58,6 +58,7 @@
     "@react-navigation/native": "^7.1.8",
     "@sentry/react-native": "^8.20.0",
     "@shopify/flash-list": "2.0.2",
+    "@shopify/react-native-skia": "2.2.12",
     "axios": "^1.7.8",
     "expo": "~54.0.35",
     "expo-asset": "~12.0.13",

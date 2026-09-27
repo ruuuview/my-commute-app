@@ -182,6 +182,7 @@ describe('Accessibility & Universal Compliance Invariants', () => {
       'SlaSurveyModal.tsx',
       'TfLConnectSheet.tsx',
       'ZeroStateHeroCard.tsx',
+      'animated-blur-view.tsx',
     ]);
 
     test('Every component importing from expo-blur is present in the audited allowlist', () => {

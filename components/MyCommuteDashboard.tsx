@@ -346,14 +346,7 @@ function StaleStatusText({ staleState, staleMinutes }: { staleState: import('../
       </View>
     );
   }
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <NetworkHealthDot severity="good" />
-      <Text style={[dash.staleText, { color: 'rgba(255, 255, 255, 0.45)' }]} accessibilityLabel="Transit network status is live">
-        Live service
-      </Text>
-    </View>
-  );
+  return null;
 }
 
 // ─── Session-Level Intent Deduplication Sets ──────────────────────
@@ -847,13 +840,15 @@ export function MyCommuteDashboard() {
                   accessibilityRole="button"
                   testID="header-settings-button"
                 >
-                  <Gear size={18} color="rgba(255, 255, 255, 0.85)" weight="regular" />
+                  <Gear size={20} color="rgba(255, 255, 255, 0.90)" weight="regular" />
                 </BouncyPressable>
               </View>
             </View>
-            <View style={dash.subheadingArea}>
-              <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
-            </View>
+            {staleState !== null && (
+              <View style={dash.subheadingArea}>
+                <StaleStatusText staleState={staleState} staleMinutes={staleMinutes} />
+              </View>
+            )}
           </View>
 
           {/* Top spacer below header */}
@@ -1247,9 +1242,9 @@ const dash = StyleSheet.create({
   titleMain: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32, flexShrink: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   headerBtnCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: PREMIUM_BUTTON.borderWidth,
     borderColor: PREMIUM_BUTTON.borderColor,
     borderTopColor: PREMIUM_BUTTON.borderTopColor,

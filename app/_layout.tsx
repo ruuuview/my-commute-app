@@ -27,6 +27,8 @@ import { resolveRerouteTarget } from '../services/notifications/payload';
 import { parseNotificationIntent, navigateToIntent } from '../services/notifications/intent';
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
+import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
+import { DynamicNotifications } from '../components/DynamicIslandBanner/components';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
 import FlashMessage from 'react-native-flash-message';
 
@@ -496,17 +498,20 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider style={styles.root}>
-        {isReady ? (
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#0A0A0F' },
-            }}
-          />
-        ) : null}
-        <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
-        <PermissionPrimerModal />
-        <FlashMessage position="top" />
+        <DynamicNotifications cardColor="rgba(18,20,26,0.88)" islandColor="#000000" duration={4000}>
+          <PillBridge />
+          {isReady ? (
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#0A0A0F' },
+              }}
+            />
+          ) : null}
+          <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
+          <PermissionPrimerModal />
+          <FlashMessage position="top" />
+        </DynamicNotifications>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -516,4 +521,3 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0A0F' },
   whiteOverlay: { backgroundColor: '#FFFFFF' },
 });
-

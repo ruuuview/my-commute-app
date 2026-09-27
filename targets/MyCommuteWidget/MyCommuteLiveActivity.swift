@@ -310,19 +310,18 @@ private struct CompactIslandView: View {
         }
       } else {
         HStack(spacing: 4) {
-          AccentBar(lineId: context.attributes.lineId)
-          let leadingText: String = {
-            if let short = shortBranch {
-              return "\(lineShortCode) · \(short)"
-            }
-            return context.state.selectedEndpoint ?? lineShortCode
-          }()
-          Text(leadingText)
-            .font(.system(size: 13, weight: .bold))
+          Rectangle()
+            .fill(LineColor.specularColor(for: context.attributes.lineId))
+            .frame(width: 3, height: 11)
+            .cornerRadius(1)
+          let destName = context.state.destinationStationName ?? context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName)
+          let branchLabel = shortBranch ?? context.state.branchName
+          Text((branchLabel != nil && !branchLabel!.isEmpty) ? "\(destName) (\(branchLabel!))" : destName)
+            .font(.system(size: 12, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
         }
-        .accessibilityLabel("\(context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
+        .accessibilityLabel("\(context.state.destinationStationName ?? context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
       }
     }
   }
@@ -512,8 +511,14 @@ private struct LockScreenView: View {
   var body: some View {
     DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
       .padding(14)
-      .background(.ultraThinMaterial, in: ContainerRelativeShape())
-      .overlay(ContainerRelativeShape().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-      .padding(10)
+      .background(
+        ZStack {
+          ContainerRelativeShape().fill(.ultraThinMaterial)
+          ContainerRelativeShape().fill(Color.black.opacity(0.35))
+        }
+      )
+      .overlay(
+        ContainerRelativeShape().stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+      )
   }
 }

@@ -143,23 +143,27 @@ public struct DeliveryTrackView: View {
   private var approachingView: some View {
     let ep = activeEndpoint
     let branchStr = (ep.branchText != nil && !ep.branchText!.isEmpty) ? " (\(ep.branchText!))" : ""
-    let minText = ep.minutesToArrival <= 0 ? "Due" : "\(ep.minutesToArrival)m"
+
+    let accent = LineColor.specularColor(for: lineId)
+    let etaHeadline: Text = {
+      if ep.minutesToArrival <= 0 {
+        return Text("Arriving at \(ep.destinationName)\(branchStr) ")
+          .foregroundColor(.white)
+          + Text("now").foregroundColor(accent).bold()
+      }
+      return Text("Arriving at \(ep.destinationName)\(branchStr) in ")
+        .foregroundColor(.white)
+        + Text("\(ep.minutesToArrival) mins").foregroundColor(accent).bold()
+    }()
 
     return VStack(alignment: .leading, spacing: 8) {
-      // Row 1: Destination Endpoint + Tabular Minutes
+      // Row 1: Zomato-style high-contrast ETA headline
       HStack(alignment: .firstTextBaseline) {
-        Text("\(ep.destinationName)\(branchStr)")
-          .font(.system(size: 18, weight: .bold))
-          .foregroundColor(.white)
+        etaHeadline
+          .font(.system(size: 17, weight: .semibold))
           .lineLimit(1)
           .truncationMode(.tail)
-
         Spacer()
-
-        Text(minText)
-          .font(.system(size: 24, weight: .bold))
-          .monospacedDigit()
-          .foregroundColor(ep.minutesToArrival <= 0 ? Color(hex: 0x30D158) : .white)
       }
 
       // Row 2: 3.5pt Specular Line Color Bar + Line Name (Left-Aligned, No Indent)
@@ -190,10 +194,8 @@ public struct DeliveryTrackView: View {
           }
         } else {
           let stopsText: String = {
-            if ep.stopsAway <= 0 {
+            if ep.stopsAway <= 1 {
               return "Arriving next"
-            } else if ep.stopsAway == 1 {
-              return "1 stop away"
             } else {
               return "\(ep.stopsAway) stops away"
             }
@@ -291,8 +293,9 @@ public struct DeliveryTrackView: View {
           .font(.system(size: 11, weight: .bold))
           .foregroundColor(.white)
           .lineLimit(1)
-        Text("🏁")
-          .font(.system(size: 10))
+        Image(systemName: "flag.checkered")
+          .font(.system(size: 10, weight: .semibold))
+          .foregroundColor(.white.opacity(0.9))
       }
       .fixedSize(horizontal: true, vertical: false)
     }
@@ -407,8 +410,9 @@ public struct DeliveryTrackView: View {
             .font(.system(size: 11, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
-          Text("🏁")
-            .font(.system(size: 10))
+          Image(systemName: "flag.checkered")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundColor(.white.opacity(0.9))
         }
         .fixedSize(horizontal: true, vertical: false)
       }

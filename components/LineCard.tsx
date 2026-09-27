@@ -209,6 +209,7 @@ export const LineCard = memo(function LineCard({
       <Animated.View
         style={[
           styles.cardInner,
+          mode === 'select' ? { height: '100%' } : null,
           mode === 'display' && isExpanded ? styles.cardInnerExpanded : null,
           {
             borderRadius: cardRadius,

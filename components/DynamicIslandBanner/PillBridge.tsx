@@ -2,10 +2,11 @@
 // Bridges the transient pill store (store/pillStore.ts) to the vendored
 // Dynamic Island (gooey) shell. Must be rendered INSIDE <DynamicNotifications>.
 //
-// The three edge-trigger hooks (disruption / boarding nudge / permission
-// primer) are self-driving: they observe their own data sources and call
-// usePillStore.getState().requestPill(...) when they fire. This component
-// only mirrors the store's active pill into the gooey shell via trigger().
+// The four edge-trigger hooks (disruption / boarding nudge / permission
+// primer / commute intent) are self-driving: they observe their own data
+// sources and call usePillStore.getState().requestPill(...) when they fire.
+// This component only mirrors the store's active pill into the gooey shell
+// via trigger().
 
 import React, { useEffect } from 'react';
 import { useDynamicNotifications } from './hooks';
@@ -13,6 +14,7 @@ import { usePillStore } from '../../store/pillStore';
 import { useDisruptionEdgeTrigger } from '../../hooks/useDisruptionEdgeTrigger';
 import { useBoardingNudge } from '../../hooks/useBoardingNudge';
 import { usePrimerPill } from '../../hooks/usePrimerPill';
+import { useIntentPill } from '../../hooks/useIntentPill';
 import { PillContent } from './PillContent';
 
 export function PillBridge(): React.JSX.Element | null {
@@ -23,6 +25,7 @@ export function PillBridge(): React.JSX.Element | null {
   useDisruptionEdgeTrigger();
   useBoardingNudge();
   usePrimerPill();
+  useIntentPill();
 
   useEffect(() => {
     if (!active) {

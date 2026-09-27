@@ -8,6 +8,7 @@ import { sanitiseStationName } from '../data/tflStations';
 import { STORE_VERSION, runMigrations } from './migrations';
 
 import { syncToWidget } from '../utils/widgetSync';
+import { applyDismissal } from '../utils/intentPillPolicy';
 
 const storage = createMMKV();
 const backgroundStorage = createMMKV({ id: 'background-storage' });
@@ -143,9 +144,17 @@ export interface UserPreferencesState {
   setSimulatedClaimActive: (active: boolean) => void;
   /** FORGETS the given ids from optimistic mirrors (server confirmed or claim gone). */
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
+  // Intent pill dismiss-learning (Phase 3). Persisted so learning survives
+  // restarts. Rules live in utils/intentPillPolicy.ts.
+  intentPillDismissals: number[]; // epoch ms of shown-but-untapped intent pills
+  intentPillSuppressedUntil: number | null; // epoch ms; null = not suppressed
+  intentPillLastFired: { morning: string | null; evening: string | null }; // local YYYY-MM-DD day keys
+  recordIntentPillDismissal: () => void;
+  recordIntentPillFired: (window: 'morning' | 'evening', dayKey: string) => void;
+  clearIntentPillLearning: () => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -178,6 +187,9 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   lastHandledColdBootNotificationId: null,
   simulatedClaimActive: false,
   recentSearches: [],
+  intentPillDismissals: [],
+  intentPillSuppressedUntil: null,
+  intentPillLastFired: { morning: null, evening: null },
   stationFilterToggles: {},
   hapticsEnabled: true,
   lineNotificationToggles: {},
@@ -375,6 +387,23 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       },
       setArrivalNotificationsEnabled: (enabled) => set({ arrivalNotificationsEnabled: enabled }),
       setArrivalSnoozeExpiry: (expiry) => set({ arrivalSnoozeExpiry: expiry }),
+      // Intent pill dismiss-learning (Phase 3). Pure policy in
+      // utils/intentPillPolicy.ts; these are just the persisted writers.
+      recordIntentPillDismissal: () =>
+        set((state) => {
+          const { dismissals, suppressedUntil } = applyDismissal(
+            state.intentPillDismissals ?? [],
+            state.intentPillSuppressedUntil ?? null,
+            Date.now(),
+          );
+          return { intentPillDismissals: dismissals, intentPillSuppressedUntil: suppressedUntil };
+        }),
+      recordIntentPillFired: (window, dayKey) =>
+        set((state) => ({
+          intentPillLastFired: { ...state.intentPillLastFired, [window]: dayKey },
+        })),
+      clearIntentPillLearning: () =>
+        set({ intentPillDismissals: [], intentPillSuppressedUntil: null }),
       setTflAccountStatus: (status) => {
         // Single writer for the Radar v2 tri-state; the legacy boolean stays
         // in lockstep so every existing boolean consumer keeps working.
@@ -452,7 +481,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, recordIntentPillDismissal, recordIntentPillFired, clearIntentPillLearning, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

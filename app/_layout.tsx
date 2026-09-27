@@ -46,7 +46,7 @@ Notifications.setNotificationHandler({
 void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
   {
     identifier: 'view_reroute',
-    buttonTitle: 'View Reroute 🚇',
+    buttonTitle: 'View Reroute',
     options: {
       opensAppToForeground: true,
     },
@@ -56,7 +56,7 @@ void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
 void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', [
   {
     identifier: 'view_claim',
-    buttonTitle: 'View Refund 💷',
+    buttonTitle: 'View Refund',
     options: {
       opensAppToForeground: true,
     },
@@ -271,7 +271,7 @@ export default function RootLayout() {
         await Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
           {
             identifier: 'view_reroute',
-            buttonTitle: 'View Reroute 🚇',
+            buttonTitle: 'View Reroute',
             options: { opensAppToForeground: true },
           },
         ]);

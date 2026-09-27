@@ -18,6 +18,10 @@ export interface Station {
   name: string;
   lineIds: string[];
   zone: number;
+  // Explicit home/work assignment during onboarding (Phase 3). Optional:
+  // when unset, the stations screen CTA falls back to index-based roles
+  // (first pinned = home, second = work) exactly as before.
+  role?: 'home' | 'work' | 'other';
 }
 
 interface OnboardingStore {
@@ -29,6 +33,7 @@ interface OnboardingStore {
   pinnedStations: Station[];
   addStation: (station: Station) => void;
   removeStation: (stationId: string) => void;
+  setStationRole: (stationId: string, role: 'home' | 'work' | 'other') => void;
 
   // Navigation Direction
   navigationDirection: 'forward' | 'backward';
@@ -74,6 +79,23 @@ export const useOnboardingStore = create<OnboardingStore>()(
         }),
 
       setNavigationDirection: (dir) => set({ navigationDirection: dir }),
+
+      // Same swap semantics as userPreferencesStore.setStationRole: assigning
+      // 'home'/'work' clears that role from any other station.
+      setStationRole: (stationId, role) =>
+        set((s) => {
+          const resolvedId = resolveTflStopIdForStore(stationId);
+          return {
+            pinnedStations: s.pinnedStations.map((p) => {
+              const isTarget = p.id === stationId || resolveTflStopIdForStore(p.id) === resolvedId;
+              if (isTarget) return { ...p, role };
+              if ((role === 'home' || role === 'work') && p.role === role) {
+                return { ...p, role: 'other' as const };
+              }
+              return p;
+            }),
+          };
+        }),
 
       reset: () => set({ selectedLines: [], pinnedStations: [], navigationDirection: 'forward' }),
     }),

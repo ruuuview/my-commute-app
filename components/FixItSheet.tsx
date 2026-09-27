@@ -51,13 +51,20 @@ interface StationItem {
 interface Props {
   visible: boolean;
   onClose: () => void;
+  // Optional overrides for onboarding mode, where stations live in
+  // onboardingStore until the CTA commits them to userPreferencesStore.
+  // Defaults preserve the existing settings behavior exactly.
+  stations?: StationItem[];
+  onSetRole?: (stationId: string, role: 'home' | 'work') => void;
 }
 
-export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
+export const FixItSheet: React.FC<Props> = ({ visible, onClose, stations: stationsProp, onSetRole }) => {
   const insets = useSafeAreaInsets();
   const reduceTransparency = useReduceTransparency();
-  const setStationRole = useUserPreferencesStore(s => s.setStationRole);
-  const stations = useUserPreferencesStore(s => s.pinnedStations || []);
+  const storeSetStationRole = useUserPreferencesStore(s => s.setStationRole);
+  const storeStations = useUserPreferencesStore(s => s.pinnedStations || []);
+  const stations = stationsProp ?? storeStations;
+  const setStationRole = onSetRole ?? storeSetStationRole;
   const donePress = usePressAnimation('continue_btn');
 
   // Snapshot of roles so local toggling is instant via setStationRole (which already persists)
@@ -76,8 +83,12 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
     });
     // Feature-triggered While-Using ask (plan Permission 1): the user just
     // confirmed a station as home/work. Cheap ask → native dialog, no primer.
-    void requestPermission('locationWhenInUse', 'set_station_role', { primer: false });
-  }, [setStationRole, hasChanged]);
+    // Settings mode only — onboarding asks nothing up front (contextual asks
+    // happen post-activation).
+    if (!onSetRole) {
+      void requestPermission('locationWhenInUse', 'set_station_role', { primer: false });
+    }
+  }, [setStationRole, hasChanged, onSetRole]);
 
   // Reset state when sheet opens
   useEffect(() => {
@@ -127,6 +138,8 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
               <StationRow
                 key={station.id}
                 station={station}
+                homeId={stations.find(s => s.role === 'home')?.id}
+                workId={stations.find(s => s.role === 'work')?.id}
                 onChipPress={handleChipPress}
               />
             ))}
@@ -156,18 +169,12 @@ export const FixItSheet: React.FC<Props> = ({ visible, onClose }) => {
 
 const StationRow: React.FC<{
   station: StationItem;
+  homeId: string | undefined;
+  workId: string | undefined;
   onChipPress: (id: string, role: 'home' | 'work') => void;
-}> = React.memo(({ station, onChipPress }) => {
-  // Read roles directly from store for live syncing
-  const currentHome = useUserPreferencesStore(
-    s => s.pinnedStations.find(x => x.role === 'home')
-  );
-  const currentWork = useUserPreferencesStore(
-    s => s.pinnedStations.find(x => x.role === 'work')
-  );
-
-  const isHome = currentHome?.id === station.id;
-  const isWork = currentWork?.id === station.id;
+}> = React.memo(({ station, homeId, workId, onChipPress }) => {
+  const isHome = homeId === station.id;
+  const isWork = workId === station.id;
 
   // Animated opacity for deselected chip
   const homeOpacity = useSharedValue(isHome ? 1 : 0.5);

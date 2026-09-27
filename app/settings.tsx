@@ -15,7 +15,7 @@ import {
   CaretLeft, Bell, Clock, CaretRight,
   Fingerprint, MapTrifold, MapPin, Shield,
   WarningCircle, Wrench, Warning,
-  BellSlash, Sparkle
+  BellSlash, Sparkle, MagnifyingGlass
 } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { LiveActivityService } from '../services/LiveActivityService';
@@ -867,6 +867,30 @@ export default function SettingsScreen() {
                   thumbColor="#FFFFFF"
                 />
               </View>
+
+              <View style={styles.divider} />
+
+              {/* Buried manual station search (Phase 3): reachable, not prominent.
+                  Opens the existing station search screen in post-onboarding mode. */}
+              <Pressable
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                onPress={() => router.push('/onboarding/stations?openSearch=true' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Add stations"
+                accessibilityHint="Opens station search to pin more stations"
+              >
+                <View style={styles.rowInfo}>
+                  <View style={styles.labelRow}>
+                    <IconBadge
+                      icon={<MagnifyingGlass size={16} color="rgba(255,255,255,0.45)" />}
+                      backgroundColor="rgba(255,255,255,0.06)"
+                      borderColor="rgba(255,255,255,0.12)"
+                    />
+                    <Text style={[styles.rowLabel, { color: 'rgba(255,255,255,0.60)', fontSize: 14 }]}>Add Stations</Text>
+                  </View>
+                </View>
+                <CaretRight size={16} color="rgba(255,255,255,0.25)" />
+              </Pressable>
             </LiquidGlassView>
           </View>
 

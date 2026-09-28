@@ -1,14 +1,28 @@
 // store/pillStore.ts
 // Transient UI state for the Dynamic Island-style pill system (gooey shell).
 // NOT persisted: pill state lives only for the current app session.
-// Priority queue: disruption (3) > boarding (2) > primer (1) > intent (0).
+// Priority queue:
+//   disruption (5) > primer (4) > boarding (3) > shush (2) > setup (1) > intent (0).
 // A higher or equal priority request preempts the active pill; a lower one
 // is dropped. Intent is 0 — strictly lowest, so it can NEVER preempt any
 // other pill and is dropped whenever anything else is active. It is ambient
 // context, not an alert; the queue semantics guarantee that ordering.
+// 'setup' (1) is the lowest setup layer: inferred setup confirmations surface
+// only when nothing more urgent is showing. 'shush' (2) sits above setup but
+// below boarding — a manual-shush prompt never steals a boarding nudge.
+//
+// The queue is a LEASE, not a latch: PillBridge frees the slot (clearPill)
+// when the visual pill dies (tap / swipe / auto-timeout), so a shown-once
+// pill can never starve lower-priority pills for the whole session.
 import { create } from 'zustand';
 
-export type PillKind = 'disruption' | 'boarding' | 'primer' | 'intent';
+export type PillKind =
+  | 'disruption'
+  | 'boarding'
+  | 'primer'
+  | 'shush'
+  | 'setup'
+  | 'intent';
 
 export interface PillRequest {
   kind: PillKind;
@@ -17,23 +31,46 @@ export interface PillRequest {
   message: string;
   accent: string; // hex color string, e.g. '#E32017'
   onPress?: () => void;
+  /**
+   * Fired when the pill slot is freed WITHOUT a tap — swipe dismiss or the
+   * visual auto-timeout. PillBridge's lease timer calls this before
+   * clearPill(). Tap commits go through onPress only.
+   */
+  onDismiss?: () => void;
+  /**
+   * Visual lifetime in ms. PillBridge mirrors this into the shell's duration
+   * and its own lease timer. Defaults to 4000.
+   */
+  durationMs?: number;
 }
 
 export const PRIORITY: Record<PillKind, number> = {
-  disruption: 3,
-  boarding: 2,
-  primer: 1,
+  disruption: 5,
+  primer: 4,
+  boarding: 3,
+  shush: 2,
+  setup: 1,
   intent: 0,
 };
 
 interface PillState {
   active: PillRequest | null;
+  /**
+   * Last primer shown per permission key — drives the primer rotation rule
+   * (when both location and notifications are denied, alternate which primer
+   * shows; never both within the same hour). Session-scoped; the store is
+   * not persisted.
+   */
+  primerLastShown: { key: string; at: number } | null;
+  recordPrimerShown: (key: string) => void;
   requestPill: (req: PillRequest) => void;
   clearPill: () => void;
 }
 
 export const usePillStore = create<PillState>()((set, get) => ({
   active: null,
+  primerLastShown: null,
+  recordPrimerShown: (key) => set({ primerLastShown: { key, at: Date.now() } }),
   requestPill: (req) => {
     const { active } = get();
     if (active && req.id === active.id) return; // already showing this event

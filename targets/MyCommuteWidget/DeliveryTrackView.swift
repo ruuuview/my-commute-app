@@ -212,6 +212,9 @@ public struct DeliveryTrackView: View {
 
       // Detour Alternative (if service is disrupted/escalated)
       detourSlot
+
+      // Shush Toggle (1-tap manual shush for today, App Group channel)
+      shushToggleSlot
     }
   }
 
@@ -438,6 +441,9 @@ public struct DeliveryTrackView: View {
       }
 
       detourSlot
+
+      // Shush Toggle (1-tap manual shush for today, App Group channel)
+      shushToggleSlot
     }
   }
 
@@ -494,6 +500,41 @@ public struct DeliveryTrackView: View {
           .font(.system(size: 9.5, weight: .bold))
           .foregroundColor(detourStatus == "good" ? Color(hex: 0x30D158) : Color(hex: 0xFFCC00))
       }
+    }
+    .padding(.horizontal, 8)
+    .padding(.vertical, 4)
+    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+  }
+
+  // MARK: - Shush Toggle (manual shush for today, App Group channel)
+  private var isShushedToday: Bool {
+    isManualShushActiveToday()
+  }
+
+  @ViewBuilder
+  private var shushToggleSlot: some View {
+    let shushed = isShushedToday
+    if #available(iOS 17.0, *) {
+      Button(intent: ToggleShushIntent()) {
+        shushToggleLabel(isShushed: shushed)
+      }
+      .buttonStyle(.plain)
+    } else {
+      Link(destination: URL(string: "mycommute://shush-toggle")!) {
+        shushToggleLabel(isShushed: shushed)
+      }
+    }
+  }
+
+  private func shushToggleLabel(isShushed: Bool) -> some View {
+    HStack(spacing: 6) {
+      Image(systemName: isShushed ? "bell.slash.fill" : "bell.fill")
+        .font(.system(size: 11, weight: .bold))
+        .foregroundColor(isShushed ? Color(hex: 0xFF9500) : .white.opacity(0.85))
+      Text(isShushed ? "Shush on · tap to turn off" : "Shush today")
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundColor(.white)
+      Spacer()
     }
     .padding(.horizontal, 8)
     .padding(.vertical, 4)

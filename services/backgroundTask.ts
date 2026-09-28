@@ -21,6 +21,11 @@ const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 const GEOFENCING_TASK = 'geofencing-task';
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
+// iOS silently drops monitored regions past ~20 with no error. The registration
+// policy in syncGeofencesAsync tiers pinned stations so the most important
+// stations always keep a live region.
+const MAX_GEOFENCE_REGIONS = 20;
+
 // Offline coordinates dataset for station geofencing lookup
 const stationCoordinates = require('../data/stationCoordinates.json');
 
@@ -364,24 +369,57 @@ export async function syncGeofencesAsync(pinnedStations: any[]) {
       return;
     }
 
-    const regions: Location.LocationRegion[] = [];
     const radiusMeters = GEOFENCE_CONFIG?.ORIGIN_RADIUS_METERS || 150;
-    pinnedStations.forEach((station) => {
-      // Universal Dashboard Geofencing: all pinned stations register a geofence circle
-      const coord = stationCoordinates[station.id];
-      if (coord && typeof coord.lat === 'number' && typeof coord.lon === 'number') {
-        regions.push({
-          identifier: station.id,
-          latitude: coord.lat,
-          longitude: coord.lon,
-          radius: radiusMeters,
-          notifyOnEnter: true,
-          notifyOnExit: true,
-        });
-      }
-    });
 
-    if (regions.length === 0) {
+    // Priority registration policy (iOS silently drops regions past ~20, so the
+    // cap below is enforced explicitly and every excess station is logged).
+    // Tier 1: home first, then work (pinnedStations[].role).
+    // Tier 2: inference-converged stations by getStationScores() descending
+    //   (guarded require: a missing commuteInference module never crashes registration).
+    // Tier 3: other pinned stations, most-recently-added first. The store carries no
+    //   recency field, but pinStation appends, so reversed array order = newest first.
+    const seen = new Set<string>();
+    const prioritized: any[] = [];
+    const pushTier = (stations: any[]) => {
+      for (const station of stations) {
+        if (!station || typeof station.id !== 'string' || seen.has(station.id)) continue;
+        const coord = stationCoordinates[station.id];
+        if (coord && typeof coord.lat === 'number' && typeof coord.lon === 'number') {
+          seen.add(station.id);
+          prioritized.push(station);
+        }
+      }
+    };
+
+    const tier1 = pinnedStations
+      .filter((s: any) => s && (s.role === 'home' || s.role === 'work'))
+      .sort((a: any, b: any) => (a.role === 'home' ? 0 : 1) - (b.role === 'home' ? 0 : 1));
+    pushTier(tier1);
+
+    try {
+      const inference = require('../utils/commuteInference');
+      const scores = inference && typeof inference.getStationScores === 'function'
+        ? inference.getStationScores()
+        : null;
+      if (scores && typeof scores === 'object') {
+        const ranked = pinnedStations
+          .filter((s: any) => s && typeof s.id === 'string')
+          .map((s: any) => ({ station: s, score: Number(scores[s.id]) || 0 }))
+          .filter((entry: { score: number }) => entry.score > 0)
+          .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+          .map((entry: { station: any }) => entry.station);
+        pushTier(ranked);
+      }
+    } catch {
+      console.warn('🔇 Geofencing Sync: commuteInference unavailable, skipping inference tier.');
+    }
+
+    pushTier([...pinnedStations].reverse());
+
+    const selected = prioritized.slice(0, MAX_GEOFENCE_REGIONS);
+    const dropped = prioritized.slice(MAX_GEOFENCE_REGIONS).map((s: any) => s.id);
+
+    if (selected.length === 0) {
       console.log('🔇 Geofencing Sync: No valid coordinates found for pinned stations. Stopping geofencing.');
       const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
       if (isRegistered) {
@@ -390,8 +428,20 @@ export async function syncGeofencesAsync(pinnedStations: any[]) {
       return;
     }
 
+    const regions: Location.LocationRegion[] = selected.map((station: any) => {
+      const coord = stationCoordinates[station.id];
+      return {
+        identifier: station.id,
+        latitude: coord.lat,
+        longitude: coord.lon,
+        radius: radiusMeters,
+        notifyOnEnter: true,
+        notifyOnExit: true,
+      };
+    });
+
     await Location.startGeofencingAsync(GEOFENCING_TASK, regions);
-    console.log(`✅ Geofencing Sync: Successfully registered ${regions.length} regions.`);
+    console.log(`[geofence] registered ${selected.length}/${prioritized.length} regions${dropped.length > 0 ? `, dropped: [${dropped.join(', ')}]` : ''}`);
   } catch (err) {
     console.error('❌ Failed to sync Geofences:', err);
   }

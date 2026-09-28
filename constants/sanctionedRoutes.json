@@ -2,5 +2,6 @@
   "mycommute://",
   "mycommute://lines",
   "mycommute://line-select",
+  "mycommute://shush-toggle",
   "mycommute://auth/callback"
 ]

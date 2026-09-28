@@ -168,6 +168,28 @@ public class MyCommuteLiveActivityModule: Module {
       WidgetCenter.shared.reloadAllTimelines()
     }
 
+    // MARK: - Manual shush state (shared with MyCommuteWidget ToggleShushIntent)
+    //
+    // "manualShushDate" is a Double unix timestamp in the shared App Group
+    // UserDefaults (group.com.mycommute.app); the key is ABSENT when unshushed.
+    // Last-writer-wins between the RN app and the widget intent.
+
+    AsyncFunction("getManualShushDate") { () -> Double? in
+      guard let userDefaults = UserDefaults(suiteName: self.appGroupId) else { return nil }
+      guard userDefaults.object(forKey: "manualShushDate") != nil else { return nil }
+      return userDefaults.double(forKey: "manualShushDate")
+    }
+
+    AsyncFunction("setManualShushDate") { (epoch: Double?) -> Void in
+      guard let userDefaults = UserDefaults(suiteName: self.appGroupId) else { return }
+      if let epoch {
+        userDefaults.set(epoch, forKey: "manualShushDate")
+      } else {
+        userDefaults.removeObject(forKey: "manualShushDate")
+      }
+      userDefaults.synchronize()
+    }
+
     AsyncFunction("hasDynamicIsland") { () -> Bool in
       // Dynamic Island is present on iPhone 14 Pro, 14 Pro Max, and all iPhone 15 & 16 series
       if #available(iOS 16.0, *) {

@@ -6,6 +6,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "my-commute-live-activity": [
+        "./modules/my-commute-live-activity"
       ]
     }
   },

@@ -19,6 +19,8 @@ const mockFallbackModule = {
   requestTimeSensitivePermission: async () => false,
   areActivitiesEnabled: async () => false,
   activityAuthorizationInfo: async () => ({ supported: false, enabled: false }),
+  getManualShushDate: async () => null,
+  setManualShushDate: async () => {},
   addListener: () => ({ remove: () => {} }),
   removeListeners: () => {},
 };
@@ -95,6 +97,9 @@ export interface MyCommuteLiveActivity {
   requestTimeSensitivePermission(): Promise<boolean>;
   areActivitiesEnabled(): Promise<boolean>;
   activityAuthorizationInfo(): Promise<{ supported: boolean; enabled: boolean }>;
+  /** Shared App Group manual-shush key. Unix seconds, or null when unshushed. */
+  getManualShushDate(): Promise<number | null>;
+  setManualShushDate(epochSeconds: number | null): Promise<void>;
 }
 
 export function addPushToStartListener(listener: (event: { token: string }) => void): EventSubscription {

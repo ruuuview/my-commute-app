@@ -38,8 +38,8 @@
 // requestForegroundPermissionsAsync / requestBackgroundPermissionsAsync.
 // It uses only passive get* status checks (which never pop an OS dialog) and
 // getCurrentPositionAsync in try/catch. When location is unavailable or
-// denied, it falls back to the legacy V1 behavior (first pinned station, no
-// geofence) so there is no regression; the primer pill drives the grant.
+// denied there is no boarding pill at all — Level 3 honestly requires the
+// 150 m geofence; the primer pill drives the grant.
 
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
@@ -237,34 +237,33 @@ export function useBoardingNudge(): void {
       const pos = await getPosition();
       if (cancelled) return;
 
-      if (pos) {
-        // Geofenced mode: the station must have known coordinates and be
-        // within the island's single geofence radius
-        // (SessionManager.GEOFENCE_CONFIG.ORIGIN_RADIUS_METERS — the same
-        // 150 m the OS geofence that starts commute sessions uses). Stations
-        // without coordinates are skipped — a nudge for a station we cannot
-        // place is exactly the false positive the geofence exists to eliminate.
-        const coords = COORDS[station.id];
-        if (!coords) {
-          candidatesRef.current.delete(station.id);
-          return;
-        }
-        const distanceM = calculateDistanceMeters(pos, {
-          latitude: coords.lat,
-          longitude: coords.lon,
-        });
-        if (distanceM > GEOFENCE_CONFIG.ORIGIN_RADIUS_METERS) {
-          candidatesRef.current.delete(station.id);
-          return;
-        }
-      } else {
-        // Legacy fallback (location unavailable/denied): first pinned
-        // station only, un-geofenced — the exact pre-V2 behavior.
-        const primaryId = stationsRef.current[0]?.id;
-        if (station.id !== primaryId) {
-          candidatesRef.current.delete(station.id);
-          return;
-        }
+      if (!pos) {
+        // Level 3 honestly requires the 150 m geofence: no location, no
+        // boarding pill — period. The legacy V1 fallback (first pinned
+        // station, un-geofenced) is deleted; the primer pill drives the
+        // location grant instead.
+        candidatesRef.current.delete(station.id);
+        return;
+      }
+
+      // Geofenced mode: the station must have known coordinates and be
+      // within the island's single geofence radius
+      // (SessionManager.GEOFENCE_CONFIG.ORIGIN_RADIUS_METERS — the same
+      // 150 m the OS geofence that starts commute sessions uses). Stations
+      // without coordinates are skipped — a nudge for a station we cannot
+      // place is exactly the false positive the geofence exists to eliminate.
+      const coords = COORDS[station.id];
+      if (!coords) {
+        candidatesRef.current.delete(station.id);
+        return;
+      }
+      const distanceM = calculateDistanceMeters(pos, {
+        latitude: coords.lat,
+        longitude: coords.lon,
+      });
+      if (distanceM > GEOFENCE_CONFIG.ORIGIN_RADIUS_METERS) {
+        candidatesRef.current.delete(station.id);
+        return;
       }
 
       candidatesRef.current.set(station.id, {

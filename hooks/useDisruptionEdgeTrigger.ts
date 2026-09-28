@@ -48,9 +48,13 @@ export function useDisruptionEdgeTrigger(): void {
 
       // Canonical rank: 0 good · 1 minor · 2 severe · 3 suspended.
       const curr = getSeverityRank(line.status_severity);
-      const prev = prevRankRef.current[lineId] ?? 0;
+      const prev = prevRankRef.current[lineId];
       // Always record the latest rank — recoveries resolve silently.
       prevRankRef.current[lineId] = curr;
+      // First sighting seeds the baseline WITHOUT firing: a line already
+      // severe at cold start is not an edge, and defaulting unseen lines to
+      // good would fire a bogus edge pill.
+      if (prev === undefined) continue;
 
       // Edge trigger: downward transition into severe/suspended only.
       if (prev < 2 && curr >= 2 && isLineId(lineId)) {
@@ -64,7 +68,9 @@ export function useDisruptionEdgeTrigger(): void {
           id: `${lineId}:${curr}:${bucket}`,
           title: `${LINE_NAMES[lineId] ?? lineId} — ${curr >= 3 ? 'Service suspended' : 'Severe delays'}`,
           message: (line.reason ?? line.status ?? '').slice(0, 90),
-          accent: curr >= 3 ? STATUS_SEVERITY_COLORS.severe : STATUS_SEVERITY_COLORS.minor,
+          // Accent is severe for every curr >= 2 (rank 2 severe included) —
+          // the canonical severe color, not the minor one.
+          accent: STATUS_SEVERITY_COLORS.severe,
           onPress: () =>
             navigateToIntent(router, {
               action: 'show-reroute',

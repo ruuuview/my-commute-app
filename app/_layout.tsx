@@ -51,6 +51,13 @@ void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
       opensAppToForeground: true,
     },
   },
+  {
+    identifier: 'shush_today',
+    buttonTitle: 'Shush today',
+    options: {
+      opensAppToForeground: false,
+    },
+  },
 ]).catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
 
 void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', [
@@ -274,6 +281,11 @@ export default function RootLayout() {
             buttonTitle: 'View Reroute',
             options: { opensAppToForeground: true },
           },
+          {
+            identifier: 'shush_today',
+            buttonTitle: 'Shush today',
+            options: { opensAppToForeground: false },
+          },
         ]);
         console.log('[NotificationCategory] Registered ARRIVED_ALERT & REROUTE_ONLY categories');
       } catch (e) {
@@ -333,6 +345,14 @@ export default function RootLayout() {
         data?.action === 'show-reroute' ||
         Boolean(data?.lineId && !isClaimPush)
       ) {
+        // Notification action: shush alerts for the rest of today. The user
+        // asked for quiet, not for the app — set the flag and stop here
+        // (no navigation, unlike view_reroute).
+        if (actionId === 'shush_today') {
+          useUserPreferencesStore.getState().setManualShushToday();
+          console.log('[NotificationResponse] shush_today action: manual shush set for today');
+          return;
+        }
         if (!data || Object.keys(data).length === 0) {
           setTimeout(() => {
             navigateToIntent(router, { action: 'overview' });

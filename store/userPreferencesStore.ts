@@ -8,7 +8,7 @@ import { sanitiseStationName } from '../data/tflStations';
 import { STORE_VERSION, runMigrations } from './migrations';
 
 import { syncToWidget } from '../utils/widgetSync';
-import { applyDismissal } from '../utils/intentPillPolicy';
+import { applyDismissal, dayKeyFor } from '../utils/intentPillPolicy';
 
 const storage = createMMKV();
 const backgroundStorage = createMMKV({ id: 'background-storage' });
@@ -27,6 +27,116 @@ const mmkvStorageAdapter: StateStorage = {
 };
 
 export type TimeSensitiveStatus = 'not_supported' | 'disabled' | 'enabled';
+
+// ---------------------------------------------------------------------------
+// Manual shush (WORKER 3) — additive extension of the Shush Mode system above.
+// No parallel shush state: this reuses ShushPreferences/ShushRuntimeState and
+// adds one persisted timestamp + the first canonical evaluation of the
+// smart/schedule/always activation preferences (previously stored but never
+// evaluated).
+// ---------------------------------------------------------------------------
+
+/** Parse 'HH:MM' into minutes since midnight (device local); null when malformed. */
+export function parseHHMM(value: string | null | undefined): number | null {
+  if (typeof value !== 'string') return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Lift boundary for a manual shush set at setMs (epoch ms): the NEXT
+ * alertWindowStart strictly after the set moment. When no alert window is
+ * configured (unparseable alertWindowStart), lifts at the next local
+ * midnight. Pure date+time comparison — no background timers.
+ */
+export function manualShushLiftTimeMs(setMs: number, alertWindowStart: string | null | undefined): number {
+  const setDate = new Date(setMs);
+  const startMin = parseHHMM(alertWindowStart);
+  if (startMin != null) {
+    const h = Math.floor(startMin / 60);
+    const min = startMin % 60;
+    const sameDay = new Date(setDate.getFullYear(), setDate.getMonth(), setDate.getDate(), h, min, 0, 0).getTime();
+    if (sameDay > setMs) return sameDay;
+    return new Date(setDate.getFullYear(), setDate.getMonth(), setDate.getDate() + 1, h, min, 0, 0).getTime();
+  }
+  return new Date(setDate.getFullYear(), setDate.getMonth(), setDate.getDate() + 1, 0, 0, 0, 0).getTime();
+}
+
+/** True when a manual shush recorded at the persisted ISO date is still in force at nowMs. */
+export function isManualShushActiveAt(
+  manualShushDate: string | null,
+  alertWindowStart: string | null | undefined,
+  nowMs: number,
+): boolean {
+  if (!manualShushDate) return false;
+  const setMs = Date.parse(manualShushDate);
+  if (!Number.isFinite(setMs) || setMs > nowMs) return false;
+  return nowMs < manualShushLiftTimeMs(setMs, alertWindowStart);
+}
+
+/**
+ * Writes the manual-shush state through to the shared App Group via the
+ * native bridge, so the widget's ToggleShushIntent reads the same source of
+ * truth (last-writer-wins). Guarded: a missing bridge is a silent no-op —
+ * the in-app store remains authoritative and the widget simply won't
+ * reflect in-app taps.
+ */
+function writeShushKeyToAppGroup(epochSeconds: number | null): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getManualShushBridge } = require('../utils/shushNativeBridge') as {
+      getManualShushBridge?: () => {
+        setManualShushDate?: (e: number | null) => Promise<unknown>;
+      } | null;
+    };
+    const bridge = getManualShushBridge?.();
+    if (bridge && typeof bridge.setManualShushDate === 'function') {
+      void bridge.setManualShushDate(epochSeconds).catch(() => {
+        // Native bridge hiccup — the store already holds the truth.
+      });
+    }
+  } catch {
+    // Bridge unavailable — ignore.
+  }
+}
+
+/**
+ * Canonical evaluation of the shushActivation preferences:
+ * - 'always'   -> shushed all day.
+ * - 'schedule' -> shushed while now falls inside a shushSchedule window on a
+ *                  listed shushSchedule weekday.
+ * - 'smart'    -> shushed during the shushSchedule windows (which default to
+ *                  the commute peaks 07:30-09:30 / 17:00-19:00) on weekdays
+ *                  (Mon-Fri). The adaptive inference engine is not built yet;
+ *                  this commute-window heuristic is the documented v1 rule.
+ * Pure. Exported for unit tests.
+ */
+export function evaluateShushActivationAt(prefs: ShushPreferences, nowMs: number): boolean {
+  const activation = prefs?.shushActivation ?? 'smart';
+  if (activation === 'always') return true;
+  const now = new Date(nowMs);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const weekday = now.getDay(); // 0=Sun..6=Sat
+  const schedule = prefs?.shushSchedule;
+  const windows = Array.isArray(schedule?.windows) ? schedule!.windows : [];
+  const inWindow = windows.some((w) => {
+    const s = parseHHMM(w?.start);
+    const e = parseHHMM(w?.end);
+    if (s == null || e == null) return false;
+    if (s <= e) return nowMin >= s && nowMin < e;
+    return nowMin >= s || nowMin < e; // overnight window
+  });
+  if (activation === 'schedule') {
+    const weekdays = Array.isArray(schedule?.weekdays) ? schedule!.weekdays : [];
+    return weekdays.includes(weekday) && inWindow;
+  }
+  // 'smart': commute-window heuristic on weekdays (Mon-Fri).
+  return weekday >= 1 && weekday <= 5 && inWindow;
+}
 
 export interface ShushPreferences {
   alertDeliveryMode: 'loud' | 'shush' | 'off';
@@ -104,6 +214,19 @@ export interface UserPreferencesState {
   setHasCompletedShushOnboarding: (completed: boolean) => void;
   updateShushRuntimeState: (patch: Partial<ShushRuntimeState>) => void;
   setDeviceCapabilities: (caps: Partial<DeviceCapabilities>) => void;
+  // Manual shush (WORKER 3, additive). manualShushDate is the ISO timestamp of
+  // when "Shush today" was tapped; the lift rule (next alertWindowStart after
+  // the set moment, else next midnight) is computed from it — no timers.
+  manualShushDate: string | null;
+  setManualShushToday: () => void;
+  clearManualShush: () => void;
+  /** True when manual shush is active OR the smart/schedule/always evaluation says shushed. */
+  isShushActiveForToday: () => boolean;
+  // Shush pill once-per-day bookkeeping: local day key of the last day the
+  // pill was actually shown. Written by the pill renderer via
+  // recordShushPillShown(); read by utils/shushPillPolicy.ts.
+  shushPillLastShownDay: string | null;
+  recordShushPillShown: () => void;
   setAlertHoursMode: (mode: 'custom' | '24h') => void;
   setAlertHours: (start: string, end: string) => void;
   setSevereBypassAlertHours: (bypass: boolean) => void;
@@ -154,7 +277,7 @@ export interface UserPreferencesState {
   clearIntentPillLearning: () => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'isShushActiveForToday' | 'recordShushPillShown'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -186,6 +309,8 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   severeBypassAlertHours: true,
   lastHandledColdBootNotificationId: null,
   simulatedClaimActive: false,
+  manualShushDate: null,
+  shushPillLastShownDay: null,
   recentSearches: [],
   intentPillDismissals: [],
   intentPillSuppressedUntil: null,
@@ -247,7 +372,7 @@ const validateStationZoneCache = (state: UserPreferencesState): boolean => {
 
 export const useUserPreferencesStore = create<UserPreferencesState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
       addRecentSearch: (stationId: string) => {
         set(state => {
@@ -474,6 +599,28 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setHasCompletedShushOnboarding: (completed) => set((state) => ({ shushPreferences: { ...state.shushPreferences, hasCompletedShushOnboarding: completed } })),
       updateShushRuntimeState: (patch) => set((state) => ({ shushRuntimeState: { ...state.shushRuntimeState, ...patch } })),
       setDeviceCapabilities: (caps) => set((state) => ({ deviceCapabilities: { ...state.deviceCapabilities, ...caps } })),
+      // Manual shush (WORKER 3). Records the exact set moment as an ISO
+      // timestamp; isShushActiveForToday() derives the lift boundary from it.
+      // Also mirrors to the App Group so the widget toggle stays in sync
+      // (last-writer-wins with the widget intent).
+      setManualShushToday: () => {
+        set({ manualShushDate: new Date().toISOString() });
+        writeShushKeyToAppGroup(Date.now() / 1000);
+      },
+      clearManualShush: () => {
+        set({ manualShushDate: null });
+        writeShushKeyToAppGroup(null);
+      },
+      isShushActiveForToday: () => {
+        const state = get();
+        const prefs = state.shushPreferences;
+        // 'off' subsumes shush: alert delivery is fully suppressed.
+        if (prefs?.alertDeliveryMode === 'off') return true;
+        const nowMs = Date.now();
+        if (isManualShushActiveAt(state.manualShushDate, state.alertWindowStart, nowMs)) return true;
+        return evaluateShushActivationAt(prefs, nowMs);
+      },
+      recordShushPillShown: () => set({ shushPillLastShownDay: dayKeyFor(new Date()) }),
     }),
     {
       name: 'user-preferences',
@@ -481,7 +628,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, recordIntentPillDismissal, recordIntentPillFired, clearIntentPillLearning, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, recordIntentPillDismissal, recordIntentPillFired, clearIntentPillLearning, setManualShushToday, clearManualShush, isShushActiveForToday, recordShushPillShown, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

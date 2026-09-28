@@ -10,6 +10,7 @@ import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { ArrivalDetector, type LocationFix, type StationLocation } from './ArrivalDetector';
 import { deriveSessionCorridor } from '../components/rerouteHelpers';
+import { logDwell, logSessionStart } from '../utils/commuteInference';
 
 const stationCoordinates = require('../data/stationCoordinates.json');
 
@@ -439,6 +440,13 @@ export class SessionManager {
   static async startSession(originId: string, destinationId: string, lineId: string, lineName: string) {
     console.log(`[SessionManager] Starting session. Origin: ${originId}, Dest: ${destinationId}, Line: ${lineId}`);
 
+    // Commute inference: record the session origin for home/work + hours inference.
+    try {
+      logSessionStart(originId);
+    } catch (e) {
+      console.warn('[SessionManager] commuteInference.logSessionStart failed:', e);
+    }
+
     try {
       const hitCount = notifyTier1GeofenceHit();
       if (hitCount === 1) {
@@ -806,6 +814,15 @@ export class SessionManager {
         const expires = parseInt(expiresStr, 10);
         if (Date.now() >= expires) {
           console.log('[SessionManager] Session closing dwell timer expired. Closing session silently.');
+          // Commute inference: the arrival dwell (>= ARRIVAL_DWELL_MINUTES at the
+          // destination) validated this station as a "place". No speed data at
+          // this point, so 0 — the >=3min dwell is the real gate.
+          try {
+            const destId = this.getCommuteDestinationId();
+            if (destId) logDwell(destId, ARRIVAL_DWELL_MINUTES, 0);
+          } catch (e) {
+            console.warn('[SessionManager] commuteInference.logDwell failed:', e);
+          }
           await this.closeSession(false);
         }
       }

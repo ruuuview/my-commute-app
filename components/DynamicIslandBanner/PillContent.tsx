@@ -1,11 +1,9 @@
 // components/DynamicIslandBanner/PillContent.tsx
 // Presentational pill content rendered inside the Dynamic Island (gooey) shell.
-// Visual design extracted from the retired components/InAppBanner.tsx:
-// dark glass pill (rgba(18,20,26,0.88)), 3px accent bar, SpaceGrotesk
+// Hybrid model: the shell's <Content> supplies the true dark-glass card
+// (BlurView + translucent fill + hairline border) at reveal = 1 — this
+// component is just the transparent content row: 3px accent bar, SpaceGrotesk
 // typography, white semibold title. Zero emoji.
-//
-// The gooey card behind this (DynamicNotifications) already supplies the blur
-// and island styling — this component is just the row content.
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -40,12 +38,9 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(18, 20, 26, 0.88)',
-    borderRadius: 16,
+    backgroundColor: 'transparent',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.12)',
   },
   specularBar: {
     width: 3,

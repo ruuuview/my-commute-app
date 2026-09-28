@@ -5,11 +5,24 @@ import { useContentBlur } from '../../hooks/use-content-blur';
 import { useDismissGesture } from '../../hooks/use-dismiss-gesture';
 import { useDynamicNotifications } from '../../hooks/use-dynamic-notifications';
 import { useNotificationContentStyle } from '../../hooks/use-notification-content-style';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useReduceTransparency } from '../../../../hooks/useReduceTransparency';
 import type { INotificationContent } from '../../interfaces/notification-content.interface';
+import { GLASS } from '../../../../theme/colors';
 import React, { memo } from "react";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
+
+// Native iOS 18+ Liquid Glass availability (same pattern as FixItSheet).
+let isNativeGlassAvailable = false;
+try {
+  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
+    isNativeGlassAvailable = isLiquidGlassAvailable();
+  }
+} catch {
+  isNativeGlassAvailable = false;
+}
 
 const Content: React.FC<INotificationContent> &
   React.FunctionComponent<INotificationContent> = memo<INotificationContent>(
@@ -37,6 +50,7 @@ const Content: React.FC<INotificationContent> &
       layout,
     });
     const blur = useContentBlur({ reveal });
+    const reduceTransparency = useReduceTransparency();
     const gesture = useDismissGesture({
       offset: dragY,
       onDismiss: dismiss,
@@ -64,6 +78,49 @@ const Content: React.FC<INotificationContent> &
             style,
           ]}
         >
+          {/* True dark-glass card — native iOS 18+ Liquid Glass via
+              expo-glass-effect (the same GlassView pattern as FixItSheet /
+              AlertHoursSheet), falling back to the approved AnimatedBlurView
+              with the app's GLASS tokens on older iOS. Solid #1C1C1E when
+              Reduce Transparency is on (same as LiquidGlassView). This
+              Content view fades in with `reveal` (see
+              useNotificationContentStyle), so the glass inherits the
+              crossfade for free: as the opaque Skia card fades out, the
+              glass fades in at identical geometry. */}
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { borderRadius: layout.cardRadius },
+              styles.glass,
+              reduceTransparency && { backgroundColor: '#1C1C1E' },
+            ]}
+          >
+            {!reduceTransparency && (
+              isNativeGlassAvailable ? (
+                <GlassView
+                  glassEffectStyle="regular"
+                  colorScheme="dark"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { borderRadius: layout.cardRadius },
+                  ]}
+                  pointerEvents="none"
+                />
+              ) : (
+                <AnimatedBlurView
+                  tint={GLASS.blurTint}
+                  intensity={GLASS.blurIntensity}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { borderRadius: layout.cardRadius },
+                    styles.glassBlur,
+                  ]}
+                />
+              )
+            )}
+          </View>
+
           {notification.render ? (
             notification.render(notification)
           ) : (
@@ -72,7 +129,7 @@ const Content: React.FC<INotificationContent> &
 
           <AnimatedBlurView
             pointerEvents="none"
-            tint="light"
+            tint="dark"
             animatedProps={blur.animatedProps}
             style={[
               StyleSheet.absoluteFill,
@@ -95,6 +152,23 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
   },
   blur: {
+    borderCurve: "continuous",
+  },
+  // Hybrid resting surface: native Liquid Glass (iOS 18+) with the GLASS
+  // specular rim as the border language; expo-blur fallback on older iOS;
+  // solid #1C1C1E under Reduce Transparency. Replaces the opaque Skia
+  // card at reveal = 1.
+  glass: {
+    backgroundColor: GLASS.background,
+    borderWidth: GLASS.borderWidth,
+    borderColor: GLASS.borderColor,
+    borderTopColor: GLASS.borderTop,
+    borderLeftColor: GLASS.borderSides,
+    borderRightColor: GLASS.borderSides,
+    borderBottomColor: GLASS.borderBottom,
+    borderCurve: "continuous",
+  },
+  glassBlur: {
     borderCurve: "continuous",
   },
 });

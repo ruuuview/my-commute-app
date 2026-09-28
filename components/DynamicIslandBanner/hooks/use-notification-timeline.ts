@@ -27,13 +27,16 @@ import {
   useSharedValue,
   withDelay,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { useLiveReducedMotion } from "../../../hooks/useReducedMotion";
 
 const useNotificationTimeline = ({
   onDismiss,
   duration,
 }: INotificationTimelineOptions = {}): INotificationTimeline => {
+  const reducedMotion = useLiveReducedMotion();
   const drop = useSharedValue(0);
   const expand = useSharedValue(0);
   const reveal = useSharedValue(0);
@@ -86,17 +89,26 @@ const useNotificationTimeline = ({
       const lifetime = next.duration === undefined ? fallback : next.duration;
 
       if (lifetime !== null) {
+        const leadTime = reducedMotion ? 150 : ENTER_REVEAL_DELAY;
         timer.current = setTimeout(
           () => exitRef.current(),
-          ENTER_REVEAL_DELAY + lifetime,
+          leadTime + lifetime,
         );
       }
     },
-    [clearTimer, dragY, drop, duration, expand, reveal, tint],
+    [clearTimer, dragY, drop, duration, expand, reducedMotion, reveal, tint],
   );
 
   useEffect(() => {
     if (session === 0) {
+      return;
+    }
+
+    if (reducedMotion) {
+      drop.value = 1;
+      tint.value = 1;
+      expand.value = 1;
+      reveal.value = withTiming(1, { duration: 150 });
       return;
     }
 
@@ -110,7 +122,7 @@ const useNotificationTimeline = ({
       ENTER_REVEAL_DELAY,
       withSpring(1, REVEAL_SPRING),
     );
-  }, [session, drop, expand, reveal, tint]);
+  }, [session, drop, expand, reveal, tint, reducedMotion]);
 
   const settle = useCallback(() => {
     const dismissed = current.current;
@@ -140,6 +152,20 @@ const useNotificationTimeline = ({
     exiting.current = true;
     clearTimer();
 
+    if (reducedMotion) {
+      reveal.value = withTiming(0, { duration: 150 }, (finished?: boolean) => {
+        "worklet";
+
+        if (finished) {
+          scheduleOnRN(settle);
+        }
+      });
+      drop.value = 0;
+      expand.value = 0;
+      tint.value = 0;
+      return;
+    }
+
     reveal.value = withSpring(0, FADE_SPRING);
     expand.value = withDelay(
       EXIT_COLLAPSE_DELAY,
@@ -157,7 +183,7 @@ const useNotificationTimeline = ({
         }
       }),
     );
-  }, [clearTimer, drop, expand, reveal, settle, tint]);
+  }, [clearTimer, drop, expand, reducedMotion, reveal, settle, tint]);
 
   exitRef.current = exit;
 

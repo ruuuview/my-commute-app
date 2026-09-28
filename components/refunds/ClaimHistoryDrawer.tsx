@@ -24,17 +24,7 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { loopStateOf, daysLeftUntil, type RadarClaim } from './types';
 import { GLASS } from '../../theme/colors';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../../hooks/useReduceTransparency';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 type FilterKey = 'ALL' | 'SETTLED' | 'IN_REVIEW' | 'EXPIRED';
 

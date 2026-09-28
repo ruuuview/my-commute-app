@@ -86,6 +86,7 @@ const Content: React.FC<INotificationContent> &
     );
   },
 );
+Content.displayName = 'Content';
 
 const styles = StyleSheet.create({
   content: {

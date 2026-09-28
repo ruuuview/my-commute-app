@@ -42,7 +42,6 @@ import {
   Linking,
   ScrollView,
   useWindowDimensions,
-  Platform,
   PanResponder,
 } from 'react-native';
 import Animated, {
@@ -50,7 +49,6 @@ import Animated, {
   useSharedValue,
   withTiming,
   withSpring,
-  useReducedMotion,
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -134,7 +132,6 @@ export default function RerouteScreen({
 }: RerouteScreenProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
-  const reducedMotion = useReducedMotion();
 
   const [internalBranch, setInternalBranch] = useState<string | null>(null);
 

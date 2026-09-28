@@ -1,8 +1,8 @@
-import React, { memo, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import DepartureCard from './DepartureCard';
+import { DepartureCard } from './DepartureCard';
 import { AppleSwipeableRow } from './AppleSwipeableRow';
 import { pressFeedback } from '../utils/pressFeedback';
 
@@ -112,7 +112,6 @@ export default function DashboardGrid({
       handleMoveDown,
       handleCardTap,
       onScrollEnabledChange,
-      skipEntrance,
     ]
   );
 

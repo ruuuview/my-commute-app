@@ -55,6 +55,7 @@ const NotificationBody: React.FC<INotificationBody> &
     );
   },
 );
+NotificationBody.displayName = 'NotificationBody';
 
 const styles = StyleSheet.create({
   body: {

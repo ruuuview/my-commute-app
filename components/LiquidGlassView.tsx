@@ -3,21 +3,8 @@ import React, { memo } from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
-
-// Dynamic safe resolution of expo-glass-effect (iOS 18+ Liquid Glass)
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable =
-      isLiquidGlassAvailable() &&
-      (typeof isGlassEffectAPIAvailable !== 'function' || isGlassEffectAPIAvailable());
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 export interface LiquidGlassViewProps {
   children?: React.ReactNode;

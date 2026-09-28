@@ -55,7 +55,6 @@ export default function TflRegistrationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ from?: string }>();
   const from = params.from;
-  const isPostActivation = from === 'radar';
   const reduceTransparency = useReduceTransparency();
   const setTflRegistered = useUserPreferencesStore((s) => s.setTflRegistered);
   const completeOnboarding = useUserPreferencesStore((s) => s.completeOnboarding);

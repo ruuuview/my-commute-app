@@ -130,6 +130,7 @@ const Root: React.FC<IDynamicNotifications> &
     );
   },
 );
+Root.displayName = 'Root';
 
 const styles = StyleSheet.create({
   root: {

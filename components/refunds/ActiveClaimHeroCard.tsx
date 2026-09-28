@@ -7,7 +7,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,17 +26,7 @@ import {
 import { formatPence } from '../../services/refundSlaService';
 import { LINE_IDENTITY_COLORS, LINE_NAMES, NORTHERN_SHADES } from '../../constants/lineColors';
 import { GLASS } from '../../theme/colors';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../../hooks/useReduceTransparency';
-
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
 
 export interface ActiveClaimHeroCardProps {
   claim: RadarClaim;

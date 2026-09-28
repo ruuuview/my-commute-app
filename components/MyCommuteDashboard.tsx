@@ -30,7 +30,6 @@ import Animated, {
   withRepeat,
   withSequence,
   Easing,
-  cancelAnimation,
   FadeInDown,
   FadeOutDown,
 } from 'react-native-reanimated';

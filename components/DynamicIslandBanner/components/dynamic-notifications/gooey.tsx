@@ -136,6 +136,7 @@ const Gooey: React.FC<INotificationGooey> &
     );
   },
 );
+Gooey.displayName = 'Gooey';
 
 const styles = StyleSheet.create({
   canvas: {

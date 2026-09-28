@@ -26,6 +26,7 @@ const Overlay: React.FC<INotificationOverlay> &
     );
   },
 );
+Overlay.displayName = 'Overlay';
 
 const styles = StyleSheet.create({
   overlay: {

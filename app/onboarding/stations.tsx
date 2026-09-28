@@ -36,7 +36,6 @@ import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
 import { StationCard } from '../../components/StationCard';
 import { SkeletonCard } from '../../components/SkeletonCard';
-import { FixItSheet } from '../../components/FixItSheet';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
@@ -87,24 +86,12 @@ export default function StationsScreen() {
     }));
   }, [pinnedStationsRaw]);
 
-  // Phase 3 home/work summary for the assignment row.
-  const homeWorkSummary = useMemo(() => {
-    const home = pinnedStations.find(s => s.role === 'home');
-    const work = pinnedStations.find(s => s.role === 'work');
-    if (home && work) return `${tflCapitalise(cleanDisplayStationName(home.name))} \u21c4 ${tflCapitalise(cleanDisplayStationName(work.name))}`;
-    if (home) return `${tflCapitalise(cleanDisplayStationName(home.name))} (Home) \u00b7 tap to set Work`;
-    if (work) return `${tflCapitalise(cleanDisplayStationName(work.name))} (Work) \u00b7 tap to set Home`;
-    return 'Tap to set Home & Work';
-  }, [pinnedStations]);
-
   const recentSearchIds = useUserPreferencesStore(s => s.recentSearches);
 
   const [query, setQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [loading, setLoading] = useState(true);
-  // Phase 3: explicit home/work capture sheet (reuses FixItSheet).
-  const [showHomeWork, setShowHomeWork] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -533,6 +520,16 @@ export default function StationsScreen() {
                 <Text style={styles.navBackText}>Back</Text>
               </Animated.View>
             </Pressable>
+            {!hasCompletedOnboarding && (
+              <Pressable
+                onPress={handleSkip}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                accessibilityRole="button"
+                accessibilityLabel="Skip station setup"
+              >
+                <Text style={styles.skipHeaderText}>Skip</Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Title Header Container */}
@@ -768,32 +765,6 @@ export default function StationsScreen() {
         </View>
 
         {/* Sticky CTA Footer */}
-        {/* Phase 3: explicit Home & Work capture. The same FixItSheet used
-            in Settings; during onboarding it writes to onboardingStore and
-            the CTA below commits explicit roles (index fallback preserved). */}
-        {!searchActive && pinnedStations.length > 0 && (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowHomeWork(true);
-            }}
-            style={({ pressed }) => [
-              styles.homeWorkRow,
-              pressed && styles.homeWorkRowPressed,
-              reduceTransparency && { backgroundColor: '#1C1C1E' },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Set home and work stations"
-          >
-            <View style={styles.homeWorkTextContainer}>
-              <Text style={styles.homeWorkEyebrow}>HOME & WORK</Text>
-              <Text style={styles.homeWorkSummary} numberOfLines={1}>
-                {homeWorkSummary}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
-          </Pressable>
-        )}
         {!searchActive && (
           <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
@@ -810,41 +781,38 @@ export default function StationsScreen() {
                   styles.ctaButton,
                   ctaBtnAnim.animatedStyle,
                   ctaOpacityAnimatedStyle,
+                  reduceTransparency && styles.ctaButtonSolidFallback,
                 ]}
               >
+                {/* Glass primary CTA: same dark-glass language as the rest of
+                    the screen, kept dominant by full-width size and the
+                    brightest border on screen. Solid fallback under
+                    reduce-transparency. */}
+                {!reduceTransparency && (
+                  isNativeGlassAvailable ? (
+                    <GlassView
+                      glassEffectStyle="regular"
+                      colorScheme="dark"
+                      style={StyleSheet.absoluteFillObject}
+                      pointerEvents="none"
+                    />
+                  ) : (
+                    <BlurView
+                      intensity={GLASS.blurIntensity}
+                      tint={GLASS.blurTint}
+                      style={StyleSheet.absoluteFillObject}
+                      pointerEvents="none"
+                    />
+                  )
+                )}
                 <Text style={styles.ctaButtonText}>
                   {ctaLabel}
                 </Text>
               </Animated.View>
             </Pressable>
-
-            {!hasCompletedOnboarding && (
-              <Pressable onPress={handleSkip} style={styles.skipPressable}>
-                <Text style={styles.skipText}>Skip for now</Text>
-              </Pressable>
-            )}
           </View>
         )}
       </KeyboardAvoidingView>
-
-      {/* Phase 3: Home & Work capture sheet. Post-onboarding it uses the
-          default settings behavior (userPreferencesStore); during onboarding
-          stations live in onboardingStore until the CTA commits them. */}
-      <FixItSheet
-        visible={showHomeWork}
-        onClose={() => setShowHomeWork(false)}
-        {...(!hasCompletedOnboarding
-          ? {
-              stations: pinnedStations.map(s => ({
-                id: s.id,
-                name: s.name,
-                role: s.role ?? ('other' as const),
-              })),
-              onSetRole: (id: string, role: 'home' | 'work') =>
-                useOnboardingStore.getState().setStationRole(id, role),
-            }
-          : {})}
-      />
     </View>
   );
 }
@@ -860,6 +828,7 @@ const styles = StyleSheet.create({
   navHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
@@ -1106,37 +1075,6 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     overflow: 'hidden',
   },
-  // Phase 3: explicit Home & Work capture row (above the sticky CTA).
-  homeWorkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(10, 132, 255, 0.35)',
-    backgroundColor: 'rgba(10, 132, 255, 0.08)',
-  },
-  homeWorkRowPressed: {
-    backgroundColor: 'rgba(10, 132, 255, 0.16)',
-  },
-  homeWorkTextContainer: {
-    flex: 1,
-  },
-  homeWorkEyebrow: {
-    fontSize: 9,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    color: 'rgba(255,255,255,0.40)',
-    letterSpacing: 1.8,
-    marginBottom: 2,
-  },
-  homeWorkSummary: {
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    color: '#FFFFFF',
-  },
   lineRecsContainer: {
     flex: 1,
     paddingHorizontal: 16,
@@ -1151,29 +1089,28 @@ const styles = StyleSheet.create({
   ctaButton: {
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  // Reduce-transparency fallback: solid dark, still the brightest-bordered
+  // element on screen so the CTA stays dominant without blur.
+  ctaButtonSolidFallback: {
+    backgroundColor: '#1C1C1E',
   },
   ctaButtonText: {
     fontSize: 15,
     fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#07103a',
+    color: '#FFFFFF',
   },
-  skipPressable: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 18,
-    backgroundColor: PREMIUM_BUTTON.background,
-    borderWidth: PREMIUM_BUTTON.borderWidth,
-    borderColor: PREMIUM_BUTTON.borderColor,
-    alignSelf: 'center',
-  },
-  skipText: {
-    fontSize: 12,
+  skipHeaderText: {
+    fontSize: 13,
     fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.35)',
+    color: 'rgba(255,255,255,0.70)',
+    paddingVertical: 4,
   },
   backButtonPressable: {
     flexDirection: 'row',

@@ -31,6 +31,11 @@
 //  6. UNDO: the last confirmation can be undone within 5 seconds, restoring
 //     the previous role (or unpinning a station this engine pinned) or the
 //     previous alert-window values.
+//  7. ASSUMPTION REVEAL: the pin-order fallback (first pinned = home,
+//     second = work) is surfaced ONCE as a setup pill so the user can see
+//     and correct the silent default. Fires only post-onboarding, only
+//     while no explicit role exists and the engine has not engaged yet;
+//     retires forever on dismiss or sheet close.
 //
 // STORAGE: MMKV, same id ('background-storage') SessionManager uses, so
 // background writes (session start / dwell) and foreground reads (pill)
@@ -370,6 +375,71 @@ export function getPendingConfirmations(): PendingConfirmation[] {
   }
 
   return [...stationConfirmations, ...hours];
+}
+
+export interface AssumptionReveal {
+  homeName: string;
+  workName: string | null;
+}
+
+/**
+ * True once the inference engine has ever engaged the user — a
+ * confirmation was emitted and confirmed, dismissed, suppressed, or
+ * re-emitted. Once the real conversation has started, the pin-order
+ * fallback assumption is obsolete and the reveal must not fire.
+ */
+function hasInferenceEngaged(): boolean {
+  const dismissals = readJSON<Record<string, number[]>>(K_DISMISSALS, {});
+  if (
+    Object.values(dismissals).some(
+      (arr) => Array.isArray(arr) && arr.length > 0,
+    )
+  )
+    return true;
+  if (Object.keys(readJSON<Record<string, ConfirmedRoleRecord>>(K_CONFIRMED, {})).length > 0)
+    return true;
+  if (
+    Object.values(
+      readJSON<Record<string, number | null>>(K_SUPPRESSED, {}),
+    ).some((v) => v != null)
+  )
+    return true;
+  if (Object.keys(readJSON<Record<string, number>>(K_RECONFIRM, {})).length > 0)
+    return true;
+  return false;
+}
+
+/**
+ * One-shot "assumption reveal": the pin-order fallback (first pinned =
+ * home, second = work) is a silent guess the system made on the user's
+ * behalf. This surfaces it once as a setup pill so the user can see and
+ * correct it. Fires only when onboarding is complete (pin order is final),
+ * at least one station is pinned, no explicit home/work role exists, the
+ * reveal was never shown (persisted flag), and the inference engine has
+ * not engaged yet. The pill UI retires it permanently on dismiss; the
+ * sheet host retires it on close.
+ */
+export function getAssumptionReveal(): AssumptionReveal | null {
+  const prefs = useUserPreferencesStore.getState();
+  if (!prefs.hasCompletedOnboarding) return null;
+  if (prefs.assumptionRevealed) return null;
+  const pinned = prefs.pinnedStations || [];
+  if (pinned.length === 0) return null;
+  if (pinned.some((s) => s.role === 'home' || s.role === 'work')) return null;
+  if (hasInferenceEngaged()) return null;
+  return {
+    homeName: pinned[0].name,
+    workName: pinned[1] ? pinned[1].name : null,
+  };
+}
+
+/**
+ * Retire the assumption reveal forever. Called by the pill UI on dismiss
+ * and by the sheet host on close (closing = implicit accept; the silent
+ * assumption stands).
+ */
+export function markAssumptionRevealed(): void {
+  useUserPreferencesStore.getState().setAssumptionRevealed(true);
 }
 
 /**

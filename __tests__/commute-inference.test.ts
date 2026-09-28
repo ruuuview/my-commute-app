@@ -3,6 +3,8 @@ import {
   logSessionStart,
   logDwell,
   getPendingConfirmations,
+  getAssumptionReveal,
+  markAssumptionRevealed,
   confirmConfirmation,
   dismissConfirmation,
   undoLastConfirmation,
@@ -483,6 +485,85 @@ describe('commuteInference', () => {
       logSessionStart('st-b', daysAgoAt(2, 8, 5));
       logSessionStart('st-b', Date.now() - 40 * DAY_MS); // pruned
       expect(getStationScores()).toEqual({ 'st-a': 2, 'st-b': 1 });
+    });
+  });
+
+  describe('assumption reveal', () => {
+    function pinForReveal(
+      stations: { id: string; name: string; role?: 'home' | 'work' | 'other' }[],
+      opts: { onboarded?: boolean; revealed?: boolean } = {},
+    ): void {
+      useUserPreferencesStore.setState({
+        hasCompletedOnboarding: opts.onboarded ?? true,
+        assumptionRevealed: opts.revealed ?? false,
+        pinnedStations: stations.map((s) => ({
+          id: s.id,
+          name: s.name,
+          lines: [] as string[],
+          zone: 1,
+          role: s.role ?? 'other',
+        })),
+      });
+    }
+
+    it('returns null before onboarding completes (pin order not final)', () => {
+      pinForReveal(
+        [{ id: 'st-bank', name: 'Bank' }],
+        { onboarded: false },
+      );
+      expect(getAssumptionReveal()).toBeNull();
+    });
+
+    it('returns null with no pinned stations', () => {
+      pinForReveal([]);
+      expect(getAssumptionReveal()).toBeNull();
+    });
+
+    it('returns null when an explicit home/work role exists', () => {
+      pinForReveal([
+        { id: 'st-bank', name: 'Bank', role: 'home' },
+        { id: 'st-strat', name: 'Stratford' },
+      ]);
+      expect(getAssumptionReveal()).toBeNull();
+    });
+
+    it('returns null once the reveal was retired', () => {
+      pinForReveal([{ id: 'st-bank', name: 'Bank' }], { revealed: true });
+      expect(getAssumptionReveal()).toBeNull();
+    });
+
+    it('reveals home + work from pin order', () => {
+      pinForReveal([
+        { id: 'st-bank', name: 'Bank' },
+        { id: 'st-strat', name: 'Stratford' },
+      ]);
+      expect(getAssumptionReveal()).toEqual({ homeName: 'Bank', workName: 'Stratford' });
+    });
+
+    it('reveals home only with a single pinned station', () => {
+      pinForReveal([{ id: 'st-bank', name: 'Bank' }]);
+      expect(getAssumptionReveal()).toEqual({ homeName: 'Bank', workName: null });
+    });
+
+    it('markAssumptionRevealed retires the reveal permanently', () => {
+      pinForReveal([{ id: 'st-bank', name: 'Bank' }]);
+      expect(getAssumptionReveal()).not.toBeNull();
+      markAssumptionRevealed();
+      expect(useUserPreferencesStore.getState().assumptionRevealed).toBe(true);
+      expect(getAssumptionReveal()).toBeNull();
+    });
+
+    it('returns null once the inference engine has engaged', () => {
+      pinForReveal([
+        { id: 'st-bank', name: 'Bank' },
+        { id: 'st-strat', name: 'Stratford' },
+      ]);
+      // Engine engages: 3 observations -> a real confirmation exists.
+      for (const n of [6, 4, 2]) logSessionStart('st-a', daysAgoAt(n, 8, 5));
+      expect(stationConfirmations()).toHaveLength(1);
+      dismissConfirmation(stationConfirmations()[0]);
+      // The fallback assumption is now obsolete — the real conversation won.
+      expect(getAssumptionReveal()).toBeNull();
     });
   });
 });

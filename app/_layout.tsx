@@ -28,6 +28,7 @@ import { parseNotificationIntent, navigateToIntent } from '../services/notificat
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
+import { HomeWorkSheetHost } from '../components/HomeWorkSheetHost';
 import { DynamicNotifications } from '../components/DynamicIslandBanner/components';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
 import FlashMessage from 'react-native-flash-message';
@@ -520,6 +521,7 @@ export default function RootLayout() {
       <SafeAreaProvider style={styles.root}>
         <DynamicNotifications cardColor="rgba(18,20,26,0.88)" islandColor="#000000" duration={4000}>
           <PillBridge />
+          <HomeWorkSheetHost />
           {isReady ? (
             <Stack
               screenOptions={{

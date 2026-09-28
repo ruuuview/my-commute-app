@@ -222,6 +222,11 @@ export interface UserPreferencesState {
   clearManualShush: () => void;
   /** True when manual shush is active OR the smart/schedule/always evaluation says shushed. */
   isShushActiveForToday: () => boolean;
+  // Assumption reveal (one-shot): the pin-order fallback (first pinned =
+  // home, second = work) is surfaced once as a setup pill so the user can
+  // see and correct the silent default. Persisted so it retires forever.
+  assumptionRevealed: boolean;
+  setAssumptionRevealed: (v: boolean) => void;
   // Shush pill once-per-day bookkeeping: local day key of the last day the
   // pill was actually shown. Written by the pill renderer via
   // recordShushPillShown(); read by utils/shushPillPolicy.ts.
@@ -277,7 +282,7 @@ export interface UserPreferencesState {
   clearIntentPillLearning: () => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'isShushActiveForToday' | 'recordShushPillShown'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'isShushActiveForToday' | 'recordShushPillShown' | 'setAssumptionRevealed'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -310,6 +315,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   lastHandledColdBootNotificationId: null,
   simulatedClaimActive: false,
   manualShushDate: null,
+  assumptionRevealed: false,
   shushPillLastShownDay: null,
   recentSearches: [],
   intentPillDismissals: [],
@@ -621,6 +627,10 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         return evaluateShushActivationAt(prefs, nowMs);
       },
       recordShushPillShown: () => set({ shushPillLastShownDay: dayKeyFor(new Date()) }),
+      // Assumption reveal: one-shot by design — the pill UI calls this on
+      // dismiss and the sheet host calls it on close. Persisted, so the
+      // reveal retires forever once seen.
+      setAssumptionRevealed: (v: boolean) => set({ assumptionRevealed: v }),
     }),
     {
       name: 'user-preferences',

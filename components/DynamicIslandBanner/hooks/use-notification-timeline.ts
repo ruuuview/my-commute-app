@@ -163,10 +163,14 @@ const useNotificationTimeline = ({
       drop.value = 0;
       expand.value = 0;
       tint.value = 0;
+      dragY.value = 0;
       return;
     }
 
     reveal.value = withSpring(0, FADE_SPRING);
+    // Glide the dragged card back to rest geometry fast so the glass→goo
+    // crossfade melts at aligned geometry (no ghosting after deep drags).
+    dragY.value = withTiming(0, { duration: 180 });
     expand.value = withDelay(
       EXIT_COLLAPSE_DELAY,
       withSpring(0, COLLAPSE_SPRING),
@@ -183,7 +187,7 @@ const useNotificationTimeline = ({
         }
       }),
     );
-  }, [clearTimer, drop, expand, reducedMotion, reveal, settle, tint]);
+  }, [clearTimer, dragY, drop, expand, reducedMotion, reveal, settle, tint]);
 
   exitRef.current = exit;
 

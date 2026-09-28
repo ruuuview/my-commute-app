@@ -5,6 +5,12 @@
 // as a 'setup' pill (priority 1, the lowest setup layer; the nudge's own
 // copy carries the payoff, per the inference-first plan).
 //
+// When no inference confirmation is pending, the hook falls back to the
+// one-shot ASSUMPTION REVEAL: the silent pin-order default (first pinned =
+// home, second = work) surfaced as "Bank = Home \u00b7 Stratford = Work —
+// based on your pin order". Tap opens the global Home & Work sheet
+// (HomeWorkSheetHost) for review/correction; dismiss retires it forever.
+//
 // Interaction contract:
 // - Tap = 1-tap commit: confirmConfirmation(c), then immediately swap to a
 //   transient "Saved" pill (~5 s, kind 'setup') whose tap =
@@ -22,11 +28,27 @@ import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { usePillStore } from '../store/pillStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useHomeWorkSheetStore } from '../store/homeWorkSheetStore';
 
 /** Verbatim contract for utils/commuteInference.PendingConfirmation. */
 type PendingConfirmation =
   | { type: 'home' | 'work'; stationId: string; stationName: string; reconfirm?: boolean }
   | { type: 'hours'; windowStart: string; windowEnd: string };
+
+/** Verbatim contract for utils/commuteInference.AssumptionReveal. */
+interface AssumptionReveal {
+  homeName: string;
+  workName: string | null;
+}
+
+const ASSUMPTION_PILL_ID = 'setup-assumption-reveal';
+
+/** The silent default, displayed as text on the pill. Zero emoji. */
+function assumptionTitle(r: AssumptionReveal): string {
+  return r.workName
+    ? `${r.homeName} = Home \u00b7 ${r.workName} = Work`
+    : `${r.homeName} = Home`;
+}
 
 function confirmationId(c: PendingConfirmation): string {
   return c.type === 'hours'
@@ -48,6 +70,8 @@ function confirmationMessage(c: PendingConfirmation): string {
 
 interface CommuteInferenceModule {
   getPendingConfirmations?: () => PendingConfirmation[];
+  getAssumptionReveal?: () => AssumptionReveal | null;
+  markAssumptionRevealed?: () => void;
   confirmConfirmation?: (c: PendingConfirmation) => void;
   dismissConfirmation?: (c: PendingConfirmation) => void;
   undoLastConfirmation?: () => void;
@@ -88,12 +112,44 @@ function evaluate(): void {
   const first = pending[0] ?? null;
 
   if (!first) {
-    // Nothing pending: retire a stale setup-CONFIRM pill. The transient
-    // undo pill (id setup-undo-*) is left alone to live out its 5 s.
+    // No inference confirmation pending: fall back to the one-shot
+    // ASSUMPTION REVEAL — the silent pin-order default surfaced as text
+    // so the user can see and correct it. The inference engine owns the
+    // eligibility (post-onboarding, no explicit roles, never revealed,
+    // engine not yet engaged), so this branch is a pure view decision.
+    const reveal = inference.getAssumptionReveal?.() ?? null;
     const active = store.active;
-    if (active?.kind === 'setup' && active.id.startsWith('setup-confirm-')) {
-      store.clearPill();
+    if (!reveal) {
+      // Nothing pending: retire a stale setup pill. The transient undo
+      // pill (id setup-undo-*) is left alone to live out its 5 s.
+      if (
+        active?.kind === 'setup' &&
+        (active.id.startsWith('setup-confirm-') || active.id === ASSUMPTION_PILL_ID)
+      ) {
+        store.clearPill();
+      }
+      return;
     }
+    // Already showing — the stable id dedupes re-requests.
+    if (active?.id === ASSUMPTION_PILL_ID) return;
+    store.requestPill({
+      kind: 'setup',
+      id: ASSUMPTION_PILL_ID,
+      title: assumptionTitle(reveal),
+      message: 'Based on your pin order \u2014 tap to review or change it',
+      accent: '#30D158',
+      onPress: () => {
+        // Review/correct the assumption in the global Home & Work sheet.
+        // Any close retires the reveal forever (host calls
+        // markAssumptionRevealed); explicit roles set in the sheet make
+        // the eligibility false anyway.
+        useHomeWorkSheetStore.getState().setOpen(true);
+      },
+      onDismiss: () => {
+        // Seen and dismissed: retire forever. The silent assumption stands.
+        inference.markAssumptionRevealed?.();
+      },
+    });
     return;
   }
 

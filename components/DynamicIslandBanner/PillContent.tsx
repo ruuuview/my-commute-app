@@ -53,12 +53,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 17,
+  fontSize: 15,
     color: '#FFFFFF',
   },
   message: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.65)',
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.90)',
   },
 });

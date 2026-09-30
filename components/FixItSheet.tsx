@@ -30,6 +30,7 @@ import { requestPermission } from '../store/permissionOrchestrator';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { playSound } from '../utils/sound';
 import { GLASS } from '../theme/colors';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 
 let isNativeGlassAvailable = false;
 try {
@@ -59,6 +60,7 @@ interface Props {
 }
 
 export const FixItSheet: React.FC<Props> = ({ visible, onClose, stations: stationsProp, onSetRole }) => {
+  usePillSuppression('modal', visible);
   const insets = useSafeAreaInsets();
   const reduceTransparency = useReduceTransparency();
   const storeSetStationRole = useUserPreferencesStore(s => s.setStationRole);

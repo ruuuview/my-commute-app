@@ -65,6 +65,7 @@ import { useLineDataStore } from '../store/lineDataStore';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
 import { APP_CONFIG } from '../config/app.config';
 import { pressFeedback } from '../utils/pressFeedback';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 import { getSeverityColor, getSeverityRank } from '../utils/getSeverityColor';
 import RerouteScreen from './RerouteScreen';
 import { useAutoDetectBranch } from '../hooks/useAutoDetectBranch';
@@ -415,6 +416,10 @@ export function MyCommuteDashboard() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [stationModalVisible, setStationModalVisible] = useState(false);
+  const [isLineDragActive, setIsLineDragActive] = useState(false);
+  const [isStationDragActive, setIsStationDragActive] = useState(false);
+  usePillSuppression('modal', modalVisible || stationModalVisible || rerouteLine !== null);
+  usePillSuppression('card-drag', isLineDragActive || isStationDragActive);
   const [expandedLineId, setExpandedLineId] = useState<string | null>(null);
   const { scrollEnabled, setScrollEnabled } = useScrollLock();
   const [pendingDelete, setPendingDelete] = useState<{
@@ -892,13 +897,16 @@ export function MyCommuteDashboard() {
                     onDragBegin={() => {
                       pressFeedback.cancelAll();
                       setScrollEnabled(false);
+                      setIsLineDragActive(true);
                       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                     }}
                     onRelease={() => {
                       setScrollEnabled(true);
+                      setIsLineDragActive(false);
                     }}
                     onDragEnd={({ data }) => {
                       setScrollEnabled(true);
+                      setIsLineDragActive(false);
                       reorderLines((data as LineData[]).map(l => l.id));
                       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                     }}
@@ -1024,6 +1032,7 @@ export function MyCommuteDashboard() {
                     onScrollEnabledChange={(enabled) => {
                       setScrollEnabled(enabled);
                     }}
+                    onDragActiveChange={setIsStationDragActive}
                     onReorderStations={reorderStations}
                     simultaneousHandlers={scrollRef}
                     skipEntrance={hasCompletedFirstEntrance.current}

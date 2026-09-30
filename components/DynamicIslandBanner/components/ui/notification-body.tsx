@@ -76,16 +76,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
     letterSpacing: -0.35,
   },
   message: {
     marginTop: 1,
-    fontSize: 14,
-    fontWeight: "500",
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 13,
     letterSpacing: -0.2,
-    color: PALETTE.message,
+    color: 'rgba(255, 255, 255, 0.90)',
   },
 });
 

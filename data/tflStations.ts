@@ -51,13 +51,131 @@ export function cleanDisplayStationName(raw: string): string {
   return name.trim();
 }
 
+export function normalizeStationSearch(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .toLowerCase()
+    .replace(/['’‘`\u2019\u2018\u0027]/g, '') // Wipe straight and curly apostrophes & backticks
+    .replace(/\./g, ' ')                      // Replace periods with spaces
+    .replace(/&/g, ' and ')                   // Normalize &
+    .replace(/[^a-z0-9\s]/g, ' ')             // Replace other punctuation with space
+    .replace(/\s+/g, ' ')                     // Collapse whitespace
+    .trim();
+}
+
 export function sanitiseStationName(raw: string): string {
   return cleanDisplayStationName(raw)
-    .replace(/'/g, '')  // Wipe apostrophes cleanly
-    .replace(/\./g, '') // Wipe tracking periods
+    .replace(/['’‘`\u2019\u2018\u0027]/g, '')  // Wipe all straight and curly apostrophes
+    .replace(/\./g, '')                        // Wipe tracking periods
     .toLowerCase()
     .trim();
 }
+
+export function searchStations(
+  query: string,
+  stations: TfLStation[],
+  fuse?: { search: (q: string) => Array<{ item: TfLStation }> }
+): TfLStation[] {
+  const normQuery = normalizeStationSearch(query);
+  if (!normQuery) return [];
+
+  const queryWords = normQuery.split(' ').filter(Boolean);
+
+  const POPULAR_HUB_IDS = new Set([
+    'kings-cross', '940GZZLUKSX', 'HUBKGX',
+    'london-waterloo', '940GZZLUWLO', 'HUBWAT',
+    'liverpool-street', '940GZZLULVT', 'HUBLST',
+    'london-bridge', '940GZZLULBD', 'HUBLBG',
+    'victoria', '940GZZLUVIC', 'HUBVIC',
+    'oxford-circus', '940GZZLUOXC',
+    'canary-wharf', '940GZZLUCYF',
+    'paddington', '940GZZLUPAD', 'HUBPAD',
+    'euston', '940GZZLUEUS', 'HUBEUS',
+    'bank', '940GZZLUBNK',
+    'stratford', '940GZZLUSFD', 'HUBSFA',
+    'earls-court', '940GZZLUECT',
+    'shepherd-bush', 'HUBSPB', '910GSHPDSB',
+    'queens-park', '940GZZLUQPS', 'HUBQPW',
+    'st-pauls', '940GZZLUSPU',
+  ]);
+
+  interface ScoredStation {
+    station: TfLStation;
+    score: number;
+  }
+
+  const scored: ScoredStation[] = [];
+
+  for (const station of stations) {
+    const normName = normalizeStationSearch(station.name);
+    const searchKeys = (station.searchKeys || []).map(k => normalizeStationSearch(k));
+    const allNorms = [normName, ...searchKeys];
+
+    let matchTier = 999;
+
+    // Tier 1: Exact match on full normalized name or any alias
+    if (allNorms.some(n => n === normQuery)) {
+      matchTier = 1;
+    }
+    // Tier 2: Station name / alias starts with exact query
+    else if (allNorms.some(n => n.startsWith(normQuery))) {
+      // Word boundary check: e.g. "kings " vs "kingsbury"
+      const isWordBoundary = allNorms.some(n => n === normQuery || n.startsWith(normQuery + ' '));
+      matchTier = isWordBoundary ? 2 : 3;
+    }
+    // Tier 3: All query words match prefixes of words in the station name (e.g. "st pancras" -> "King's Cross St. Pancras")
+    else {
+      const stationWords = normName.split(' ').filter(Boolean);
+      const allWordsMatch = queryWords.every(qw =>
+        stationWords.some(sw => sw.startsWith(qw))
+      );
+      if (allWordsMatch) {
+        matchTier = 4;
+      }
+      // Tier 4: Query is contained anywhere in any alias / name
+      else if (allNorms.some(n => n.includes(normQuery))) {
+        matchTier = 5;
+      }
+    }
+
+    if (matchTier < 999) {
+      let score = matchTier * 100;
+      // Boost major hubs and zone 1 interchange stations
+      if (POPULAR_HUB_IDS.has(station.id)) {
+        score -= 30;
+      } else if (station.zone === 1) {
+        score -= 10;
+      }
+      // Boost shorter station names
+      score += Math.min(normName.length, 60) * 0.1;
+
+      scored.push({ station, score });
+    }
+  }
+
+  scored.sort((a, b) => a.score - b.score);
+
+  const seenIds = new Set(scored.map(s => s.station.id));
+  const results = scored.map(s => s.station);
+
+  // If Fuse is available, append fuzzy matches for typo tolerance
+  if (fuse) {
+    try {
+      const fuzzyMatches = fuse.search(query).map(r => r.item);
+      for (const match of fuzzyMatches) {
+        if (!seenIds.has(match.id)) {
+          results.push(match);
+          seenIds.add(match.id);
+        }
+      }
+    } catch {
+      // Ignore Fuse search failures
+    }
+  }
+
+  return results;
+}
+
 
 
 export const TFL_STATIONS: TfLStation[] = [
@@ -86,7 +204,7 @@ export const TFL_STATIONS: TfLStation[] = [
   { id: 'holborn',          name: 'Holborn',               lines: ['central','piccadilly'],                   zone: 1 },
   { id: 'hyde-park-corner', name: 'Hyde Park Corner',      lines: ['piccadilly'],                             zone: 1 },
   { id: 'kennington',       name: 'Kennington',            lines: ['northern'],                               zone: 2 },
-  { id: 'kings-cross',      name: "King's Cross St. Pancras", lines: ['circle','hammersmith-city','metropolitan','northern','piccadilly','victoria'], zone: 1, searchKeys: ['kings cross'] },
+  { id: 'kings-cross',      name: "King's Cross St. Pancras", lines: ['circle','hammersmith-city','metropolitan','northern','piccadilly','victoria'], zone: 1, searchKeys: ['kings cross', 'kings cross st pancras', 'st pancras', 'kings'] },
   { id: 'knightsbridge',    name: 'Knightsbridge',         lines: ['piccadilly'],                             zone: 1 },
   { id: 'lambeth-north',    name: 'Lambeth North',         lines: ['bakerloo'],                               zone: 1 },
   { id: 'lancaster-gate',   name: 'Lancaster Gate',        lines: ['central'],                                zone: 1 },
@@ -199,12 +317,13 @@ export const FULL_STATIONS: TfLStation[] = (fullStationsData as any[])
       )
     );
 
+    const hardcodedSearchKeys = matchingHardcoded?.searchKeys || [];
     return {
       ...s,
       name: display,
       lines: normalizedLines,
       zone: matchingHardcoded?.zone ?? s.zone ?? 1,
-      searchKeys: [...new Set([searchKey, ...(s.searchKeys || [])])],
+      searchKeys: [...new Set([searchKey, ...(s.searchKeys || []), ...hardcodedSearchKeys])],
     };
   });
 

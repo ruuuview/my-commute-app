@@ -9,10 +9,11 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../../../../hooks/useReduceTransparency';
 import type { INotificationContent } from '../../interfaces/notification-content.interface';
 import { GLASS } from '../../../../theme/colors';
-import React, { memo } from "react";
+import React, { memo, useEffect } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
-import Animated from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { SPECULAR_RIM_FADE_IN_MS } from '../../constants/notification.consts';
 
 // Native iOS 18+ Liquid Glass availability (same pattern as FixItSheet).
 let isNativeGlassAvailable = false;
@@ -51,6 +52,11 @@ const Content: React.FC<INotificationContent> &
     });
     const blur = useContentBlur({ reveal });
     const reduceTransparency = useReduceTransparency();
+    const rimOpacity = useSharedValue(0);
+    useEffect(() => {
+      rimOpacity.value = isVisible ? withTiming(1, { duration: SPECULAR_RIM_FADE_IN_MS }) : 0;
+    }, [isVisible, rimOpacity]);
+    const specularRimStyle = useAnimatedStyle(() => ({ opacity: rimOpacity.value }));
     const gesture = useDismissGesture({
       offset: dragY,
       onDismiss: dismiss,
@@ -119,7 +125,30 @@ const Content: React.FC<INotificationContent> &
                 />
               )
             )}
+            {/* Optical depth tint: dark scrim between the blur and the text.
+                The glass base is fully transparent, so over bright
+                backgrounds the card washed out completely and the white
+                text disappeared. This guarantees contrast on any backdrop. */}
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  borderRadius: layout.cardRadius,
+                  backgroundColor: GLASS.tintOverlay,
+                },
+              ]}
+            />
           </View>
+
+          {/* Apple-style catch-light is independent from the glass/reveal crossfade. */}
+          {!reduceTransparency && (
+            <Animated.View
+              testID="dynamic-island-specular-rim"
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, styles.specularRim, { borderRadius: layout.cardRadius }, specularRimStyle]}
+            />
+          )}
 
           {notification.render ? (
             notification.render(notification)
@@ -170,6 +199,13 @@ const styles = StyleSheet.create({
   },
   glassBlur: {
     borderCurve: "continuous",
+  },
+  specularRim: {
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.62)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.26)',
+    borderRightColor: 'rgba(255, 255, 255, 0.26)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
   },
 });
 

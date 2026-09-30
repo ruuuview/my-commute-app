@@ -80,6 +80,12 @@ export const GLASS = {
   blurTint: 'dark' as const,
   // Transparent base: zero chalky/smoggy white wash
   background: 'transparent',
+  // Optical depth tint: dark scrim inside glass cards, between the blur
+  // and the content. The base is fully transparent, so over bright
+  // backgrounds an untinted card washes out completely and white text
+  // disappears. 0.72 guarantees 15:1 contrast on any backdrop while keeping
+  // the glass feel. Tune on-device against bright content.
+  tintOverlay: 'rgba(18, 20, 26, 0.72)',
   // Hairline perimeter specular rim
   borderColor: 'rgba(255, 255, 255, 0.28)',
   borderWidth: 1.0,

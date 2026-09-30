@@ -25,6 +25,7 @@ import { ProgressDots } from '../../components/ProgressDots';
 import { LineCard } from '../../components/LineCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PREMIUM_BUTTON } from '../../theme/colors';
 import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
 import { getSeverityLabel, getSeverityRank } from '../../utils/getSeverityColor';
@@ -358,7 +359,15 @@ export default function LinesScreen() {
       {/* Sticky CTA Footer */}
       <View
         style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        pointerEvents="box-none"
       >
+        {/* Smooth gradient fade behind CTA so cards scroll underneath cleanly */}
+        <LinearGradient
+          colors={['transparent', 'rgba(2, 4, 10, 0.75)', '#02040A']}
+          locations={[0, 0.40, 1.0]}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
         <Pressable
           onPress={handleCTAPress}
           onPressIn={continueAnim.onPressIn}

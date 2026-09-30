@@ -15,6 +15,7 @@
 // when the visual pill dies (tap / swipe / auto-timeout), so a shown-once
 // pill can never starve lower-priority pills for the whole session.
 import { create } from 'zustand';
+import { usePillSuppressionStore } from './pillSuppressionStore';
 
 export type PillKind =
   | 'disruption'
@@ -72,6 +73,7 @@ export const usePillStore = create<PillState>()((set, get) => ({
   primerLastShown: null,
   recordPrimerShown: (key) => set({ primerLastShown: { key, at: Date.now() } }),
   requestPill: (req) => {
+    if (usePillSuppressionStore.getState().isSuppressed) return;
     const { active } = get();
     if (active && req.id === active.id) return; // already showing this event
     if (!active || PRIORITY[req.kind] >= PRIORITY[active.kind]) {

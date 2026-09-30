@@ -31,6 +31,7 @@ import { getSeverityLabel, getSeverityRank } from '../utils/getSeverityColor';
 import { APP_CONFIG } from '../config/app.config';
 import { GLASS } from '../theme/colors';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 
 const OVERGROUND_BRANCH_IDS = ['liberty', 'lioness', 'mildmay', 'suffragette', 'weaver', 'windrush'];
 
@@ -74,6 +75,7 @@ interface ManageLinesModalProps {
 }
 
 export function ManageLinesModal({ visible, onClose }: ManageLinesModalProps) {
+  usePillSuppression('modal', visible);
   const insets = useSafeAreaInsets();
   const reduceTransparency = useReduceTransparency();
   const { width, height: screenHeight } = useWindowDimensions();

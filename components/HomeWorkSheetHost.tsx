@@ -14,10 +14,12 @@ import React from 'react';
 import { FixItSheet } from './FixItSheet';
 import { useHomeWorkSheetStore } from '../store/homeWorkSheetStore';
 import { markAssumptionRevealed } from '../utils/commuteInference';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 
 export function HomeWorkSheetHost(): React.JSX.Element {
   const open = useHomeWorkSheetStore((s) => s.open);
   const setOpen = useHomeWorkSheetStore((s) => s.setOpen);
+  usePillSuppression('modal', open);
 
   return (
     <FixItSheet

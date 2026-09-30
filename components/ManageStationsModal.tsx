@@ -28,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { requestPermission } from '../store/permissionOrchestrator';
 import { resolveTflStopIdForStore } from '../utils/resolveTflStopId';
-import { TfLStation, FULL_STATIONS, POPULAR_STATIONS, cleanDisplayStationName, sanitiseStationName } from '../data/tflStations';
+import { TfLStation, FULL_STATIONS, POPULAR_STATIONS, cleanDisplayStationName, sanitiseStationName, searchStations } from '../data/tflStations';
 import { tflCapitalise } from '../utils/tflCapitalise';
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
@@ -37,6 +37,7 @@ import { getPillColors } from '../utils/pillColors';
 
 import { SCREEN_PADDING } from '../constants/layout';
 import Fuse from 'fuse.js';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -123,6 +124,7 @@ function CompactStationCard({ station, selected, onPress }: CompactStationCardPr
 }
 
 export function ManageStationsModal({ visible, onClose }: ManageStationsModalProps) {
+  usePillSuppression('modal', visible);
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const inputRef = useRef<TextInput>(null);
@@ -160,35 +162,16 @@ export function ManageStationsModal({ visible, onClose }: ManageStationsModalPro
   // Set up Fuse.js matching
   const fuse = useMemo(
     () => new Fuse(cleanFullStations, {
-      keys: ['name'],
-      threshold: 0.2,
-      minMatchCharLength: 4,
+      keys: ['name', 'searchKeys'],
+      threshold: 0.25,
+      minMatchCharLength: 3,
       distance: 60
     }),
     [cleanFullStations]
   );
 
   const results = useMemo<TfLStation[]>(() => {
-    const trimmed = query.toLowerCase().trim();
-    if (!trimmed) return [];
-
-    // Substring match for responsiveness and exact substring queries
-    const substringMatches = cleanFullStations.filter(s =>
-      s.name.toLowerCase().includes(trimmed)
-    );
-
-    // Fuzzy matching for spelling tolerance
-    const fuzzyMatches = fuse.search(trimmed).map(r => r.item);
-
-    const combined = [...substringMatches];
-    const seenIds = new Set(combined.map(s => s.id));
-    for (const match of fuzzyMatches) {
-      if (!seenIds.has(match.id)) {
-        combined.push(match);
-        seenIds.add(match.id);
-      }
-    }
-    return combined;
+    return searchStations(query, cleanFullStations, fuse);
   }, [query, fuse, cleanFullStations]);
 
   const isStationPinned = useCallback((station: TfLStation | { id: string; name: string }) => {

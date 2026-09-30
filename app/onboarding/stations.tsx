@@ -30,7 +30,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { ensureDeviceIdentity } from '../../services/deviceIdentity';
 import { resolveTflStopIdForStore } from '../../utils/resolveTflStopId';
-import { TfLStation, FULL_STATIONS, cleanDisplayStationName, sanitiseStationName } from '../../data/tflStations';
+import { TfLStation, FULL_STATIONS, cleanDisplayStationName, sanitiseStationName, searchStations } from '../../data/tflStations';
 import { tflCapitalise } from '../../utils/tflCapitalise';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
@@ -39,6 +39,7 @@ import { SkeletonCard } from '../../components/SkeletonCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GLASS, PREMIUM_BUTTON } from '../../theme/colors';
 import { isNativeGlassAvailable, GlassView } from '../../utils/glassAvailability';
 import { useReduceTransparency } from '../../hooks/useReduceTransparency';
@@ -175,35 +176,16 @@ export default function StationsScreen() {
 
   const fuse = useMemo(
     () => new Fuse(cleanFullStations, {
-      keys: ['name'],
-      threshold: 0.2,
-      minMatchCharLength: 4,
+      keys: ['name', 'searchKeys'],
+      threshold: 0.25,
+      minMatchCharLength: 3,
       distance: 60
     }),
     [cleanFullStations]
   );
 
   const results = useMemo<TfLStation[]>(() => {
-    const trimmed = query.toLowerCase().trim();
-    if (!trimmed) return [];
-
-    // Substring match for responsiveness and exact substring queries
-    const substringMatches = cleanFullStations.filter(s =>
-      s.name.toLowerCase().includes(trimmed)
-    );
-
-    // Fuzzy matching for spelling tolerance
-    const fuzzyMatches = fuse.search(trimmed).map(r => r.item);
-
-    const combined = [...substringMatches];
-    const seenIds = new Set(combined.map(s => s.id));
-    for (const match of fuzzyMatches) {
-      if (!seenIds.has(match.id)) {
-        combined.push(match);
-        seenIds.add(match.id);
-      }
-    }
-    return combined;
+    return searchStations(query, cleanFullStations, fuse);
   }, [query, fuse, cleanFullStations]);
 
 
@@ -523,7 +505,11 @@ export default function StationsScreen() {
             {!hasCompletedOnboarding && (
               <Pressable
                 onPress={handleSkip}
-                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={({ pressed }) => [
+                  styles.skipButtonPressable,
+                  pressed && styles.skipButtonPressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Skip station setup"
               >
@@ -768,7 +754,15 @@ export default function StationsScreen() {
         {!searchActive && (
           <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
+            pointerEvents="box-none"
           >
+            {/* Smooth gradient fade behind CTA so cards scroll underneath cleanly */}
+            <LinearGradient
+              colors={['transparent', 'rgba(2, 4, 10, 0.75)', '#02040A']}
+              locations={[0, 0.40, 1.0]}
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
             <Pressable
               onPress={handleCTAPress}
               onPressIn={ctaBtnAnim.onPressIn}
@@ -781,30 +775,11 @@ export default function StationsScreen() {
                   styles.ctaButton,
                   ctaBtnAnim.animatedStyle,
                   ctaOpacityAnimatedStyle,
-                  reduceTransparency && styles.ctaButtonSolidFallback,
+                  {
+                    backgroundColor: '#FFFFFF',
+                  },
                 ]}
               >
-                {/* Glass primary CTA: same dark-glass language as the rest of
-                    the screen, kept dominant by full-width size and the
-                    brightest border on screen. Solid fallback under
-                    reduce-transparency. */}
-                {!reduceTransparency && (
-                  isNativeGlassAvailable ? (
-                    <GlassView
-                      glassEffectStyle="regular"
-                      colorScheme="dark"
-                      style={StyleSheet.absoluteFillObject}
-                      pointerEvents="none"
-                    />
-                  ) : (
-                    <BlurView
-                      intensity={GLASS.blurIntensity}
-                      tint={GLASS.blurTint}
-                      style={StyleSheet.absoluteFillObject}
-                      pointerEvents="none"
-                    />
-                  )
-                )}
                 <Text style={styles.ctaButtonText}>
                   {ctaLabel}
                 </Text>
@@ -1089,28 +1064,30 @@ const styles = StyleSheet.create({
   ctaButton: {
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.45)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  // Reduce-transparency fallback: solid dark, still the brightest-bordered
-  // element on screen so the CTA stays dominant without blur.
-  ctaButtonSolidFallback: {
-    backgroundColor: '#1C1C1E',
   },
   ctaButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'SpaceGrotesk_700Bold',
-    color: '#FFFFFF',
+    color: '#0A0F3C',
+  },
+  skipButtonPressable: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: PREMIUM_BUTTON.background,
+    borderWidth: PREMIUM_BUTTON.borderWidth,
+    borderColor: PREMIUM_BUTTON.borderColor,
+  },
+  skipButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   skipHeaderText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255,255,255,0.70)',
-    paddingVertical: 4,
+    color: 'rgba(255, 255, 255, 0.30)',
   },
   backButtonPressable: {
     flexDirection: 'row',

@@ -519,7 +519,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider style={styles.root}>
-        <DynamicNotifications cardColor="rgba(18,20,26,0.88)" islandColor="#000000" duration={4000}>
+        <DynamicNotifications cardColor="#12141A" islandColor="#000000" duration={4000}>
           <PillBridge />
           <HomeWorkSheetHost />
           {isReady ? (

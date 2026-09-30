@@ -24,6 +24,7 @@ import {
 import { usePressAnimation } from '../hooks/usePressAnimation';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 import { GLASS } from '../theme/colors';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 
 let isNativeGlassAvailable = false;
 try {
@@ -44,6 +45,7 @@ export function PermissionPrimerModal() {
     trigger: string;
     copy?: { title: string; body: string; button: string };
   } | null>(null);
+  usePillSuppression('modal', request !== null);
 
   useEffect(() => {
     // Initial check

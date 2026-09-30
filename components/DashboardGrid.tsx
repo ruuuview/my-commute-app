@@ -15,6 +15,7 @@ export interface DashboardGridProps {
   onReorderStations?: (data: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => void;
   simultaneousHandlers?: React.RefObject<any>;
   skipEntrance?: boolean;
+  onDragActiveChange?: (active: boolean) => void;
 }
 
 export default function DashboardGrid({
@@ -25,12 +26,14 @@ export default function DashboardGrid({
   onReorderStations,
   simultaneousHandlers,
   skipEntrance = false,
+  onDragActiveChange,
 }: DashboardGridProps) {
   useEffect(() => {
     return () => {
       onScrollEnabledChange(true);
+      onDragActiveChange?.(false);
     };
-  }, [onScrollEnabledChange]);
+  }, [onScrollEnabledChange, onDragActiveChange]);
 
   const handleMoveUp = useCallback(
     (currentIndex: number) => {
@@ -129,13 +132,16 @@ export default function DashboardGrid({
         onDragBegin={() => {
           pressFeedback.cancelAll();
           onScrollEnabledChange(false);
+          onDragActiveChange?.(true);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         }}
         onRelease={() => {
           onScrollEnabledChange(true);
+          onDragActiveChange?.(false);
         }}
         onDragEnd={({ data, from, to }) => {
           onScrollEnabledChange(true);
+          onDragActiveChange?.(false);
           onReorderStations?.(data);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           if (typeof from === 'number' && typeof to === 'number' && data[to]) {

@@ -53,6 +53,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePillSuppression } from '../hooks/usePillSuppression';
 import BouncyPressable from './BouncyPressable';
 import { BlurView } from 'expo-blur';
 import { GLASS } from '../theme/colors';
@@ -130,6 +131,7 @@ export default function RerouteScreen({
   initialSection = 'overview',
   isCleared = false,
 }: RerouteScreenProps) {
+  usePillSuppression('modal', visible);
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
 
@@ -966,5 +968,4 @@ const s = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
   },
 });
-
 

@@ -14,6 +14,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SPECULAR_RIM_FADE_IN_MS } from '../../constants/notification.consts';
+import BeamRing from '../../../BeamRing';
 
 // Native iOS 18+ Liquid Glass availability (same pattern as FixItSheet).
 let isNativeGlassAvailable = false;
@@ -149,6 +150,17 @@ const Content: React.FC<INotificationContent> &
               style={[StyleSheet.absoluteFill, styles.specularRim, { borderRadius: layout.cardRadius }, specularRimStyle]}
             />
           )}
+
+          {/* Revolving beam ring — boundary-only Skia shader. Mounted inside
+              the Content overlay (never inside the thresholded goo canvas),
+              so it ignites with `reveal` as the goo drop settles. The beam
+              hue follows the pill's accent (severity tint for disruption,
+              iridescent default for intent). */}
+          <BeamRing
+            cornerRadius={layout.cardRadius}
+            accent={notification.accent}
+            style={{ borderRadius: layout.cardRadius }}
+          />
 
           {notification.render ? (
             notification.render(notification)

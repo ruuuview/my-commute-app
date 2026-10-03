@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, AccessibilityInfo, AppState, LogBox } from 'react-native';
+import { StyleSheet, AccessibilityInfo, AppState, LogBox, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -31,45 +31,48 @@ import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
 import { HomeWorkSheetHost } from '../components/HomeWorkSheetHost';
 import { DynamicNotifications } from '../components/DynamicIslandBanner/components';
 import { getOnboardingRedirectPath } from '../utils/onboardingRouting';
+import { usePillStore } from '../store/pillStore';
 import FlashMessage from 'react-native-flash-message';
 
 SplashScreen.preventAutoHideAsync();
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
 
-void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
-  {
-    identifier: 'view_reroute',
-    buttonTitle: 'View Reroute',
-    options: {
-      opensAppToForeground: true,
+  void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
+    {
+      identifier: 'view_reroute',
+      buttonTitle: 'View Reroute',
+      options: {
+        opensAppToForeground: true,
+      },
     },
-  },
-  {
-    identifier: 'shush_today',
-    buttonTitle: 'Shush today',
-    options: {
-      opensAppToForeground: false,
+    {
+      identifier: 'shush_today',
+      buttonTitle: 'Shush today',
+      options: {
+        opensAppToForeground: false,
+      },
     },
-  },
-]).catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
+  ]).catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
 
-void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', [
-  {
-    identifier: 'view_claim',
-    buttonTitle: 'View Refund',
-    options: {
-      opensAppToForeground: true,
+  void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', [
+    {
+      identifier: 'view_claim',
+      buttonTitle: 'View Refund',
+      options: {
+        opensAppToForeground: true,
+      },
     },
-  },
-]).catch((err) => console.warn('[NotificationCategory] CLAIM_REMINDER register failed:', err));
+  ]).catch((err) => console.warn('[NotificationCategory] CLAIM_REMINDER register failed:', err));
+}
 
 LogBox.ignoreLogs([
   'ref.measureLayout must be called with a ref to a native component',
@@ -519,7 +522,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider style={styles.root}>
-        <DynamicNotifications cardColor="#12141A" islandColor="#000000" duration={4000}>
+        <DynamicNotifications
+          cardColor="#000000"
+          islandColor="#000000"
+          duration={null}
+          onDismiss={() => usePillStore.getState().clearPill()}
+        >
           <PillBridge />
           <HomeWorkSheetHost />
           {isReady ? (

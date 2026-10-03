@@ -4,43 +4,42 @@ import type { WithSpringConfig } from "react-native-reanimated";
 
 const DROP_SPRING: WithSpringConfig = {
   duration: ENTRY_DURATION_MS,
-  dampingRatio: 0.82,
+  dampingRatio: 0.84,
 };
 
 const EXPAND_SPRING: WithSpringConfig = {
-  duration: 300,
-  dampingRatio: 0.8,
+  duration: 850,
+  dampingRatio: 0.84,
 };
 
 const REVEAL_SPRING: WithSpringConfig = {
+  duration: 480,
+  dampingRatio: 0.95,
+};
+
+const TINT_SPRING: WithSpringConfig = {
+  duration: 650,
+  dampingRatio: 0.90,
+};
+
+const COLLAPSE_SPRING: WithSpringConfig = {
+  duration: 550,
+  dampingRatio: 0.85,
+};
+
+const RETURN_SPRING: WithSpringConfig = {
+  duration: EXIT_DURATION_MS,
+  dampingRatio: 0.82,
+};
+
+const FADE_SPRING: WithSpringConfig = {
   duration: 220,
   dampingRatio: 1,
 };
 
-const TINT_SPRING: WithSpringConfig = {
-  duration: 350,
-  dampingRatio: 1,
-};
-
-const COLLAPSE_SPRING: WithSpringConfig = {
-  duration: 300,
-  dampingRatio: 0.92,
-  velocity: EXIT_ANTICIPATION_VELOCITY,
-};
-
-const RETURN_SPRING: WithSpringConfig = {
-  duration: 320,
-  dampingRatio: 0.9,
-};
-
-const FADE_SPRING: WithSpringConfig = {
-  duration: EXIT_DURATION_MS,
-  dampingRatio: 1,
-};
-
 const DRAG_SPRING: WithSpringConfig = {
-  duration: 560,
-  dampingRatio: 0.7,
+  duration: 520,
+  dampingRatio: 0.75,
 };
 
 export {

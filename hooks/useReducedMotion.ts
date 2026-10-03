@@ -8,7 +8,7 @@ import { useReducedMotion } from 'react-native-reanimated';
  * Combines Reanimated's launch-time check with AccessibilityInfo's dynamic listener.
  */
 export function useLiveReducedMotion(): boolean {
-  const initial = useReducedMotion();
+  const initial = typeof useReducedMotion === 'function' ? useReducedMotion() : false;
   const [live, setLive] = useState<boolean>(Boolean(initial));
 
   useEffect(() => {

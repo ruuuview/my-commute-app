@@ -7,41 +7,42 @@ const CARD_MAX_WIDTH = 396;
 const CARD_HEIGHT = 74;
 const CARD_MARGIN = 16;
 const CARD_GAP = 34;
+const CARD_RADIUS = 26;
 const DROP_SIZE = 52;
 const NECK_WIDTH = 60;
 const CANVAS_PADDING = 96;
 const EDGE_MARGIN = 10;
-const GOO_STRENGTH = 0.62;
-const GOO_BLUR_MIN = 5;
-const GOO_BLUR_MAX = 20;
-const GOO_GAIN = 22;
-const GOO_THRESHOLD = 0.43;
+const GOO_STRENGTH = 0.72;
+const GOO_BLUR_MIN = 6;
+const GOO_BLUR_MAX = 22;
+const GOO_GAIN = 24;
+const GOO_THRESHOLD = 0.42;
 const GOO_INSET_RATIO = 0.26;
-const DROP_GROW_SPAN = 0.7;
-const DROP_GROW_POWER = 1.25;
-const DROP_STRETCH = 0.38;
-const EXIT_ANTICIPATION_VELOCITY = 2;
+const DROP_GROW_SPAN = 0.75;
+const DROP_GROW_POWER = 1.2;
+const DROP_STRETCH = 0.45;
+const EXIT_ANTICIPATION_VELOCITY = -0.6;
 const NECK_BREAK = 0.82;
 const NECK_RISE = 1.6;
 const NECK_FALL = 1.4;
-const DROP_TINT_START = 0.06;
-const DROP_TINT_END = 0.88;
-const CONTENT_MIN_SCALE = 0.88;
+const DROP_TINT_START = 0.0;
+const DROP_TINT_END = 0.7;
+const CONTENT_MIN_SCALE = 0.92;
 const BLUR_INTENSITY = 64;
 const SHADOW_DY = 10;
-const SHADOW_BLUR = 14;
-// All entry tracks settle by 420 ms; exit returns to the island by 480 ms.
-const ENTER_TINT_DELAY = 70;
-const ENTER_EXPAND_DELAY = 120;
-const ENTER_REVEAL_DELAY = 200;
+const SHADOW_BLUR = 16;
+// Staggered entry and exit timings - slow, luxurious fluid dynamic goo drop and morph (no dead slab)
+const ENTER_TINT_DELAY = 80;
+const ENTER_EXPAND_DELAY = 220;
+const ENTER_REVEAL_DELAY = 300;
 const EXIT_COLLAPSE_DELAY = 80;
-const EXIT_DROP_DELAY = 160;
-const AUTO_DISMISS = 3600;
+const EXIT_DROP_DELAY = 260;
+const AUTO_DISMISS = 6000;
 const SWIPE_DISTANCE = -18;
 const SWIPE_VELOCITY = -420;
-const ENTRY_DURATION_MS = 420;
-const EXIT_DURATION_MS = 480;
-const SPECULAR_RIM_FADE_IN_MS = 80;
+const ENTRY_DURATION_MS = 1100;
+const EXIT_DURATION_MS = 750;
+const SPECULAR_RIM_FADE_IN_MS = 120;
 
 export {
   AUTO_DISMISS,
@@ -51,6 +52,7 @@ export {
   CARD_HEIGHT,
   CARD_MARGIN,
   CARD_MAX_WIDTH,
+  CARD_RADIUS,
   CONTENT_MIN_SCALE,
   DROP_GROW_POWER,
   DROP_GROW_SPAN,
@@ -96,6 +98,7 @@ export default {
   CARD_HEIGHT,
   CARD_MARGIN,
   CARD_MAX_WIDTH,
+  CARD_RADIUS,
   CONTENT_MIN_SCALE,
   DROP_GROW_POWER,
   DROP_GROW_SPAN,

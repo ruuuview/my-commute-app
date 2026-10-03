@@ -30,12 +30,13 @@ const useNotificationContentStyle = ({
     });
 
     const progress = clamp(reveal.value, 0, 1);
+    const glassOpacity = Math.min(progress / 0.5, 1);
 
-    const overshoot = clamp(geometry.widthRatio - 1, 0, 0.2);
-    const scale = mix(progress, CONTENT_MIN_SCALE, 1) + overshoot * progress;
+    const overshoot = clamp(geometry.widthRatio - 1, 0, 0.12);
+    const scale = mix(progress, 0.96, 1) + overshoot * progress;
 
     return {
-      opacity: progress,
+      opacity: glassOpacity,
       transform: [{ translateY: geometry.offsetY + offset.value }, { scale }],
     };
   });

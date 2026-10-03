@@ -125,3 +125,7 @@ export const DUE_TIME_STYLE = {
   color: '#FFFFFF',
   fontWeight: '700' as const,
 };
+
+/** Shared alert chassis tokens for Dynamic Island morph pill and system notices (Apple Liquid Glass) */
+export const ALERT_CARD_BG = 'transparent';
+export const ALERT_BORDER_COLOR = 'rgba(255, 255, 255, 0.28)';

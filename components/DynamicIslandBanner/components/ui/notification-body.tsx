@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 13,
     letterSpacing: -0.2,
-    color: 'rgba(255, 255, 255, 0.90)',
+    color: PALETTE.message,
   },
 });
 

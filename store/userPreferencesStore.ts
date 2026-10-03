@@ -10,19 +10,51 @@ import { STORE_VERSION, runMigrations } from './migrations';
 import { syncToWidget } from '../utils/widgetSync';
 import { applyDismissal, dayKeyFor } from '../utils/intentPillPolicy';
 
-const storage = createMMKV();
-const backgroundStorage = createMMKV({ id: 'background-storage' });
+let storage: any = null;
+let backgroundStorage: any = null;
+
+try {
+  storage = createMMKV();
+  backgroundStorage = createMMKV({ id: 'background-storage' });
+} catch {
+  // SSR or test fallback
+}
+
+const memoryStore = new Map<string, string>();
 
 const mmkvStorageAdapter: StateStorage = {
   setItem: (name, value) => {
-    storage.set(name, value);
+    if (storage) {
+      try {
+        storage.set(name, value);
+        return;
+      } catch {
+        // Fallback to memory
+      }
+    }
+    memoryStore.set(name, value);
   },
   getItem: (name) => {
-    const value = storage.getString(name);
-    return value ?? null;
+    if (storage) {
+      try {
+        const value = storage.getString(name);
+        return value ?? null;
+      } catch {
+        // Fallback to memory
+      }
+    }
+    return memoryStore.get(name) ?? null;
   },
   removeItem: (name) => {
-    storage.remove(name);
+    if (storage) {
+      try {
+        storage.remove(name);
+        return;
+      } catch {
+        // Fallback to memory
+      }
+    }
+    memoryStore.delete(name);
   },
 };
 

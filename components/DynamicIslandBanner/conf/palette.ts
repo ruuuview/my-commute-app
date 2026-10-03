@@ -1,11 +1,12 @@
-// Vendored from rit3zh/expo-dynamic-notifications @ 5de059a (MIT License). Imports rewritten from @/ alias to relative paths.
+import { ALERT_BORDER_COLOR } from '../../../theme/colors';
+
 const PALETTE = {
   island: "#000000",
-  card: "#FFFFFF",
+  card: "#000000",
   accent: "#2F9BFF",
-  message: "#77787D",
-  avatar: "#E8E9EB",
-  shadow: "rgba(16, 19, 28, 0.20)",
+  message: "rgba(255, 255, 255, 0.88)",
+  avatar: "rgba(255, 255, 255, 0.12)",
+  shadow: "rgba(0, 0, 0, 0.35)",
 } as const;
 
-export { PALETTE };
+export { PALETTE, ALERT_BORDER_COLOR };

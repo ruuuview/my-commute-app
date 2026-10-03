@@ -28,6 +28,7 @@ import * as ExpoLocation from 'expo-location';
 import * as Calendar from 'expo-calendar';
 import { useShallow } from 'zustand/react/shallow';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { usePillStore } from '../store/pillStore';
 import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import { syncGeofencesAsync } from '../services/backgroundTask';
 import { scheduleCalendarCommuteAlerts, cancelCalendarCommuteAlerts } from '../services/calendarScheduler';
@@ -154,6 +155,39 @@ export default function SettingsScreen() {
   const [showTflConnectSheet, setShowTflConnectSheet] = useState(false);
   const [versionTaps, setVersionTaps] = useState(0);
   const [developerUnlocked, setDeveloperUnlocked] = useState(false);
+  const [pillCountdown, setPillCountdown] = useState<number | null>(null);
+
+  const handleTriggerTestMorphPill = useCallback(() => {
+    if (pillCountdown !== null) return;
+    if (hapticsEnabled) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setPillCountdown(3);
+    let remaining = 3;
+    const interval = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        setPillCountdown(remaining);
+        if (hapticsEnabled) {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      } else {
+        clearInterval(interval);
+        setPillCountdown(null);
+        if (hapticsEnabled) {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        usePillStore.getState().requestPill({
+          id: `test-morph-pill-${Date.now()}`,
+          kind: 'disruption',
+          title: 'District line',
+          message: 'Severe delays · 12m headway',
+          accent: '#00782A',
+          durationMs: null, // Stays on screen indefinitely until user swipes up or taps
+        });
+      }
+    }, 1000);
+  }, [hapticsEnabled, pillCountdown]);
 
   // ── Real OS Permission States (System Truth - Layer 1) ───────────
   const [osNotificationsGranted, setOsNotificationsGranted] = useState(false);
@@ -1070,6 +1104,58 @@ export default function SettingsScreen() {
                     </Text>
                   </View>
                   <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                </Pressable>
+
+                <View style={styles.divider} />
+
+                {/* Test Fluid Morph Pill Button */}
+                <Pressable
+                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                  onPress={handleTriggerTestMorphPill}
+                  accessibilityRole="button"
+                  accessibilityLabel="Test fluid morph pill in 3 seconds"
+                  accessibilityHint="Starts a 3-second timer to test the in-app fluid morph pill drop"
+                >
+                  <View style={styles.rowInfo}>
+                    <View style={styles.labelRow}>
+                      <IconBadge
+                        icon={<Sparkle size={18} color="#30D158" weight="fill" />}
+                        backgroundColor="rgba(48, 209, 88, 0.18)"
+                        borderColor="rgba(48, 209, 88, 0.35)"
+                      />
+                      <Text style={[styles.rowLabel, { color: '#30D158' }]}>
+                        Test Fluid Morph Pill
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.rowSubtitle,
+                        pillCountdown !== null && { color: '#30D158', fontFamily: 'SpaceGrotesk_600SemiBold' },
+                      ]}
+                    >
+                      {pillCountdown !== null
+                        ? `Dropping in ${pillCountdown}s... (Swipe up to dismiss)`
+                        : 'Drops in 3s · Frosted glass pill · Swipe up to dismiss'}
+                    </Text>
+                  </View>
+                  {pillCountdown !== null ? (
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(48, 209, 88, 0.20)',
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: '#30D158',
+                      }}
+                    >
+                      <Text style={{ color: '#30D158', fontFamily: 'SpaceGrotesk_700Bold', fontSize: 13 }}>
+                        {pillCountdown}s
+                      </Text>
+                    </View>
+                  ) : (
+                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                  )}
                 </Pressable>
               </LiquidGlassView>
             </View>

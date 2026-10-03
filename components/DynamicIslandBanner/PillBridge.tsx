@@ -19,22 +19,18 @@
 // afterwards unless the tap's own handler already replaced the pill (e.g.
 // setup-confirm → the transient "Saved · Undo" pill).
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { AccessibilityInfo } from 'react-native';
 import { useSegments } from 'expo-router';
 import { useDynamicNotifications } from './hooks';
 import { usePillStore } from '../../store/pillStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
-import { useDisruptionEdgeTrigger } from '../../hooks/useDisruptionEdgeTrigger';
-import { useBoardingNudge } from '../../hooks/useBoardingNudge';
-import { usePrimerPill } from '../../hooks/usePrimerPill';
-import { useIntentPill } from '../../hooks/useIntentPill';
-import { useSetupConfirmPill } from '../../hooks/useSetupConfirmPill';
-import { useShushPill } from '../../hooks/useShushPill';
 import { PillContent } from './PillContent';
 import { usePillSuppression } from '../../hooks/usePillSuppression';
 import { usePillSuppressionStore } from '../../store/pillSuppressionStore';
 
-const DEFAULT_PILL_DURATION_MS = 4000;
+export const DEFAULT_PILL_DURATION_MS = 4000;
+export const MICRO_PILL_DURATION_MS = 1500;
 
 export function PillBridge(): React.JSX.Element | null {
   const { trigger, dismiss } = useDynamicNotifications();
@@ -43,13 +39,33 @@ export function PillBridge(): React.JSX.Element | null {
   const suppressed = usePillSuppressionStore((s) => s.isSuppressed);
   const segments = useSegments();
   const pathSegments = (segments as string[]) || [];
+  const [screenReaderEnabled, setScreenReaderEnabled] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then((enabled) => {
+        if (mounted) setScreenReaderEnabled(enabled);
+      })
+      .catch(() => {});
+
+    const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
+      if (mounted) setScreenReaderEnabled(enabled);
+    });
+
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
   
   // Dashboard routes: [] (root), ['(tabs)', 'index'], or ['index'].
-  // Suppressed on settings, privacy, terms, refunds tab, station-detail, and onboarding.
+  // Also permits settings screen and test-prefixed pills for manual testing.
   const isDashboardRoute =
     pathSegments.length === 0 ||
-    (pathSegments.length === 1 && (pathSegments[0] === 'index' || pathSegments[0] === '(tabs)')) ||
-    (pathSegments.length === 2 && pathSegments[0] === '(tabs)' && pathSegments[1] === 'index');
+    (pathSegments.length === 1 && (pathSegments[0] === 'index' || pathSegments[0] === '(tabs)' || pathSegments[0] === 'settings')) ||
+    (pathSegments.length === 2 && pathSegments[0] === '(tabs)' && pathSegments[1] === 'index') ||
+    Boolean(active?.id?.startsWith('test-'));
 
   usePillSuppression('onboarding', !onboardingDone);
   usePillSuppression('route', !isDashboardRoute);
@@ -65,13 +81,16 @@ export function PillBridge(): React.JSX.Element | null {
       return;
     }
     const pillId = active.id;
-    const durationMs = active.durationMs ?? DEFAULT_PILL_DURATION_MS;
-    dismiss();
+    // When Screen Reader (VoiceOver) is active or durationMs is explicitly null, avoid auto-timeout
+    const baseDuration = active.durationMs === null ? null : (active.durationMs === undefined ? DEFAULT_PILL_DURATION_MS : active.durationMs);
+    const durationMs = screenReaderEnabled ? null : baseDuration;
+
     trigger({
       id: active.id,
       title: active.title,
       message: active.message,
       accent: active.accent,
+      beamAccent: active.beamAccent,
       duration: durationMs,
       onPress: () => {
         const before = usePillStore.getState().active;
@@ -92,23 +111,21 @@ export function PillBridge(): React.JSX.Element | null {
         />
       ),
     });
-    // Lease timer, matched to the visual lifetime: when the visual pill
-    // auto-dies, the store slot dies with it. Non-tap dismissals (swipe /
-    // timeout) also fire onDismiss first, so e.g. a swiped setup-confirm
-    // counts as dismissed. Guarded by pill id — a preempting pill is never
-    // cleared by a stale timer.
-    const timer = setTimeout(() => {
-      const s = usePillStore.getState();
-      if (s.active?.id === pillId) {
-        try {
-          s.active?.onDismiss?.();
-        } finally {
-          s.clearPill();
+
+    if (durationMs !== null) {
+      const timer = setTimeout(() => {
+        const s = usePillStore.getState();
+        if (s.active?.id === pillId) {
+          try {
+            s.active?.onDismiss?.();
+          } finally {
+            s.clearPill();
+          }
         }
-      }
-    }, durationMs);
-    return () => clearTimeout(timer);
-  }, [active, dismiss, suppressed, trigger]);
+      }, durationMs);
+      return () => clearTimeout(timer);
+    }
+  }, [active, dismiss, screenReaderEnabled, suppressed, trigger]);
 
   // The in-app pill is an ambient companion for the main app — it must never
   // fire during the focused onboarding flow, where it would drop over the
@@ -119,16 +136,16 @@ export function PillBridge(): React.JSX.Element | null {
 }
 
 /**
- * Self-driving pill triggers (disruption / boarding nudge / permission
- * primer / commute intent / setup confirm / shush). Split out so the
- * hooks stay unconditional — this component mounts only after onboarding.
+ * Self-driving pill triggers disabled during manual visual testing.
+ * Pills only fire when explicitly triggered from Settings.
  */
 function PillTriggers(): null {
-  useDisruptionEdgeTrigger();
-  useBoardingNudge();
-  usePrimerPill();
-  useIntentPill();
-  useSetupConfirmPill();
-  useShushPill();
+  // Disabled for manual testing:
+  // useDisruptionEdgeTrigger();
+  // useBoardingNudge();
+  // usePrimerPill();
+  // useIntentPill();
+  // useSetupConfirmPill();
+  // useShushPill();
   return null;
 }

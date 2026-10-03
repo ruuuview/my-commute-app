@@ -14,9 +14,9 @@ describe('Dynamic Island visual tokens', () => {
   });
 
   it('keeps hardware GlassView constants and specifies independently timed rim and shell motion', () => {
-    expect(ENTRY_DURATION_MS).toBe(420);
-    expect(EXIT_DURATION_MS).toBe(480);
-    expect(SPECULAR_RIM_FADE_IN_MS).toBe(80);
+    expect(ENTRY_DURATION_MS).toBe(1100);
+    expect(EXIT_DURATION_MS).toBe(750);
+    expect(SPECULAR_RIM_FADE_IN_MS).toBe(120);
   });
 });
 

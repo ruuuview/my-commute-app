@@ -11,13 +11,12 @@
 // <Uniforms> generic keeps tsc honest about the record shape.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { AccessibilityInfo, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
   useDerivedValue,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -42,6 +41,7 @@ import {
   hexToRgba,
   isValidHex,
 } from './beamPalettes';
+import { useLiveReducedMotion } from '../../hooks/useReducedMotion';
 
 export interface BeamRingProps {
   /** Corner radius in px — must match the host card's borderRadius. */
@@ -74,9 +74,28 @@ export default function BeamRing({
   testID = 'beam-ring',
 }: BeamRingProps) {
   // Explicit prop wins; otherwise follow the OS accessibility setting.
-  // (Hook is always called; the prop only selects the value.)
-  const systemReducedMotion = useReducedMotion();
+  const systemReducedMotion = useLiveReducedMotion();
   const reduceMotion = reducedMotion ?? systemReducedMotion;
+  const [reduceTransparency, setReduceTransparency] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceTransparencyEnabled()
+      .then((enabled) => {
+        if (mounted) setReduceTransparency(enabled);
+      })
+      .catch(() => {});
+
+    const sub = AccessibilityInfo.addEventListener('reduceTransparencyChanged', (enabled) => {
+      if (mounted) setReduceTransparency(enabled);
+    });
+
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
+
   const strength01 = clampedStrength(strength);
   const accentHex = isValidHex(accent) ? accent : BEAM_ACCENT_DEFAULT;
   const accentRgb = useMemo(() => hexToLinearRgb(accentHex), [accentHex]);
@@ -87,15 +106,6 @@ export default function BeamRing({
   const activeV = useSharedValue(active ? 1 : 0);
 
   useEffect(() => {
-    if (reduceMotion) {
-      cancelAnimation(clock);
-      clock.value = 0; // frozen: static specular rim parked at the top
-      return;
-    }
-    // 0 -> 1 per revolution, repeating. The shader maps t in [0,1] to exactly
-    // one revolution via fract(), so the wrap is seamless by construction.
-    // The clock lives only while the ring is mounted (the pill unmounts when
-    // the queue empties), so no extra battery gating is needed here.
     const d = duration > 0 ? duration : BEAM_DURATION_DEFAULT;
     clock.value = withRepeat(
       withTiming(1, { duration: d * 1000, easing: Easing.linear }),
@@ -103,7 +113,7 @@ export default function BeamRing({
       false,
     );
     return () => cancelAnimation(clock);
-  }, [clock, reduceMotion, duration]);
+  }, [clock, duration]);
 
   useEffect(() => {
     activeV.value = withTiming(active ? 1 : 0, { duration: 250 });
@@ -111,7 +121,6 @@ export default function BeamRing({
 
   // ---- shader ----
   const effect = useMemo(() => compileBeamRing(), []);
-  // Reference the source string so bundlers keep it (and tsc flags renames).
   void BEAM_RING_SKSOURCE;
 
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -130,10 +139,10 @@ export default function BeamRing({
         u_beamWidth: BEAM_WIDTH_DEFAULT,
         u_tailTurns: TAIL_TURNS_DEFAULT,
         u_bloomRadius: BLOOM_RADIUS_DEFAULT,
-        u_frozen: reduceMotion ? 1 : 0,
+        u_frozen: reduceMotion || reduceTransparency ? 1 : 0,
       };
     },
-    [size, cornerRadius, strength01, accentRgb, baseRimRgb, reduceMotion],
+    [size, cornerRadius, strength01, accentRgb, baseRimRgb, reduceMotion, reduceTransparency],
   );
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -153,15 +162,8 @@ export default function BeamRing({
         );
       }}
     >
-      {size && effect ? (
-        <Canvas style={StyleSheet.absoluteFill} testID={`${testID}-canvas`}>
-          <Fill>
-            <Shader source={effect} uniforms={uniforms} />
-          </Fill>
-        </Canvas>
-      ) : !effect ? (
-        // Fallback: static accent ring when Skia is unavailable or the shader
-        // failed to compile. Never renders broken.
+      {reduceTransparency || !effect ? (
+        // Static accent fallback: renders under Reduce Transparency or if SkSL compilation is unavailable.
         <View
           testID={`${testID}-fallback`}
           style={[
@@ -173,6 +175,12 @@ export default function BeamRing({
             },
           ]}
         />
+      ) : size && effect ? (
+        <Canvas style={StyleSheet.absoluteFill} testID={`${testID}-canvas`}>
+          <Fill>
+            <Shader source={effect} uniforms={uniforms} />
+          </Fill>
+        </Canvas>
       ) : null}
     </Animated.View>
   );

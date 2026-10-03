@@ -124,19 +124,23 @@ function evaluate(): void {
   }
 }
 
-/**
- * Drives the permission primer pill. Mount once (the Phase 2 bridge mounts
- * this). Re-evaluates on mount, on every permission-state change (zustand
- * subscription on the orchestrator store) and whenever the primer request
- * changes. No intervals, no re-render-driven re-checks; evaluate() is
- * idempotent and requestPill dedupes on the stable id.
- */
+/** Initial grace period on app launch before evaluating ambient primer pills. */
+const APP_LAUNCH_GRACE_DELAY_MS = 20_000;
+
 export function usePrimerPill(): void {
   useEffect(() => {
-    evaluate();
-    const unsubscribeStatus = usePermissionOrchestrator.subscribe(evaluate);
+    // Let the app open and settle cleanly — do not interrupt initial launch
+    const timer = setTimeout(() => {
+      evaluate();
+    }, APP_LAUNCH_GRACE_DELAY_MS);
+
+    const unsubscribeStatus = usePermissionOrchestrator.subscribe(() => {
+      evaluate();
+    });
     const unsubscribePrimer = subscribePrimer(() => evaluate());
+
     return () => {
+      clearTimeout(timer);
       unsubscribeStatus();
       unsubscribePrimer();
     };

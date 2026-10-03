@@ -3,7 +3,6 @@ import {
   COLLAPSE_SPRING,
   DROP_SPRING,
   EXPAND_SPRING,
-  FADE_SPRING,
   RETURN_SPRING,
   REVEAL_SPRING,
   TINT_SPRING,
@@ -15,6 +14,7 @@ import {
   ENTER_TINT_DELAY,
   EXIT_COLLAPSE_DELAY,
   EXIT_DROP_DELAY,
+  EXIT_DURATION_MS,
 } from '../constants/notification.consts';
 import type { IDynamicNotification } from '../interfaces/dynamic-notification.interface';
 import type {
@@ -30,13 +30,11 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { useLiveReducedMotion } from "../../../hooks/useReducedMotion";
 
 const useNotificationTimeline = ({
   onDismiss,
   duration,
 }: INotificationTimelineOptions = {}): INotificationTimeline => {
-  const reducedMotion = useLiveReducedMotion();
   const drop = useSharedValue(0);
   const expand = useSharedValue(0);
   const reveal = useSharedValue(0);
@@ -89,26 +87,17 @@ const useNotificationTimeline = ({
       const lifetime = next.duration === undefined ? fallback : next.duration;
 
       if (lifetime !== null) {
-        const leadTime = reducedMotion ? 150 : ENTER_REVEAL_DELAY;
         timer.current = setTimeout(
           () => exitRef.current(),
-          leadTime + lifetime,
+          ENTER_REVEAL_DELAY + lifetime,
         );
       }
     },
-    [clearTimer, dragY, drop, duration, expand, reducedMotion, reveal, tint],
+    [clearTimer, dragY, drop, duration, expand, reveal, tint],
   );
 
   useEffect(() => {
     if (session === 0) {
-      return;
-    }
-
-    if (reducedMotion) {
-      drop.value = 1;
-      tint.value = 1;
-      expand.value = 1;
-      reveal.value = withTiming(1, { duration: 150 });
       return;
     }
 
@@ -122,12 +111,13 @@ const useNotificationTimeline = ({
       ENTER_REVEAL_DELAY,
       withSpring(1, REVEAL_SPRING),
     );
-  }, [session, drop, expand, reveal, tint, reducedMotion]);
+  }, [session, drop, expand, reveal, tint]);
 
   const settle = useCallback(() => {
     const dismissed = current.current;
     const next = queued.current;
 
+    clearTimer();
     current.current = null;
     queued.current = null;
     exiting.current = false;
@@ -142,7 +132,7 @@ const useNotificationTimeline = ({
     if (dismissed) {
       dismissHandler.current?.(dismissed);
     }
-  }, [enter]);
+  }, [clearTimer, enter]);
 
   const exit = useCallback(() => {
     if (!current.current || exiting.current) {
@@ -152,25 +142,10 @@ const useNotificationTimeline = ({
     exiting.current = true;
     clearTimer();
 
-    if (reducedMotion) {
-      reveal.value = withTiming(0, { duration: 150 }, (finished?: boolean) => {
-        "worklet";
+    // Instant hand-off from frosted glass back to solid Skia chassis
+    reveal.value = withTiming(0, { duration: 140 });
+    dragY.value = withTiming(0, { duration: 140 });
 
-        if (finished) {
-          scheduleOnRN(settle);
-        }
-      });
-      drop.value = 0;
-      expand.value = 0;
-      tint.value = 0;
-      dragY.value = 0;
-      return;
-    }
-
-    reveal.value = withSpring(0, FADE_SPRING);
-    // Glide the dragged card back to rest geometry fast so the glass→goo
-    // crossfade melts at aligned geometry (no ghosting after deep drags).
-    dragY.value = withTiming(0, { duration: 180 });
     expand.value = withDelay(
       EXIT_COLLAPSE_DELAY,
       withSpring(0, COLLAPSE_SPRING),
@@ -187,7 +162,12 @@ const useNotificationTimeline = ({
         }
       }),
     );
-  }, [clearTimer, dragY, drop, expand, reducedMotion, reveal, settle, tint]);
+
+    // Guaranteed safety timeout: if Reanimated worklet drops the callback, settle anyway
+    timer.current = setTimeout(() => {
+      settle();
+    }, EXIT_DURATION_MS + EXIT_DROP_DELAY + 80);
+  }, [clearTimer, dragY, drop, expand, reveal, settle, tint]);
 
   exitRef.current = exit;
 

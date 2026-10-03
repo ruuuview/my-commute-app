@@ -7,7 +7,6 @@ import {
   SHADOW_DY,
 } from '../../constants/notification.consts';
 import { buildGooMatrix } from '../../core/build-goo-matrix';
-import { clamp } from '../../logic/clamp.default';
 import { useDynamicNotifications } from '../../hooks/use-dynamic-notifications';
 import { useNotificationGeometry } from '../../hooks/use-notification-geometry';
 import type { INotificationGooey } from '../../interfaces/notification-gooey.interface';
@@ -37,7 +36,7 @@ const Gooey: React.FC<INotificationGooey> &
     | (React.ReactNode & React.ReactElement & React.JSX.Element)
     | null => {
     const context = useDynamicNotifications();
-    const { layout, drop, expand, tint, reveal } = context;
+    const { layout, drop, expand, tint } = context;
 
     const geometry = useNotificationGeometry({ drop, expand, layout });
 
@@ -68,28 +67,17 @@ const Gooey: React.FC<INotificationGooey> &
       [pill, body],
     );
 
-    // Hybrid crossfade: the goo group below is pure transition chrome (the
-    // persistent island is drawn separately). As the card reveals, the opaque
-    // Skia card fades out while the true dark-glass card in <Content> fades
-    // in on the same `reveal` value — the two can never desync.
-    const gooOpacity = useDerivedValue(
-      () => 1 - clamp(reveal.value, 0, 1),
-      [reveal],
-    );
-
-    // Design spec (theme/colors.ts GLASS): zero shadows behind cards. The
-    // shadow belongs to the morph transition only — it fades with the goo.
-    const restingShadowOpacity = useDerivedValue(
-      () => geometry.shadowOpacity.value * (1 - clamp(reveal.value, 0, 1)),
-      [geometry.shadowOpacity, reveal],
-    );
+    const gooOpacity = useDerivedValue(() => {
+      'worklet';
+      return 1 - Math.min(Math.max((context.reveal.value - 0.5) / 0.5, 0), 1);
+    });
 
     return (
       <Canvas
         pointerEvents="none"
         style={[styles.canvas, { height: layout.canvasHeight }]}
       >
-        <Group opacity={restingShadowOpacity}>
+        <Group opacity={geometry.shadowOpacity}>
           <RoundedRect
             x={geometry.x}
             y={geometry.y}
@@ -107,8 +95,8 @@ const Gooey: React.FC<INotificationGooey> &
           </RoundedRect>
         </Group>
 
-        <Group opacity={gooOpacity}>
         <Group
+          opacity={gooOpacity}
           layer={
             <Paint>
               <Blur blur={radius} />
@@ -141,7 +129,6 @@ const Gooey: React.FC<INotificationGooey> &
             color={droplet}
           />
         </Group>
-        </Group>
 
         <RoundedRect
           x={islandX}
@@ -167,3 +154,4 @@ const styles = StyleSheet.create({
 });
 
 export { Gooey };
+

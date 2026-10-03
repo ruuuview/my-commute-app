@@ -9,6 +9,7 @@ interface IDynamicNotification {
   avatar?: string;
   symbol?: SymbolViewProps["name"];
   accent?: string;
+  beamAccent?: string;
   duration?: number | null;
   onPress?: () => void;
   render?: (notification: IDynamicNotification) => ReactNode;

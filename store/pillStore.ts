@@ -31,6 +31,12 @@ export interface PillRequest {
   title: string;
   message: string;
   accent: string; // hex color string, e.g. '#E32017'
+  /**
+   * Optional override for the outer BeamRing hue (e.g. the iridescent
+   * chrome for intent pills). The BeamRing falls back to `accent` when
+   * unset, so disruption pills keep their severity tint with no change.
+   */
+  beamAccent?: string;
   onPress?: () => void;
   /**
    * Fired when the pill slot is freed WITHOUT a tap — swipe dismiss or the
@@ -39,10 +45,10 @@ export interface PillRequest {
    */
   onDismiss?: () => void;
   /**
-   * Visual lifetime in ms. PillBridge mirrors this into the shell's duration
-   * and its own lease timer. Defaults to 4000.
+   * Visual lifetime in ms, or null to disable auto-timeout (dismisses strictly on swipe/tap).
+   * PillBridge mirrors this into the shell's duration and its own lease timer. Defaults to 4000.
    */
-  durationMs?: number;
+  durationMs?: number | null;
 }
 
 export const PRIORITY: Record<PillKind, number> = {

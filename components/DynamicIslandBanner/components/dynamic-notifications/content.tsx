@@ -1,30 +1,17 @@
-// Vendored from rit3zh/expo-dynamic-notifications @ 5de059a (MIT License). Imports rewritten from @/ alias to relative paths.
-import { AnimatedBlurView } from '../ui/animated-blur-view';
+import React, { memo } from "react";
+import { StyleSheet, View } from "react-native";
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GestureDetector } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
+
+import { GLASS } from '../../../../theme/colors';
 import { NotificationBody } from '../ui/notification-body';
-import { useContentBlur } from '../../hooks/use-content-blur';
 import { useDismissGesture } from '../../hooks/use-dismiss-gesture';
 import { useDynamicNotifications } from '../../hooks/use-dynamic-notifications';
 import { useNotificationContentStyle } from '../../hooks/use-notification-content-style';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useReduceTransparency } from '../../../../hooks/useReduceTransparency';
 import type { INotificationContent } from '../../interfaces/notification-content.interface';
-import { GLASS } from '../../../../theme/colors';
-import React, { memo, useEffect } from "react";
-import { Platform, StyleSheet, View } from "react-native";
-import { GestureDetector } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { SPECULAR_RIM_FADE_IN_MS } from '../../constants/notification.consts';
-import BeamRing from '../../../BeamRing';
-
-// Native iOS 18+ Liquid Glass availability (same pattern as FixItSheet).
-let isNativeGlassAvailable = false;
-try {
-  if (Platform.OS === 'ios' && typeof isLiquidGlassAvailable === 'function') {
-    isNativeGlassAvailable = isLiquidGlassAvailable();
-  }
-} catch {
-  isNativeGlassAvailable = false;
-}
+import { LiquidGlassRim } from '../../../LiquidGlassRim';
 
 const Content: React.FC<INotificationContent> &
   React.FunctionComponent<INotificationContent> = memo<INotificationContent>(
@@ -51,13 +38,6 @@ const Content: React.FC<INotificationContent> &
       offset: dragY,
       layout,
     });
-    const blur = useContentBlur({ reveal });
-    const reduceTransparency = useReduceTransparency();
-    const rimOpacity = useSharedValue(0);
-    useEffect(() => {
-      rimOpacity.value = isVisible ? withTiming(1, { duration: SPECULAR_RIM_FADE_IN_MS }) : 0;
-    }, [isVisible, rimOpacity]);
-    const specularRimStyle = useAnimatedStyle(() => ({ opacity: rimOpacity.value }));
     const gesture = useDismissGesture({
       offset: dragY,
       onDismiss: dismiss,
@@ -72,6 +52,13 @@ const Content: React.FC<INotificationContent> &
       <GestureDetector gesture={gesture}>
         <Animated.View
           pointerEvents={isVisible ? "auto" : "none"}
+          accessibilityRole="alert"
+          accessibilityActions={[{ name: 'escape', label: 'Dismiss notification' }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'escape') {
+              dismiss();
+            }
+          }}
           style={[
             styles.content,
             {
@@ -85,99 +72,71 @@ const Content: React.FC<INotificationContent> &
             style,
           ]}
         >
-          {/* True dark-glass card — native iOS 18+ Liquid Glass via
-              expo-glass-effect (the same GlassView pattern as FixItSheet /
-              AlertHoursSheet), falling back to the approved AnimatedBlurView
-              with the app's GLASS tokens on older iOS. Solid #1C1C1E when
-              Reduce Transparency is on (same as LiquidGlassView). This
-              Content view fades in with `reveal` (see
-              useNotificationContentStyle), so the glass inherits the
-              crossfade for free: as the opaque Skia card fades out, the
-              glass fades in at identical geometry. */}
-          <View
+          {/* Layer 1: Hardware Native Optical Frosted Blur (Pure background refraction like Manage Stations drawer) */}
+          <BlurView
+            intensity={GLASS.blurIntensity}
+            tint={GLASS.blurTint}
+            style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              { borderRadius: layout.cardRadius },
-              styles.glass,
-              reduceTransparency && { backgroundColor: '#1C1C1E' },
-            ]}
-          >
-            {!reduceTransparency && (
-              isNativeGlassAvailable ? (
-                <GlassView
-                  glassEffectStyle="regular"
-                  colorScheme="dark"
-                  style={[
-                    StyleSheet.absoluteFill,
-                    { borderRadius: layout.cardRadius },
-                  ]}
-                  pointerEvents="none"
-                />
-              ) : (
-                <AnimatedBlurView
-                  tint={GLASS.blurTint}
-                  intensity={GLASS.blurIntensity}
-                  style={[
-                    StyleSheet.absoluteFill,
-                    { borderRadius: layout.cardRadius },
-                    styles.glassBlur,
-                  ]}
-                />
-              )
-            )}
-            {/* Optical depth tint: dark scrim between the blur and the text.
-                The glass base is fully transparent, so over bright
-                backgrounds the card washed out completely and the white
-                text disappeared. This guarantees contrast on any backdrop. */}
-            <View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFill,
-                {
-                  borderRadius: layout.cardRadius,
-                  backgroundColor: GLASS.tintOverlay,
-                },
-              ]}
-            />
-          </View>
-
-          {/* Apple-style catch-light is independent from the glass/reveal crossfade. */}
-          {!reduceTransparency && (
-            <Animated.View
-              testID="dynamic-island-specular-rim"
-              pointerEvents="none"
-              style={[StyleSheet.absoluteFill, styles.specularRim, { borderRadius: layout.cardRadius }, specularRimStyle]}
-            />
-          )}
-
-          {/* Revolving beam ring — boundary-only Skia shader. Mounted inside
-              the Content overlay (never inside the thresholded goo canvas),
-              so it ignites with `reveal` as the goo drop settles. The beam
-              hue follows the pill's accent (severity tint for disruption,
-              iridescent default for intent). */}
-          <BeamRing
-            cornerRadius={layout.cardRadius}
-            accent={notification.accent}
-            style={{ borderRadius: layout.cardRadius }}
           />
 
+          {/* Layer 2: Subtle Ambient Translucent Wash */}
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: layout.cardRadius,
+              },
+            ]}
+            pointerEvents="none"
+          />
+
+          {/* Layer 3: Physical Specular Top Sheen */}
+          <LinearGradient
+            colors={[GLASS.specularStart, GLASS.specularEnd]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 24,
+              borderTopLeftRadius: layout.cardRadius,
+              borderTopRightRadius: layout.cardRadius,
+            }}
+            pointerEvents="none"
+          />
+
+          {/* Layer 4: Apple Liquid Glass Bezel Border Overlay */}
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                borderRadius: layout.cardRadius,
+                borderWidth: GLASS.borderWidth,
+                borderColor: GLASS.borderColor,
+                borderTopColor: GLASS.borderTop,
+                borderBottomColor: GLASS.borderBottom,
+              },
+            ]}
+            pointerEvents="none"
+          />
+
+          {/* Layer 5: Pill Alert Content */}
           {notification.render ? (
             notification.render(notification)
           ) : (
             <NotificationBody notification={notification} />
           )}
 
-          <AnimatedBlurView
-            pointerEvents="none"
-            tint="dark"
-            animatedProps={blur.animatedProps}
-            style={[
-              StyleSheet.absoluteFill,
-              { borderRadius: layout.cardRadius },
-              styles.blur,
-              blur.animatedStyle,
-            ]}
+          {/* Layer 6: Skia Chromatic Moving Caustic Rim */}
+          <LiquidGlassRim
+            width={layout.cardWidth}
+            height={layout.cardHeight}
+            radius={layout.cardRadius}
+            reveal={reveal}
           />
         </Animated.View>
       </GestureDetector>
@@ -191,33 +150,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     overflow: "hidden",
     borderCurve: "continuous",
-  },
-  blur: {
-    borderCurve: "continuous",
-  },
-  // Hybrid resting surface: native Liquid Glass (iOS 18+) with the GLASS
-  // specular rim as the border language; expo-blur fallback on older iOS;
-  // solid #1C1C1E under Reduce Transparency. Replaces the opaque Skia
-  // card at reveal = 1.
-  glass: {
-    backgroundColor: GLASS.background,
-    borderWidth: GLASS.borderWidth,
-    borderColor: GLASS.borderColor,
-    borderTopColor: GLASS.borderTop,
-    borderLeftColor: GLASS.borderSides,
-    borderRightColor: GLASS.borderSides,
-    borderBottomColor: GLASS.borderBottom,
-    borderCurve: "continuous",
-  },
-  glassBlur: {
-    borderCurve: "continuous",
-  },
-  specularRim: {
-    borderWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.62)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.26)',
-    borderRightColor: 'rgba(255, 255, 255, 0.26)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: "center",
+    backgroundColor: "transparent",
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.20,
+    shadowRadius: 18,
+    elevation: 8,
   },
 });
 

@@ -38,9 +38,9 @@
 // intent pill simply does not fire — no fallback, no spam; the primer pill
 // drives the grant.
 //
-// PRIORITY: 'intent' = 0 in store/pillStore.ts — strictly below
-// primer (1) / boarding (2) / disruption (3). It can never preempt another
-// pill and is dropped whenever anything else is active.
+// PRIORITY: 'intent' = 0 in store/pillStore.ts — strictly below setup (1) /
+// shush (2) / boarding (3) / primer (4) / disruption (5). It can never
+// preempt another pill and is dropped whenever anything else is active.
 
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
@@ -50,6 +50,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { subscribeToStation, fetchOnce } from '../services/stationArrivalsStore';
 import type { NormalizedDeparture } from '../services/apiService';
 import { LINE_IDENTITY_COLORS } from '../constants/lineColors';
+import { BEAM_ACCENT_DEFAULT } from '../components/BeamRing/beamPalettes';
 import { calculateDistanceMeters } from '../services/ArrivalDetector';
 import { GEOFENCE_CONFIG, SessionManager } from '../services/SessionManager';
 import { tflCapitalise } from '../utils/tflCapitalise';
@@ -232,6 +233,9 @@ export function useIntentPill(): void {
         title,
         message,
         accent: accentForLine(lineId),
+        // The beam stays the signature iridescent chrome even though the
+        // content's accent bar carries the line identity color.
+        beamAccent: BEAM_ACCENT_DEFAULT,
         onPress: () => {
           // Tap = user confirmed the intent: reset dismiss-learning and
           // start tracking through the island's exact session path.

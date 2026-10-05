@@ -19,9 +19,11 @@
 // afterwards unless the tap's own handler already replaced the pill (e.g.
 // setup-confirm → the transient "Saved · Undo" pill).
 
-import React, { useEffect, useState } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, AppState } from 'react-native';
+import { createMMKV } from 'react-native-mmkv';
 import { useSegments } from 'expo-router';
+import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { useDynamicNotifications } from './hooks';
 import { usePillStore } from '../../store/pillStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
@@ -29,17 +31,37 @@ import { PillContent } from './PillContent';
 import { usePillSuppression } from '../../hooks/usePillSuppression';
 import { usePillSuppressionStore } from '../../store/pillSuppressionStore';
 
+import { useDisruptionEdgeTrigger } from '../../hooks/useDisruptionEdgeTrigger';
+import { useBoardingNudge } from '../../hooks/useBoardingNudge';
+import { usePrimerPill } from '../../hooks/usePrimerPill';
+
 export const DEFAULT_PILL_DURATION_MS = 4000;
 export const MICRO_PILL_DURATION_MS = 1500;
 
 export function PillBridge(): React.JSX.Element | null {
-  const { trigger, dismiss } = useDynamicNotifications();
+  const { trigger, dismiss, reveal } = useDynamicNotifications();
   const active = usePillStore((s) => s.active);
   const onboardingDone = useUserPreferencesStore((s) => s.hasCompletedOnboarding);
   const suppressed = usePillSuppressionStore((s) => s.isSuppressed);
   const segments = useSegments();
   const pathSegments = (segments as string[]) || [];
   const [screenReaderEnabled, setScreenReaderEnabled] = useState(false);
+  const settlingIdRef = useRef<string | null>(null);
+
+  const onSettle = React.useCallback(() => {
+    if (AppState.currentState !== 'active') return;
+    const id = settlingIdRef.current;
+    if (!id) return;
+    const lineId = id.split(':')[0];
+    if (lineId) {
+      try {
+        const notifStorage = createMMKV({ id: 'background-storage' });
+        notifStorage.set(`notified_disruption_${lineId}`, Date.now());
+      } catch {
+        // Fallback if MMKV unavailable
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -47,7 +69,7 @@ export function PillBridge(): React.JSX.Element | null {
       .then((enabled) => {
         if (mounted) setScreenReaderEnabled(enabled);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
       if (mounted) setScreenReaderEnabled(enabled);
@@ -58,7 +80,7 @@ export function PillBridge(): React.JSX.Element | null {
       sub.remove();
     };
   }, []);
-  
+
   // Dashboard routes: [] (root), ['(tabs)', 'index'], or ['index'].
   // Also permits settings screen and test-prefixed pills for manual testing.
   const isDashboardRoute =
@@ -70,17 +92,36 @@ export function PillBridge(): React.JSX.Element | null {
   usePillSuppression('onboarding', !onboardingDone);
   usePillSuppression('route', !isDashboardRoute);
 
+  // Settle-confirmed MMKV recording driven directly by the animation timeline's reveal value:
+  // - Writes ONLY when reveal.value reaches settle (>= 0.98), ensuring the pill is 100% visually rendered.
+  // - Gated by AppState: if backgrounded or inactive mid-animation, the write is aborted.
+  // - onSettle executes purely on JS thread via standard runOnJS.
+  useAnimatedReaction(
+    () => (reveal ? reveal.value : 0),
+    (val, prev) => {
+      'worklet';
+      if (val >= 0.98 && (prev === null || prev < 0.98)) {
+        runOnJS(onSettle)();
+      }
+    },
+    [onSettle, reveal]
+  );
+
   useEffect(() => {
     if (suppressed) {
+      settlingIdRef.current = null;
       dismiss();
       if (active) usePillStore.getState().clearPill();
       return;
     }
     if (!active) {
+      settlingIdRef.current = null;
       dismiss();
       return;
     }
     const pillId = active.id;
+    settlingIdRef.current = active.kind === 'disruption' ? active.id : null;
+
     // When Screen Reader (VoiceOver) is active or durationMs is explicitly null, avoid auto-timeout
     const baseDuration = active.durationMs === null ? null : (active.durationMs === undefined ? DEFAULT_PILL_DURATION_MS : active.durationMs);
     const durationMs = screenReaderEnabled ? null : baseDuration;
@@ -91,11 +132,13 @@ export function PillBridge(): React.JSX.Element | null {
       message: active.message,
       accent: active.accent,
       beamAccent: active.beamAccent,
+      tier: active.tier,
       duration: durationMs,
       onPress: () => {
         const before = usePillStore.getState().active;
         try {
-          active.onPress?.();
+          const actionFn = active.onAction ?? active.onPress;
+          actionFn?.();
         } finally {
           // The shell visually dismisses on tap. Free the store slot unless
           // the tap's handler already swapped in a replacement pill.
@@ -108,12 +151,17 @@ export function PillBridge(): React.JSX.Element | null {
           title={active.title}
           message={active.message}
           accent={active.accent}
+          tier={active.tier}
+          actionLabel={active.actionLabel}
+          stationCode={active.stationCode}
+          shortLine={active.shortLine}
         />
       ),
     });
 
+    let autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
     if (durationMs !== null) {
-      const timer = setTimeout(() => {
+      autoDismissTimer = setTimeout(() => {
         const s = usePillStore.getState();
         if (s.active?.id === pillId) {
           try {
@@ -123,8 +171,12 @@ export function PillBridge(): React.JSX.Element | null {
           }
         }
       }, durationMs);
-      return () => clearTimeout(timer);
     }
+
+    return () => {
+      settlingIdRef.current = null;
+      if (autoDismissTimer) clearTimeout(autoDismissTimer);
+    };
   }, [active, dismiss, screenReaderEnabled, suppressed, trigger]);
 
   // The in-app pill is an ambient companion for the main app — it must never
@@ -136,16 +188,11 @@ export function PillBridge(): React.JSX.Element | null {
 }
 
 /**
- * Self-driving pill triggers disabled during manual visual testing.
- * Pills only fire when explicitly triggered from Settings.
+ * Self-driving in-app Morph Pill triggers.
  */
 function PillTriggers(): null {
-  // Disabled for manual testing:
-  // useDisruptionEdgeTrigger();
-  // useBoardingNudge();
-  // usePrimerPill();
-  // useIntentPill();
-  // useSetupConfirmPill();
-  // useShushPill();
+  useDisruptionEdgeTrigger();
+  useBoardingNudge();
+  usePrimerPill();
   return null;
 }

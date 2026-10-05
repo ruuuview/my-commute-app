@@ -13,14 +13,18 @@ const Overlay: React.FC<INotificationOverlay> &
   }: INotificationOverlay):
     | (React.ReactNode & React.ReactElement & React.JSX.Element)
     | null => {
-    const { layout } = useDynamicNotifications();
+    const { layout, reduceMotion, isVisible, notification } = useDynamicNotifications();
+
+    if (!isVisible && !notification) {
+      return null;
+    }
 
     return (
       <View
         pointerEvents="box-none"
         style={[styles.overlay, { height: layout.canvasHeight }, style]}
       >
-        <Gooey />
+        {!reduceMotion && <Gooey />}
         <Content />
       </View>
     );
@@ -38,3 +42,4 @@ const styles = StyleSheet.create({
 });
 
 export { Overlay };
+

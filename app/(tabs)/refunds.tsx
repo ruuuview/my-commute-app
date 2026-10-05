@@ -1108,7 +1108,11 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    boxShadow: '0px 0px 8px #F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 3,
   },
   signalLockEyebrow: {
     fontSize: 10,

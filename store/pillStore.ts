@@ -17,10 +17,13 @@
 import { create } from 'zustand';
 import { usePillSuppressionStore } from './pillSuppressionStore';
 
+import type { NotificationTier } from '../components/DynamicIslandBanner/interfaces/dynamic-notification.interface';
+
 export type PillKind =
   | 'disruption'
   | 'boarding'
   | 'primer'
+  | 'recovery'
   | 'shush'
   | 'setup'
   | 'intent';
@@ -31,30 +34,22 @@ export interface PillRequest {
   title: string;
   message: string;
   accent: string; // hex color string, e.g. '#E32017'
-  /**
-   * Optional override for the outer BeamRing hue (e.g. the iridescent
-   * chrome for intent pills). The BeamRing falls back to `accent` when
-   * unset, so disruption pills keep their severity tint with no change.
-   */
+  stationCode?: string; // e.g. 'OXC', 'VIC', 'KXX' for boarding badges
+  shortLine?: string; // e.g. 'VIC', 'NOR', 'JUB'
+  tier?: NotificationTier; // 'compact' (70) | 'standard' (84) | 'expanded' (96)
+  actionLabel?: string; // e.g. 'Tap to Reroute' | 'Turn On'
+  onAction?: () => void; // Explicit action callback
   beamAccent?: string;
   onPress?: () => void;
-  /**
-   * Fired when the pill slot is freed WITHOUT a tap — swipe dismiss or the
-   * visual auto-timeout. PillBridge's lease timer calls this before
-   * clearPill(). Tap commits go through onPress only.
-   */
   onDismiss?: () => void;
-  /**
-   * Visual lifetime in ms, or null to disable auto-timeout (dismisses strictly on swipe/tap).
-   * PillBridge mirrors this into the shell's duration and its own lease timer. Defaults to 4000.
-   */
   durationMs?: number | null;
 }
 
 export const PRIORITY: Record<PillKind, number> = {
   disruption: 5,
-  primer: 4,
-  boarding: 3,
+  boarding: 4,
+  primer: 3,
+  recovery: 2,
   shush: 2,
   setup: 1,
   intent: 0,

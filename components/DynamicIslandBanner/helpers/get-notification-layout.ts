@@ -15,6 +15,8 @@ import {
 } from '../constants/notification.consts';
 import type { INotificationLayout } from '../interfaces/notification-layout.interface';
 
+const CARD_MAX_HEIGHT = 96;
+
 interface IGetNotificationLayout {
   width: number;
   insetTop: number;
@@ -66,9 +68,10 @@ const getNotificationLayout = ({
     cardCenterY: bodyTop + bodyHeight / 2,
     dropSize: DROP_SIZE,
     neckWidth: NECK_WIDTH,
-    canvasHeight: bodyTop + bodyHeight + CANVAS_PADDING,
+    canvasHeight: bodyTop + Math.max(bodyHeight, CARD_MAX_HEIGHT) + CANVAS_PADDING,
   };
 };
 
 export { getNotificationLayout };
 export type { IGetNotificationLayout };
+

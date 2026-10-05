@@ -1,5 +1,5 @@
 // Vendored from rit3zh/expo-dynamic-notifications @ 5de059a (MIT License). Imports rewritten from @/ alias to relative paths.
-import { ENTRY_DURATION_MS, EXIT_ANTICIPATION_VELOCITY, EXIT_DURATION_MS } from '../constants/notification.consts';
+import { ENTRY_DURATION_MS, EXIT_DURATION_MS } from '../constants/notification.consts';
 import type { WithSpringConfig } from "react-native-reanimated";
 
 const DROP_SPRING: WithSpringConfig = {

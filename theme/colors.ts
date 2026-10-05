@@ -91,7 +91,6 @@ export const GLASS = {
   borderWidth: 1.0,
   // Directional fallbacks (authentic Apple liquid glass overhead lighting)
   borderTop: 'rgba(255, 255, 255, 0.30)',
-  borderSides: 'rgba(255, 255, 255, 0.25)',
   borderSide: 'rgba(255, 255, 255, 0.25)',
   borderBottom: 'rgba(255, 255, 255, 0.30)',
   // Specular top-rim catch-light sheen (crisp overhead illumination)

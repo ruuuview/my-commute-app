@@ -1,6 +1,8 @@
 // Vendored from rit3zh/expo-dynamic-notifications @ 5de059a (MIT License). Imports rewritten from @/ alias to relative paths.
 import { PALETTE } from '../../conf/palette';
 import {
+  CARD_HEIGHT,
+  CARD_RADIUS,
   GOO_BLUR_MAX,
   GOO_BLUR_MIN,
   GOO_GAIN,
@@ -8,15 +10,21 @@ import {
   GOO_THRESHOLD,
 } from '../../constants/notification.consts';
 import { DynamicNotificationsContext } from '../../context';
+import { buildNotificationGeometry } from '../../core/build-notification-geometry';
 import { getNotificationLayout } from '../../helpers';
 import { useNotificationTimeline } from '../../hooks/use-notification-timeline';
 import type { IDynamicNotifications } from '../../interfaces/dynamic-notifications.interface';
 import { clamp } from '../../logic/clamp.default';
 import { mix } from '../../logic/mix.default';
+import { useLiveReducedMotion } from '../../../../hooks/useReducedMotion';
 import { memo, useMemo } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { useDerivedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Overlay } from "./overlay";
+
+const TIER_HEIGHT = { compact: 70, standard: 84, expanded: 96 } as const;
+const tierRadius = (h: number): number => 26 + ((h - 70) / 26) * 4;
 
 const Root: React.FC<IDynamicNotifications> &
   React.FunctionComponent<IDynamicNotifications> = memo<IDynamicNotifications>(
@@ -45,6 +53,15 @@ const Root: React.FC<IDynamicNotifications> &
     | null => {
     const { width } = useWindowDimensions();
     const insets = useSafeAreaInsets();
+    const reduceMotion = useLiveReducedMotion();
+
+    const timeline = useNotificationTimeline({ onDismiss, duration, reduceMotion });
+
+    const activeTier = timeline.notification?.tier;
+    const effectiveCardHeight = activeTier
+      ? TIER_HEIGHT[activeTier]
+      : (cardHeight ?? CARD_HEIGHT);
+    const effectiveCardRadius = cardRadius ?? (activeTier ? tierRadius(effectiveCardHeight) : CARD_RADIUS);
 
     const layout = useMemo(
       () =>
@@ -55,8 +72,8 @@ const Root: React.FC<IDynamicNotifications> &
           islandHeight,
           islandTop,
           cardWidth,
-          cardHeight,
-          cardRadius,
+          cardHeight: effectiveCardHeight,
+          cardRadius: effectiveCardRadius,
           gap,
         }),
       [
@@ -66,10 +83,18 @@ const Root: React.FC<IDynamicNotifications> &
         islandHeight,
         islandTop,
         cardWidth,
-        cardHeight,
-        cardRadius,
+        effectiveCardHeight,
+        effectiveCardRadius,
         gap,
       ],
+    );
+
+    const geometry = useDerivedValue(() =>
+      buildNotificationGeometry({
+        drop: timeline.drop.value,
+        expand: timeline.expand.value,
+        layout,
+      }),
     );
 
     const radius = useMemo(
@@ -77,12 +102,13 @@ const Root: React.FC<IDynamicNotifications> &
       [blur, strength],
     );
 
-    const timeline = useNotificationTimeline({ onDismiss, duration });
-
     const value = useMemo(
       () => ({
         trigger: timeline.trigger,
         dismiss: timeline.dismiss,
+        dismissAll: timeline.dismissAll,
+        pause: timeline.pause,
+        resume: timeline.resume,
         isVisible: timeline.isVisible,
         notification: timeline.notification,
         drop: timeline.drop,
@@ -91,6 +117,8 @@ const Root: React.FC<IDynamicNotifications> &
         tint: timeline.tint,
         dragY: timeline.dragY,
         layout,
+        geometry,
+        reduceMotion,
         islandColor,
         cardColor,
         shadowColor,
@@ -102,6 +130,9 @@ const Root: React.FC<IDynamicNotifications> &
       [
         timeline.trigger,
         timeline.dismiss,
+        timeline.dismissAll,
+        timeline.pause,
+        timeline.resume,
         timeline.isVisible,
         timeline.notification,
         timeline.drop,
@@ -110,6 +141,8 @@ const Root: React.FC<IDynamicNotifications> &
         timeline.tint,
         timeline.dragY,
         layout,
+        geometry,
+        reduceMotion,
         islandColor,
         cardColor,
         shadowColor,
@@ -139,3 +172,4 @@ const styles = StyleSheet.create({
 });
 
 export { Root };
+

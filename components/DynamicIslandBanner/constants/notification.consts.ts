@@ -44,9 +44,17 @@ const ENTRY_DURATION_MS = 1100;
 const EXIT_DURATION_MS = 750;
 const SPECULAR_RIM_FADE_IN_MS = 120;
 
+// Shared glass, ink, and body transition ramp thresholds
+const GLASS_IN_START = 0.4;    // surface appears under the droplet…
+const GLASS_IN_END = 0.6;      // …fully in by 60% width (goo hands off)
+const INK_CLEAR_START = 0.35;  // black starts clearing…
+const INK_CLEAR_END = 0.95;    // …clear by 95% width
+const BODY_START = 0.9;        // text and rim wait for 90% width
+
 export {
   AUTO_DISMISS,
   BLUR_INTENSITY,
+  BODY_START,
   CANVAS_PADDING,
   CARD_GAP,
   CARD_HEIGHT,
@@ -69,12 +77,16 @@ export {
   EXIT_DROP_DELAY,
   ENTRY_DURATION_MS,
   EXIT_DURATION_MS,
+  GLASS_IN_END,
+  GLASS_IN_START,
   GOO_BLUR_MAX,
   GOO_BLUR_MIN,
   GOO_GAIN,
   GOO_INSET_RATIO,
   GOO_STRENGTH,
   GOO_THRESHOLD,
+  INK_CLEAR_END,
+  INK_CLEAR_START,
   ISLAND_HEIGHT,
   ISLAND_MIN_TOP,
   ISLAND_TOP,
@@ -93,6 +105,7 @@ export {
 export default {
   AUTO_DISMISS,
   BLUR_INTENSITY,
+  BODY_START,
   CANVAS_PADDING,
   CARD_GAP,
   CARD_HEIGHT,
@@ -115,12 +128,16 @@ export default {
   EXIT_DROP_DELAY,
   ENTRY_DURATION_MS,
   EXIT_DURATION_MS,
+  GLASS_IN_END,
+  GLASS_IN_START,
   GOO_BLUR_MAX,
   GOO_BLUR_MIN,
   GOO_GAIN,
   GOO_INSET_RATIO,
   GOO_STRENGTH,
   GOO_THRESHOLD,
+  INK_CLEAR_END,
+  INK_CLEAR_START,
   ISLAND_HEIGHT,
   ISLAND_MIN_TOP,
   ISLAND_TOP,
@@ -135,3 +152,4 @@ export default {
   SWIPE_DISTANCE,
   SWIPE_VELOCITY,
 };
+

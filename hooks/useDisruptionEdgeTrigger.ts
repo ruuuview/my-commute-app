@@ -23,6 +23,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
+import { createMMKV } from 'react-native-mmkv';
 import { useLineDataStore } from '../store/lineDataStore';
 import { usePillStore } from '../store/pillStore';
 import { SessionManager } from '../services/SessionManager';
@@ -30,6 +31,8 @@ import { navigateToIntent } from '../services/notifications/intent';
 import { isLineId } from '../services/notifications/payload';
 import { LINE_NAMES } from '../constants/lineColors';
 import { STATUS_SEVERITY_COLORS, getSeverityRank } from '../utils/getSeverityColor';
+
+const notifStorage = createMMKV({ id: 'background-storage' });
 
 // Pill ids are bucketed so a flapping feed cannot re-fire the same event.
 const BANNER_ID_BUCKET_MS = 10 * 60 * 1000;
@@ -56,21 +59,40 @@ export function useDisruptionEdgeTrigger(): void {
       // good would fire a bogus edge pill.
       if (prev === undefined) continue;
 
-      // Edge trigger: downward transition into severe/suspended only.
+      // Edge trigger: downward transition into severe/suspended (Expanded Tier).
       if (prev < 2 && curr >= 2 && isLineId(lineId)) {
         // Suppressed while the island's session is live: the Live Activity
         // already carries this disruption — the pill does not double-announce.
         if (SessionManager.getSessionState() !== 'idle') continue;
 
+        // Cross-system dedup: suppress if local OS notification already alerted this line recently
+        try {
+          const lastNotif = notifStorage.getNumber(`notified_disruption_${lineId}`);
+          if (lastNotif && Date.now() - lastNotif < BANNER_ID_BUCKET_MS) {
+            continue;
+          }
+        } catch {
+          // Fallback if MMKV unavailable
+        }
+
         const bucket = Math.floor(Date.now() / BANNER_ID_BUCKET_MS);
         usePillStore.getState().requestPill({
           kind: 'disruption',
+          tier: 'expanded',
           id: `${lineId}:${curr}:${bucket}`,
+          shortLine: LINE_NAMES[lineId] ?? lineId,
           title: `${LINE_NAMES[lineId] ?? lineId} — ${curr >= 3 ? 'Service suspended' : 'Severe delays'}`,
           message: (line.reason ?? line.status ?? '').slice(0, 90),
-          // Accent is severe for every curr >= 2 (rank 2 severe included) —
-          // the canonical severe color, not the minor one.
+          actionLabel: 'Reroute',
           accent: STATUS_SEVERITY_COLORS.severe,
+          durationMs: null,
+          onAction: () =>
+            navigateToIntent(router, {
+              action: 'show-reroute',
+              lineId,
+              initialSection: 'alternatives',
+              statusAsOf: Date.now(),
+            }),
           onPress: () =>
             navigateToIntent(router, {
               action: 'show-reroute',
@@ -78,6 +100,26 @@ export function useDisruptionEdgeTrigger(): void {
               initialSection: 'alternatives',
               statusAsOf: Date.now(),
             }),
+        });
+      }
+
+      // Edge trigger: upward recovery transition back to good/minor (Compact Tier).
+      if (prev >= 2 && curr < 2 && isLineId(lineId)) {
+        if (SessionManager.getSessionState() !== 'idle') continue;
+
+        const bucket = Math.floor(Date.now() / BANNER_ID_BUCKET_MS);
+        usePillStore.getState().requestPill({
+          kind: 'recovery',
+          tier: 'compact',
+          id: `recovery:${lineId}:${curr}:${bucket}`,
+          shortLine: LINE_NAMES[lineId] ?? lineId,
+          title: `${LINE_NAMES[lineId] ?? lineId} — Good service resumed`,
+          message: 'Good service resumed',
+          accent: STATUS_SEVERITY_COLORS.good,
+          durationMs: 3000,
+          onPress: () => {
+            usePillStore.getState().clearPill();
+          },
         });
       }
     }

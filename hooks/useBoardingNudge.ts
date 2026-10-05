@@ -191,13 +191,28 @@ export function useBoardingNudge(): void {
         ? best.dep.platform.replace(/^P(\d)/, '$1')
         : '';
       const platformSuffix = platformNum ? ` \u00b7 Platform ${platformNum}` : '';
+      const stationCode = (best.stationName || best.stationId)
+        .replace(/[^a-zA-Z]/g, '')
+        .slice(0, 3)
+        .toUpperCase();
+      const shortLine = (best.dep.lineName || best.dep.lineId)
+        .replace(/\s+(line|overground)$/i, '')
+        .slice(0, 3)
+        .toUpperCase();
 
       usePillStore.getState().requestPill({
         kind: 'boarding',
+        tier: 'standard',
         id: bestKey,
+        stationCode,
+        shortLine,
         title: `${best.dep.lineName} arriving`,
         message: `${best.stationName} \u00b7 ${best.dep.destination} \u00b7 ${best.dep.minutesAway} min${platformSuffix}`,
         accent: LINE_IDENTITY_COLORS[best.dep.lineId] ?? '#888888',
+        durationMs: 5000,
+        onPress: () => {
+          usePillStore.getState().clearPill();
+        },
       });
     };
 

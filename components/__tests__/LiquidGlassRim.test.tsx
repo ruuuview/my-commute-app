@@ -47,9 +47,9 @@ describe('LiquidGlassRim', () => {
         radius={32}
         reveal={mockReveal as any}
         rimWidth={7}
-        dispersion={3.5}
       />
     );
     expect(screen.toJSON()).toBeTruthy();
   });
 });
+

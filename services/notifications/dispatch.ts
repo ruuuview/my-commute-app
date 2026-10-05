@@ -1,10 +1,13 @@
 import * as Notifications from 'expo-notifications';
+import { createMMKV } from 'react-native-mmkv';
 import {
   LineId,
   DisruptionNotificationPayload,
   NOTIFICATION_CATEGORIES,
 } from './payload';
 import { CANONICAL_ALTERNATIVES, DisruptionAlternative } from './intent';
+
+const notifStorage = createMMKV({ id: 'background-storage' });
 
 /**
  * Type-safe notification dispatch layer.
@@ -40,11 +43,25 @@ export interface PresentServiceImprovingOptions {
  * "The Banner is the First Screen": Body copy answers the commuter's decision immediately
  * by providing the top operating alternative and expected delta time.
  */
+// 10-minute anti-flap suppression window matching in-app pill bucket
+const DEDUP_BUCKET_MS = 10 * 60 * 1000;
+
 export async function presentDisruptionNotification(
   opts: PresentDisruptionOptions
 ): Promise<string> {
   const { lineId, lineName, statusDescription, reason, severity } = opts;
   const alt = opts.alternative || CANONICAL_ALTERNATIVES[lineId];
+
+  // Symmetric cross-system dedup: suppress if in-app pill or local notification already fired recently
+  try {
+    const lastNotified = notifStorage.getNumber(`notified_disruption_${lineId}`);
+    if (lastNotified && Date.now() - lastNotified < DEDUP_BUCKET_MS) {
+      return `suppressed_duplicate_${lineId}`;
+    }
+    notifStorage.set(`notified_disruption_${lineId}`, Date.now());
+  } catch {
+    // MMKV fallback in test environments
+  }
 
   const data: DisruptionNotificationPayload & {
     action: 'show-disruption';

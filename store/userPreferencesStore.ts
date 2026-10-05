@@ -304,6 +304,9 @@ export interface UserPreferencesState {
   setSimulatedClaimActive: (active: boolean) => void;
   /** FORGETS the given ids from optimistic mirrors (server confirmed or claim gone). */
   pruneLocalClaimRecords: (idsToForget: (number | string)[]) => void;
+  // Primer pill presentation counter (max 2 lifetime cap)
+  primerPillPresentationCount: number;
+  incrementPrimerPillPresentationCount: () => void;
   // Intent pill dismiss-learning (Phase 3). Persisted so learning survives
   // restarts. Rules live in utils/intentPillPolicy.ts.
   intentPillDismissals: number[]; // epoch ms of shown-but-untapped intent pills
@@ -314,7 +317,7 @@ export interface UserPreferencesState {
   clearIntentPillLearning: () => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'isShushActiveForToday' | 'recordShushPillShown' | 'setAssumptionRevealed'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'isShushActiveForToday' | 'recordShushPillShown' | 'setAssumptionRevealed' | 'incrementPrimerPillPresentationCount'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -349,6 +352,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   manualShushDate: null,
   assumptionRevealed: false,
   shushPillLastShownDay: null,
+  primerPillPresentationCount: 0,
   recentSearches: [],
   intentPillDismissals: [],
   intentPillSuppressedUntil: null,
@@ -567,6 +571,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         })),
       clearIntentPillLearning: () =>
         set({ intentPillDismissals: [], intentPillSuppressedUntil: null }),
+      incrementPrimerPillPresentationCount: () =>
+        set((state) => ({ primerPillPresentationCount: (state.primerPillPresentationCount || 0) + 1 })),
       setTflAccountStatus: (status) => {
         // Single writer for the Radar v2 tri-state; the legacy boolean stays
         // in lockstep so every existing boolean consumer keeps working.

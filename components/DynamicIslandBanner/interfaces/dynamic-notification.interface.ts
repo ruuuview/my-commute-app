@@ -2,6 +2,8 @@
 import type { SymbolViewProps } from "expo-symbols";
 import type { ReactNode } from "react";
 
+type NotificationTier = 'compact' | 'standard' | 'expanded';
+
 interface IDynamicNotification {
   id?: string;
   title: string;
@@ -11,8 +13,12 @@ interface IDynamicNotification {
   accent?: string;
   beamAccent?: string;
   duration?: number | null;
+  tier?: NotificationTier;
+  priority?: number;      // severe 3, minor 2, boarding 2, recovery 1, primer 1
+  expiresAt?: number;     // epoch ms; drop on dequeue
   onPress?: () => void;
   render?: (notification: IDynamicNotification) => ReactNode;
 }
 
-export type { IDynamicNotification };
+export type { IDynamicNotification, NotificationTier };
+

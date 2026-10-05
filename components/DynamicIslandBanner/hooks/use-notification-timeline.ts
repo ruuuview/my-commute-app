@@ -24,16 +24,22 @@ import type {
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelAnimation,
+  runOnJS,
   useSharedValue,
   withDelay,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
+
+const ENTER_SETTLE_MS = Math.max(
+  ENTER_EXPAND_DELAY + (EXPAND_SPRING.duration ?? 0),
+  ENTER_REVEAL_DELAY + (REVEAL_SPRING.duration ?? 0),
+);
 
 const useNotificationTimeline = ({
   onDismiss,
   duration,
+  reduceMotion = false,
 }: INotificationTimelineOptions = {}): INotificationTimeline => {
   const drop = useSharedValue(0);
   const expand = useSharedValue(0);
@@ -48,6 +54,10 @@ const useNotificationTimeline = ({
   const [session, setSession] = useState(0);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerStart = useRef<number>(0);
+  const currentLifetime = useRef<number | null>(null);
+  const remainingTime = useRef<number | null>(null);
+
   const current = useRef<IDynamicNotification | null>(null);
   const queued = useRef<IDynamicNotification | null>(null);
   const exiting = useRef(false);
@@ -65,7 +75,21 @@ const useNotificationTimeline = ({
 
   const enter = useCallback(
     (next: IDynamicNotification) => {
+      // Drop expired notifications immediately on dequeue
+      if (next.expiresAt && next.expiresAt <= Date.now()) {
+        const queuedNext = queued.current;
+        queued.current = null;
+        if (queuedNext) {
+          enter(queuedNext);
+        } else {
+          setIsVisible(false);
+          setNotification(null);
+        }
+        return;
+      }
+
       clearTimer();
+      remainingTime.current = null;
       current.current = next;
       exiting.current = false;
       setNotification(next);
@@ -85,11 +109,13 @@ const useNotificationTimeline = ({
 
       const fallback = duration === undefined ? AUTO_DISMISS : duration;
       const lifetime = next.duration === undefined ? fallback : next.duration;
+      currentLifetime.current = lifetime;
+      timerStart.current = Date.now();
 
       if (lifetime !== null) {
         timer.current = setTimeout(
           () => exitRef.current(),
-          ENTER_REVEAL_DELAY + lifetime,
+          ENTER_SETTLE_MS + lifetime,
         );
       }
     },
@@ -98,6 +124,14 @@ const useNotificationTimeline = ({
 
   useEffect(() => {
     if (session === 0) {
+      return;
+    }
+
+    if (reduceMotion) {
+      drop.value = withTiming(1, { duration: 200 });
+      expand.value = withTiming(1, { duration: 200 });
+      tint.value = withTiming(1, { duration: 200 });
+      reveal.value = withTiming(1, { duration: 200 });
       return;
     }
 
@@ -111,9 +145,13 @@ const useNotificationTimeline = ({
       ENTER_REVEAL_DELAY,
       withSpring(1, REVEAL_SPRING),
     );
-  }, [session, drop, expand, reveal, tint]);
+  }, [session, drop, expand, reveal, tint, reduceMotion]);
 
   const settle = useCallback(() => {
+    if (!exiting.current) {
+      return;
+    }
+
     const dismissed = current.current;
     const next = queued.current;
 
@@ -142,6 +180,23 @@ const useNotificationTimeline = ({
     exiting.current = true;
     clearTimer();
 
+    if (reduceMotion) {
+      reveal.value = withTiming(0, { duration: 140 });
+      dragY.value = withTiming(0, { duration: 140 });
+      expand.value = withTiming(0, { duration: 140 });
+      tint.value = withTiming(0, { duration: 140 });
+      drop.value = withTiming(0, { duration: 140 }, (finished?: boolean) => {
+        "worklet";
+        if (finished) {
+          runOnJS(settle)();
+        }
+      });
+      timer.current = setTimeout(() => {
+        settle();
+      }, 180);
+      return;
+    }
+
     // Instant hand-off from frosted glass back to solid Skia chassis
     reveal.value = withTiming(0, { duration: 140 });
     dragY.value = withTiming(0, { duration: 140 });
@@ -158,7 +213,7 @@ const useNotificationTimeline = ({
         "worklet";
 
         if (finished) {
-          scheduleOnRN(settle);
+          runOnJS(settle)();
         }
       }),
     );
@@ -167,15 +222,45 @@ const useNotificationTimeline = ({
     timer.current = setTimeout(() => {
       settle();
     }, EXIT_DURATION_MS + EXIT_DROP_DELAY + 80);
-  }, [clearTimer, dragY, drop, expand, reveal, settle, tint]);
+  }, [clearTimer, dragY, drop, expand, reduceMotion, reveal, settle, tint]);
 
   exitRef.current = exit;
 
+  const pause = useCallback(() => {
+    if (timer.current && remainingTime.current === null && currentLifetime.current !== null) {
+      const elapsed = Date.now() - timerStart.current;
+      const total = ENTER_SETTLE_MS + currentLifetime.current;
+      remainingTime.current = Math.max(total - elapsed, 1000);
+      clearTimer();
+    }
+  }, [clearTimer]);
+
+  const resume = useCallback(() => {
+    if (remainingTime.current !== null && !exiting.current) {
+      const rem = remainingTime.current;
+      remainingTime.current = null;
+      timerStart.current = Date.now();
+      timer.current = setTimeout(() => exitRef.current(), rem);
+    }
+  }, []);
+
   const trigger = useCallback(
     (next: IDynamicNotification) => {
+      if (next.expiresAt && next.expiresAt <= Date.now()) {
+        return;
+      }
+
       if (current.current) {
-        queued.current = next;
-        exit();
+        const currentPriority = current.current.priority ?? 0;
+        const nextPriority = next.priority ?? 0;
+        const queuedPriority = queued.current?.priority ?? -1;
+
+        if (nextPriority >= currentPriority) {
+          queued.current = next;
+          exit();
+        } else if (nextPriority >= queuedPriority) {
+          queued.current = next;
+        }
         return;
       }
 
@@ -185,6 +270,11 @@ const useNotificationTimeline = ({
   );
 
   const dismiss = useCallback(() => {
+    queued.current = null;
+    exit();
+  }, [exit]);
+
+  const dismissAll = useCallback(() => {
     queued.current = null;
     exit();
   }, [exit]);
@@ -207,7 +297,11 @@ const useNotificationTimeline = ({
     isVisible,
     trigger,
     dismiss,
+    dismissAll,
+    pause,
+    resume,
   };
 };
 
 export { useNotificationTimeline };
+

@@ -12,11 +12,16 @@ interface INotificationTimeline {
   isVisible: boolean;
   trigger: (notification: IDynamicNotification) => void;
   dismiss: () => void;
+  dismissAll: () => void;
+  pause: () => void;
+  resume: () => void;
 }
 
 interface INotificationTimelineOptions {
   onDismiss?: (notification: IDynamicNotification) => void;
   duration?: number | null;
+  reduceMotion?: boolean;
 }
 
 export type { INotificationTimeline, INotificationTimelineOptions };
+

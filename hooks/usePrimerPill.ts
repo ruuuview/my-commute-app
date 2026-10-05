@@ -24,6 +24,7 @@
 
 import { useEffect } from 'react';
 import { usePillStore } from '../store/pillStore';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   getPermissionEntry,
   getPrimerRequest,
@@ -40,7 +41,7 @@ import {
  * (foreground first) when foreground was never granted.
  */
 type PrimerKey = 'locationAlways' | 'notifications';
-const WANTED_KEYS: PrimerKey[] = ['locationAlways', 'notifications'];
+const WANTED_KEYS: PrimerKey[] = ['notifications', 'locationAlways'];
 
 /** Analytics trigger recorded with permission_requested / permission_granted. */
 const PILL_TRIGGER = 'primer_pill';
@@ -49,14 +50,16 @@ const PILL_TRIGGER = 'primer_pill';
 const ROTATION_COOLDOWN_MS = 60 * 60 * 1000;
 
 /** Payoff-carrying copy, zero jargon, zero emoji — one entry per primer. */
-const PRIMER_COPY: Record<PrimerKey, { title: string; message: string }> = {
+const PRIMER_COPY: Record<PrimerKey, { title: string; message: string; actionLabel: string }> = {
+  notifications: {
+    title: 'Get live disruption warnings',
+    message: 'Tap to enable notifications before you travel',
+    actionLabel: 'Enable',
+  },
   locationAlways: {
     title: 'Get a nudge before your train leaves',
     message: 'Tap once — we\u2019ll ping you when your train is 2 minutes out',
-  },
-  notifications: {
-    title: 'Get disruption alerts on your phone',
-    message: 'Tap once — we\u2019ll warn you before your line goes down',
+    actionLabel: 'Enable',
   },
 };
 
@@ -88,6 +91,13 @@ function pickPrimerKey(missing: PrimerKey[]): PrimerKey | null {
 
 function evaluate(): void {
   const pillStore = usePillStore.getState();
+  const userPrefs = useUserPreferencesStore.getState();
+
+  // Enforce lifetime 2-ask limit
+  if ((userPrefs.primerPillPresentationCount || 0) >= 2) {
+    return;
+  }
+
   const missing = missingKeys();
 
   const key = getPrimerRequest() === null ? pickPrimerKey(missing) : null;
@@ -96,21 +106,30 @@ function evaluate(): void {
     const copy = PRIMER_COPY[key];
     pillStore.requestPill({
       kind: 'primer',
+      tier: 'standard',
       id: pillId,
+      shortLine: 'ALERTS',
       title: copy.title,
       message: copy.message,
+      actionLabel: copy.actionLabel,
       accent: '#0A84FF',
-      onPress: () => {
-        // Defensive: a primer may have appeared between the pill request and
-        // the tap (another flow). The orchestrator's in-flight guard would
-        // no-op the request anyway; skip early to avoid a redundant call.
+      durationMs: 5000,
+      onAction: () => {
+        useUserPreferencesStore.getState().incrementPrimerPillPresentationCount();
         if (getPrimerRequest() !== null) return;
         void requestPermission(key, PILL_TRIGGER);
       },
+      onPress: () => {
+        useUserPreferencesStore.getState().incrementPrimerPillPresentationCount();
+        if (getPrimerRequest() !== null) return;
+        void requestPermission(key, PILL_TRIGGER);
+      },
+      onDismiss: () => {
+        // Natural full display timeout (5s) without preemption consumes 1 ask
+        useUserPreferencesStore.getState().incrementPrimerPillPresentationCount();
+      },
     });
-    // Record only if the request actually landed — a request dropped because
-    // a higher-priority pill is active must not count as shown, or the
-    // rotation would skip a primer the user never saw.
+    // Record only if the request actually landed
     if (usePillStore.getState().active?.id === pillId) {
       pillStore.recordPrimerShown(key);
     }
@@ -118,7 +137,6 @@ function evaluate(): void {
   }
 
   // Nothing missing: retire a stale primer pill so it disappears once granted.
-  // Other pill kinds (disruption/boarding/...) are never cleared here.
   if (missing.length === 0 && pillStore.active?.kind === 'primer') {
     pillStore.clearPill();
   }
@@ -129,7 +147,7 @@ const APP_LAUNCH_GRACE_DELAY_MS = 20_000;
 
 export function usePrimerPill(): void {
   useEffect(() => {
-    // Let the app open and settle cleanly — do not interrupt initial launch
+    // Let the app open and settle cleanly — 20 seconds dashboard presence
     const timer = setTimeout(() => {
       evaluate();
     }, APP_LAUNCH_GRACE_DELAY_MS);

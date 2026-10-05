@@ -148,7 +148,11 @@ const LivingDot: React.FC<LivingDotProps> = ({ color, size = 10 }) => {
             height: size,
             borderRadius: size / 2,
             backgroundColor: color,
-            boxShadow: `0px 0px 4px ${color}`,
+            shadowColor: color,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 4,
+            elevation: 2,
           },
         ]}
       />

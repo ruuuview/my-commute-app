@@ -2,14 +2,16 @@
 import {
   DROP_TINT_END,
   DROP_TINT_START,
+  GLASS_IN_END,
+  GLASS_IN_START,
   GOO_INSET_RATIO,
   SHADOW_BLUR,
   SHADOW_DY,
 } from '../../constants/notification.consts';
 import { buildGooMatrix } from '../../core/build-goo-matrix';
 import { useDynamicNotifications } from '../../hooks/use-dynamic-notifications';
-import { useNotificationGeometry } from '../../hooks/use-notification-geometry';
 import type { INotificationGooey } from '../../interfaces/notification-gooey.interface';
+import { ramp } from '../../logic/ramp';
 import {
   Blur,
   Canvas,
@@ -36,9 +38,7 @@ const Gooey: React.FC<INotificationGooey> &
     | (React.ReactNode & React.ReactElement & React.JSX.Element)
     | null => {
     const context = useDynamicNotifications();
-    const { layout, drop, expand, tint } = context;
-
-    const geometry = useNotificationGeometry({ drop, expand, layout });
+    const { layout, geometry, tint, dragY } = context;
 
     const pill = islandColor ?? context.islandColor;
     const body = cardColor ?? context.cardColor;
@@ -67,23 +67,37 @@ const Gooey: React.FC<INotificationGooey> &
       [pill, body],
     );
 
+    const x = useDerivedValue(() => geometry.value.x);
+    const y = useDerivedValue(() => geometry.value.y);
+    const width = useDerivedValue(() => geometry.value.width);
+    const height = useDerivedValue(() => geometry.value.height);
+    const r = useDerivedValue(() => geometry.value.radius);
+    const neckX = useDerivedValue(() => geometry.value.neckX);
+    const neckY = useDerivedValue(() => geometry.value.neckY);
+    const neckWidth = useDerivedValue(() => geometry.value.neckWidth);
+    const neckHeight = useDerivedValue(() => geometry.value.neckHeight);
+    const neckRadius = useDerivedValue(() => geometry.value.neckRadius);
+    const shadowOpacity = useDerivedValue(() => geometry.value.shadowOpacity);
+
     const gooOpacity = useDerivedValue(() => {
       'worklet';
-      return 1 - Math.min(Math.max((context.reveal.value - 0.5) / 0.5, 0), 1);
+      return 1 - ramp(geometry.value.widthRatio, GLASS_IN_START, GLASS_IN_END);
     });
+
+    const dragShift = useDerivedValue(() => [{ translateY: dragY.value }]);
 
     return (
       <Canvas
         pointerEvents="none"
         style={[styles.canvas, { height: layout.canvasHeight }]}
       >
-        <Group opacity={geometry.shadowOpacity}>
+        <Group opacity={shadowOpacity} transform={dragShift}>
           <RoundedRect
-            x={geometry.x}
-            y={geometry.y}
-            width={geometry.width}
-            height={geometry.height}
-            r={geometry.radius}
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            r={r}
           >
             <Shadow
               dx={0}
@@ -113,19 +127,19 @@ const Gooey: React.FC<INotificationGooey> &
             color={pill}
           />
           <RoundedRect
-            x={geometry.neckX}
-            y={geometry.neckY}
-            width={geometry.neckWidth}
-            height={geometry.neckHeight}
-            r={geometry.neckRadius}
+            x={neckX}
+            y={neckY}
+            width={neckWidth}
+            height={neckHeight}
+            r={neckRadius}
             color={pill}
           />
           <RoundedRect
-            x={geometry.x}
-            y={geometry.y}
-            width={geometry.width}
-            height={geometry.height}
-            r={geometry.radius}
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            r={r}
             color={droplet}
           />
         </Group>
@@ -154,4 +168,5 @@ const styles = StyleSheet.create({
 });
 
 export { Gooey };
+
 

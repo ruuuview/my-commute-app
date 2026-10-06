@@ -96,11 +96,12 @@ async function registerDevicePushToken(
 
 export async function syncPushTokenWithBackend(selectedLines: string[]) {
   try {
-    // Check permission status directly without triggering permission orchestrator state loops
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') {
-      return;
-    }
+    const notif = await Notifications.getPermissionsAsync().catch(() => null);
+    const isGranted = Boolean(
+      notif?.granted ||
+      notif?.status === 'granted' ||
+      (notif?.ios && (notif.ios.status === 2 || notif.ios.status === 3 || notif.ios.allowsAlert))
+    );
 
     let token: string | null = null;
     if (Platform.OS === 'ios') {

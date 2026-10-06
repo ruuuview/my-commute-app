@@ -1,8 +1,6 @@
 // Vendored from rit3zh/expo-dynamic-notifications @ 5de059a (MIT License). Imports rewritten from @/ alias to relative paths.
 import {
   BODY_START,
-  GLASS_IN_END,
-  GLASS_IN_START,
   INK_CLEAR_END,
   INK_CLEAR_START,
 } from '../constants/notification.consts';
@@ -35,7 +33,6 @@ const useNotificationContentStyle = ({
   const surface = useAnimatedStyle(() => {
     if (reduceMotion) {
       return {
-        opacity: reveal.value,
         left: 0,
         top: 0,
         width: layout.cardWidth,
@@ -45,7 +42,6 @@ const useNotificationContentStyle = ({
     }
     const g = geometry.value;
     return {
-      opacity: ramp(g.widthRatio, GLASS_IN_START, GLASS_IN_END),
       left: g.x - layout.cardLeft,
       top: g.y - layout.cardTop,
       width: g.width,

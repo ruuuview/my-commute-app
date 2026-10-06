@@ -21,6 +21,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
+import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { track } from '../services/analyticsService';
@@ -328,3 +329,41 @@ export async function requestPermission(
 export function notifyTier1GeofenceHit(): number {
   return usePermissionOrchestrator.getState().recordTier1Hit();
 }
+
+/**
+ * Opportunistic foreground refresh: Queries live OS permission states
+ * and synchronizes the store without incurring syscall overhead on every render.
+ */
+export async function refreshPermissionStateFromOs(): Promise<void> {
+  try {
+    const locBg = await Location.getBackgroundPermissionsAsync();
+    const isLocBgGranted = Boolean(locBg.granted || locBg.status === 'granted');
+    usePermissionOrchestrator.getState().recordDecision('locationAlways', isLocBgGranted ? 'granted' : 'denied');
+
+    const locFg = await Location.getForegroundPermissionsAsync();
+    const isLocFgGranted = Boolean(locFg.granted || locFg.status === 'granted');
+    usePermissionOrchestrator.getState().recordDecision('locationWhenInUse', isLocFgGranted ? 'granted' : 'denied');
+
+    const notif = await Notifications.getPermissionsAsync();
+    const isNotifGranted = Boolean(
+      notif.granted ||
+      notif.status === 'granted' ||
+      (notif.ios && (notif.ios.status === 2 || notif.ios.status === 3 || notif.ios.allowsAlert))
+    );
+    usePermissionOrchestrator.getState().recordDecision('notifications', isNotifGranted ? 'granted' : 'denied');
+  } catch (err) {
+    console.warn('[permissionOrchestrator] Error refreshing OS permission states:', err);
+  }
+}
+
+let _isForegroundListenerSubscribed = false;
+if (typeof AppState !== 'undefined' && AppState.addEventListener && !_isForegroundListenerSubscribed) {
+  _isForegroundListenerSubscribed = true;
+  AppState.addEventListener('change', (nextState) => {
+    if (nextState === 'active') {
+      void refreshPermissionStateFromOs();
+    }
+  });
+}
+
+

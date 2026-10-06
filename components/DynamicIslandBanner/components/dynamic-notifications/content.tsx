@@ -1,5 +1,5 @@
 import React, { memo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureDetector } from "react-native-gesture-handler";
@@ -97,14 +97,22 @@ const Content: React.FC<INotificationContent> &
           ]}
         >
           {/* Layer 1: Hardware-matched morphing glass surface */}
-          <Animated.View style={[styles.surface, s.surface]}>
+          <Animated.View
+            style={[
+              styles.surface,
+              { width: layout.cardWidth, height: layout.cardHeight },
+              s.surface,
+            ]}
+          >
             <BlurView
               intensity={GLASS.blurIntensity}
               tint={GLASS.blurTint}
-              style={StyleSheet.absoluteFillObject}
+              style={[
+                StyleSheet.absoluteFillObject,
+                { width: layout.cardWidth, height: layout.cardHeight },
+              ]}
               pointerEvents="none"
             />
-            <View style={styles.wash} pointerEvents="none" />
             <LinearGradient
               colors={[GLASS.specularStart, GLASS.specularEnd]}
               start={{ x: 0.5, y: 0 }}
@@ -157,10 +165,6 @@ const styles = StyleSheet.create({
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
     backgroundColor: GLASS.background,
-  },
-  wash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
   },
   sheen: {
     position: 'absolute',

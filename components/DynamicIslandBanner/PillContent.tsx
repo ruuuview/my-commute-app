@@ -11,6 +11,7 @@ export interface PillContentProps {
   actionLabel?: string;
   stationCode?: string;
   shortLine?: string;
+  lines?: string[];
 }
 
 export function PillContent({
@@ -21,6 +22,7 @@ export function PillContent({
   actionLabel,
   stationCode,
   shortLine,
+  lines,
 }: PillContentProps): React.JSX.Element {
   useEffect(() => {
     const fullAnnounce = actionLabel
@@ -46,6 +48,10 @@ export function PillContent({
   const isCompact = tier === 'compact';
   const isExpanded = tier === 'expanded';
 
+  const multiLines = lines && lines.length > 0 ? lines : null;
+  const visibleLines = multiLines ? multiLines.slice(0, 2) : null;
+  const overflowCount = multiLines && multiLines.length > 2 ? multiLines.length - 2 : 0;
+
   return (
     <View
       style={[
@@ -59,8 +65,40 @@ export function PillContent({
     >
       {/* Header Row: Badge(s) + Title (+ Inline Link for Compact) */}
       <View style={styles.headerRow}>
-        {/* Boarding Badge: Station + Line or Single Line Badge */}
-        {stationCode ? (
+        {/* Multi-Line Badges or Boarding Badge or Single Line Badge */}
+        {visibleLines ? (
+          <View style={styles.multiLineContainer}>
+            {visibleLines.map((line) => {
+              const info = getPillColors(line, accent);
+              return (
+                <View
+                  key={line}
+                  style={[
+                    styles.pillBadge,
+                    {
+                      borderColor: info.borderColor,
+                      backgroundColor: info.backgroundColor,
+                    },
+                  ]}
+                >
+                  <View style={[styles.pillBar, { backgroundColor: info.dotColor }]} />
+                  <Text
+                    style={[styles.pillBadgeText, { color: info.textColor }]}
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.3}
+                  >
+                    {line}
+                  </Text>
+                </View>
+              );
+            })}
+            {overflowCount > 0 && (
+              <View style={styles.overflowBadge}>
+                <Text style={styles.overflowText}>+{overflowCount}</Text>
+              </View>
+            )}
+          </View>
+        ) : stationCode ? (
           <View
             style={[
               styles.dualBadge,
@@ -280,14 +318,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   expandedActionText: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 11,
     letterSpacing: 0.1,
+  },
+  multiLineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginRight: 8,
+  },
+  overflowBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overflowText: {
+    fontSize: 9,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: 'rgba(255, 255, 255, 0.65)',
   },
 });
 

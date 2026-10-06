@@ -82,3 +82,13 @@ This document captures the immutable constraints and structural design decisions
 * **Optimistic claim mirrors:** `submittedClaims`/`dismissedClaims` persist offline actions; `pruneLocalClaimRecords(idsToForget)` FORGETS ids after server confirmation or claim purge — never call it with merely-hidden ids (dismissed claims must not resurrect).
 * **Backend contract:** GET `/api/claims` enriches rows with `latestOutcome` (Day-14 SLA survey telemetry) for the receipts screen's Rejected/Partial filters.
 
+---
+
+## 10. Frosted Glass & BlurView Native Invariant (locked 2026-10-06)
+
+* **Yoga Frame Invariant for UIVisualEffectView:** `expo-blur` on iOS (`BlurEffectView.swift`) assigns `self.effect = visualEffect` exclusively inside `override func draw(_ rect: CGRect)`. If a `BlurView` is nested inside an `Animated.View` whose layout dimensions are driven only by Reanimated UI-thread worklets (e.g. `g.width`, `g.height`) without static/React-measured Yoga dimensions, Yoga assigns a `0 × 0` frame to the child `BlurView`. UIKit never calls `draw(_ rect:)`, leaving `self.effect = nil` (100% transparent clear glass, zero backdrop blur).
+  * **Mandatory Rule:** Any container housing a `BlurView` MUST have explicit React layout dimensions (`{ width, height }`) in its static style array so Yoga performs a layout pass and triggers `draw(_ rect:)`.
+* **Apple Frosted Glass Material vs Legacy Dark Tint:** `tint="dark"` in `expo-blur` maps to legacy iOS 7 `UIBlurEffect.Style.dark`, which lacks backdrop scattering and looks like transparent clear glass on dark backgrounds. For authentic frosted glass blur across cards and notification banners, use `tint="systemMaterialDark"` with `intensity >= 80`.
+* **Zero Synthetic Dark Fills for Blur:** Never inject artificial dark overlay views (`rgba(18, 20, 26, 0.72)`) or wash layers to compensate for a missing blur. Optical frosted glass must come from Apple's native blur material, preserving backdrop refraction without opaque flat slabs.
+* **Ancestor Alpha Invariant:** Per Apple UIKit documentation, never animate `opacity` / `alpha` on an ancestor `UIView` of a `UIVisualEffectView`. Animating ancestor opacity causes CoreAnimation to detach or disable backdrop capture. Fading in/out must be achieved via clipping or unmasking an overlay ink layer (`s.ink`).
+

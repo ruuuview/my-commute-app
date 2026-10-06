@@ -11,7 +11,7 @@ import {
   AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
+import {
   CaretLeft, Bell, Clock, CaretRight,
   Fingerprint, MapTrifold, MapPin, Shield,
   WarningCircle, Wrench, Warning,
@@ -130,7 +130,7 @@ export default function SettingsScreen() {
   const handleSelectDeliveryMode = useCallback(
     async (mode: 'loud' | 'shush' | 'off') => {
       if (hapticsEnabled) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
       }
       setAlertDeliveryMode(mode);
       if (mode === 'shush') {
@@ -257,6 +257,9 @@ export default function SettingsScreen() {
       setOsLocationAlwaysGranted(isLocGranted);
       if (isLocGranted) {
         usePermissionOrchestrator.getState().recordDecision('locationAlways', 'granted');
+      } else {
+        usePermissionOrchestrator.getState().recordDecision('locationAlways', 'denied');
+        setLocationGranted(false);
       }
 
       // Sync native Calendar permission status
@@ -280,7 +283,7 @@ export default function SettingsScreen() {
 
   const handleRequestNotificationPermission = useCallback(async () => {
     if (hapticsEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
     }
     try {
       const res = await Notifications.requestPermissionsAsync({
@@ -370,7 +373,7 @@ export default function SettingsScreen() {
           actionLabel: 'Open Settings',
           borderColor: 'rgba(255, 59, 48, 0.45)',
           bgTint: 'rgba(255, 59, 48, 0.12)',
-          onPress: () => Linking.openSettings().catch(() => {}),
+          onPress: () => Linking.openSettings().catch(() => { }),
         };
       }
       // Never asked yet or can prompt directly in-app
@@ -395,7 +398,7 @@ export default function SettingsScreen() {
         actionLabel: 'Open Settings',
         borderColor: 'rgba(255, 165, 0, 0.45)',
         bgTint: 'rgba(255, 165, 0, 0.12)',
-        onPress: () => Linking.openSettings().catch(() => {}),
+        onPress: () => Linking.openSettings().catch(() => { }),
       };
     }
     // Priority 3: Home/Work Missing (Feature desired but 0 stations configured)
@@ -426,7 +429,7 @@ export default function SettingsScreen() {
   // ── Toggle Handlers ───────────────────────────────────────────────
   const handleToggleNearbyDetection = async (val: boolean) => {
     if (hapticsEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     }
 
     if (val) {
@@ -445,6 +448,20 @@ export default function SettingsScreen() {
 
       // Request locationAlways through 2-step orchestrator
       if (!osLocationAlwaysGranted) {
+        const bgStatus = await ExpoLocation.getBackgroundPermissionsAsync();
+        if (bgStatus.status === ExpoLocation.PermissionStatus.DENIED || !bgStatus.canAskAgain) {
+          // iOS will silently drop any prompt request; route directly to Settings alert
+          Alert.alert(
+            'Background Location Needed',
+            'To detect when you approach Home or Work stations in the background, set Location to Always in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+            ]
+          );
+          return;
+        }
+
         const decision = await requestPermission('locationAlways', 'settings_toggle');
         if (decision !== 'granted') {
           Alert.alert(
@@ -452,7 +469,7 @@ export default function SettingsScreen() {
             'To detect when you approach Home or Work stations in the background, set Location to Always in Settings.',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
             ]
           );
           return;
@@ -471,7 +488,7 @@ export default function SettingsScreen() {
   // ── Option C "Ratchet" TfL Tap Handler ────────────────────────────
   const handleTflRowPress = () => {
     if (hapticsEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
     }
     if (tflAccountStatus === 'REGISTERED_28_DAY') {
       // Already registered: Utility action -> direct to official TfL Portal
@@ -501,7 +518,7 @@ export default function SettingsScreen() {
       <View style={[styles.mainWrapper, { paddingTop: insets.top }]}>
         {/* Navigation Header */}
         <View style={styles.header}>
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
               styles.backButton,
               pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
@@ -521,8 +538,8 @@ export default function SettingsScreen() {
           <View style={{ width: 34 }} />
         </View>
 
-        <ScrollView 
-          style={styles.content} 
+        <ScrollView
+          style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         >
@@ -560,10 +577,10 @@ export default function SettingsScreen() {
 
           {/* Clean Pro Status Meter (Soft Honesty) */}
           <View style={styles.proWrapper}>
-            <ProStatusCard 
+            <ProStatusCard
               isPro={false}
               trialCommutesRemaining={trialCommutesRemaining}
-              onUpgrade={() => {}}
+              onUpgrade={() => { }}
             />
           </View>
 
@@ -633,7 +650,7 @@ export default function SettingsScreen() {
                   </Text>
                   <Pressable
                     style={styles.inlineSettingsBtn}
-                    onPress={() => Linking.openSettings().catch(() => {})}
+                    onPress={() => Linking.openSettings().catch(() => { })}
                     accessibilityRole="button"
                     accessibilityLabel="Open iOS Settings"
                   >
@@ -661,7 +678,7 @@ export default function SettingsScreen() {
                   </Text>
                   <Pressable
                     style={styles.inlineSettingsBtn}
-                    onPress={() => Linking.openSettings().catch(() => {})}
+                    onPress={() => Linking.openSettings().catch(() => { })}
                     accessibilityRole="button"
                     accessibilityLabel="Open iOS Settings"
                   >
@@ -707,7 +724,7 @@ export default function SettingsScreen() {
                       const refreshed = await LiveActivityService.getTimeSensitiveStatus();
                       setTimeSensitiveStatus(refreshed);
                       if (refreshed === 'disabled') {
-                        Linking.openSettings().catch(() => {});
+                        Linking.openSettings().catch(() => { });
                       }
                     }}
                   >
@@ -799,7 +816,7 @@ export default function SettingsScreen() {
                     value={severeBypassAlertHours}
                     onValueChange={(val) => {
                       if (hapticsEnabled) {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                       }
                       setSevereBypassAlertHours(val);
                     }}
@@ -831,7 +848,7 @@ export default function SettingsScreen() {
                     value={calendarGranted}
                     onValueChange={async (v) => {
                       if (hapticsEnabled) {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                       }
                       if (v) {
                         const res = await requestPermission('calendar', 'settings_toggle');
@@ -845,7 +862,7 @@ export default function SettingsScreen() {
                             'To scan your schedule and calculate exact leave-by times for your commutes, allow Calendar access in iOS Settings.',
                             [
                               { text: 'Cancel', style: 'cancel' },
-                              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+                              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => { }) },
                             ]
                           );
                         }
@@ -1102,124 +1119,124 @@ export default function SettingsScreen() {
             process.env.NODE_ENV !== 'production' ||
             process.env.EXPO_PUBLIC_BUILD_PROFILE === 'preview' ||
             developerUnlocked) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>ADVANCED</Text>
-              <LiquidGlassView
-                borderRadius={16}
-                style={styles.cardOuter}
-                contentStyle={styles.cardInner}
-              >
-                <Pressable
-                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                  onPress={() => setShowDiagnosticsModal(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Diagnostics & Sensor Health"
-                  accessibilityHint="Opens sensor health and permissions diagnostics drawer"
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>ADVANCED</Text>
+                <LiquidGlassView
+                  borderRadius={16}
+                  style={styles.cardOuter}
+                  contentStyle={styles.cardInner}
                 >
-                  <View style={styles.rowInfo}>
-                    <View style={styles.labelRow}>
-                      <IconBadge
-                        icon={<Wrench size={18} color="#0A84FF" weight="bold" />}
-                        backgroundColor="rgba(10, 132, 255, 0.18)"
-                        borderColor="rgba(10, 132, 255, 0.35)"
-                      />
-                      <Text style={[styles.rowLabel, { color: '#0A84FF' }]}>
-                        Diagnostics & Sensor Health
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={() => setShowDiagnosticsModal(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Diagnostics & Sensor Health"
+                    accessibilityHint="Opens sensor health and permissions diagnostics drawer"
+                  >
+                    <View style={styles.rowInfo}>
+                      <View style={styles.labelRow}>
+                        <IconBadge
+                          icon={<Wrench size={18} color="#0A84FF" weight="bold" />}
+                          backgroundColor="rgba(10, 132, 255, 0.18)"
+                          borderColor="rgba(10, 132, 255, 0.35)"
+                        />
+                        <Text style={[styles.rowLabel, { color: '#0A84FF' }]}>
+                          Diagnostics & Sensor Health
+                        </Text>
+                      </View>
+                      <Text style={styles.rowSubtitle}>
+                        CoreLocation health, push simulation, permissions matrix
                       </Text>
                     </View>
-                    <Text style={styles.rowSubtitle}>
-                      CoreLocation health, push simulation, permissions matrix
-                    </Text>
-                  </View>
-                  <CaretRight size={18} color="rgba(255,255,255,0.35)" />
-                </Pressable>
+                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                  </Pressable>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-                {/* Test Compact Recovery Pill (70pt) */}
-                <Pressable
-                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                  onPress={handleTriggerTestRecoveryPill}
-                  accessibilityRole="button"
-                  accessibilityLabel="Test Compact Recovery Pill (70pt)"
-                  accessibilityHint="Triggers a compact tier 70pt recovery pill"
-                >
-                  <View style={styles.rowInfo}>
-                    <View style={styles.labelRow}>
-                      <IconBadge
-                        icon={<Sparkle size={18} color="#0098D4" weight="fill" />}
-                        backgroundColor="rgba(0, 152, 212, 0.18)"
-                        borderColor="rgba(0, 152, 212, 0.35)"
-                      />
-                      <Text style={[styles.rowLabel, { color: '#0098D4' }]}>
-                        Test Compact Recovery (70pt)
+                  {/* Test Compact Recovery Pill (70pt) */}
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleTriggerTestRecoveryPill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Compact Recovery Pill (70pt)"
+                    accessibilityHint="Triggers a compact tier 70pt recovery pill"
+                  >
+                    <View style={styles.rowInfo}>
+                      <View style={styles.labelRow}>
+                        <IconBadge
+                          icon={<Sparkle size={18} color="#0098D4" weight="fill" />}
+                          backgroundColor="rgba(0, 152, 212, 0.18)"
+                          borderColor="rgba(0, 152, 212, 0.35)"
+                        />
+                        <Text style={[styles.rowLabel, { color: '#0098D4' }]}>
+                          Test Compact Recovery (70pt)
+                        </Text>
+                      </View>
+                      <Text style={styles.rowSubtitle}>
+                        Compact tier · Good service resumed · Auto-dismisses in 3s
                       </Text>
                     </View>
-                    <Text style={styles.rowSubtitle}>
-                      Compact tier · Good service resumed · Auto-dismisses in 3s
-                    </Text>
-                  </View>
-                  <CaretRight size={18} color="rgba(255,255,255,0.35)" />
-                </Pressable>
+                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                  </Pressable>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-                {/* Test Standard Boarding Pill (84pt) */}
-                <Pressable
-                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                  onPress={handleTriggerTestBoardingPill}
-                  accessibilityRole="button"
-                  accessibilityLabel="Test Standard Boarding Pill (84pt)"
-                  accessibilityHint="Triggers a standard tier 84pt boarding arrival pill"
-                >
-                  <View style={styles.rowInfo}>
-                    <View style={styles.labelRow}>
-                      <IconBadge
-                        icon={<Sparkle size={18} color="#0098D4" weight="fill" />}
-                        backgroundColor="rgba(0, 152, 212, 0.18)"
-                        borderColor="rgba(0, 152, 212, 0.35)"
-                      />
-                      <Text style={[styles.rowLabel, { color: '#0098D4' }]}>
-                        Test Standard Boarding (84pt)
+                  {/* Test Standard Boarding Pill (84pt) */}
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleTriggerTestBoardingPill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Standard Boarding Pill (84pt)"
+                    accessibilityHint="Triggers a standard tier 84pt boarding arrival pill"
+                  >
+                    <View style={styles.rowInfo}>
+                      <View style={styles.labelRow}>
+                        <IconBadge
+                          icon={<Sparkle size={18} color="#0098D4" weight="fill" />}
+                          backgroundColor="rgba(0, 152, 212, 0.18)"
+                          borderColor="rgba(0, 152, 212, 0.35)"
+                        />
+                        <Text style={[styles.rowLabel, { color: '#0098D4' }]}>
+                          Test Standard Boarding (84pt)
+                        </Text>
+                      </View>
+                      <Text style={styles.rowSubtitle}>
+                        Standard tier · [OXC · VIC] Dual Badge · 5s timeout
                       </Text>
                     </View>
-                    <Text style={styles.rowSubtitle}>
-                      Standard tier · [OXC · VIC] Dual Badge · 5s timeout
-                    </Text>
-                  </View>
-                  <CaretRight size={18} color="rgba(255,255,255,0.35)" />
-                </Pressable>
+                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                  </Pressable>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-                {/* Test Expanded Disruption Pill (96pt) */}
-                <Pressable
-                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                  onPress={handleTriggerTestDisruptionPill}
-                  accessibilityRole="button"
-                  accessibilityLabel="Test Expanded Disruption Pill (96pt)"
-                  accessibilityHint="Triggers an expanded tier 96pt disruption pill with reroute action"
-                >
-                  <View style={styles.rowInfo}>
-                    <View style={styles.labelRow}>
-                      <IconBadge
-                        icon={<Sparkle size={18} color="#FF3B30" weight="fill" />}
-                        backgroundColor="rgba(255, 59, 48, 0.18)"
-                        borderColor="rgba(255, 59, 48, 0.35)"
-                      />
-                      <Text style={[styles.rowLabel, { color: '#FF3B30' }]}>
-                        Test Expanded Disruption (96pt)
+                  {/* Test Expanded Disruption Pill (96pt) */}
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleTriggerTestDisruptionPill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Expanded Disruption Pill (96pt)"
+                    accessibilityHint="Triggers an expanded tier 96pt disruption pill with reroute action"
+                  >
+                    <View style={styles.rowInfo}>
+                      <View style={styles.labelRow}>
+                        <IconBadge
+                          icon={<Sparkle size={18} color="#FF3B30" weight="fill" />}
+                          backgroundColor="rgba(255, 59, 48, 0.18)"
+                          borderColor="rgba(255, 59, 48, 0.35)"
+                        />
+                        <Text style={[styles.rowLabel, { color: '#FF3B30' }]}>
+                          Test Expanded Disruption (96pt)
+                        </Text>
+                      </View>
+                      <Text style={styles.rowSubtitle}>
+                        Expanded tier · Severe delays · [Reroute →] action
                       </Text>
                     </View>
-                    <Text style={styles.rowSubtitle}>
-                      Expanded tier · Severe delays · [Reroute →] action
-                    </Text>
-                  </View>
-                  <CaretRight size={18} color="rgba(255,255,255,0.35)" />
-                </Pressable>
-              </LiquidGlassView>
-            </View>
-          )}
+                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                  </Pressable>
+                </LiquidGlassView>
+              </View>
+            )}
         </ScrollView>
       </View>
 

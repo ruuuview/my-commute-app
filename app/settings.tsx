@@ -31,6 +31,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { usePillStore } from '../store/pillStore';
 import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import { syncGeofencesAsync } from '../services/backgroundTask';
+import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
 import { scheduleCalendarCommuteAlerts, cancelCalendarCommuteAlerts } from '../services/calendarScheduler';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { FixItSheet } from '../components/FixItSheet';
@@ -247,6 +248,8 @@ export default function SettingsScreen() {
       setOsNotifStatus(notif.status);
       if (isGranted) {
         usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
+        const lines = useUserPreferencesStore.getState().selectedLines || [];
+        void syncPushTokenWithBackend(lines);
       }
 
       const locBg = await ExpoLocation.getBackgroundPermissionsAsync();
@@ -293,6 +296,8 @@ export default function SettingsScreen() {
       setOsNotifCanAskAgain(res.canAskAgain);
       if (granted) {
         usePermissionOrchestrator.getState().recordDecision('notifications', 'granted');
+        const lines = useUserPreferencesStore.getState().selectedLines || [];
+        void syncPushTokenWithBackend(lines);
       } else if (res.status === Notifications.PermissionStatus.DENIED && !res.canAskAgain) {
         usePermissionOrchestrator.getState().recordDecision('notifications', 'denied');
       }

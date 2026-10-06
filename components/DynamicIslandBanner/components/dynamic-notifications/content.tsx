@@ -156,10 +156,11 @@ const styles = StyleSheet.create({
     borderColor: GLASS.borderColor,
     borderTopColor: GLASS.borderTop,
     borderBottomColor: GLASS.borderBottom,
+    backgroundColor: GLASS.background,
   },
   wash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'transparent',
   },
   sheen: {
     position: 'absolute',

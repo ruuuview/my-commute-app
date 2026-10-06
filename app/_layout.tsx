@@ -523,8 +523,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider style={styles.root}>
         <DynamicNotifications
-          cardColor="#000000"
-          islandColor="#000000"
           duration={null}
           onDismiss={() => usePillStore.getState().clearPill()}
         >

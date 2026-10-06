@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import type { NotificationTier } from './interfaces/dynamic-notification.interface';
+import { getPillColors } from '../../utils/pillColors';
 
 export interface PillContentProps {
   title: string;
@@ -40,6 +41,7 @@ export function PillContent({
   // Extract short line code fallback if not explicitly provided
   const resolvedShortLine =
     shortLine || title.replace(/\s+(line|overground)$/i, '').trim();
+  const pillColorInfo = getPillColors(resolvedShortLine, accent);
 
   const isCompact = tier === 'compact';
   const isExpanded = tier === 'expanded';
@@ -78,9 +80,9 @@ export function PillContent({
             <Text style={styles.badgeSeparator} maxFontSizeMultiplier={1.3}>
               ·
             </Text>
-            <View style={[styles.pillBar, { backgroundColor: accent }]} />
+            <View style={[styles.pillBar, { backgroundColor: pillColorInfo.dotColor }]} />
             <Text
-              style={[styles.pillBadgeText, { color: '#FFFFFF' }]}
+              style={[styles.pillBadgeText, { color: pillColorInfo.textColor }]}
               numberOfLines={1}
               maxFontSizeMultiplier={1.3}
             >
@@ -92,14 +94,14 @@ export function PillContent({
             style={[
               styles.pillBadge,
               {
-                borderColor: accent,
-                backgroundColor: `${accent}22`,
+                borderColor: pillColorInfo.borderColor,
+                backgroundColor: pillColorInfo.backgroundColor,
               },
             ]}
           >
-            <View style={[styles.pillBar, { backgroundColor: accent }]} />
+            <View style={[styles.pillBar, { backgroundColor: pillColorInfo.dotColor }]} />
             <Text
-              style={[styles.pillBadgeText, { color: '#FFFFFF' }]}
+              style={[styles.pillBadgeText, { color: pillColorInfo.textColor }]}
               numberOfLines={1}
               maxFontSizeMultiplier={1.3}
             >

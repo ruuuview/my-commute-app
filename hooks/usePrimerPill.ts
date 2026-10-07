@@ -35,10 +35,11 @@ import {
 
 /**
  * Wanted permissions, in priority order. 'location' from the pill plan maps to
- * 'locationAlways': this pill promotes the boarding nudge ("background
- * station alerts"), which needs background location, and the orchestrator's
- * Always flow already performs the 2-step progressive authorization
- * (foreground first) when foreground was never granted.
+ * 'locationAlways': background location powers geofence-enter →
+ * SessionManager → Live Activity live tracking (Lock Screen / Dynamic
+ * Island), and the orchestrator's Always flow already performs the 2-step
+ * progressive authorization (foreground first) when foreground was never
+ * granted. The notifications primer unlocks disruption push alerts.
  */
 type PrimerKey = 'locationAlways' | 'notifications';
 const WANTED_KEYS: PrimerKey[] = ['notifications', 'locationAlways'];
@@ -52,13 +53,13 @@ const ROTATION_COOLDOWN_MS = 60 * 60 * 1000;
 /** Payoff-carrying copy, zero jargon, zero emoji — one entry per primer. */
 const PRIMER_COPY: Record<PrimerKey, { title: string; message: string; actionLabel: string }> = {
   notifications: {
-    title: 'Get live disruption warnings',
-    message: 'Tap to enable notifications before you travel',
+    title: 'Disruption alerts',
+    message: 'Get notified before delays hit your commute',
     actionLabel: 'Enable',
   },
   locationAlways: {
-    title: 'Get a nudge before your train leaves',
-    message: 'Tap once — we\u2019ll ping you when your train is 2 minutes out',
+    title: 'Live commute tracking',
+    message: 'Auto-track your train on Lock Screen at the station',
     actionLabel: 'Enable',
   },
 };

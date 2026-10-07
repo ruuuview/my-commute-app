@@ -103,6 +103,10 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
       (notif?.ios && (notif.ios.status === 2 || notif.ios.status === 3 || notif.ios.allowsAlert))
     );
 
+    if (!isGranted) {
+      return;
+    }
+
     let token: string | null = null;
     if (Platform.OS === 'ios') {
       // Direct APNS token registration (hex string)

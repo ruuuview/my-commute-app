@@ -5,7 +5,8 @@ import {
   DisruptionNotificationPayload,
   NOTIFICATION_CATEGORIES,
 } from './payload';
-import { CANONICAL_ALTERNATIVES, DisruptionAlternative } from './intent';
+import { DisruptionAlternative } from './intent';
+import { getSeverityRank } from '../../utils/getSeverityColor';
 
 const notifStorage = createMMKV({ id: 'background-storage' });
 
@@ -39,9 +40,6 @@ export interface PresentServiceImprovingOptions {
 /**
  * Dispatches an actionable disruption notification with a 'View Reroute' action.
  * Guaranteed to attach the exact disrupted LineId to both `data.lineId` and the payload.
- *
- * "The Banner is the First Screen": Body copy answers the commuter's decision immediately
- * by providing the top operating alternative and expected delta time.
  */
 // 10-minute anti-flap suppression window matching in-app pill bucket
 const DEDUP_BUCKET_MS = 10 * 60 * 1000;
@@ -50,7 +48,17 @@ export async function presentDisruptionNotification(
   opts: PresentDisruptionOptions
 ): Promise<string> {
   const { lineId, lineName, statusDescription, reason, severity } = opts;
-  const alt = opts.alternative || CANONICAL_ALTERNATIVES[lineId];
+
+  // Defensive guard: never dispatch a disruption notification for healthy status
+  const rank = getSeverityRank(severity, statusDescription);
+  if (rank === 0 || statusDescription.toLowerCase().includes('good service')) {
+    console.warn(
+      `[dispatch] Suppressed disruption notification for healthy status "${statusDescription}" on ${lineName} line (${lineId})`
+    );
+    return `suppressed_healthy_${lineId}`;
+  }
+
+  const alt = opts.alternative;
 
   // Symmetric cross-system dedup: suppress if in-app pill or local notification already fired recently
   try {
@@ -81,8 +89,7 @@ export async function presentDisruptionNotification(
   };
 
   const reasonSnippet = reason ? ` (${reason})` : '';
-  const altSnippet = alt ? ` ${alt.lineName} running normally, +${alt.deltaMinutes} min.` : '';
-  const bodyText = `${statusDescription}${reasonSnippet}.${altSnippet}`;
+  const bodyText = `${statusDescription}${reasonSnippet}`;
 
   return Notifications.scheduleNotificationAsync({
     content: {

@@ -36,7 +36,6 @@ import { usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionO
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { checkGeofenceHealthAsync } from '../services/backgroundTask';
 import { LineId } from '../services/notifications/payload';
-import { CANONICAL_ALTERNATIVES } from '../services/notifications/intent';
 import { GLASS } from '../theme/colors';
 import { LiveActivityService } from '../services/LiveActivityService';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -161,17 +160,13 @@ export const DiagnosticsModal: React.FC<Props> = ({
         }
       }
 
-      const alt = CANONICAL_ALTERNATIVES[lineId];
-      const altSnippet = alt ? ` ${alt.lineName} running normally, +${alt.deltaMinutes} min.` : '';
-
       await Notifications.scheduleNotificationAsync({
         content: {
           title: `Disruption on ${lineName} line`,
-          body: `Severe delays (signal failure).${altSnippet}`,
+          body: `Severe delays (signal failure).`,
           data: {
             action: 'show-disruption',
             lineId,
-            alternative: alt,
             statusAsOf: Date.now(),
             isSimulated: true,
             type: 'COMMUTE_DISRUPTION',

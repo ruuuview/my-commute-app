@@ -14,25 +14,6 @@ export interface DisruptionAlternative {
   deltaMinutes: number;
 }
 
-export const CANONICAL_ALTERNATIVES: Record<LineId, DisruptionAlternative> = {
-  piccadilly: { lineId: 'district', lineName: 'District line', deltaMinutes: 6 },
-  victoria: { lineId: 'jubilee', lineName: 'Jubilee line', deltaMinutes: 5 },
-  central: { lineId: 'elizabeth', lineName: 'Elizabeth line', deltaMinutes: 8 },
-  metropolitan: { lineId: 'jubilee', lineName: 'Jubilee line', deltaMinutes: 10 },
-  district: { lineId: 'piccadilly', lineName: 'Piccadilly line', deltaMinutes: 5 },
-  bakerloo: { lineId: 'jubilee', lineName: 'Jubilee line', deltaMinutes: 7 },
-  northern: { lineId: 'victoria', lineName: 'Victoria line', deltaMinutes: 5 },
-  jubilee: { lineId: 'metropolitan', lineName: 'Metropolitan line', deltaMinutes: 5 },
-  circle: { lineId: 'district', lineName: 'District line', deltaMinutes: 4 },
-  'hammersmith-city': { lineId: 'circle', lineName: 'Circle line', deltaMinutes: 4 },
-  'waterloo-city': { lineId: 'northern', lineName: 'Northern line', deltaMinutes: 8 },
-  dlr: { lineId: 'jubilee', lineName: 'Jubilee line', deltaMinutes: 6 },
-  elizabeth: { lineId: 'central', lineName: 'Central line', deltaMinutes: 8 },
-  'london-overground': { lineId: 'jubilee', lineName: 'Jubilee line', deltaMinutes: 7 },
-  overground: { lineId: 'jubilee', lineName: 'Jubilee line', deltaMinutes: 7 },
-  tram: { lineId: 'district', lineName: 'District line', deltaMinutes: 10 },
-};
-
 export interface ShowDisruptionIntent {
   action: 'show-disruption';
   lineId: LineId;
@@ -98,7 +79,7 @@ export function parseNotificationIntent(data: unknown): NotificationIntent | nul
 
   const lineId = rawLineId.toLowerCase().trim() as LineId;
 
-  // Validate alternative if present
+  // Validate alternative if present (never hallucinate a fallback)
   let alternative: DisruptionAlternative | undefined = undefined;
   if (record.alternative && typeof record.alternative === 'object') {
     const alt = record.alternative;
@@ -106,11 +87,9 @@ export function parseNotificationIntent(data: unknown): NotificationIntent | nul
       alternative = {
         lineId: alt.lineId.toLowerCase().trim() as LineId,
         lineName: typeof alt.lineName === 'string' ? alt.lineName : `${alt.lineId} line`,
-        deltaMinutes: typeof alt.deltaMinutes === 'number' ? alt.deltaMinutes : 5,
+        deltaMinutes: typeof alt.deltaMinutes === 'number' ? alt.deltaMinutes : 0,
       };
     }
-  } else if (CANONICAL_ALTERNATIVES[lineId]) {
-    alternative = CANONICAL_ALTERNATIVES[lineId];
   }
 
   const statusAsOf = typeof record.statusAsOf === 'number' ? record.statusAsOf : (record.timestamp || Date.now());

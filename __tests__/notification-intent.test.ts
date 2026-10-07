@@ -1,7 +1,6 @@
 import {
   parseNotificationIntent,
   navigateToIntent,
-  CANONICAL_ALTERNATIVES,
   NotificationIntent,
 } from '../services/notifications/intent';
 import {
@@ -20,7 +19,7 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
   });
 
   describe('parseNotificationIntent (Poka-Yoke Device)', () => {
-    it('should parse valid show-disruption payload with canonical alternative', () => {
+    it('should parse valid show-disruption payload without hallucinating alternatives', () => {
       const data = {
         action: 'show-disruption',
         lineId: 'piccadilly',
@@ -32,9 +31,7 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
       expect(intent?.action).toBe('show-disruption');
       if (intent?.action === 'show-disruption') {
         expect(intent.lineId).toBe('piccadilly');
-        expect(intent.alternative).toEqual(CANONICAL_ALTERNATIVES['piccadilly']);
-        expect(intent.alternative?.lineId).toBe('district');
-        expect(intent.alternative?.deltaMinutes).toBe(6);
+        expect(intent.alternative).toBeUndefined();
         expect(intent.initialSection).toBe('overview');
       }
     });
@@ -43,6 +40,11 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
       const data = {
         action: 'show-reroute',
         lineId: 'victoria',
+        alternative: {
+          lineId: 'jubilee',
+          lineName: 'Jubilee line',
+          deltaMinutes: 5,
+        },
       };
 
       const intent = parseNotificationIntent(data);
@@ -122,7 +124,6 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
       const intent: NotificationIntent = {
         action: 'show-disruption',
         lineId: 'northern',
-        alternative: CANONICAL_ALTERNATIVES['northern'],
         initialSection: 'overview',
         statusAsOf: 12345678,
       };
@@ -188,8 +189,8 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
     });
   });
 
-  describe('The Banner is the First Screen (Actionable Dispatch)', () => {
-    it('should construct rich decision copy with top alternative and delta minutes', async () => {
+  describe('Actionable Disruption Dispatch (Zero Fabricated Math)', () => {
+    it('should construct honest disruption copy without fake alternatives or fabricated minutes', async () => {
       await presentDisruptionNotification({
         lineId: 'piccadilly',
         lineName: 'Piccadilly',
@@ -202,14 +203,23 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
       const call = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
 
       expect(call.content.title).toBe('Disruption on Piccadilly line');
-      expect(call.content.body).toBe(
-        'Severe Delays (Signal failure at Covent Garden). District line running normally, +6 min.'
-      );
+      expect(call.content.body).toBe('Severe Delays (Signal failure at Covent Garden)');
       expect(call.content.categoryIdentifier).toBe('REROUTE_ONLY');
       expect(call.content.data.action).toBe('show-disruption');
       expect(call.content.data.lineId).toBe('piccadilly');
-      expect(call.content.data.alternative.lineId).toBe('district');
-      expect(call.content.data.alternative.deltaMinutes).toBe(6);
+      expect(call.content.data.alternative).toBeUndefined();
+    });
+
+    it('should suppress disruption notifications for healthy Good Service status', async () => {
+      const result = await presentDisruptionNotification({
+        lineId: 'northern',
+        lineName: 'Northern',
+        statusDescription: 'Good Service',
+        severity: 10,
+      });
+
+      expect(result).toBe('suppressed_healthy_northern');
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
   });
 });

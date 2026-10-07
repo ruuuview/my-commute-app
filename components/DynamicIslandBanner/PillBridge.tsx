@@ -2,11 +2,15 @@
 // Bridges the transient pill store (store/pillStore.ts) to the vendored
 // Dynamic Island (gooey) shell. Must be rendered INSIDE <DynamicNotifications>.
 //
-// The edge-trigger hooks (disruption / boarding nudge / permission primer /
-// commute intent / setup confirm / shush) are self-driving: they observe
-// their own data sources and call usePillStore.getState().requestPill(...)
-// when they fire. This component only mirrors the store's active pill into
-// the gooey shell via trigger().
+// The permission primer hook is self-driving: it observes the permission
+// state machine and calls usePillStore.getState().requestPill(...) when a
+// wanted permission is still missing. This component only mirrors the
+// store's active pill into the gooey shell via trigger().
+//
+// PRIMERS-ONLY SCOPE (user-locked 2026-10-07): the in-app Morph Pill fires
+// solely for permission primers (Live Activity / notification auth). All
+// other triggers (boarding nudge, disruption edge, intent, setup-confirm,
+// shush) are unmounted; the dashboard owns arrivals and disruptions.
 //
 // ONBOARDING GATE: the triggers live in <PillTriggers/>, mounted only after
 // hasCompletedOnboarding. Pills are ambient main-app UI and must never drop
@@ -14,10 +18,10 @@
 //
 // LEASE, not latch: the store slot is freed when the visual pill dies —
 // tap, swipe, or the auto-timeout (durationMs, default 4000 ms). Without
-// this, a primer shown once at launch would starve the intent pill for the
-// whole session. A tap runs the pill's onPress first; the slot is cleared
-// afterwards unless the tap's own handler already replaced the pill (e.g.
-// setup-confirm → the transient "Saved · Undo" pill).
+// this, a primer shown once at launch would starve the next primer in the
+// rotation for the whole session. A tap runs the pill's onPress first; the
+// slot is cleared afterwards unless the tap's own handler already swapped
+// in a replacement pill.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState } from 'react-native';
@@ -31,8 +35,6 @@ import { PillContent } from './PillContent';
 import { usePillSuppression } from '../../hooks/usePillSuppression';
 import { usePillSuppressionStore } from '../../store/pillSuppressionStore';
 
-import { useDisruptionEdgeTrigger } from '../../hooks/useDisruptionEdgeTrigger';
-import { useBoardingNudge } from '../../hooks/useBoardingNudge';
 import { usePrimerPill } from '../../hooks/usePrimerPill';
 
 export const DEFAULT_PILL_DURATION_MS = 4000;
@@ -146,17 +148,25 @@ export function PillBridge(): React.JSX.Element | null {
           if (s.active?.id === before?.id) s.clearPill();
         }
       },
-      render: () => (
-        <PillContent
-          title={active.title}
-          message={active.message}
-          accent={active.accent}
-          tier={active.tier}
-          actionLabel={active.actionLabel}
-          stationCode={active.stationCode}
-          shortLine={active.shortLine}
-        />
-      ),
+      render: () => {
+        // Thread the primer key deterministically: usePrimerPill ids every
+        // primer pill `primer-<key>`, so the icon never depends on copy.
+        const rawKey = active.id.startsWith('primer-') ? active.id.slice('primer-'.length) : '';
+        const primerKey =
+          rawKey === 'locationAlways' || rawKey === 'notifications' ? rawKey : undefined;
+        return (
+          <PillContent
+            title={active.title}
+            message={active.message}
+            accent={active.accent}
+            tier={active.tier}
+            actionLabel={active.actionLabel}
+            stationCode={active.stationCode}
+            shortLine={active.shortLine}
+            primerKey={primerKey}
+          />
+        );
+      },
     });
 
     let autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
@@ -188,11 +198,11 @@ export function PillBridge(): React.JSX.Element | null {
 }
 
 /**
- * Self-driving in-app Morph Pill triggers.
+ * Self-driving in-app Morph Pill triggers — primers only (user-locked
+ * 2026-10-07). Drops the permission primer pill when Live Activity or
+ * notification authorization is still missing; nothing else fires here.
  */
 function PillTriggers(): null {
-  useDisruptionEdgeTrigger();
-  useBoardingNudge();
   usePrimerPill();
   return null;
 }

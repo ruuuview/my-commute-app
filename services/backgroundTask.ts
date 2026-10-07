@@ -188,10 +188,14 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
 
       if (!lineData) continue;
 
-      // Map status severity similar to useLineData.ts logic
+      // Map status severity using canonical TfL status codes (10 = Good Service)
       const statusText = String(lineData.status ?? '').toLowerCase();
-      let currentSeverity = 1; // Green (Good Service)
-      if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure') || statusText.includes('closed')) {
+      let currentSeverity = 10; // TfL Canonical: 10 is Good Service
+      if (typeof lineData.status_severity === 'number') {
+        currentSeverity = lineData.status_severity;
+      } else if (typeof lineData.severity === 'number') {
+        currentSeverity = lineData.severity;
+      } else if (statusText.includes('part closure') || statusText.includes('suspended') || statusText.includes('closure') || statusText.includes('closed')) {
         currentSeverity = 5; // suspended
       } else if (statusText.includes('severe')) {
         currentSeverity = 6;  // severe
@@ -205,14 +209,14 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       // Get last notified severity for this line
       const cacheKey = `last_notified_severity_${lineId}`;
       const lastSeverityRaw = backgroundStorage.getString(cacheKey);
-      const lastSeverity = lastSeverityRaw ? parseInt(lastSeverityRaw, 10) : 1; // default to 1 (Good Service)
+      const lastSeverity = lastSeverityRaw ? parseInt(lastSeverityRaw, 10) : 10; // default to 10 (Good Service)
 
       // Add to shared widget data array (mapped to native TfL severity codes)
       selectedLinesData.push({
         id: lineId,
         name: lineData.name,
         status: lineData.status ?? 'Good Service',
-        severity: currentSeverity === 1 ? 10 : currentSeverity,
+        severity: currentSeverity,
       });
 
       const currentRank = getSeverityRank(currentSeverity, statusDescription);

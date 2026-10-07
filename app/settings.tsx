@@ -157,59 +157,37 @@ export default function SettingsScreen() {
   const [versionTaps, setVersionTaps] = useState(0);
   const [developerUnlocked, setDeveloperUnlocked] = useState(false);
 
-  const handleTriggerTestRecoveryPill = useCallback(() => {
+  const handleTriggerTestDisruptionPrimer = useCallback(() => {
     if (hapticsEnabled) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     usePillStore.getState().requestPill({
-      id: `test-recovery-pill-${Date.now()}`,
-      kind: 'recovery',
-      tier: 'compact',
-      shortLine: 'VIC',
-      title: 'Victoria — Good service resumed',
-      message: 'Good service resumed',
-      accent: '#0098D4',
-      durationMs: 3000,
-    });
-  }, [hapticsEnabled]);
-
-  const handleTriggerTestBoardingPill = useCallback(() => {
-    if (hapticsEnabled) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    usePillStore.getState().requestPill({
-      id: `test-boarding-pill-${Date.now()}`,
-      kind: 'boarding',
+      id: `test-primer-notifications-${Date.now()}`,
+      kind: 'primer',
       tier: 'standard',
-      stationCode: 'OXC',
-      shortLine: 'VIC',
-      title: 'Victoria arriving',
-      message: 'Oxford Circus · Brixton · 2 min · Platform 1',
-      accent: '#0098D4',
+      shortLine: 'ALERTS',
+      title: 'Disruption alerts',
+      message: 'Get notified before delays hit your commute',
+      actionLabel: 'Enable',
+      accent: '#0A84FF',
       durationMs: 5000,
-      onPress: () => {
-        usePillStore.getState().clearPill();
-      },
     });
   }, [hapticsEnabled]);
 
-  const handleTriggerTestDisruptionPill = useCallback(() => {
+  const handleTriggerTestTrackingPrimer = useCallback(() => {
     if (hapticsEnabled) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     usePillStore.getState().requestPill({
-      id: `test-disruption-pill-${Date.now()}`,
-      kind: 'disruption',
-      tier: 'expanded',
-      shortLine: 'DST',
-      title: 'District line — Severe delays',
-      message: 'Severe delays across entire line due to signal failure',
-      actionLabel: 'Reroute',
-      accent: '#FF3B30',
-      durationMs: null,
-      onAction: () => {
-        Alert.alert('Reroute Tapped', 'Navigating to alternative routes.');
-      },
+      id: `test-primer-locationAlways-${Date.now()}`,
+      kind: 'primer',
+      tier: 'standard',
+      shortLine: 'ALERTS',
+      title: 'Live commute tracking',
+      message: 'Auto-track your train on Lock Screen at the station',
+      actionLabel: 'Enable',
+      accent: '#0A84FF',
+      durationMs: 5000,
     });
   }, [hapticsEnabled]);
 
@@ -1153,27 +1131,27 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Test Compact Recovery Pill (70pt) */}
+                  {/* Test Disruption Alerts Primer Pill (84pt) */}
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                    onPress={handleTriggerTestRecoveryPill}
+                    onPress={handleTriggerTestDisruptionPrimer}
                     accessibilityRole="button"
-                    accessibilityLabel="Test Compact Recovery Pill (70pt)"
-                    accessibilityHint="Triggers a compact tier 70pt recovery pill"
+                    accessibilityLabel="Test Disruption Alerts Primer (84pt)"
+                    accessibilityHint="Triggers an 84pt permission primer pill for disruption alerts"
                   >
                     <View style={styles.rowInfo}>
                       <View style={styles.labelRow}>
                         <IconBadge
-                          icon={<Sparkle size={18} color="#0098D4" weight="fill" />}
-                          backgroundColor="rgba(0, 152, 212, 0.18)"
-                          borderColor="rgba(0, 152, 212, 0.35)"
+                          icon={<Sparkle size={18} color="#0A84FF" weight="fill" />}
+                          backgroundColor="rgba(10, 132, 255, 0.18)"
+                          borderColor="rgba(10, 132, 255, 0.35)"
                         />
-                        <Text style={[styles.rowLabel, { color: '#0098D4' }]}>
-                          Test Compact Recovery (70pt)
+                        <Text style={[styles.rowLabel, { color: '#0A84FF' }]}>
+                          Test Disruption Alerts Primer (84pt)
                         </Text>
                       </View>
                       <Text style={styles.rowSubtitle}>
-                        Compact tier · Good service resumed · Auto-dismisses in 3s
+                        Permission primer · Notifications · Auto-dismisses in 5s
                       </Text>
                     </View>
                     <CaretRight size={18} color="rgba(255,255,255,0.35)" />
@@ -1181,55 +1159,27 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Test Standard Boarding Pill (84pt) */}
+                  {/* Test Live Tracking Primer Pill (84pt) */}
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                    onPress={handleTriggerTestBoardingPill}
+                    onPress={handleTriggerTestTrackingPrimer}
                     accessibilityRole="button"
-                    accessibilityLabel="Test Standard Boarding Pill (84pt)"
-                    accessibilityHint="Triggers a standard tier 84pt boarding arrival pill"
+                    accessibilityLabel="Test Live Tracking Primer (84pt)"
+                    accessibilityHint="Triggers an 84pt permission primer pill for live commute tracking"
                   >
                     <View style={styles.rowInfo}>
                       <View style={styles.labelRow}>
                         <IconBadge
-                          icon={<Sparkle size={18} color="#0098D4" weight="fill" />}
-                          backgroundColor="rgba(0, 152, 212, 0.18)"
-                          borderColor="rgba(0, 152, 212, 0.35)"
+                          icon={<Sparkle size={18} color="#0A84FF" weight="fill" />}
+                          backgroundColor="rgba(10, 132, 255, 0.18)"
+                          borderColor="rgba(10, 132, 255, 0.35)"
                         />
-                        <Text style={[styles.rowLabel, { color: '#0098D4' }]}>
-                          Test Standard Boarding (84pt)
+                        <Text style={[styles.rowLabel, { color: '#0A84FF' }]}>
+                          Test Live Tracking Primer (84pt)
                         </Text>
                       </View>
                       <Text style={styles.rowSubtitle}>
-                        Standard tier · [OXC · VIC] Dual Badge · 5s timeout
-                      </Text>
-                    </View>
-                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
-                  </Pressable>
-
-                  <View style={styles.divider} />
-
-                  {/* Test Expanded Disruption Pill (96pt) */}
-                  <Pressable
-                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                    onPress={handleTriggerTestDisruptionPill}
-                    accessibilityRole="button"
-                    accessibilityLabel="Test Expanded Disruption Pill (96pt)"
-                    accessibilityHint="Triggers an expanded tier 96pt disruption pill with reroute action"
-                  >
-                    <View style={styles.rowInfo}>
-                      <View style={styles.labelRow}>
-                        <IconBadge
-                          icon={<Sparkle size={18} color="#FF3B30" weight="fill" />}
-                          backgroundColor="rgba(255, 59, 48, 0.18)"
-                          borderColor="rgba(255, 59, 48, 0.35)"
-                        />
-                        <Text style={[styles.rowLabel, { color: '#FF3B30' }]}>
-                          Test Expanded Disruption (96pt)
-                        </Text>
-                      </View>
-                      <Text style={styles.rowSubtitle}>
-                        Expanded tier · Severe delays · [Reroute →] action
+                        Permission primer · Always Location · Auto-dismisses in 5s
                       </Text>
                     </View>
                     <CaretRight size={18} color="rgba(255,255,255,0.35)" />

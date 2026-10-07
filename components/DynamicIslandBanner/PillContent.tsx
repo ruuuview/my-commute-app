@@ -298,6 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 16,
     width: '100%',
+    height: '100%',
     justifyContent: 'center',
   },
   // Primer container override: optical clearance from the curved corners and
@@ -310,6 +311,7 @@ const styles = StyleSheet.create({
     // Fill the fixed-height glass card so justifyContent: 'center' (from
     // styles.pill) actually centers the content instead of hugging the top.
     height: '100%',
+    justifyContent: 'center',
   },
   primerTopRow: {
     flexDirection: 'row',
@@ -372,14 +374,17 @@ const styles = StyleSheet.create({
   },
   pillCompact: {
     paddingVertical: 12,
+    justifyContent: 'center',
   },
   pillStandard: {
     paddingVertical: 10,
     gap: 3,
+    justifyContent: 'center',
   },
   pillExpanded: {
     paddingVertical: 8,
     gap: 4,
+    justifyContent: 'center',
   },
   headerRow: {
     flexDirection: 'row',

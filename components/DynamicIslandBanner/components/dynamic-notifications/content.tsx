@@ -131,7 +131,13 @@ const Content: React.FC<INotificationContent> &
           </Animated.View>
 
           {/* Layer 2: Gated body with content and rainbow specular caustic rim */}
-          <Animated.View style={[StyleSheet.absoluteFillObject, s.body]}>
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFillObject,
+              { width: layout.cardWidth, height: layout.cardHeight },
+              s.body,
+            ]}
+          >
             {notification.render ? (
               notification.render(notification)
             ) : (

@@ -151,9 +151,9 @@ export function PillBridge(): React.JSX.Element | null {
       render: () => {
         // Thread the primer key deterministically: usePrimerPill ids every
         // primer pill `primer-<key>`, so the icon never depends on copy.
-        const rawKey = active.id.startsWith('primer-') ? active.id.slice('primer-'.length) : '';
-        const primerKey =
-          rawKey === 'locationAlways' || rawKey === 'notifications' ? rawKey : undefined;
+        const isNotif = active.id.includes('notifications');
+        const isLoc = active.id.includes('locationAlways');
+        const primerKey = isNotif ? 'notifications' : isLoc ? 'locationAlways' : undefined;
         return (
           <PillContent
             title={active.title}

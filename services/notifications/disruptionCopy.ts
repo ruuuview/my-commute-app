@@ -14,6 +14,8 @@ export interface DisruptionBodyInput {
   cause?: string | null;
 }
 
+export const MAX_NOTIFICATION_BODY_CHARS = 230;
+
 export function formatDisruptionNotificationBody(opts: DisruptionBodyInput): string {
   const status = (opts.statusDescription || '').trim();
   const rawCause = (opts.cause || '').trim();
@@ -23,14 +25,34 @@ export function formatDisruptionNotificationBody(opts: DisruptionBodyInput): str
   }
 
   // Strip accidental outer parentheses or trailing spaces
-  const cleanCause = rawCause.replace(/^\(/, '').replace(/\)$/, '').trim();
+  let cleanCause = rawCause.replace(/^\(/, '').replace(/\)$/, '').trim();
+
+  // Strip redundant leading line prefix (e.g. "Northern Line: " or "Northern line - ")
+  // to prevent clumsy repetition when the line name is already in the notification title
+  cleanCause = cleanCause.replace(/^[a-z0-9\s&-]+line\s*[:-]\s*/i, '').trim();
+
+  let body: string;
+  const causeLower = cleanCause.toLowerCase();
+  const statusLower = status.toLowerCase();
 
   // If TfL reason already incorporates the status description, use it directly
-  // to prevent clumsy repetition like "Severe Delays (Northern Line: Severe delays...)"
-  if (cleanCause.toLowerCase().includes(status.toLowerCase())) {
-    return cleanCause;
+  if (causeLower.includes(statusLower)) {
+    body = cleanCause;
+  } else {
+    body = `${status} (${cleanCause})`;
   }
 
-  // If cause is a reason clause without status description, format as "Status (Reason)"
-  return `${status} (${cleanCause})`;
+  // Safeguard against lockscreen truncation and mid-word splits:
+  // Truncate at whole-word boundary with unicode ellipsis '…'
+  if (body.length > MAX_NOTIFICATION_BODY_CHARS) {
+    const trimmed = body.slice(0, MAX_NOTIFICATION_BODY_CHARS);
+    const lastSpace = trimmed.lastIndexOf(' ');
+    if (lastSpace > 160) {
+      body = trimmed.slice(0, lastSpace) + '…';
+    } else {
+      body = trimmed + '…';
+    }
+  }
+
+  return body;
 }

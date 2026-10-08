@@ -23,7 +23,7 @@
 //    active does not count as shown).
 
 import { useEffect } from 'react';
-import { usePillStore } from '../store/pillStore';
+import { showMorphPill, usePillStore } from '../store/pillStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import {
   getPermissionEntry,
@@ -104,17 +104,8 @@ function evaluate(): void {
   const key = getPrimerRequest() === null ? pickPrimerKey(missing) : null;
   if (key) {
     const pillId = `primer-${key}`;
-    const copy = PRIMER_COPY[key];
-    pillStore.requestPill({
-      kind: 'primer',
-      tier: 'standard',
-      id: pillId,
-      shortLine: 'ALERTS',
-      title: copy.title,
-      message: copy.message,
-      actionLabel: copy.actionLabel,
-      accent: '#0A84FF',
-      durationMs: 5000,
+    const reason = key === 'locationAlways' ? 'location' : 'notifications';
+    showMorphPill(reason, {
       onAction: () => {
         useUserPreferencesStore.getState().incrementPrimerPillPresentationCount();
         if (getPrimerRequest() !== null) return;

@@ -94,18 +94,14 @@ describe('Notifications Poka-Yoke & Routing Tests', () => {
       expect(callArgs.content.data.severity).toBe(6);
     });
 
-    it('should dispatch service recovery notification with COMMUTE_STATUS category', async () => {
-      await presentServiceRecoveryNotification({
+    it('should NOT dispatch loud lockscreen banner notification on service recovery (Zero-Nag Silent Dynamic Island Invariant)', async () => {
+      const res = await presentServiceRecoveryNotification({
         lineId: 'northern',
         lineName: 'Northern',
       });
 
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
-      const callArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
-      expect(callArgs.content.categoryIdentifier).toBe('COMMUTE_STATUS');
-      expect(callArgs.content.title).toBe('Service cleared on Northern line');
-      expect(callArgs.content.data.lineId).toBe('northern');
-      expect(callArgs.content.data.type).toBe('SERVICE_RECOVERED');
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      expect(res).toBe('silent_recovery_northern');
     });
 
     it('should dispatch service improving notification with COMMUTE_STATUS category', async () => {

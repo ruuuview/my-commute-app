@@ -1,5 +1,4 @@
 import { requireOptionalNativeModule, EventEmitter } from 'expo-modules-core';
-import type { Tier2Cache } from '../../services/tier2Cache';
 
 export type TimeSensitiveStatus = 'not_supported' | 'disabled' | 'enabled';
 
@@ -27,14 +26,23 @@ const mockFallbackModule = {
 };
 
 // The native module is registered by ExpoModulesCore via expo-module.config.json.
-// It exposes startCommuteActivity / updateCommuteActivity / endCommuteActivity / isActivityActive /
-// syncWidgetCache / hasDynamicIsland / getTimeSensitiveStatus / checkTimeSensitivePermission / requestTimeSensitivePermission.
-const MyCommuteLiveActivityModule =
+const rawNativeModule =
   requireOptionalNativeModule('MyCommuteLiveActivityModule') ??
-  requireOptionalNativeModule('MyCommuteLiveActivity') ??
-  mockFallbackModule;
+  requireOptionalNativeModule('MyCommuteLiveActivity');
 
-const emitter = new EventEmitter(MyCommuteLiveActivityModule as any);
+const MyCommuteLiveActivityModule = rawNativeModule
+  ? new Proxy(rawNativeModule, {
+      get(target, prop, receiver) {
+        const val = Reflect.get(target, prop, receiver);
+        if (typeof val !== 'undefined') {
+          return typeof val === 'function' ? val.bind(target) : val;
+        }
+        return (mockFallbackModule as any)[prop];
+      },
+    })
+  : mockFallbackModule;
+
+const emitter = new EventEmitter((rawNativeModule ?? mockFallbackModule) as any);
 
 export type LiveActivitySignalState = 'ok' | 'no-signal' | 'meltdown';
 
@@ -54,12 +62,12 @@ export interface LiveActivityBridgePayload {
   lineName: string;
   branchKnown: boolean;
   branchName?: string;
-  arrivals: Array<{
+  arrivals: {
     destinationName: string;
     timeToStationSeconds: number;
     via?: string;
     branch?: string;
-  }>;
+  }[];
   statusSeverity?: 'good' | 'minor_delays' | 'severe_delays' | 'suspended';
   statusText: string;
   severityTier?: number;

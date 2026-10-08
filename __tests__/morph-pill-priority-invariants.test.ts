@@ -1,4 +1,4 @@
-import { usePillStore, PRIORITY } from '../store/pillStore';
+import { usePillStore, PRIORITY, showMorphPill } from '../store/pillStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 describe('Morph Pill Priority & Preemption Invariants', () => {
@@ -6,28 +6,29 @@ describe('Morph Pill Priority & Preemption Invariants', () => {
     usePillStore.getState().clearPill();
   });
 
-  it('enforces strict priority ordering: disruption (5) > boarding (4) > primer (3) > recovery (2)', () => {
+  it('enforces strict priority ordering without status recovery: disruption (5) > boarding (4) > primer (3) > shush (2)', () => {
     expect(PRIORITY.disruption).toBe(5);
     expect(PRIORITY.boarding).toBe(4);
     expect(PRIORITY.primer).toBe(3);
-    expect(PRIORITY.recovery).toBe(2);
+    expect(PRIORITY.shush).toBe(2);
+    expect((PRIORITY as any).recovery).toBeUndefined();
 
     expect(PRIORITY.disruption).toBeGreaterThan(PRIORITY.boarding);
     expect(PRIORITY.boarding).toBeGreaterThan(PRIORITY.primer);
-    expect(PRIORITY.primer).toBeGreaterThan(PRIORITY.recovery);
+    expect(PRIORITY.primer).toBeGreaterThan(PRIORITY.shush);
   });
 
-  it('allows higher priority pills to preempt lower priority pills across all levels', () => {
-    // 1. Recovery active -> preempted by Primer
+  it('allows higher priority pills to preempt lower priority pills', () => {
+    // 1. Shush active -> preempted by Primer
     usePillStore.getState().requestPill({
-      kind: 'recovery',
-      tier: 'compact',
-      id: 'rec-1',
-      title: 'Recovery',
-      message: 'Good service resumed',
-      accent: '#0098D4',
+      kind: 'shush',
+      tier: 'standard',
+      id: 'shush-1',
+      title: 'Shush Mode',
+      message: 'Active commute',
+      accent: '#BF5AF2',
     });
-    expect(usePillStore.getState().active?.kind).toBe('recovery');
+    expect(usePillStore.getState().active?.kind).toBe('shush');
 
     usePillStore.getState().requestPill({
       kind: 'primer',
@@ -94,17 +95,20 @@ describe('Morph Pill Priority & Preemption Invariants', () => {
       accent: '#0A84FF',
     });
     expect(usePillStore.getState().active?.id).toBe('dis-1');
+  });
 
-    // Recovery arrives (2) -> dropped
-    usePillStore.getState().requestPill({
-      kind: 'recovery',
-      tier: 'compact',
-      id: 'rec-1',
-      title: 'Recovery',
-      message: 'Good service resumed',
-      accent: '#0098D4',
-    });
-    expect(usePillStore.getState().active?.id).toBe('dis-1');
+  it('enforces showMorphPill API works exclusively for permissions (location and notifications)', () => {
+    showMorphPill('location');
+    expect(usePillStore.getState().active?.kind).toBe('primer');
+    expect(usePillStore.getState().active?.id).toBe('primer-locationAlways');
+    expect(usePillStore.getState().active?.title).toBe('Live commute tracking');
+
+    usePillStore.getState().clearPill();
+
+    showMorphPill('notifications');
+    expect(usePillStore.getState().active?.kind).toBe('primer');
+    expect(usePillStore.getState().active?.id).toBe('primer-notifications');
+    expect(usePillStore.getState().active?.title).toBe('Disruption alerts');
   });
 
   it('tracks primer presentation counter and caps at 2 presentations', () => {

@@ -89,6 +89,7 @@ export async function presentDisruptionNotification(
   });
 
   return Notifications.scheduleNotificationAsync({
+    identifier: `line-disruption-${lineId}`,
     content: {
       title: `Disruption on ${lineName} line`,
       body: bodyText,
@@ -104,6 +105,7 @@ export async function presentDisruptionNotification(
  * Dispatches service recovery silently.
  * ZERO-NAG INVARIANT: Good Service recovery NEVER schedules noisy lockscreen
  * notification banners with sound.
+ * AUTOMATIC DISMISSAL: Clears any stale disruption notification for this line.
  */
 export async function presentServiceRecoveryNotification(
   opts: PresentServiceRecoveryOptions
@@ -112,11 +114,20 @@ export async function presentServiceRecoveryNotification(
 
   console.log(`[dispatch] Good service recovery on ${lineName} line (${lineId}) — silent transition (no loud banner scheduled).`);
 
+  if (typeof Notifications.dismissNotificationAsync === 'function') {
+    try {
+      await Notifications.dismissNotificationAsync(`line-disruption-${lineId}`);
+    } catch {
+      // Graceful fallback
+    }
+  }
+
   return `silent_recovery_${lineId}`;
 }
 
 /**
  * Dispatches a notification informing the user that conditions are improving.
+ * Overwrites previous disruption notification in place using the same line identifier.
  */
 export async function presentServiceImprovingNotification(
   opts: PresentServiceImprovingOptions
@@ -132,10 +143,16 @@ export async function presentServiceImprovingNotification(
     timestamp: Date.now(),
   };
 
+  const bodyText = formatDisruptionNotificationBody({
+    statusDescription,
+    cause: reason,
+  });
+
   return Notifications.scheduleNotificationAsync({
+    identifier: `line-disruption-${lineId}`,
     content: {
       title: `Service improving on ${lineName} line`,
-      body: `${statusDescription}${reason ? `: ${reason}` : ''}`,
+      body: bodyText,
       categoryIdentifier: NOTIFICATION_CATEGORIES.COMMUTE_STATUS,
       data: data as unknown as Record<string, any>,
       sound: true,

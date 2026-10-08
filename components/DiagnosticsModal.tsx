@@ -31,9 +31,11 @@ import {
   Trash,
   Train,
   Sparkle,
+  CheckCircle,
 } from 'phosphor-react-native';
 import { usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { SessionManager } from '../services/SessionManager';
 import { checkGeofenceHealthAsync } from '../services/backgroundTask';
 import { LineId } from '../services/notifications/payload';
 import { GLASS } from '../theme/colors';
@@ -268,6 +270,25 @@ export const DiagnosticsModal: React.FC<Props> = ({
     }
   };
 
+  const handleTestGoodServiceRecovery = async () => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Zero-Nag & Absolute Silence Invariant:
+    // Good Service recovery must NEVER display an in-app morph pill banner,
+    // NEVER schedule a noisy lockscreen push notification, and NEVER spawn
+    // a simulated commute Live Activity ("High Barnet 3m").
+
+    // 1. If an unwanted preview activity was started, dismiss it cleanly:
+    await LiveActivityService.stopPreviewActivity().catch(() => {});
+
+    // 2. If a genuine commute session is active, silently update it to Good Service:
+    const isLiveActive = await LiveActivityService.isActive().catch(() => false);
+    if (isLiveActive) {
+      const originId = SessionManager.getCommuteOriginId() || '940GZZLUEUS';
+      await LiveActivityService.update(originId, primaryLineId);
+    }
+  };
+
   const handleResetTflCoverage = () => {
     Alert.alert(
       'Reset TfL Coverage Status',
@@ -448,83 +469,104 @@ export const DiagnosticsModal: React.FC<Props> = ({
               </View>
             </View>
 
-            {/* Test Actions */}
-            <Text style={styles.sectionHeader}>SIMULATION & OVERRIDES</Text>
-            <View style={styles.card}>
-              {/* Test Shush Mode (Preview on Lock Screen) */}
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={handleTestShushDemo}
-                accessibilityRole="button"
-                accessibilityLabel="Test Shush Mode (Preview on Lock Screen)"
-              >
-                <Sparkle size={20} color={isTestingShush ? '#FF453A' : '#BF5AF2'} weight="bold" />
-                <View style={styles.actionInfo}>
-                  <Text style={[styles.actionTitle, { color: isTestingShush ? '#FF453A' : '#BF5AF2' }]}>
-                    {isTestingShush ? 'End Preview (Lock screen to view)' : 'Test Shush Mode (Preview on Lock Screen)'}
-                  </Text>
-                  <Text style={styles.actionSubtitle}>
-                    {isTestingShush
-                      ? 'Live preview running · Tap to end'
-                      : 'Spawns live Shush Mode preview on Lock Screen & Dynamic Island'}
-                  </Text>
-                </View>
-              </Pressable>
+            {/* Test Actions - Strictly Gated Behind __DEV__ */}
+            {__DEV__ && (
+              <>
+                <Text style={styles.sectionHeader}>SIMULATION & OVERRIDES (DEV ONLY)</Text>
+                <View style={styles.card}>
+                  {/* Test Shush Mode (Preview on Lock Screen) */}
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleTestShushDemo}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Shush Mode (Preview on Lock Screen)"
+                  >
+                    <Sparkle size={20} color={isTestingShush ? '#FF453A' : '#BF5AF2'} weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: isTestingShush ? '#FF453A' : '#BF5AF2' }]}>
+                        {isTestingShush ? 'End Preview (Lock screen to view)' : 'Test Shush Mode (Preview on Lock Screen)'}
+                      </Text>
+                      <Text style={styles.actionSubtitle}>
+                        {isTestingShush
+                          ? 'Live preview running · Tap to end'
+                          : 'Spawns live Shush Mode preview on Lock Screen & Dynamic Island'}
+                      </Text>
+                    </View>
+                  </Pressable>
 
-              <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={handleToggleSimulateCommute}
-                accessibilityRole="button"
-                accessibilityLabel="Simulate Northern Line Commute"
-              >
-                <Train size={20} color={isSimulatingLiveActivity ? '#FF453A' : '#FFFFFF'} weight="bold" />
-                <View style={styles.actionInfo}>
-                  <Text style={[styles.actionTitle, { color: isSimulatingLiveActivity ? '#FF453A' : '#FFFFFF' }]}>
-                    {isSimulatingLiveActivity ? 'Stop Northern Line Live Activity' : 'Simulate Northern Line Commute'}
-                  </Text>
-                  <Text style={styles.actionSubtitle}>
-                    {isSimulatingLiveActivity
-                      ? 'Live on Dynamic Island / Lockscreen · Tap to stop'
-                      : 'Persistent Live Activity · Tests Bank vs Charing Cross pills'}
-                  </Text>
-                </View>
-              </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleToggleSimulateCommute}
+                    accessibilityRole="button"
+                    accessibilityLabel="Simulate Northern Line Commute"
+                  >
+                    <Train size={20} color={isSimulatingLiveActivity ? '#FF453A' : '#FFFFFF'} weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: isSimulatingLiveActivity ? '#FF453A' : '#FFFFFF' }]}>
+                        {isSimulatingLiveActivity ? 'Stop Northern Line Live Activity' : 'Simulate Northern Line Commute'}
+                      </Text>
+                      <Text style={styles.actionSubtitle}>
+                        {isSimulatingLiveActivity
+                          ? 'Live on Dynamic Island / Lockscreen · Tap to stop'
+                          : 'Persistent Live Activity · Tests Bank vs Charing Cross pills'}
+                      </Text>
+                    </View>
+                  </Pressable>
 
-              <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={handleSimulatePush}
-                accessibilityRole="button"
-                accessibilityLabel="Simulate iOS Lockscreen Push"
-              >
-                <Broadcast size={20} color="#34C759" weight="bold" />
-                <View style={styles.actionInfo}>
-                  <Text style={[styles.actionTitle, { color: '#34C759' }]}>
-                    {`Simulate ${primaryLineName} Refund Push`}
-                  </Text>
-                  <Text style={styles.actionSubtitle}>Fires in 5s · Lock phone & tap banner</Text>
-                </View>
-              </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleSimulatePush}
+                    accessibilityRole="button"
+                    accessibilityLabel="Simulate iOS Lockscreen Push"
+                  >
+                    <Broadcast size={20} color="#34C759" weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#34C759' }]}>
+                        {`Simulate ${primaryLineName} Refund Push`}
+                      </Text>
+                      <Text style={styles.actionSubtitle}>Fires in 5s · Lock phone & tap banner</Text>
+                    </View>
+                  </Pressable>
 
-              <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={() => handleSimulateReroutePush(primaryLineId as LineId, primaryLineName)}
-                accessibilityRole="button"
-                accessibilityLabel={`Simulate ${primaryLineName} Reroute Push`}
-              >
-                <Train size={20} color="#0019A8" weight="bold" />
-                <View style={styles.actionInfo}>
-                  <Text style={[styles.actionTitle, { color: '#6875E5' }]}>
-                    {`Simulate ${primaryLineName} Disruption Push`}
-                  </Text>
-                  <Text style={styles.actionSubtitle}>{`Fires in 5s · Tap opens in-detail card · Long-press reveals [View Reroute]`}</Text>
-                </View>
-              </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={() => handleSimulateReroutePush(primaryLineId as LineId, primaryLineName)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Simulate ${primaryLineName} Reroute Push`}
+                  >
+                    <Train size={20} color="#0019A8" weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#6875E5' }]}>
+                        {`Simulate ${primaryLineName} Disruption Push`}
+                      </Text>
+                      <Text style={styles.actionSubtitle}>{`Fires in 5s · Tap opens in-detail card`}</Text>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.divider} />
+
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleTestGoodServiceRecovery}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Good Service Recovery (Silent Dynamic Island)"
+                  >
+                    <CheckCircle size={20} color="#30D158" weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#30D158' }]}>
+                        Test Good Service Recovery (Silent)
+                      </Text>
+                      <Text style={styles.actionSubtitle}>
+                        Dynamic Island update · Silent status transition · 0 lockscreen noise
+                      </Text>
+                    </View>
+                  </Pressable>
 
               <View style={styles.divider} />
 
@@ -581,6 +623,8 @@ export const DiagnosticsModal: React.FC<Props> = ({
                 </View>
               </Pressable>
             </View>
+          </>
+        )}
           </ScrollView>
         </View>
       </View>

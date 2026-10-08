@@ -15,10 +15,11 @@ import {
   CaretLeft, Bell, Clock, CaretRight,
   Fingerprint, MapTrifold, MapPin, Shield,
   WarningCircle, Wrench, Warning,
-  BellSlash, Sparkle, MagnifyingGlass
+  BellSlash, Sparkle, MagnifyingGlass, CheckCircle
 } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import { LiveActivityService } from '../services/LiveActivityService';
+import { SessionManager } from '../services/SessionManager';
 import { track } from '../services/analyticsService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -191,6 +192,28 @@ export default function SettingsScreen() {
     });
   }, [hapticsEnabled]);
 
+  const handleTriggerTestGoodServiceRecovery = useCallback(async () => {
+    if (hapticsEnabled) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+
+    // Zero-Nag & Absolute Silence Invariant:
+    // Good Service recovery must NEVER display an in-app morph pill banner,
+    // NEVER schedule a noisy lockscreen push notification, and NEVER spawn
+    // a simulated commute Live Activity ("High Barnet 3m").
+
+    // 1. If an unwanted preview activity was started, dismiss it cleanly:
+    await LiveActivityService.stopPreviewActivity().catch(() => {});
+
+    // 2. If a genuine commute session is active, silently update it to Good Service:
+    const isLiveActive = await LiveActivityService.isActive().catch(() => false);
+    if (isLiveActive) {
+      const activeStationId = SessionManager.getCommuteOriginId() || '940GZZLUEUS';
+      const activeLineId = SessionManager.getCommuteLineId() || 'northern';
+      await LiveActivityService.update(activeStationId, activeLineId);
+    }
+  }, [hapticsEnabled]);
+
   // ── Real OS Permission States (System Truth - Layer 1) ───────────
   const [osNotificationsGranted, setOsNotificationsGranted] = useState(false);
   const [osNotifCanAskAgain, setOsNotifCanAskAgain] = useState(true);
@@ -257,7 +280,7 @@ export default function SettingsScreen() {
     } catch (e) {
       console.warn('[Settings] Error checking OS permissions:', e);
     }
-  }, [setCalendarGranted, checkLiveActivityAuth]);
+  }, [setCalendarGranted, checkLiveActivityAuth, setLocationGranted]);
 
   const handleRequestNotificationPermission = useCallback(async () => {
     if (hapticsEnabled) {
@@ -1180,6 +1203,34 @@ export default function SettingsScreen() {
                       </View>
                       <Text style={styles.rowSubtitle}>
                         Permission primer · Always Location · Auto-dismisses in 5s
+                      </Text>
+                    </View>
+                    <CaretRight size={18} color="rgba(255,255,255,0.35)" />
+                  </Pressable>
+
+                  <View style={styles.divider} />
+
+                  {/* Test Good Service Recovery (Silent Dynamic Island) */}
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleTriggerTestGoodServiceRecovery}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Good Service Recovery (Silent)"
+                    accessibilityHint="Triggers silent Dynamic Island update to Good Service without lockscreen banner noise"
+                  >
+                    <View style={styles.rowInfo}>
+                      <View style={styles.labelRow}>
+                        <IconBadge
+                          icon={<CheckCircle size={18} color="#30D158" weight="fill" />}
+                          backgroundColor="rgba(48, 209, 88, 0.18)"
+                          borderColor="rgba(48, 209, 88, 0.35)"
+                        />
+                        <Text style={[styles.rowLabel, { color: '#30D158' }]}>
+                          Test Good Service Recovery (Silent)
+                        </Text>
+                      </View>
+                      <Text style={styles.rowSubtitle}>
+                        Dynamic Island · Silent Live Activity update · 0 lockscreen noise
                       </Text>
                     </View>
                     <CaretRight size={18} color="rgba(255,255,255,0.35)" />

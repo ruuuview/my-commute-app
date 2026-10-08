@@ -110,10 +110,7 @@ public struct DeliveryTrackView: View {
 
   private func lineChip(lineId: String) -> some View {
     HStack(spacing: 6) {
-      Rectangle()
-        .fill(LineColor.specularColor(for: lineId))
-        .frame(width: 4, height: 14)
-        .cornerRadius(1)
+      AccentBar(lineId: lineId, width: 4, height: 14)
       Text(lineId.capitalized)
         .font(.system(size: 12, weight: .bold))
         .foregroundColor(.white)
@@ -144,7 +141,8 @@ public struct DeliveryTrackView: View {
     let ep = activeEndpoint
     let branchStr = (ep.branchText != nil && !ep.branchText!.isEmpty) ? " (\(ep.branchText!))" : ""
 
-    let accent = LineColor.specularColor(for: lineId)
+    let isNorthern = lineId.lowercased().replacingOccurrences(of: "-", with: "").contains("northern")
+    let accent = isNorthern ? Color.white : LineColor.color(for: lineId)
     let etaHeadline: Text = {
       if ep.minutesToArrival <= 0 {
         return Text("Arriving at \(ep.destinationName)\(branchStr) ")
@@ -168,10 +166,7 @@ public struct DeliveryTrackView: View {
 
       // Row 2: 3.5pt Specular Line Color Bar + Line Name (Left-Aligned, No Indent)
       HStack(spacing: 5) {
-        Rectangle()
-          .fill(LineColor.specularColor(for: lineId))
-          .frame(width: 3.5, height: 12)
-          .cornerRadius(1)
+        AccentBar(lineId: lineId, width: 3.5, height: 12)
         Text(state.lineName)
           .font(.system(size: 12, weight: .medium))
           .foregroundColor(.white.opacity(0.65))
@@ -364,12 +359,9 @@ public struct DeliveryTrackView: View {
           .foregroundColor(nextMins <= 0 ? Color(hex: 0x30D158) : .white)
       }
 
-      // Row 2: 3.5pt Specular Line Bar + Line Name
+      // Row 2: 3.5pt Line Bar + Line Name
       HStack(spacing: 5) {
-        Rectangle()
-          .fill(LineColor.specularColor(for: lineId))
-          .frame(width: 3.5, height: 12)
-          .cornerRadius(1)
+        AccentBar(lineId: lineId, width: 3.5, height: 12)
         Text(state.lineName)
           .font(.system(size: 12, weight: .medium))
           .foregroundColor(.white.opacity(0.65))

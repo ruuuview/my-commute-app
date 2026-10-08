@@ -2,7 +2,7 @@
 // Transient UI state for the Dynamic Island-style pill system (gooey shell).
 // NOT persisted: pill state lives only for the current app session.
 // Priority queue:
-//   disruption (5) > primer (4) > boarding (3) > shush (2) > setup (1) > intent (0).
+//   disruption (5) > boarding (4) > primer (3) > shush (2) > setup (1) > intent (0).
 // A higher or equal priority request preempts the active pill; a lower one
 // is dropped. Intent is 0 — strictly lowest, so it can NEVER preempt any
 // other pill and is dropped whenever anything else is active. It is ambient
@@ -10,6 +10,11 @@
 // 'setup' (1) is the lowest setup layer: inferred setup confirmations surface
 // only when nothing more urgent is showing. 'shush' (2) sits above setup but
 // below boarding — a manual-shush prompt never steals a boarding nudge.
+//
+// ZERO-NAG & ABSOLUTE SILENCE INVARIANT:
+// Status updates / Good Service recovery NEVER trigger a Morph Pill.
+// The Morph Pill is strictly restricted to urgent disruption, live travel context,
+// and permission primer prompts.
 //
 // The queue is a LEASE, not a latch: PillBridge frees the slot (clearPill)
 // when the visual pill dies (tap / swipe / auto-timeout), so a shown-once
@@ -23,7 +28,6 @@ export type PillKind =
   | 'disruption'
   | 'boarding'
   | 'primer'
-  | 'recovery'
   | 'shush'
   | 'setup'
   | 'intent';
@@ -49,11 +53,12 @@ export const PRIORITY: Record<PillKind, number> = {
   disruption: 5,
   boarding: 4,
   primer: 3,
-  recovery: 2,
   shush: 2,
   setup: 1,
   intent: 0,
 };
+
+export type MorphPillReason = 'location' | 'notifications';
 
 interface PillState {
   active: PillRequest | null;
@@ -86,3 +91,31 @@ export const usePillStore = create<PillState>()((set, get) => ({
 }));
 
 export const useActivePill = () => usePillStore((s) => s.active);
+
+/**
+ * Enforceable Morph Pill API: strictly restricted to permission primers.
+ * Passing a status update or any other arbitrary reason is a compile-time error.
+ */
+export function showMorphPill(
+  reason: MorphPillReason,
+  callbacks?: { onAction?: () => void; onPress?: () => void; onDismiss?: () => void }
+): void {
+  const isLocation = reason === 'location';
+  const id = `primer-${isLocation ? 'locationAlways' : 'notifications'}`;
+  usePillStore.getState().requestPill({
+    kind: 'primer',
+    id,
+    title: isLocation ? 'Live commute tracking' : 'Disruption alerts',
+    message: isLocation
+      ? 'Auto-track your train on Lock Screen at the station'
+      : 'Get notified before delays hit your commute',
+    accent: '#0A84FF',
+    tier: 'standard',
+    shortLine: 'ALERTS',
+    actionLabel: 'Enable',
+    durationMs: 5000,
+    onAction: callbacks?.onAction,
+    onPress: callbacks?.onPress,
+    onDismiss: callbacks?.onDismiss,
+  });
+}

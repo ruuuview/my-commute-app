@@ -3,7 +3,7 @@ import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import type { SymbolViewProps } from 'expo-symbols';
 import type { NotificationTier } from './interfaces/dynamic-notification.interface';
-import { getPillColors } from '../../utils/pillColors';
+import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
 
 export interface PillContentProps {
   title: string;
@@ -70,14 +70,18 @@ export function PillContent({
   // Extract short line code fallback if not explicitly provided
   const resolvedShortLine =
     shortLine || title.replace(/\s+(line|overground)$/i, '').trim();
-  const pillColorInfo = getPillColors(resolvedShortLine, accent);
+  const normalizedLine = (resolvedShortLine || '').toLowerCase().replace(/[\s_&]/g, '-').replace(/-line$/, '');
+  const lineColor =
+    LINE_IDENTITY_COLORS[normalizedLine] ??
+    LINE_IDENTITY_COLORS[resolvedShortLine.toLowerCase()] ??
+    (accent !== '#30D158' && accent !== '#FFFFFF' ? accent : '#0098D4');
+  const isNorthern = normalizedLine === 'northern' || lineColor === '#000000';
 
   const isCompact = tier === 'compact';
   const isExpanded = tier === 'expanded';
 
   const multiLines = lines && lines.length > 0 ? lines : null;
   const visibleLines = multiLines ? multiLines.slice(0, 2) : null;
-  const overflowCount = multiLines && multiLines.length > 2 ? multiLines.length - 2 : 0;
 
   return (
     <View
@@ -138,87 +142,44 @@ export function PillContent({
         <>
       {/* Header Row: Badge(s) + Title (+ Inline Link for Compact) */}
       <View style={styles.headerRow}>
-        {/* Multi-Line Badges or Boarding Badge or Single Line Badge */}
+        {/* Multi-Line Bars or Station Bar or Single Line Straight Bar */}
         {visibleLines ? (
           <View style={styles.multiLineContainer}>
             {visibleLines.map((line) => {
-              const info = getPillColors(line, accent);
+              const lKey = line.toLowerCase().replace(/[\s_&]/g, '-').replace(/-line$/, '');
+              const lColor = LINE_IDENTITY_COLORS[lKey] ?? LINE_IDENTITY_COLORS[line.toLowerCase()] ?? accent;
+              const isLNorthern = lKey === 'northern' || lColor === '#000000';
               return (
                 <View
                   key={line}
                   style={[
-                    styles.pillBadge,
-                    {
-                      borderColor: info.borderColor,
-                      backgroundColor: info.backgroundColor,
-                    },
+                    styles.straightLineBar,
+                    { backgroundColor: lColor, marginRight: 5 },
+                    isLNorthern && styles.straightLineBarNorthern,
                   ]}
-                >
-                  <View style={[styles.pillBar, { backgroundColor: info.dotColor }]} />
-                  <Text
-                    style={[styles.pillBadgeText, { color: info.textColor }]}
-                    numberOfLines={1}
-                    maxFontSizeMultiplier={1.3}
-                  >
-                    {line}
-                  </Text>
-                </View>
+                />
               );
             })}
-            {overflowCount > 0 && (
-              <View style={styles.overflowBadge}>
-                <Text style={styles.overflowText}>+{overflowCount}</Text>
-              </View>
-            )}
           </View>
         ) : stationCode ? (
-          <View
-            style={[
-              styles.dualBadge,
-              {
-                borderColor: 'rgba(255, 255, 255, 0.22)',
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              },
-            ]}
-          >
-            <Text
-              style={styles.stationBadgeText}
-              numberOfLines={1}
-              maxFontSizeMultiplier={1.3}
-            >
-              {stationCode}
-            </Text>
-            <Text style={styles.badgeSeparator} maxFontSizeMultiplier={1.3}>
-              ·
-            </Text>
-            <View style={[styles.pillBar, { backgroundColor: pillColorInfo.dotColor }]} />
-            <Text
-              style={[styles.pillBadgeText, { color: pillColorInfo.textColor }]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={1.3}
-            >
-              {resolvedShortLine}
-            </Text>
+          <View style={styles.stationCodeSlot}>
+            <Text style={styles.stationBadgeText}>{stationCode}</Text>
+            <View
+              style={[
+                styles.straightLineBar,
+                { backgroundColor: lineColor, marginLeft: 6 },
+                isNorthern && styles.straightLineBarNorthern,
+              ]}
+            />
           </View>
         ) : (
           <View
             style={[
-              styles.pillBadge,
-              {
-                borderColor: pillColorInfo.borderColor,
-                backgroundColor: pillColorInfo.backgroundColor,
-              },
+              styles.straightLineBar,
+              { backgroundColor: lineColor },
+              isNorthern && styles.straightLineBarNorthern,
             ]}
-          >
-            <View style={[styles.pillBar, { backgroundColor: pillColorInfo.dotColor }]} />
-            <Text
-              style={[styles.pillBadgeText, { color: pillColorInfo.textColor }]}
-              numberOfLines={1}
-              maxFontSizeMultiplier={1.3}
-            >
-              {resolvedShortLine}
-            </Text>
-          </View>
+          />
         )}
 
         {/* Title / Status */}
@@ -412,6 +373,21 @@ const styles = StyleSheet.create({
     marginRight: 10,
     gap: 4,
     maxWidth: 120,
+  },
+  straightLineBar: {
+    width: 3.5,
+    height: 15,
+    borderRadius: 2,
+    marginRight: 9,
+  },
+  straightLineBarNorthern: {
+    borderWidth: 0.75,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+  },
+  stationCodeSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
   },
   stationBadgeText: {
     fontSize: 10,

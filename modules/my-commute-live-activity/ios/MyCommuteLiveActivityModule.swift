@@ -34,10 +34,6 @@ public class MyCommuteLiveActivityModule: Module {
       self.pushToStartTask = nil
     }
 
-    AsyncFunction("registerNotificationCategories") {
-      self.registerNotificationCategories()
-    }
-
     AsyncFunction("startCommuteActivity") { (payload: [String: Any]) -> String? in
       guard #available(iOS 16.2, *) else { return nil }
       guard ActivityAuthorizationInfo().areActivitiesEnabled else { return nil }
@@ -292,7 +288,7 @@ public class MyCommuteLiveActivityModule: Module {
         options: []
       )
       UNUserNotificationCenter.current().getNotificationCategories { existing in
-        var updated = existing
+        var updated = existing.filter { $0.identifier != "REROUTE_ONLY" }
         updated.insert(rerouteCategory)
         UNUserNotificationCenter.current().setNotificationCategories(updated)
       }

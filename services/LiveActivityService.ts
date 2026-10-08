@@ -692,6 +692,10 @@ export class LiveActivityService {
    * backed by a 60s safety timeout.
    */
   static async startPreviewActivity(): Promise<string | null> {
+    if (!__DEV__) {
+      console.warn('[LiveActivityService] Preview activities are disabled in production builds.');
+      return null;
+    }
     if (Platform.OS !== 'ios') return null;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
       return null;
@@ -779,6 +783,10 @@ export class LiveActivityService {
    * so developers/testers outside of London can test interactive pill switching on iOS 17+.
    */
   static async startSimulatedNorthernCommute(): Promise<string | null> {
+    if (!__DEV__) {
+      console.warn('[LiveActivityService] Simulated commutes are disabled in production builds.');
+      return null;
+    }
     if (Platform.OS !== 'ios') return null;
     if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
       return null;

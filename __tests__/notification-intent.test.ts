@@ -239,7 +239,8 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
         statusDescription: 'Severe Delays',
         cause: realTflReason,
       });
-      expect(body).toBe(realTflReason);
+      const expectedReason = realTflReason.replace(/^[a-z0-9\s&-]+line\s*[:-]\s*/i, '').trim();
+      expect(body).toBe(expectedReason);
       expect(body).not.toMatch(/\+\d+\s*min|running normally/i);
     });
   });

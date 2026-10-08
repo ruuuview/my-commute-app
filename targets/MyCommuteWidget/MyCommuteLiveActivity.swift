@@ -36,7 +36,7 @@ enum LineColor {
   static func specularColor(for lineId: String) -> Color {
     let norm = lineId.lowercased().replacingOccurrences(of: "-", with: "")
     if norm == "northern" {
-      return Color(hex: 0x8A90A0) // Polished obsidian specular rim (6.5:1 contrast against dark glass)
+      return Color(hex: 0x8A90A0) // Polished obsidian specular rim
     }
     return color(for: lineId)
   }
@@ -83,10 +83,26 @@ extension Font {
 
 struct AccentBar: View {
   let lineId: String
+  var width: CGFloat = 3
+  var height: CGFloat = 11
+
+  private var isNorthern: Bool {
+    lineId.lowercased().replacingOccurrences(of: "-", with: "").contains("northern")
+  }
+
   var body: some View {
     Rectangle()
       .fill(LineColor.color(for: lineId))
-      .frame(width: 4)
+      .frame(width: width, height: height)
+      .cornerRadius(1)
+      .overlay(
+        Group {
+          if isNorthern {
+            RoundedRectangle(cornerRadius: 1)
+              .stroke(Color(hex: 0x3A3A42), lineWidth: 0.75)
+          }
+        }
+      )
   }
 }
 
@@ -310,10 +326,7 @@ private struct CompactIslandView: View {
         }
       } else {
         HStack(spacing: 4) {
-          Rectangle()
-            .fill(LineColor.specularColor(for: context.attributes.lineId))
-            .frame(width: 3, height: 11)
-            .cornerRadius(1)
+          AccentBar(lineId: context.attributes.lineId)
           let destName = context.state.destinationStationName ?? context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName)
           let branchLabel = shortBranch ?? context.state.branchName
           Text((branchLabel != nil && !branchLabel!.isEmpty) ? "\(destName) (\(branchLabel!))" : destName)

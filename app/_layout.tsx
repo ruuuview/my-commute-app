@@ -30,7 +30,7 @@ import {
   CLAIM_REMINDER_ACTIONS,
   ARRIVED_ALERT_ACTIONS,
 } from '../services/notifications/categories';
-import MyCommuteLiveActivity from '../modules/my-commute-live-activity';
+import MyCommuteLiveActivityModule from '../modules/my-commute-live-activity';
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
@@ -56,7 +56,13 @@ if (Platform.OS !== 'web') {
   // On iOS, native MyCommuteLiveActivityModule registers REROUTE_ONLY with native
   // UNNotificationActionIcon (signpost.right.and.left.fill). Expo's setNotificationCategoryAsync
   // does not support action icons and would strip them if called on iOS.
-  if (Platform.OS !== 'ios') {
+  if (Platform.OS === 'ios' && typeof MyCommuteLiveActivityModule?.registerNotificationCategories === 'function') {
+    void MyCommuteLiveActivityModule.registerNotificationCategories()
+      .catch((err) => {
+        console.warn('[NotificationCategory] Top-level iOS REROUTE_ONLY register failed, falling back:', err);
+        void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS).catch(() => {});
+      });
+  } else {
     void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS)
       .catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
   }
@@ -253,8 +259,12 @@ export default function RootLayout() {
       }
       try {
         await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', ARRIVED_ALERT_ACTIONS);
-        if (Platform.OS === 'ios') {
-          await MyCommuteLiveActivity.registerNotificationCategories();
+        if (Platform.OS === 'ios' && typeof MyCommuteLiveActivityModule?.registerNotificationCategories === 'function') {
+          try {
+            await MyCommuteLiveActivityModule.registerNotificationCategories();
+          } catch {
+            await Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS);
+          }
         } else {
           await Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS);
         }

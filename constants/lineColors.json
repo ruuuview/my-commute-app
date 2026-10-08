@@ -1,0 +1,125 @@
+{
+  "lines": {
+    "bakerloo": {
+      "name": "Bakerloo",
+      "hex": "#B36305",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "central": {
+      "name": "Central",
+      "hex": "#E32017",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "circle": {
+      "name": "Circle",
+      "hex": "#FFD300",
+      "textColor": "#111111",
+      "borderColor": null
+    },
+    "district": {
+      "name": "District",
+      "hex": "#00782A",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "dlr": {
+      "name": "DLR",
+      "hex": "#00AFAD",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "elizabeth": {
+      "name": "Elizabeth",
+      "hex": "#6950A1",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "hammersmith-city": {
+      "name": "Hammersmith & City",
+      "hex": "#F3A9BB",
+      "textColor": "#111111",
+      "borderColor": null
+    },
+    "jubilee": {
+      "name": "Jubilee",
+      "hex": "#868F98",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "metropolitan": {
+      "name": "Metropolitan",
+      "hex": "#9B0056",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "northern": {
+      "name": "Northern",
+      "hex": "#000000",
+      "textColor": "#FFFFFF",
+      "borderColor": "#3A3A42",
+      "specularColor": "#8A90A0"
+    },
+    "overground": {
+      "name": "Overground",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "piccadilly": {
+      "name": "Piccadilly",
+      "hex": "#003688",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "victoria": {
+      "name": "Victoria",
+      "hex": "#0098D4",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "waterloo-city": {
+      "name": "Waterloo & City",
+      "hex": "#95CDBA",
+      "textColor": "#111111",
+      "borderColor": null
+    },
+    "liberty": {
+      "name": "Liberty",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "lioness": {
+      "name": "Lioness",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "mildmay": {
+      "name": "Mildmay",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "suffragette": {
+      "name": "Suffragette",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "weaver": {
+      "name": "Weaver",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    },
+    "windrush": {
+      "name": "Windrush",
+      "hex": "#EE7C0E",
+      "textColor": "#FFFFFF",
+      "borderColor": null
+    }
+  }
+}

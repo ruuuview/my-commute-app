@@ -102,26 +102,9 @@ export function useDisruptionEdgeTrigger(): void {
             }),
         });
       }
-
-      // Edge trigger: upward recovery transition back to good/minor (Compact Tier).
-      if (prev >= 2 && curr < 2 && isLineId(lineId)) {
-        if (SessionManager.getSessionState() !== 'idle') continue;
-
-        const bucket = Math.floor(Date.now() / BANNER_ID_BUCKET_MS);
-        usePillStore.getState().requestPill({
-          kind: 'recovery',
-          tier: 'compact',
-          id: `recovery:${lineId}:${curr}:${bucket}`,
-          shortLine: LINE_NAMES[lineId] ?? lineId,
-          title: `${LINE_NAMES[lineId] ?? lineId} — Good service resumed`,
-          message: 'Good service resumed',
-          accent: STATUS_SEVERITY_COLORS.good,
-          durationMs: 3000,
-          onPress: () => {
-            usePillStore.getState().clearPill();
-          },
-        });
-      }
+      // ZERO-NAG & ABSOLUTE SILENCE INVARIANT:
+      // Upward recovery transition back to good/minor (curr < 2) is 100% silent.
+      // NEVER request a recovery morph pill, NEVER display a popup banner.
     }
   }, [lines, router]);
 }

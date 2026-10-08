@@ -5,8 +5,8 @@ import {
   DisruptionNotificationPayload,
   NOTIFICATION_CATEGORIES,
 } from './payload';
-import { DisruptionAlternative } from './intent';
 import { getSeverityRank } from '../../utils/getSeverityColor';
+import { formatDisruptionNotificationBody } from './disruptionCopy';
 
 const notifStorage = createMMKV({ id: 'background-storage' });
 
@@ -22,7 +22,6 @@ export interface PresentDisruptionOptions {
   statusDescription: string;
   reason?: string;
   severity?: number;
-  alternative?: DisruptionAlternative;
 }
 
 export interface PresentServiceRecoveryOptions {
@@ -58,8 +57,6 @@ export async function presentDisruptionNotification(
     return `suppressed_healthy_${lineId}`;
   }
 
-  const alt = opts.alternative;
-
   // Symmetric cross-system dedup: suppress if in-app pill or local notification already fired recently
   try {
     const lastNotified = notifStorage.getNumber(`notified_disruption_${lineId}`);
@@ -73,7 +70,6 @@ export async function presentDisruptionNotification(
 
   const data: DisruptionNotificationPayload & {
     action: 'show-disruption';
-    alternative?: DisruptionAlternative;
     statusAsOf: number;
   } = {
     type: 'COMMUTE_DISRUPTION',
@@ -83,13 +79,14 @@ export async function presentDisruptionNotification(
     severity,
     status: statusDescription,
     reason,
-    alternative: alt,
     statusAsOf: Date.now(),
     timestamp: Date.now(),
   };
 
-  const reasonSnippet = reason ? ` (${reason})` : '';
-  const bodyText = `${statusDescription}${reasonSnippet}`;
+  const bodyText = formatDisruptionNotificationBody({
+    statusDescription,
+    cause: reason,
+  });
 
   return Notifications.scheduleNotificationAsync({
     content: {
@@ -104,31 +101,18 @@ export async function presentDisruptionNotification(
 }
 
 /**
- * Dispatches a notification informing the user that Good Service has resumed.
+ * Dispatches service recovery silently.
+ * ZERO-NAG INVARIANT: Good Service recovery NEVER schedules noisy lockscreen
+ * notification banners with sound.
  */
 export async function presentServiceRecoveryNotification(
   opts: PresentServiceRecoveryOptions
 ): Promise<string> {
   const { lineId, lineName } = opts;
 
-  const data: DisruptionNotificationPayload = {
-    type: 'SERVICE_RECOVERED',
-    lineId,
-    lineName,
-    status: 'Good Service',
-    timestamp: Date.now(),
-  };
+  console.log(`[dispatch] Good service recovery on ${lineName} line (${lineId}) — silent transition (no loud banner scheduled).`);
 
-  return Notifications.scheduleNotificationAsync({
-    content: {
-      title: `Service cleared on ${lineName} line`,
-      body: `Good Service has resumed.`,
-      categoryIdentifier: NOTIFICATION_CATEGORIES.COMMUTE_STATUS,
-      data: data as unknown as Record<string, any>,
-      sound: true,
-    },
-    trigger: null,
-  });
+  return `silent_recovery_${lineId}`;
 }
 
 /**

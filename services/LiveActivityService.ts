@@ -309,7 +309,9 @@ export class LiveActivityService {
     const signalState: LiveActivitySignalState =
       signalStateOverride ?? LiveActivityService.readSignalState();
 
-    const detour = severityTier >= 3 ? computeDetour(cleanLineId) : null;
+    // Live Activity must only present authentic transit data. Detour alternatives are disabled
+    // until verified journey planner results are wired (Zero-Fabrication Invariant).
+    const detour = null;
 
     const liveEndpoints = Array.from(
       new Set(
@@ -424,9 +426,9 @@ export class LiveActivityService {
       etaDelta,
       isDisrupted,
       isEscalated: severityTier >= 3,
-      detourLine: detour?.detourLineName ?? null,
-      detourMinutes: detour?.detourMinutes ?? null,
-      detourStatus: detour?.detourStatus ?? null,
+      detourLine: null,
+      detourMinutes: null,
+      detourStatus: null,
       delayRepayEligible,
       estimatedFare,
       delayMinutes: effectiveDelayMinutes,

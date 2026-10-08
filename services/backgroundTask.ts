@@ -9,9 +9,9 @@ import { SessionManager, GEOFENCE_CONFIG } from './SessionManager';
 import { LiveActivityService } from './LiveActivityService';
 import { getSeverityRank } from '../utils/getSeverityColor';
 import { fetchWithTimeout } from '../utils/network';
+import { getStationScores } from '../utils/commuteInference';
 import {
   presentDisruptionNotification,
-  presentServiceRecoveryNotification,
   presentServiceImprovingNotification,
 } from './notifications/dispatch';
 import { isLineId } from './notifications/payload';
@@ -266,7 +266,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
               console.log(`[backgroundTask] In-transit session active on ${lineId} — updating Live Activity directly without noisy banner.`);
               void LiveActivityService.update(activeStationId, lineId).catch(() => {});
             } else {
-              // Severity worsened - trigger rich disruption banner with precomputed alternative
+              // Severity worsened - trigger disruption notification
               await presentDisruptionNotification({
                 lineId,
                 lineName: lineData.name,
@@ -276,11 +276,17 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
               });
             }
           } else if (currentRank === 0 && lastRank > 0) {
-            // Severity cleared - trigger cleared alert
-            await presentServiceRecoveryNotification({
-              lineId,
-              lineName: lineData.name,
-            });
+            // Severity cleared — silent update via Dynamic Island / Live Activity (Zero-Nag Invariant)
+            const isSessionActive = SessionManager.getSessionState() === 'active';
+            const activeLineId = SessionManager.getCommuteLineId();
+            const activeStationId = SessionManager.getCommuteOriginId();
+
+            if (isSessionActive && activeLineId && activeLineId.toLowerCase() === lineId && activeStationId) {
+              console.log(`[backgroundTask] In-transit session active on ${lineId} — updating Live Activity to Good Service silently.`);
+              void LiveActivityService.update(activeStationId, lineId).catch(() => {});
+            } else {
+              console.log(`[backgroundTask] Service cleared on ${lineData.name} (${lineId}) — silent transition (no noisy banner).`);
+            }
           } else {
             // Severity improved but not fully cleared - trigger improving alert
             await presentServiceImprovingNotification({
@@ -401,9 +407,8 @@ export async function syncGeofencesAsync(pinnedStations: any[]) {
     pushTier(tier1);
 
     try {
-      const inference = require('../utils/commuteInference');
-      const scores = inference && typeof inference.getStationScores === 'function'
-        ? inference.getStationScores()
+      const scores = typeof getStationScores === 'function'
+        ? getStationScores()
         : null;
       if (scores && typeof scores === 'object') {
         const ranked = pinnedStations

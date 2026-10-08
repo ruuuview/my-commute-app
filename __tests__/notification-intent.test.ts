@@ -6,6 +6,7 @@ import {
 import {
   presentDisruptionNotification,
 } from '../services/notifications/dispatch';
+import { formatDisruptionNotificationBody } from '../services/notifications/disruptionCopy';
 import * as Notifications from 'expo-notifications';
 
 jest.mock('expo-notifications', () => ({
@@ -220,6 +221,26 @@ describe('Notification Intent Architecture & Stack-Preserving Tests', () => {
 
       expect(result).toBe('suppressed_healthy_northern');
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('notification body contains only TfL status + reason', () => {
+      const body = formatDisruptionNotificationBody({
+        statusDescription: 'Severe Delays',
+        cause: 'signal failure',
+      });
+      expect(body).toBe('Severe Delays (signal failure)');
+      expect(body).not.toMatch(/\+\d+\s*min|running normally/i);
+    });
+
+    it('deduplicates when TfL cause already includes the status description', () => {
+      const realTflReason =
+        'Northern Line: Severe delays while we deal with a track fire at Stockwell. Tickets are being accepted on London Buses...';
+      const body = formatDisruptionNotificationBody({
+        statusDescription: 'Severe Delays',
+        cause: realTflReason,
+      });
+      expect(body).toBe(realTflReason);
+      expect(body).not.toMatch(/\+\d+\s*min|running normally/i);
     });
   });
 });

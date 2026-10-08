@@ -25,6 +25,12 @@ import { SessionManager } from '../services/SessionManager';
 import { installDirectionNotification } from '../services/directionNotification';
 import { resolveRerouteTarget } from '../services/notifications/payload';
 import { parseNotificationIntent, navigateToIntent } from '../services/notifications/intent';
+import {
+  REROUTE_ONLY_ACTIONS,
+  CLAIM_REMINDER_ACTIONS,
+  ARRIVED_ALERT_ACTIONS,
+} from '../services/notifications/categories';
+import MyCommuteLiveActivity from '../modules/my-commute-live-activity';
 import { setupAuthCallbackListener } from '../services/authSession';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
@@ -47,32 +53,16 @@ if (Platform.OS !== 'web') {
     }),
   });
 
-  void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
-    {
-      identifier: 'view_reroute',
-      buttonTitle: 'View Reroute',
-      options: {
-        opensAppToForeground: true,
-      },
-    },
-    {
-      identifier: 'shush_today',
-      buttonTitle: 'Shush today',
-      options: {
-        opensAppToForeground: false,
-      },
-    },
-  ]).catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
+  // On iOS, native MyCommuteLiveActivityModule registers REROUTE_ONLY with native
+  // UNNotificationActionIcon (signpost.right.and.left.fill). Expo's setNotificationCategoryAsync
+  // does not support action icons and would strip them if called on iOS.
+  if (Platform.OS !== 'ios') {
+    void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS)
+      .catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
+  }
 
-  void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', [
-    {
-      identifier: 'view_claim',
-      buttonTitle: 'View Refund',
-      options: {
-        opensAppToForeground: true,
-      },
-    },
-  ]).catch((err) => console.warn('[NotificationCategory] CLAIM_REMINDER register failed:', err));
+  void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', CLAIM_REMINDER_ACTIONS)
+    .catch((err) => console.warn('[NotificationCategory] CLAIM_REMINDER register failed:', err));
 }
 
 LogBox.ignoreLogs([
@@ -262,36 +252,12 @@ export default function RootLayout() {
         console.warn('[NotificationCategory] direction install failed:', e);
       }
       try {
-        await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', [
-          {
-            identifier: 'snooze4h',
-            buttonTitle: '4 hours',
-            options: { opensAppToForeground: false },
-          },
-          {
-            identifier: 'snooze8h',
-            buttonTitle: '8 hours',
-            options: { opensAppToForeground: false },
-          },
-          {
-            identifier: 'snooze12h',
-            buttonTitle: '12 hours',
-            options: { opensAppToForeground: false },
-          },
-        ]);
-
-        await Notifications.setNotificationCategoryAsync('REROUTE_ONLY', [
-          {
-            identifier: 'view_reroute',
-            buttonTitle: 'View Reroute',
-            options: { opensAppToForeground: true },
-          },
-          {
-            identifier: 'shush_today',
-            buttonTitle: 'Shush today',
-            options: { opensAppToForeground: false },
-          },
-        ]);
+        await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', ARRIVED_ALERT_ACTIONS);
+        if (Platform.OS === 'ios') {
+          await MyCommuteLiveActivity.registerNotificationCategories();
+        } else {
+          await Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS);
+        }
         console.log('[NotificationCategory] Registered ARRIVED_ALERT & REROUTE_ONLY categories');
       } catch (e) {
         console.warn('Failed to set notification category:', e);

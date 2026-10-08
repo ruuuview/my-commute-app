@@ -21,6 +21,7 @@ const mockFallbackModule = {
   activityAuthorizationInfo: async () => ({ supported: false, enabled: false }),
   getManualShushDate: async () => null,
   setManualShushDate: async () => {},
+  registerNotificationCategories: async () => {},
   addListener: () => ({ remove: () => {} }),
   removeListeners: () => {},
 };
@@ -100,6 +101,8 @@ export interface MyCommuteLiveActivity {
   /** Shared App Group manual-shush key. Unix seconds, or null when unshushed. */
   getManualShushDate(): Promise<number | null>;
   setManualShushDate(epochSeconds: number | null): Promise<void>;
+  /** Registers native UNNotificationCategory with UNNotificationActionIcon for REROUTE_ONLY. */
+  registerNotificationCategories(): Promise<void>;
 }
 
 export function addPushToStartListener(listener: (event: { token: string }) => void): EventSubscription {

@@ -9,6 +9,7 @@ import {
   presentServiceRecoveryNotification,
   presentServiceImprovingNotification,
 } from '../services/notifications/dispatch';
+import { REROUTE_ONLY_ACTIONS } from '../services/notifications/categories';
 
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-notification-id'),
@@ -263,4 +264,20 @@ describe('Notifications Poka-Yoke & Routing Tests', () => {
       );
     });
   });
+
+  describe('REROUTE_ONLY Category Actions Contract (Poka-Yoke Invariant)', () => {
+    it('verifies shush_today uses "🤫 Shush today" and view_reroute remains intact in REROUTE_ONLY_ACTIONS', () => {
+      const shushAction = REROUTE_ONLY_ACTIONS.find((a) => a.identifier === 'shush_today');
+      const viewRerouteAction = REROUTE_ONLY_ACTIONS.find((a) => a.identifier === 'view_reroute');
+
+      expect(shushAction).toBeDefined();
+      expect(shushAction?.buttonTitle).toBe('🤫 Shush today');
+      expect(shushAction?.options?.opensAppToForeground).toBe(false);
+
+      expect(viewRerouteAction).toBeDefined();
+      expect(viewRerouteAction?.buttonTitle).toBe('🧭 View Reroute');
+      expect(viewRerouteAction?.options?.opensAppToForeground).toBe(true);
+    });
+  });
 });
+

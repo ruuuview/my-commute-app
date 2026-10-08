@@ -26,11 +26,16 @@ public class MyCommuteLiveActivityModule: Module {
 
     OnCreate {
       self.startPushToStartObservation()
+      self.registerNotificationCategories()
     }
 
     OnDestroy {
       self.pushToStartTask?.cancel()
       self.pushToStartTask = nil
+    }
+
+    AsyncFunction("registerNotificationCategories") {
+      self.registerNotificationCategories()
     }
 
     AsyncFunction("startCommuteActivity") { (payload: [String: Any]) -> String? in
@@ -244,6 +249,10 @@ public class MyCommuteLiveActivityModule: Module {
         return false
       }
     }
+
+    AsyncFunction("registerNotificationCategories") { () -> Void in
+      self.registerNotificationCategories()
+    }
   }
 
   // MARK: - Push-to-Start Token Observation (iOS 17.2+)
@@ -256,6 +265,36 @@ public class MyCommuteLiveActivityModule: Module {
         guard let self = self else { return }
         let tokenStr = tokenData.map { String(format: "%02x", $0) }.joined()
         self.sendEvent("onPushToStartTokenUpdate", ["token": tokenStr])
+      }
+    }
+  }
+
+  // MARK: - Native Notification Categories (iOS 15+)
+
+  private func registerNotificationCategories() {
+    if #available(iOS 15.0, *) {
+      let viewRerouteAction = UNNotificationAction(
+        identifier: "view_reroute",
+        title: "🧭 View Reroute",
+        options: [.foreground],
+        icon: UNNotificationActionIcon(systemImageName: "signpost.right.and.left.fill")
+      )
+      let shushTodayAction = UNNotificationAction(
+        identifier: "shush_today",
+        title: "🤫 Shush today",
+        options: [],
+        icon: UNNotificationActionIcon(systemImageName: "speaker.slash.fill")
+      )
+      let rerouteCategory = UNNotificationCategory(
+        identifier: "REROUTE_ONLY",
+        actions: [viewRerouteAction, shushTodayAction],
+        intentIdentifiers: [],
+        options: []
+      )
+      UNUserNotificationCenter.current().getNotificationCategories { existing in
+        var updated = existing
+        updated.insert(rerouteCategory)
+        UNUserNotificationCenter.current().setNotificationCategories(updated)
       }
     }
   }

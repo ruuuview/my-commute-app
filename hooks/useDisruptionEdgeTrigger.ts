@@ -29,6 +29,8 @@ import { usePillStore } from '../store/pillStore';
 import { SessionManager } from '../services/SessionManager';
 import { navigateToIntent } from '../services/notifications/intent';
 import { isLineId } from '../services/notifications/payload';
+import { dismissDisruptionNotification } from '../services/notifications/dispatch';
+import { LiveActivityService } from '../services/LiveActivityService';
 import { LINE_NAMES } from '../constants/lineColors';
 import { STATUS_SEVERITY_COLORS, getSeverityRank } from '../utils/getSeverityColor';
 
@@ -58,6 +60,17 @@ export function useDisruptionEdgeTrigger(): void {
       // severe at cold start is not an edge, and defaulting unseen lines to
       // good would fire a bogus edge pill.
       if (prev === undefined) continue;
+
+      // Upward edge trigger: recovery from severe/suspended back to good/minor
+      if (prev >= 2 && curr < 2 && isLineId(lineId)) {
+        void dismissDisruptionNotification({ lineId, lineName: LINE_NAMES[lineId] ?? lineId });
+        if (SessionManager.getSessionState() !== 'idle') {
+          const originStation = SessionManager.getCommuteOriginId() || '';
+          if (originStation) {
+            void LiveActivityService.update(originStation, lineId);
+          }
+        }
+      }
 
       // Edge trigger: downward transition into severe/suspended (Expanded Tier).
       if (prev < 2 && curr >= 2 && isLineId(lineId)) {

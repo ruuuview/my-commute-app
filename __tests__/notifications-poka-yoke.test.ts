@@ -6,13 +6,14 @@ import {
 } from '../services/notifications/payload';
 import {
   presentDisruptionNotification,
-  presentServiceRecoveryNotification,
+  dismissDisruptionNotification,
   presentServiceImprovingNotification,
 } from '../services/notifications/dispatch';
 import { REROUTE_ONLY_ACTIONS } from '../services/notifications/categories';
 
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-notification-id'),
+  dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
   setNotificationCategoryAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -95,12 +96,13 @@ describe('Notifications Poka-Yoke & Routing Tests', () => {
     });
 
     it('should NOT dispatch loud lockscreen banner notification on service recovery (Zero-Nag Silent Dynamic Island Invariant)', async () => {
-      const res = await presentServiceRecoveryNotification({
+      const res = await dismissDisruptionNotification({
         lineId: 'northern',
         lineName: 'Northern',
       });
 
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('line-disruption-northern');
       expect(res).toBe('silent_recovery_northern');
     });
 

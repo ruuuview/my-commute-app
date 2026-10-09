@@ -24,9 +24,9 @@ export interface PresentDisruptionOptions {
   severity?: number;
 }
 
-export interface PresentServiceRecoveryOptions {
+export interface DismissDisruptionOptions {
   lineId: LineId;
-  lineName: string;
+  lineName?: string;
 }
 
 export interface PresentServiceImprovingOptions {
@@ -102,17 +102,16 @@ export async function presentDisruptionNotification(
 }
 
 /**
- * Dispatches service recovery silently.
- * ZERO-NAG INVARIANT: Good Service recovery NEVER schedules noisy lockscreen
- * notification banners with sound.
- * AUTOMATIC DISMISSAL: Clears any stale disruption notification for this line.
+ * Dispatches service recovery silently by dismissing the disruption notification.
+ * ZERO-NAG INVARIANT: Good Service recovery NEVER schedules noisy lockscreen banners with sound.
+ * AUTOMATIC ISOLATED DISMISSAL: Clears ONLY the stale disruption notification for this line.
  */
-export async function presentServiceRecoveryNotification(
-  opts: PresentServiceRecoveryOptions
+export async function dismissDisruptionNotification(
+  opts: DismissDisruptionOptions
 ): Promise<string> {
   const { lineId, lineName } = opts;
 
-  console.log(`[dispatch] Good service recovery on ${lineName} line (${lineId}) — silent transition (no loud banner scheduled).`);
+  console.log(`[dispatch] Good service recovery on ${lineName ?? lineId} line (${lineId}) — silent transition (dismissing lockscreen alert).`);
 
   if (typeof Notifications.dismissNotificationAsync === 'function') {
     try {

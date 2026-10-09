@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { LiveActivityService } from '../services/LiveActivityService';
 import { SessionManager } from '../services/SessionManager';
 import { track } from '../services/analyticsService';
+import { dismissDisruptionNotification } from '../services/notifications/dispatch';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -197,19 +198,35 @@ export default function SettingsScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
 
-    // Zero-Nag & Absolute Silence Invariant:
-    // Good Service recovery must NEVER display an in-app morph pill banner,
-    // NEVER schedule a noisy lockscreen push notification, and NEVER spawn
-    // a simulated commute Live Activity ("High Barnet 3m").
+    const testLineId = 'victoria';
+    const testLineName = 'Victoria';
+    const testLineColor = '#0098D4';
 
-    // 1. If an unwanted preview activity was started, dismiss it cleanly:
+    // 1. Isolated Notification Dismissal:
+    // Only dismiss Victoria's disruption notification — leaves all other line alerts intact.
+    await dismissDisruptionNotification({ lineId: testLineId, lineName: testLineName });
+
+    // 2. Dynamic Island Morph Pill:
+    // Display the arrival-mirror layout: [Line Bar] [Line Name] ... [Green Bezel Dot]
+    usePillStore.getState().requestPill({
+      id: `test-good-service-${Date.now()}`,
+      kind: 'setup',
+      tier: 'compact',
+      shortLine: 'VIC',
+      title: testLineName,
+      message: 'Good service',
+      accent: testLineColor,
+      durationMs: 4000,
+    });
+
+    // 3. Clean up any stale preview activity:
     await LiveActivityService.stopPreviewActivity().catch(() => { });
 
-    // 2. If a genuine commute session is active, silently update it to Good Service:
+    // 4. If a genuine commute session is active, update it to Good Service:
     const isLiveActive = await LiveActivityService.isActive().catch(() => false);
     if (isLiveActive) {
       const activeStationId = SessionManager.getCommuteOriginId() || '940GZZLUEUS';
-      const activeLineId = SessionManager.getCommuteLineId() || 'northern';
+      const activeLineId = SessionManager.getCommuteLineId() || testLineId;
       await LiveActivityService.update(activeStationId, activeLineId);
     }
   }, [hapticsEnabled]);

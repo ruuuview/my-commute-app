@@ -11,14 +11,15 @@
 // ==============================================================================
 
 import * as Notifications from 'expo-notifications';
-import { usePillStore, showMorphPill } from '../store/pillStore';
-import { presentServiceRecoveryNotification } from '../services/notifications/dispatch';
+import { usePillStore } from '../store/pillStore';
+import { dismissDisruptionNotification } from '../services/notifications/dispatch';
 import { LiveActivityService } from '../services/LiveActivityService';
 import { LINE_IDENTITY_COLORS, NORTHERN_SHADES } from '../constants/lineColors';
 import lineColorsData from '../constants/lineColors.json';
 
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn().mockResolvedValue('notif-id'),
+  dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
   setNotificationCategoryAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -41,13 +42,14 @@ describe('Good Service Silence & Production Gating Invariants', () => {
 
   describe('Invariant 1: Absolute Silence on Good Service Recovery', () => {
     it('never schedules a lockscreen notification for Good Service recovery', async () => {
-      const res = await presentServiceRecoveryNotification({
+      const res = await dismissDisruptionNotification({
         lineId: 'northern',
         lineName: 'Northern',
       });
 
       expect(res).toBe('silent_recovery_northern');
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('line-disruption-northern');
     });
 
     it('never requests a Morph Pill banner when status recovers to Good Service', () => {

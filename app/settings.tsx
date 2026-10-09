@@ -203,7 +203,7 @@ export default function SettingsScreen() {
     // a simulated commute Live Activity ("High Barnet 3m").
 
     // 1. If an unwanted preview activity was started, dismiss it cleanly:
-    await LiveActivityService.stopPreviewActivity().catch(() => {});
+    await LiveActivityService.stopPreviewActivity().catch(() => { });
 
     // 2. If a genuine commute session is active, silently update it to Good Service:
     const isLiveActive = await LiveActivityService.isActive().catch(() => false);
@@ -457,7 +457,7 @@ export default function SettingsScreen() {
             'To detect when you approach Home or Work stations in the background, set Location to Always in Settings.',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => { }) },
             ]
           );
           return;
@@ -470,7 +470,7 @@ export default function SettingsScreen() {
             'To detect when you approach Home or Work stations in the background, set Location to Always in Settings.',
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => { }) },
             ]
           );
           return;

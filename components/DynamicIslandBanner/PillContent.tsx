@@ -140,114 +140,114 @@ export function PillContent({
         </>
       ) : (
         <>
-      {/* Header Row: Badge(s) + Title (+ Inline Link for Compact) */}
-      <View style={styles.headerRow}>
-        {/* Multi-Line Bars or Station Bar or Single Line Straight Bar */}
-        {visibleLines ? (
-          <View style={styles.multiLineContainer}>
-            {visibleLines.map((line) => {
-              const lKey = line.toLowerCase().replace(/[\s_&]/g, '-').replace(/-line$/, '');
-              const lColor = LINE_IDENTITY_COLORS[lKey] ?? LINE_IDENTITY_COLORS[line.toLowerCase()] ?? accent;
-              const isLNorthern = lKey === 'northern' || lColor === '#000000';
-              return (
+          {/* Header Row: Badge(s) + Title (+ Inline Link for Compact) */}
+          <View style={styles.headerRow}>
+            {/* Multi-Line Bars or Station Bar or Single Line Straight Bar */}
+            {visibleLines ? (
+              <View style={styles.multiLineContainer}>
+                {visibleLines.map((line) => {
+                  const lKey = line.toLowerCase().replace(/[\s_&]/g, '-').replace(/-line$/, '');
+                  const lColor = LINE_IDENTITY_COLORS[lKey] ?? LINE_IDENTITY_COLORS[line.toLowerCase()] ?? accent;
+                  const isLNorthern = lKey === 'northern' || lColor === '#000000';
+                  return (
+                    <View
+                      key={line}
+                      style={[
+                        styles.straightLineBar,
+                        { backgroundColor: lColor, marginRight: 5 },
+                        isLNorthern && styles.straightLineBarNorthern,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+            ) : stationCode ? (
+              <View style={styles.stationCodeSlot}>
+                <Text style={styles.stationBadgeText}>{stationCode}</Text>
                 <View
-                  key={line}
                   style={[
                     styles.straightLineBar,
-                    { backgroundColor: lColor, marginRight: 5 },
-                    isLNorthern && styles.straightLineBarNorthern,
+                    { backgroundColor: lineColor, marginLeft: 6 },
+                    isNorthern && styles.straightLineBarNorthern,
                   ]}
                 />
-              );
-            })}
-          </View>
-        ) : stationCode ? (
-          <View style={styles.stationCodeSlot}>
-            <Text style={styles.stationBadgeText}>{stationCode}</Text>
-            <View
-              style={[
-                styles.straightLineBar,
-                { backgroundColor: lineColor, marginLeft: 6 },
-                isNorthern && styles.straightLineBarNorthern,
-              ]}
-            />
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.straightLineBar,
-              { backgroundColor: lineColor },
-              isNorthern && styles.straightLineBarNorthern,
-            ]}
-          />
-        )}
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.straightLineBar,
+                  { backgroundColor: lineColor },
+                  isNorthern && styles.straightLineBarNorthern,
+                ]}
+              />
+            )}
 
-        {/* Title / Status */}
-        <Text
-          style={styles.title}
-          numberOfLines={1}
-          maxFontSizeMultiplier={1.3}
-        >
-          {title}
-        </Text>
-
-        {/* Compact Tier Inline Action */}
-        {isCompact && actionLabel ? (
-          <Text
-            style={styles.inlineActionLink}
-            numberOfLines={1}
-            maxFontSizeMultiplier={1.3}
-          >
-            {actionLabel} →
-          </Text>
-        ) : null}
-      </View>
-
-      {/* Standard & Expanded: Message Row */}
-      {!isCompact && (
-        <View style={styles.messageRow}>
-          <Text
-            style={styles.message}
-            numberOfLines={1}
-            maxFontSizeMultiplier={1.3}
-          >
-            {message}
-          </Text>
-          {/* Standard Tier Inline Action Link */}
-          {tier === 'standard' && actionLabel ? (
+            {/* Title / Status */}
             <Text
-              style={styles.inlineActionLink}
+              style={styles.title}
               numberOfLines={1}
               maxFontSizeMultiplier={1.3}
             >
-              · {actionLabel} →
+              {title}
             </Text>
+
+            {/* Compact Tier Inline Action */}
+            {isCompact && actionLabel ? (
+              <Text
+                style={styles.inlineActionLink}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}
+              >
+                {actionLabel} →
+              </Text>
+            ) : null}
+          </View>
+
+          {/* Standard & Expanded: Message Row */}
+          {!isCompact && (
+            <View style={styles.messageRow}>
+              <Text
+                style={styles.message}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}
+              >
+                {message}
+              </Text>
+              {/* Standard Tier Inline Action Link */}
+              {tier === 'standard' && actionLabel ? (
+                <Text
+                  style={styles.inlineActionLink}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1.3}
+                >
+                  · {actionLabel} →
+                </Text>
+              ) : null}
+            </View>
+          )}
+
+          {/* Expanded Tier: Dedicated Action Pill Row */}
+          {isExpanded && actionLabel ? (
+            <View style={styles.expandedActionRow}>
+              <View
+                style={[
+                  styles.expandedActionButton,
+                  {
+                    borderColor: `${accent}66`,
+                    backgroundColor: `${accent}22`,
+                  },
+                ]}
+              >
+                <Text
+                  style={styles.expandedActionText}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1.3}
+                >
+                  {actionLabel} →
+                </Text>
+              </View>
+            </View>
           ) : null}
-        </View>
-      )}
-
-      {/* Expanded Tier: Dedicated Action Pill Row */}
-      {isExpanded && actionLabel ? (
-        <View style={styles.expandedActionRow}>
-          <View
-            style={[
-              styles.expandedActionButton,
-              {
-                borderColor: `${accent}66`,
-                backgroundColor: `${accent}22`,
-              },
-            ]}
-          >
-            <Text
-              style={styles.expandedActionText}
-              numberOfLines={1}
-              maxFontSizeMultiplier={1.3}
-            >
-              {actionLabel} →
-            </Text>
-          </View>
-        </View>
-      ) : null}
         </>
       )}
     </View>

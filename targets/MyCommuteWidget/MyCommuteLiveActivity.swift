@@ -218,9 +218,25 @@ private struct CompactIslandView: View {
     return context.state.nextTrainMinutes
   }
 
+  private var isGoodServiceStatus: Bool {
+    return context.state.phase == "good_service" ||
+      (!context.state.isDisrupted && (context.state.statusSeverity == "good" || context.state.statusText.lowercased().contains("good service")) && (context.state.arrivals == nil || context.state.arrivals!.isEmpty || (context.state.phase != "in_transit" && minutesAway <= 0)))
+  }
+
   var body: some View {
     if trailing {
-      if context.state.phase == "line_picker" {
+      if isGoodServiceStatus {
+        ZStack {
+          Circle()
+            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            .background(Circle().fill(Color.white.opacity(0.08)))
+            .frame(width: 12, height: 12)
+          Circle()
+            .fill(Color(hex: 0x30D158))
+            .frame(width: 6, height: 6)
+        }
+        .accessibilityLabel("Good service")
+      } else if context.state.phase == "line_picker" {
         let count = context.state.availableLines?.count ?? 0
         Text("\(count) lines")
           .font(.system(size: 11, weight: .bold))
@@ -294,7 +310,17 @@ private struct CompactIslandView: View {
           .accessibilityLabel(minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes")
       }
     } else {
-      if context.state.phase == "line_picker" {
+      if isGoodServiceStatus {
+        HStack(spacing: 4) {
+          AccentBar(lineId: context.attributes.lineId)
+          let lineDisplayName = context.attributes.lineName ?? (context.state.lineName.isEmpty ? context.attributes.lineId.capitalized : context.state.lineName)
+          Text(lineDisplayName)
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+        }
+        .accessibilityLabel("\(context.attributes.lineName ?? context.state.lineName) line")
+      } else if context.state.phase == "line_picker" {
         HStack(spacing: 3) {
           Circle().fill(Color(hex: 0x007AFF)).frame(width: 6, height: 6)
           Text(context.state.currentStationName ?? "Station")

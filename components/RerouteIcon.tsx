@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Image, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import Svg, { Path, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 export interface RerouteIconProps {
   size?: number;

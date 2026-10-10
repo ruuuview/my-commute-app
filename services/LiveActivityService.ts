@@ -39,7 +39,6 @@ import MyCommuteLiveActivityModuleDefault, {
 import { track } from './analyticsService';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
-import { computeDetour } from './detourComputer';
 
 export interface SavedLinePayload {
   id: string;   // Canonical TfL line ID slug (e.g. 'jubilee', 'elizabeth')
@@ -151,6 +150,8 @@ export class LiveActivityService {
   private static lastDisruptedAt = 0;
   private static lastWidgetSyncAt = 0;
   private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
+  private static lastUpdatePayloadHash = '';
+  private static lastUpdateTime = 0;
   private static tokenSubscriptions: { remove: () => void }[] = [];
 
   /**
@@ -311,7 +312,6 @@ export class LiveActivityService {
 
     // Live Activity must only present authentic transit data. Detour alternatives are disabled
     // until verified journey planner results are wired (Zero-Fabrication Invariant).
-    const detour = null;
 
     const liveEndpoints = Array.from(
       new Set(
@@ -581,6 +581,15 @@ export class LiveActivityService {
     if (!payload) {
       return;
     }
+
+    const payloadHash = `${stationId}:${lineId}:${payload.statusText}:${payload.severityTier}:${payload.nextTrainMinutes}:${payload.phase}`;
+    const now = Date.now();
+    if (payloadHash === this.lastUpdatePayloadHash && now - this.lastUpdateTime < 2000) {
+      return;
+    }
+    this.lastUpdatePayloadHash = payloadHash;
+    this.lastUpdateTime = now;
+
     try {
       await MyCommuteLiveActivityModule.updateCommuteActivity(payload);
     } catch (e) {
@@ -775,6 +784,76 @@ export class LiveActivityService {
       this.previewTimeout = null;
     }
     await this.end('manual_preview_stop');
+  }
+
+  /**
+   * DEV-only 1-Tap Good Service preview trigger for instant on-device testing
+   * of the Good Service Dynamic Island layout ([Line Bar] [Line Name] ... [Green Bezel Dot]).
+   */
+  static async startGoodServicePreviewActivity(
+    lineId: string = 'victoria',
+    lineName: string = 'Victoria'
+  ): Promise<string | null> {
+    if (!__DEV__) {
+      console.warn('[LiveActivityService] Good Service preview activities are disabled in production builds.');
+      return null;
+    }
+    if (Platform.OS !== 'ios') return null;
+    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+      return null;
+    }
+
+    if (this.previewTimeout) {
+      clearTimeout(this.previewTimeout);
+      this.previewTimeout = null;
+    }
+
+    const previewPayload: LiveActivityBridgePayload = {
+      journeyId: `preview_good_service_${Math.floor(Date.now() / 1000)}`,
+      originStation: '940GZZLUVIC',
+      destinationStation: 'Walthamstow Central',
+      stationId: '940GZZLUVIC',
+      lineId,
+      lineName,
+      branchKnown: false,
+      arrivals: [],
+      statusSeverity: 'good',
+      statusText: 'Good Service',
+      severityTier: 0,
+      nextTrainMinutes: 0,
+      etaTimestamp: Math.floor(Date.now() / 1000),
+      etaDelta: 'On time',
+      isDisrupted: false,
+      isEscalated: false,
+      delayRepayEligible: false,
+      delayMinutes: 0,
+      tunnelState: 'normal',
+      progress: 1.0,
+      segmentMaxDuration: 180,
+      signalState: 'ok',
+      phase: 'good_service' as any,
+      availableEndpoints: ['Walthamstow Central', 'Brixton'],
+      selectedEndpoint: 'Walthamstow Central',
+      sessionStartTime: Math.floor(Date.now() / 1000),
+      currentStationName: 'Victoria',
+      destinationStationName: 'Walthamstow Central',
+    };
+
+    try {
+      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(previewPayload);
+      console.log(`[LiveActivityService] Started Good Service preview activity ${activityId}`);
+      track('shush_session_started', { trigger: 'preview_good_service', mode: 'shush' });
+
+      this.previewTimeout = setTimeout(() => {
+        void this.end('demo_timeout');
+        this.previewTimeout = null;
+      }, 60000);
+
+      return activityId;
+    } catch (e) {
+      console.error('[LiveActivityService] Failed to start Good Service preview activity:', e);
+      return null;
+    }
   }
 
   /**

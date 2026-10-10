@@ -4,7 +4,6 @@ import { SymbolView } from 'expo-symbols';
 import type { SymbolViewProps } from 'expo-symbols';
 import type { NotificationTier } from './interfaces/dynamic-notification.interface';
 import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
-import { StatusBezel } from '../StatusBezel';
 
 export interface PillContentProps {
   title: string;
@@ -80,9 +79,6 @@ export function PillContent({
 
   const isCompact = tier === 'compact';
   const isExpanded = tier === 'expanded';
-  const isGoodService =
-    (message || '').trim().toLowerCase() === 'good service' ||
-    (title || '').trim().toLowerCase() === 'good service';
 
   const multiLines = lines && lines.length > 0 ? lines : null;
   const visibleLines = multiLines ? multiLines.slice(0, 2) : null;
@@ -97,11 +93,7 @@ export function PillContent({
         isPrimer && styles.primerPill,
       ]}
       accessibilityRole="alert"
-      accessibilityLabel={
-        isGoodService
-          ? `${title}. Good service`
-          : `${title}. ${message}${actionLabel ? `. ${actionLabel}` : ''}`
-      }
+      accessibilityLabel={`${title}. ${message}${actionLabel ? `. ${actionLabel}` : ''}`}
     >
       {isPrimer ? (
         <>
@@ -199,12 +191,8 @@ export function PillContent({
               {title}
             </Text>
 
-            {/* Trailing slot: StatusBezel for Good Service, or Inline Link for Compact */}
-            {isGoodService ? (
-              <View style={styles.trailingBezelSlot} accessibilityLabel="Good service">
-                <StatusBezel statusType="good" />
-              </View>
-            ) : isCompact && actionLabel ? (
+            {/* Trailing slot: Inline Link for Compact */}
+            {isCompact && actionLabel ? (
               <Text
                 style={styles.inlineActionLink}
                 numberOfLines={1}
@@ -219,7 +207,7 @@ export function PillContent({
           {!isCompact && (
             <View style={styles.messageRow}>
               <Text
-                style={[styles.message, isGoodService && styles.goodServiceMessage]}
+                style={styles.message}
                 numberOfLines={1}
                 maxFontSizeMultiplier={1.3}
               >
@@ -483,15 +471,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: 'SpaceGrotesk_700Bold',
     color: 'rgba(255, 255, 255, 0.65)',
-  },
-  trailingBezelSlot: {
-    marginLeft: 'auto',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  goodServiceMessage: {
-    color: '#30D158',
-    fontFamily: 'SpaceGrotesk_700Bold',
   },
 });
 

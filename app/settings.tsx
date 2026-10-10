@@ -200,34 +200,26 @@ export default function SettingsScreen() {
 
     const testLineId = 'victoria';
     const testLineName = 'Victoria';
-    const testLineColor = '#0098D4';
 
     // 1. Isolated Notification Dismissal:
     // Only dismiss Victoria's disruption notification — leaves all other line alerts intact.
     await dismissDisruptionNotification({ lineId: testLineId, lineName: testLineName });
 
-    // 2. Dynamic Island Morph Pill:
-    // Display the arrival-mirror layout: [Line Bar] [Line Name] ... [Green Bezel Dot]
-    usePillStore.getState().requestPill({
-      id: `test-good-service-${Date.now()}`,
-      kind: 'setup',
-      tier: 'compact',
-      shortLine: 'VIC',
-      title: testLineName,
-      message: 'Good service',
-      accent: testLineColor,
-      durationMs: 4000,
-    });
+    // Choice A: Good Service is 100% silent in-app. NEVER request in-app Morph Pill banner.
 
-    // 3. Clean up any stale preview activity:
+    // 2. Clean up any stale preview activity:
     await LiveActivityService.stopPreviewActivity().catch(() => { });
 
-    // 4. If a genuine commute session is active, update it to Good Service:
+    // 3. Hardware Dynamic Island:
+    // If a genuine commute session is active, update it to Good Service.
+    // If no active session and in DEV, launch a preview Live Activity to inspect hardware island.
     const isLiveActive = await LiveActivityService.isActive().catch(() => false);
     if (isLiveActive) {
       const activeStationId = SessionManager.getCommuteOriginId() || '940GZZLUEUS';
       const activeLineId = SessionManager.getCommuteLineId() || testLineId;
       await LiveActivityService.update(activeStationId, activeLineId);
+    } else if (__DEV__) {
+      await LiveActivityService.startGoodServicePreviewActivity(testLineId, testLineName);
     }
   }, [hapticsEnabled]);
 

@@ -105,7 +105,7 @@ public class MyCommuteLiveActivityModule: Module {
       self.writeMirror(payload)
 
       let activities = Activity<MyCommuteLiveActivityAttributes>.activities
-      guard let activity = activities.first else { return }
+      guard let activity = activities.first(where: { $0.content.state.phase != "good_service" }) else { return }
 
       let staleTimeout = TimeInterval(state.segmentMaxDuration > 0 ? state.segmentMaxDuration : 900)
       let staleDate: Date? = state.isOfflineMode
@@ -136,9 +136,80 @@ public class MyCommuteLiveActivityModule: Module {
       self.clearMirror()
     }
 
+    AsyncFunction("startGoodServiceActivity") { (lineId: String, lineName: String) -> String? in
+      guard #available(iOS 16.2, *) else { return nil }
+      guard ActivityAuthorizationInfo().areActivitiesEnabled else { return nil }
+
+      // 1. Never compete with or kill an active commute
+      let existing = Activity<MyCommuteLiveActivityAttributes>.activities
+      guard existing.allSatisfy({ $0.content.state.phase == "good_service" }) else {
+        return nil
+      }
+
+      // 2. Cleanly end any prior good-service activities
+      for old in existing {
+        await old.end(nil, dismissalPolicy: .immediate)
+      }
+
+      let attrs = MyCommuteLiveActivityAttributes(
+        journeyId: "gs_\(lineId)_\(Int(Date().timeIntervalSince1970))",
+        lineId: lineId,
+        lineName: lineName
+      )
+
+      let state = MyCommuteLiveActivityAttributes.ContentState(
+        lineName: lineName,
+        statusSeverity: "good",
+        statusText: "Good Service",
+        phase: "good_service"
+      )
+
+      let content = ActivityContent(state: state, staleDate: nil)
+
+      do {
+        let activity = try Activity<MyCommuteLiveActivityAttributes>.request(
+          attributes: attrs,
+          content: content,
+          pushType: nil
+        )
+
+        // 3. 8-second auto-end wrapped in a background task
+        let taskId = await MainActor.run {
+          var tid: UIBackgroundTaskIdentifier = .invalid
+          tid = UIApplication.shared.beginBackgroundTask(withName: "good-service-end") {
+            UIApplication.shared.endBackgroundTask(tid)
+          }
+          return tid
+        }
+        Task {
+          try? await Task.sleep(nanoseconds: 8_000_000_000)
+          await activity.end(nil, dismissalPolicy: .immediate)
+          await MainActor.run {
+            if taskId != .invalid {
+              UIApplication.shared.endBackgroundTask(taskId)
+            }
+          }
+        }
+
+        return activity.id
+      } catch {
+        print("[MyCommuteLiveActivity] startGoodServiceActivity failed: \(error.localizedDescription)")
+        return nil
+      }
+    }
+
+    AsyncFunction("endGoodServiceActivities") { () -> Void in
+      guard #available(iOS 16.2, *) else { return }
+      let existing = Activity<MyCommuteLiveActivityAttributes>.activities
+      for activity in existing where activity.content.state.phase == "good_service" {
+        await activity.end(nil, dismissalPolicy: .immediate)
+      }
+    }
+
     AsyncFunction("isActivityActive") { () -> Bool in
       guard #available(iOS 16.2, *) else { return false }
-      return !Activity<MyCommuteLiveActivityAttributes>.activities.isEmpty
+      return Activity<MyCommuteLiveActivityAttributes>.activities
+        .contains { $0.content.state.phase != "good_service" }
     }
 
     AsyncFunction("areActivitiesEnabled") { () -> Bool in

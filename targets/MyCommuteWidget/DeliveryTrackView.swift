@@ -51,17 +51,39 @@ public struct DeliveryTrackView: View {
 
   public var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      if state.phase == "line_picker" {
-        linePickerView
-      } else if state.phase == "arrived" {
-        arrivedView
-      } else if state.phase == "in_transit" {
-        inTransitView
-      } else {
-        approachingView
-      }
+      content
     }
     .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+  }
+
+  @ViewBuilder
+  private var content: some View {
+    switch state.phase {
+    case "line_picker":  linePickerView
+    case "in_transit":   inTransitView
+    case "approaching":  approachingView
+    case "arrived":      arrivedView
+    case "good_service": goodServiceView
+    default:             EmptyView()
+    }
+  }
+
+  private var lineDisplayName: String {
+    if !state.lineName.isEmpty {
+      return state.lineName
+    }
+    return lineId.capitalized
+  }
+
+  private var goodServiceView: some View {
+    HStack(spacing: 8) {
+      Image(systemName: "checkmark.circle.fill")
+        .foregroundColor(.green)
+        .accessibilityHidden(true)
+      Text("Good service on \(lineDisplayName)")
+        .foregroundColor(.white)
+    }
+    .accessibilityElement(children: .combine)
   }
 
   // MARK: - Phase 0: Line Picker (Multi-Line Hub)
@@ -122,8 +144,30 @@ public struct DeliveryTrackView: View {
   }
 
   // MARK: - Phase 1: Approaching Platform (Unified 4-Row Corridor Architecture)
+  private var accentColor: Color {
+    let normalized = lineId.lowercased().replacingOccurrences(of: "-", with: "")
+    return normalized.contains("northern") ? .white : LineColor.color(for: lineId)
+  }
+
+  private func branchSuffix(_ branch: String?) -> String {
+    guard let branch, !branch.isEmpty else { return "" }
+    return " (\(branch))"
+  }
+
+  private func etaHeadline(for ep: ApproachingEndpoint) -> Text {
+    let prefix = Text("Arriving at \(ep.destinationName)\(branchSuffix(ep.branchText)) ")
+      .foregroundColor(.white)
+
+    if ep.minutesToArrival <= 0 {
+      return prefix + Text("now").foregroundColor(accentColor).bold()
+    }
+    return prefix
+      + Text("in ").foregroundColor(.white)
+      + Text("\(ep.minutesToArrival) mins").foregroundColor(accentColor).bold()
+  }
+
   private var activeEndpoint: ApproachingEndpoint {
-    if let endpoints = state.approachingEndpoints, let first = endpoints.first {
+    if let first = state.approachingEndpoints?.first {
       return first
     }
     return ApproachingEndpoint(
@@ -139,25 +183,11 @@ public struct DeliveryTrackView: View {
 
   private var approachingView: some View {
     let ep = activeEndpoint
-    let branchStr = (ep.branchText != nil && !ep.branchText!.isEmpty) ? " (\(ep.branchText!))" : ""
-
-    let isNorthern = lineId.lowercased().replacingOccurrences(of: "-", with: "").contains("northern")
-    let accent = isNorthern ? Color.white : LineColor.color(for: lineId)
-    let etaHeadline: Text = {
-      if ep.minutesToArrival <= 0 {
-        return Text("Arriving at \(ep.destinationName)\(branchStr) ")
-          .foregroundColor(.white)
-          + Text("now").foregroundColor(accent).bold()
-      }
-      return Text("Arriving at \(ep.destinationName)\(branchStr) in ")
-        .foregroundColor(.white)
-        + Text("\(ep.minutesToArrival) mins").foregroundColor(accent).bold()
-    }()
 
     return VStack(alignment: .leading, spacing: 8) {
       // Row 1: Zomato-style high-contrast ETA headline
       HStack(alignment: .firstTextBaseline) {
-        etaHeadline
+        etaHeadline(for: ep)
           .font(.system(size: 17, weight: .semibold))
           .lineLimit(1)
           .truncationMode(.tail)

@@ -10,10 +10,12 @@
 //   3. Northern line contract: hex = #000000, border = #3A3A42, text = #FFFFFF.
 // ==============================================================================
 
+import fs from 'fs';
+import path from 'path';
 import * as Notifications from 'expo-notifications';
 import { usePillStore } from '../store/pillStore';
 import { dismissDisruptionNotification } from '../services/notifications/dispatch';
-import { LiveActivityService } from '../services/LiveActivityService';
+import { LiveActivityService, handleGoodServiceRecovery } from '../services/LiveActivityService';
 import { LINE_IDENTITY_COLORS, NORTHERN_SHADES } from '../constants/lineColors';
 import lineColorsData from '../constants/lineColors.json';
 
@@ -52,10 +54,46 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('line-disruption-northern');
     });
 
-    it('never requests a Morph Pill banner when status recovers to Good Service', () => {
+    it('never requests a Morph Pill banner when status recovers to Good Service', async () => {
+      const requestPillSpy = jest.spyOn(usePillStore.getState(), 'requestPill');
+      await handleGoodServiceRecovery('victoria', {
+        dismissNotification: jest.fn().mockResolvedValue(undefined),
+        getActiveCommute: jest.fn().mockReturnValue(null),
+        startGoodServiceActivity: jest.fn().mockResolvedValue('activity-123'),
+        updateActivity: jest.fn().mockResolvedValue(undefined),
+        canShowIsland: () => true,
+      });
+
+      expect(requestPillSpy).not.toHaveBeenCalled();
       expect(usePillStore.getState().active).toBeNull();
-      // Verify 'recovery' is permanently removed from the Pill system
-      expect((usePillStore.getState() as any).requestPill).toBeDefined();
+
+      // Mechanical disk check: PillContent.tsx has NO good service morph pill branch
+      const pillContentPath = path.resolve(__dirname, '../components/DynamicIslandBanner/PillContent.tsx');
+      const pillContentSrc = fs.readFileSync(pillContentPath, 'utf8');
+      expect(pillContentSrc).not.toContain('isGoodService');
+      expect(pillContentSrc).not.toContain('trailingBezelSlot');
+    });
+
+    it('recovery never builds a commute payload and never calls startCommuteActivity', async () => {
+      const start = jest.spyOn(LiveActivityService, 'start');
+      const { startCommuteActivity } = jest.requireMock('../modules/my-commute-live-activity');
+      await handleGoodServiceRecovery('victoria', {
+        dismissNotification: jest.fn().mockResolvedValue(undefined),
+        getActiveCommute: jest.fn().mockReturnValue(null),
+        startGoodServiceActivity: jest.fn().mockResolvedValue('activity-123'),
+        updateActivity: jest.fn().mockResolvedValue(undefined),
+        canShowIsland: () => true,
+      });
+      expect(start).not.toHaveBeenCalled();
+      expect(startCommuteActivity).not.toHaveBeenCalled();
+    });
+
+
+    it('unknown phases do not render approachingView', () => {
+      const swiftPath = path.resolve(__dirname, '../targets/MyCommuteWidget/DeliveryTrackView.swift');
+      const src = fs.readFileSync(swiftPath, 'utf8');
+      expect(src).toMatch(/default:\s+EmptyView\(\)/);
+      expect(src).not.toMatch(/else\s*\{\s*approachingView/);
     });
   });
 

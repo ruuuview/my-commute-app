@@ -17,11 +17,10 @@ import {
   WarningCircle, Wrench, Warning,
   BellSlash, Sparkle, MagnifyingGlass, CheckCircle
 } from 'phosphor-react-native';
+import { ShushIcon } from '../components/ShushIcon';
 import { useRouter } from 'expo-router';
-import { LiveActivityService } from '../services/LiveActivityService';
-import { SessionManager } from '../services/SessionManager';
+import { LiveActivityService, handleGoodServiceRecovery } from '../services/LiveActivityService';
 import { track } from '../services/analyticsService';
-import { dismissDisruptionNotification } from '../services/notifications/dispatch';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -199,29 +198,9 @@ export default function SettingsScreen() {
     }
 
     const testLineId = 'victoria';
-    const testLineName = 'Victoria';
-
-    // 1. Isolated Notification Dismissal:
-    // Only dismiss Victoria's disruption notification — leaves all other line alerts intact.
-    await dismissDisruptionNotification({ lineId: testLineId, lineName: testLineName });
-
-    // Choice A: Good Service is 100% silent in-app. NEVER request in-app Morph Pill banner.
-
-    // 2. Clean up any stale preview activity:
-    await LiveActivityService.stopPreviewActivity().catch(() => { });
-
-    // 3. Hardware Dynamic Island:
-    // If a genuine commute session is active, update it to Good Service.
-    // If no active session and in DEV, launch a preview Live Activity to inspect hardware island.
-    const isLiveActive = await LiveActivityService.isActive().catch(() => false);
-    if (isLiveActive) {
-      const activeStationId = SessionManager.getCommuteOriginId() || '940GZZLUEUS';
-      const activeLineId = SessionManager.getCommuteLineId() || testLineId;
-      await LiveActivityService.update(activeStationId, activeLineId);
-    } else if (__DEV__) {
-      await LiveActivityService.startGoodServicePreviewActivity(testLineId, testLineName);
-    }
+    await handleGoodServiceRecovery(testLineId);
   }, [hapticsEnabled]);
+
 
   // ── Real OS Permission States (System Truth - Layer 1) ───────────
   const [osNotificationsGranted, setOsNotificationsGranted] = useState(false);
@@ -669,17 +648,17 @@ export default function SettingsScreen() {
                 </View>
               )}
 
-              {/* Row 4: Ambient + Live Activities Supported & Enabled → Zero warning */}
+              {/* Row 4: Shush Mode + Live Activities Supported & Enabled → Zero warning */}
               {shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && liveActivityAuth.enabled && (
                 <View style={styles.surfaceInfoRow} testID="truth-table-row-4">
-                  <Sparkle size={15} color="#5E5CE6" weight="fill" />
+                  <ShushIcon size={15} color="#5E5CE6" />
                   <Text style={styles.surfaceInfoText}>
                     Silent updates visible on Dynamic Island & Lock Screen.
                   </Text>
                 </View>
               )}
 
-              {/* Row 5: Ambient + Live Activities Supported & Disabled → Quiet Slate Line with [Settings] */}
+              {/* Row 5: Shush Mode + Live Activities Supported & Disabled → Quiet Slate Line with [Settings] */}
               {shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && !liveActivityAuth.enabled && (
                 <View style={styles.quietSlateRow} testID="truth-table-row-5">
                   <WarningCircle size={15} color="#8E8E93" weight="regular" />
@@ -697,7 +676,7 @@ export default function SettingsScreen() {
                 </View>
               )}
 
-              {/* Row 6: Muted → Zero warning banner */}
+              {/* Row 6: Off → Zero warning banner */}
               {shushPreferences.alertDeliveryMode === 'off' && (
                 <View style={styles.surfaceInfoRow} testID="truth-table-row-6">
                   <BellSlash size={15} color="#8E8E93" weight="fill" />
@@ -707,12 +686,12 @@ export default function SettingsScreen() {
                 </View>
               )}
 
-              {/* Row 7: Ambient + Live Activities Unsupported → Quiet Slate Line (No action button) */}
+              {/* Row 7: Shush Mode + Live Activities Unsupported → Quiet Slate Line (No action button) */}
               {shushPreferences.alertDeliveryMode === 'shush' && !liveActivityAuth.supported && (
                 <View style={styles.quietSlateRow} testID="truth-table-row-7">
                   <WarningCircle size={15} color="#8E8E93" weight="regular" />
                   <Text style={styles.quietSlateText}>
-                    Live Activities require iOS 16.1 or later. Ambient mode is unavailable on this device.
+                    Live Activities require iOS 16.1 or later. Shush mode is unavailable on this device.
                   </Text>
                 </View>
               )}
@@ -764,7 +743,7 @@ export default function SettingsScreen() {
                   <View style={styles.rowInfo}>
                     <Text style={styles.collapsedOffTitle}>All notifications paused</Text>
                     <Text style={styles.collapsedOffSubtitle}>
-                      Tap Standard or Ambient above to configure alerts
+                      Tap Standard or Shush Mode above to configure alerts
                     </Text>
                   </View>
                 </View>

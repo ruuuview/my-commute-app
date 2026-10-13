@@ -147,7 +147,7 @@ const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
 export class LiveActivityService {
   private static activeAbortController: AbortController | null = null;
-  private static lastDisruptedAt = 0;
+  private static lastDisruptedAtByLine: Record<string, number> = {};
   private static lastWidgetSyncAt = 0;
   private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
   private static lastUpdatePayloadHash = '';
@@ -248,13 +248,15 @@ export class LiveActivityService {
     const disruption = cache.disruption;
     const rawIsDisrupted = disruption?.isDisrupted ?? false;
 
+    const lineDisruptedAt = LiveActivityService.lastDisruptedAtByLine[cleanLineId] ?? 0;
     if (rawIsDisrupted) {
-      LiveActivityService.lastDisruptedAt = Date.now();
+      LiveActivityService.lastDisruptedAtByLine[cleanLineId] = Date.now();
     }
 
-    // 120s Anti-Flap Debounce: do not revert to 'Good Service' until 120s of continuous clean data
-    const isWithinDebounce = Date.now() - LiveActivityService.lastDisruptedAt < 120 * 1000;
-    const isDisrupted = rawIsDisrupted || (LiveActivityService.lastDisruptedAt > 0 && isWithinDebounce);
+    // 120s Anti-Flap Debounce: do not revert to 'Good Service' until 120s of continuous clean data on this line
+    const effectiveDisruptedAt = rawIsDisrupted ? Date.now() : lineDisruptedAt;
+    const isWithinDebounce = Date.now() - effectiveDisruptedAt < 120 * 1000;
+    const isDisrupted = rawIsDisrupted || (effectiveDisruptedAt > 0 && isWithinDebounce);
 
     // Shush Mode Severity Classification (Section 8)
     let severityTier = 0;
@@ -533,8 +535,7 @@ export class LiveActivityService {
   static async start(stationId: string, lineId: string, trigger = 'geofence'): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
 
-    const prefs = useUserPreferencesStore.getState();
-    const deliveryMode = prefs.shushPreferences?.alertDeliveryMode || 'shush';
+    const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
     if (deliveryMode === 'off') {
       console.log('[LiveActivityService] Delivery mode is OFF — suppressing Live Activity start.');
       return null;
@@ -786,75 +787,6 @@ export class LiveActivityService {
     await this.end('manual_preview_stop');
   }
 
-  /**
-   * DEV-only 1-Tap Good Service preview trigger for instant on-device testing
-   * of the Good Service Dynamic Island layout ([Line Bar] [Line Name] ... [Green Bezel Dot]).
-   */
-  static async startGoodServicePreviewActivity(
-    lineId: string = 'victoria',
-    lineName: string = 'Victoria'
-  ): Promise<string | null> {
-    if (!__DEV__) {
-      console.warn('[LiveActivityService] Good Service preview activities are disabled in production builds.');
-      return null;
-    }
-    if (Platform.OS !== 'ios') return null;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
-      return null;
-    }
-
-    if (this.previewTimeout) {
-      clearTimeout(this.previewTimeout);
-      this.previewTimeout = null;
-    }
-
-    const previewPayload: LiveActivityBridgePayload = {
-      journeyId: `preview_good_service_${Math.floor(Date.now() / 1000)}`,
-      originStation: '940GZZLUVIC',
-      destinationStation: 'Walthamstow Central',
-      stationId: '940GZZLUVIC',
-      lineId,
-      lineName,
-      branchKnown: false,
-      arrivals: [],
-      statusSeverity: 'good',
-      statusText: 'Good Service',
-      severityTier: 0,
-      nextTrainMinutes: 0,
-      etaTimestamp: Math.floor(Date.now() / 1000),
-      etaDelta: 'On time',
-      isDisrupted: false,
-      isEscalated: false,
-      delayRepayEligible: false,
-      delayMinutes: 0,
-      tunnelState: 'normal',
-      progress: 1.0,
-      segmentMaxDuration: 180,
-      signalState: 'ok',
-      phase: 'good_service' as any,
-      availableEndpoints: ['Walthamstow Central', 'Brixton'],
-      selectedEndpoint: 'Walthamstow Central',
-      sessionStartTime: Math.floor(Date.now() / 1000),
-      currentStationName: 'Victoria',
-      destinationStationName: 'Walthamstow Central',
-    };
-
-    try {
-      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(previewPayload);
-      console.log(`[LiveActivityService] Started Good Service preview activity ${activityId}`);
-      track('shush_session_started', { trigger: 'preview_good_service', mode: 'shush' });
-
-      this.previewTimeout = setTimeout(() => {
-        void this.end('demo_timeout');
-        this.previewTimeout = null;
-      }, 60000);
-
-      return activityId;
-    } catch (e) {
-      console.error('[LiveActivityService] Failed to start Good Service preview activity:', e);
-      return null;
-    }
-  }
 
   /**
    * Starts a persistent simulated Northern Line commute Live Activity (Euston -> Morden).
@@ -1059,6 +991,18 @@ export class LiveActivityService {
     const status = await this.getSupportStatus();
     return status === 'supported';
   }
+
+  public static resetDisruptionDebounce(lineId?: string): void {
+    if (lineId) {
+      const { cleanLineId } = normaliseLineId(lineId);
+      delete LiveActivityService.lastDisruptedAtByLine[cleanLineId];
+    } else {
+      LiveActivityService.lastDisruptedAtByLine = {};
+    }
+  }
 }
 
+export { handleGoodServiceRecovery, liveRecoveryDeps, RecoveryDeps } from './GoodServiceRecovery';
+
 export default LiveActivityService;
+

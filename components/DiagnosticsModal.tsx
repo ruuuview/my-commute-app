@@ -35,11 +35,10 @@ import {
 } from 'phosphor-react-native';
 import { usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { SessionManager } from '../services/SessionManager';
 import { checkGeofenceHealthAsync } from '../services/backgroundTask';
 import { LineId } from '../services/notifications/payload';
 import { GLASS } from '../theme/colors';
-import { LiveActivityService } from '../services/LiveActivityService';
+import { LiveActivityService, handleGoodServiceRecovery } from '../services/LiveActivityService';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 
@@ -273,20 +272,11 @@ export const DiagnosticsModal: React.FC<Props> = ({
   const handleTestGoodServiceRecovery = async () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Zero-Nag & Absolute Silence Invariant:
-    // Good Service recovery must NEVER display an in-app morph pill banner,
-    // NEVER schedule a noisy lockscreen push notification, and NEVER spawn
-    // a simulated commute Live Activity ("High Barnet 3m").
-
     // 1. If an unwanted preview activity was started, dismiss it cleanly:
     await LiveActivityService.stopPreviewActivity().catch(() => {});
 
-    // 2. If a genuine commute session is active, silently update it to Good Service:
-    const isLiveActive = await LiveActivityService.isActive().catch(() => false);
-    if (isLiveActive) {
-      const originId = SessionManager.getCommuteOriginId() || '940GZZLUEUS';
-      await LiveActivityService.update(originId, primaryLineId);
-    }
+    // 2. Dispatch genuine Good Service Recovery through unified state machine:
+    await handleGoodServiceRecovery(primaryLineId);
   };
 
   const handleResetTflCoverage = () => {

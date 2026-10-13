@@ -219,8 +219,28 @@ private struct CompactIslandView: View {
   }
 
   private var isGoodServiceStatus: Bool {
-    return context.state.phase == "good_service" ||
-      (!context.state.isDisrupted && (context.state.statusSeverity == "good" || context.state.statusText.lowercased().contains("good service")) && (context.state.arrivals == nil || context.state.arrivals!.isEmpty || (context.state.phase != "in_transit" && minutesAway <= 0)))
+    return context.state.phase == "good_service"
+  }
+
+  private var lineDisplayName: String {
+    if let name = context.attributes.lineName { return name }
+    return context.state.lineName.isEmpty
+      ? context.attributes.lineId.capitalized
+      : context.state.lineName
+  }
+
+  private var countdownText: String {
+    minutesAway == 0 ? "Due" : "\(minutesAway)m"
+  }
+
+  private var countdownAccessibilityLabel: String {
+    let base = minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes"
+    return context.state.isDisrupted ? "Disrupted. \(base)" : base
+  }
+
+  private var branchSuffix: String {
+    guard let b = shortBranch ?? context.state.branchName, !b.isEmpty else { return "" }
+    return " (\(b))"
   }
 
   var body: some View {
@@ -291,35 +311,23 @@ private struct CompactIslandView: View {
             .font(.system(size: 11, weight: .bold))
             .foregroundColor(.white)
         }
-      } else if context.state.isDisrupted {
-        HStack(spacing: 3) {
-          Image(systemName: "exclamationmark.triangle.fill")
-            .font(.system(size: 9, weight: .bold))
-            .foregroundColor(Color(hex: 0xFFB000))
-          Text("\(minutesAway)m")
-            .font(.mcHeadline)
-            .monospacedDigit()
-            .foregroundColor(Color(hex: 0xFFB000))
-        }
-        .accessibilityLabel("Disrupted, next train in \(minutesAway) minutes")
       } else {
-        Text("\(minutesAway == 0 ? "Due" : "\(minutesAway)m")")
+        Text(countdownText)
           .font(.mcHeadline)
           .monospacedDigit()
           .foregroundColor(.white)
-          .accessibilityLabel(minutesAway == 0 ? "Train due now" : "Next train in \(minutesAway) minutes")
+          .accessibilityLabel(countdownAccessibilityLabel)
       }
     } else {
       if isGoodServiceStatus {
         HStack(spacing: 4) {
           AccentBar(lineId: context.attributes.lineId)
-          let lineDisplayName = context.attributes.lineName ?? (context.state.lineName.isEmpty ? context.attributes.lineId.capitalized : context.state.lineName)
           Text(lineDisplayName)
             .font(.system(size: 12, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
         }
-        .accessibilityLabel("\(context.attributes.lineName ?? context.state.lineName) line")
+        .accessibilityLabel("\(lineDisplayName) line")
       } else if context.state.phase == "line_picker" {
         HStack(spacing: 3) {
           Circle().fill(Color(hex: 0x007AFF)).frame(width: 6, height: 6)
@@ -353,14 +361,13 @@ private struct CompactIslandView: View {
       } else {
         HStack(spacing: 4) {
           AccentBar(lineId: context.attributes.lineId)
-          let destName = context.state.destinationStationName ?? context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName)
-          let branchLabel = shortBranch ?? context.state.branchName
-          Text((branchLabel != nil && !branchLabel!.isEmpty) ? "\(destName) (\(branchLabel!))" : destName)
+          let destName = context.state.destinationStationName ?? context.state.selectedEndpoint ?? lineDisplayName
+          Text("\(destName)\(branchSuffix)")
             .font(.system(size: 12, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
         }
-        .accessibilityLabel("\(context.state.destinationStationName ?? context.state.selectedEndpoint ?? (context.attributes.lineName ?? context.state.lineName))")
+        .accessibilityLabel("\(context.state.destinationStationName ?? context.state.selectedEndpoint ?? lineDisplayName)")
       }
     }
   }

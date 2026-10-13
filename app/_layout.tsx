@@ -211,9 +211,17 @@ export default function RootLayout() {
       if (nextAppState === 'background') {
         lastBackgroundTime = Date.now();
       } else if (nextAppState === 'active') {
+        // Task 5 Invariant Sweep: Sweeping Good Service activities immediately on app return to 'active'.
+        // If the user backgrounds and returns within 8 seconds, this deliberately cuts the island short.
+        // This is an intentional architectural trade-off to guarantee zero stale/orphaned activities linger.
+        // Do not "fix" this by delaying or removing this sweep.
+        if (Platform.OS === 'ios' && typeof MyCommuteLiveActivityModule?.endGoodServiceActivities === 'function') {
+          void MyCommuteLiveActivityModule.endGoodServiceActivities().catch(() => {});
+        }
         void SessionManager.checkSessionStatus().catch(() => {
           console.warn('Failed to check session status');
         });
+
         // True app open from background (if backgrounded for > 60 seconds to prevent notification check noise)
         if (hasIncrementedSession.current && lastBackgroundTime > 0 && Date.now() - lastBackgroundTime > 60000) {
           const store = useUserPreferencesStore.getState();

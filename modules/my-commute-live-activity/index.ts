@@ -8,6 +8,8 @@ export interface EventSubscription {
 
 const mockFallbackModule = {
   startCommuteActivity: async () => null,
+  startGoodServiceActivity: async (_lineId: string, _lineName: string) => null,
+  endGoodServiceActivities: async () => {},
   updateCommuteActivity: async () => {},
   endCommuteActivity: async () => {},
   isActivityActive: async () => false,
@@ -96,6 +98,8 @@ export interface LiveActivityBridgePayload {
 
 export interface MyCommuteLiveActivity {
   startCommuteActivity(payload: LiveActivityBridgePayload): Promise<string | null>;
+  startGoodServiceActivity(lineId: string, lineName: string): Promise<string | null>;
+  endGoodServiceActivities(): Promise<void>;
   updateCommuteActivity(payload: LiveActivityBridgePayload): Promise<void>;
   endCommuteActivity(): Promise<void>;
   isActivityActive(): Promise<boolean>;

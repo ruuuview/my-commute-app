@@ -25,7 +25,7 @@ export interface PresentDisruptionOptions {
 }
 
 export interface DismissDisruptionOptions {
-  lineId: LineId;
+  lineId: LineId | string;
   lineName?: string;
 }
 

@@ -38,7 +38,8 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { checkGeofenceHealthAsync } from '../services/backgroundTask';
 import { LineId } from '../services/notifications/payload';
 import { GLASS } from '../theme/colors';
-import { LiveActivityService, handleGoodServiceRecovery } from '../services/LiveActivityService';
+import { LiveActivityService } from '../services/LiveActivityService';
+import { handleGoodServiceRecovery } from '../services/GoodServiceRecovery';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
 

@@ -48,10 +48,10 @@ describe('Accessibility & Universal Compliance Invariants', () => {
       expect(radios[0].props.accessibilityLabel).toBe('Standard, 1 of 3');
       expect(radios[0].props.accessibilityState).toEqual({ selected: true });
 
-      expect(radios[1].props.accessibilityLabel).toBe('Ambient, 2 of 3');
+      expect(radios[1].props.accessibilityLabel).toBe('Shush Mode, 2 of 3');
       expect(radios[1].props.accessibilityState).toEqual({ selected: false });
 
-      expect(radios[2].props.accessibilityLabel).toBe('Muted, 3 of 3');
+      expect(radios[2].props.accessibilityLabel).toBe('Off, 3 of 3');
       expect(radios[2].props.accessibilityState).toEqual({ selected: false });
     });
 
@@ -68,7 +68,7 @@ describe('Accessibility & Universal Compliance Invariants', () => {
       );
 
       const radios = getAllByRole('radio');
-      fireEvent.press(radios[1]); // tap Ambient
+      fireEvent.press(radios[1]); // tap Shush Mode
 
       expect(onSelect).toHaveBeenCalledWith('shush');
       // Haptics MUST be suppressed under reduceMotion

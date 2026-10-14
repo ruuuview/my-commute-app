@@ -63,7 +63,6 @@ public struct DeliveryTrackView: View {
     case "in_transit":   inTransitView
     case "approaching":  approachingView
     case "arrived":      arrivedView
-    case "good_service": goodServiceView
     default:             EmptyView()
     }
   }
@@ -73,17 +72,6 @@ public struct DeliveryTrackView: View {
       return state.lineName
     }
     return lineId.capitalized
-  }
-
-  private var goodServiceView: some View {
-    HStack(spacing: 8) {
-      Image(systemName: "checkmark.circle.fill")
-        .foregroundColor(.green)
-        .accessibilityHidden(true)
-      Text("Good service on \(lineDisplayName)")
-        .foregroundColor(.white)
-    }
-    .accessibilityElement(children: .combine)
   }
 
   // MARK: - Phase 0: Line Picker (Multi-Line Hub)

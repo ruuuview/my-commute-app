@@ -15,7 +15,8 @@ import path from 'path';
 import * as Notifications from 'expo-notifications';
 import { usePillStore } from '../store/pillStore';
 import { dismissDisruptionNotification } from '../services/notifications/dispatch';
-import { LiveActivityService, handleGoodServiceRecovery } from '../services/LiveActivityService';
+import { LiveActivityService } from '../services/LiveActivityService';
+import { handleGoodServiceRecovery } from '../services/GoodServiceRecovery';
 import { LINE_IDENTITY_COLORS, NORTHERN_SHADES } from '../constants/lineColors';
 import lineColorsData from '../constants/lineColors.json';
 
@@ -59,9 +60,7 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       await handleGoodServiceRecovery('victoria', {
         dismissNotification: jest.fn().mockResolvedValue(undefined),
         getActiveCommute: jest.fn().mockReturnValue(null),
-        startGoodServiceActivity: jest.fn().mockResolvedValue('activity-123'),
         updateActivity: jest.fn().mockResolvedValue(undefined),
-        canShowIsland: () => true,
       });
 
       expect(requestPillSpy).not.toHaveBeenCalled();
@@ -80,9 +79,7 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       await handleGoodServiceRecovery('victoria', {
         dismissNotification: jest.fn().mockResolvedValue(undefined),
         getActiveCommute: jest.fn().mockReturnValue(null),
-        startGoodServiceActivity: jest.fn().mockResolvedValue('activity-123'),
         updateActivity: jest.fn().mockResolvedValue(undefined),
-        canShowIsland: () => true,
       });
       expect(start).not.toHaveBeenCalled();
       expect(startCommuteActivity).not.toHaveBeenCalled();

@@ -1002,7 +1002,5 @@ export class LiveActivityService {
   }
 }
 
-export { handleGoodServiceRecovery, liveRecoveryDeps, RecoveryDeps } from './GoodServiceRecovery';
-
 export default LiveActivityService;
 

@@ -44,10 +44,10 @@ describe('Delivery Truth Table & Two-Bit Native Bridge Invariants', () => {
     expect(content).toContain('testID="truth-table-row-6"');
     expect(content).toContain('No alerts. Check status manually in-app.');
 
-    // Row 7: Ambient + Live Activities Unsupported -> Anti-Badger Quiet Slate Line (NO button)
+    // Row 7: Shush Mode + Live Activities Unsupported -> Anti-Badger Quiet Slate Line (NO button)
     expect(content).toContain("shushPreferences.alertDeliveryMode === 'shush' && !liveActivityAuth.supported");
     expect(content).toContain('testID="truth-table-row-7"');
-    expect(content).toContain('Live Activities require iOS 16.1 or later. Ambient mode is unavailable on this device.');
+    expect(content).toContain('Live Activities require iOS 16.1 or later. Shush mode is unavailable on this device.');
   });
 
   test('AppState active listener refreshes permissions on foreground resume (Catch C round-trip invariant)', () => {

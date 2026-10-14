@@ -25,7 +25,7 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     // Must conditionally render collapsed card when alertDeliveryMode is 'off'
     expect(content).toContain("shushPreferences.alertDeliveryMode === 'off'");
     expect(content).toContain('All notifications paused');
-    expect(content).toContain('Tap Standard or Ambient above to configure alerts');
+    expect(content).toContain('Tap Standard or Shush Mode above to configure alerts');
     expect(content).toContain('styles.collapsedOffRow');
     expect(content).toContain('styles.collapsedOffTitle');
     expect(content).toContain('styles.collapsedOffSubtitle');
@@ -36,11 +36,11 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     const segmentedPath = path.resolve(__dirname, '../components/SegmentedGlassControl.tsx');
     const segmentedContent = fs.readFileSync(segmentedPath, 'utf8');
 
-    // Option 1 Token Contract: Standard (System Blue #0A84FF), Ambient (System Indigo #5E5CE6), Muted (System Gray #8E8E93)
+    // Option 1 Token Contract: Standard (System Blue #0A84FF), Shush Mode (System Indigo #5E5CE6), Off (System Gray #8E8E93)
     expect(content).toContain('<SegmentedGlassControl');
     expect(segmentedContent).toContain("title: 'Standard'");
-    expect(segmentedContent).toContain("title: 'Ambient'");
-    expect(segmentedContent).toContain("title: 'Muted'");
+    expect(segmentedContent).toContain("title: 'Shush Mode'");
+    expect(segmentedContent).toContain("title: 'Off'");
     expect(segmentedContent).toContain('#0A84FF');
     expect(segmentedContent).toContain('#5E5CE6');
 

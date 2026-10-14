@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { GLASS } from '../theme/colors';
-import { Bell, Sparkle, BellSlash } from 'phosphor-react-native';
+import { Bell, BellSlash } from 'phosphor-react-native';
+import { ShushIcon } from './ShushIcon';
 import { useLiveReducedMotion } from '../hooks/useReducedMotion';
 
 export type DeliveryMode = 'loud' | 'shush' | 'off';
@@ -16,7 +17,6 @@ export type DeliveryMode = 'loud' | 'shush' | 'off';
 interface SegmentOption {
   id: DeliveryMode;
   title: string;
-  desc: string;
   accessibilityLabel: string;
   hint: string;
   color: string;
@@ -29,7 +29,6 @@ const SEGMENTS: SegmentOption[] = [
   {
     id: 'loud',
     title: 'Standard',
-    desc: 'Banners & sound',
     accessibilityLabel: 'Standard, 1 of 3',
     hint: 'Switches notification delivery to banners and alert sounds.',
     color: '#0A84FF', // Apple System Blue
@@ -39,20 +38,18 @@ const SEGMENTS: SegmentOption[] = [
   },
   {
     id: 'shush',
-    title: 'Ambient',
-    desc: 'Dynamic Island',
-    accessibilityLabel: 'Ambient, 2 of 3',
+    title: 'Shush Mode',
+    accessibilityLabel: 'Shush Mode, 2 of 3',
     hint: 'Switches notification delivery to Dynamic Island and Lock Screen.',
     color: '#5E5CE6', // Apple System Indigo
     activeBg: 'rgba(94, 92, 230, 0.16)',
     activeBorder: '#5E5CE6',
-    icon: (color) => <Sparkle size={18} color={color} weight="fill" />,
+    icon: (color) => <ShushIcon size={18} color={color} />,
   },
   {
     id: 'off',
-    title: 'Muted',
-    desc: 'Open app manually',
-    accessibilityLabel: 'Muted, 3 of 3',
+    title: 'Off',
+    accessibilityLabel: 'Off, 3 of 3',
     hint: 'Silences commute notifications. App updates only when opened.',
     color: '#8E8E93', // Apple System Gray
     activeBg: 'rgba(142, 142, 147, 0.16)',
@@ -119,19 +116,14 @@ export const SegmentedGlassControl = memo(function SegmentedGlassControl({
               />
             )}
 
-            {/* Icon + Title Row */}
+            {/* Icon + Title */}
             <View style={styles.contentRow}>
               <View style={[styles.iconWrapper, isSelected && { backgroundColor: `${seg.color}33` }]}>
                 {seg.icon(isSelected ? seg.color : iconColor)}
               </View>
-              <View style={styles.textColumn}>
-                <Text style={[styles.title, !isSelected && styles.titleInactive]}>
-                  {seg.title}
-                </Text>
-                <Text style={[styles.desc, !isSelected && styles.descInactive]} numberOfLines={1}>
-                  {seg.desc}
-                </Text>
-              </View>
+              <Text style={[styles.title, !isSelected && styles.titleInactive]}>
+                {seg.title}
+              </Text>
             </View>
           </Pressable>
         );
@@ -156,8 +148,8 @@ const styles = StyleSheet.create({
   },
   segmentCard: {
     flex: 1,
-    minHeight: 56,
-    paddingVertical: 8,
+    minHeight: 50,
+    paddingVertical: 10,
     paddingHorizontal: 6,
     borderRadius: 10,
     alignItems: 'center',
@@ -198,10 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-  },
-  textColumn: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'visible',
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -211,15 +200,5 @@ const styles = StyleSheet.create({
   },
   titleInactive: {
     color: 'rgba(255, 255, 255, 0.65)',
-  },
-  desc: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 9.5,
-    color: 'rgba(255, 255, 255, 0.80)',
-    marginTop: 1,
-    textAlign: 'center',
-  },
-  descInactive: {
-    color: 'rgba(255, 255, 255, 0.40)',
   },
 });

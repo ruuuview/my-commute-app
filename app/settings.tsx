@@ -19,7 +19,8 @@ import {
 } from 'phosphor-react-native';
 import { ShushIcon } from '../components/ShushIcon';
 import { useRouter } from 'expo-router';
-import { LiveActivityService, handleGoodServiceRecovery } from '../services/LiveActivityService';
+import { LiveActivityService } from '../services/LiveActivityService';
+import { handleGoodServiceRecovery } from '../services/GoodServiceRecovery';
 import { track } from '../services/analyticsService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -1198,13 +1199,13 @@ export default function SettingsScreen() {
 
                   <View style={styles.divider} />
 
-                  {/* Test Good Service Recovery (Silent Dynamic Island) */}
+                  {/* Test Good Service Recovery (Silent Notification Clearance) */}
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                     onPress={handleTriggerTestGoodServiceRecovery}
                     accessibilityRole="button"
                     accessibilityLabel="Test Good Service Recovery (Silent)"
-                    accessibilityHint="Triggers silent Dynamic Island update to Good Service without lockscreen banner noise"
+                    accessibilityHint="Wipes Victoria disruption alert silently without lockscreen noise"
                   >
                     <View style={styles.rowInfo}>
                       <View style={styles.labelRow}>
@@ -1218,7 +1219,7 @@ export default function SettingsScreen() {
                         </Text>
                       </View>
                       <Text style={styles.rowSubtitle}>
-                        Dynamic Island · Silent Live Activity update · 0 lockscreen noise
+                        Wipes Victoria disruption alert · 0 lockscreen noise
                       </Text>
                     </View>
                     <CaretRight size={18} color="rgba(255,255,255,0.35)" />

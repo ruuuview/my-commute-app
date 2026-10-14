@@ -89,7 +89,7 @@ export function headPoint(s: number, w: number, h: number, r: number): XY {
   const P = roundedRectPerimeter(w, h, r);
   if (!(P > 0)) return [0, -y];
 
-  const segs: Array<{ len: number; at: (t: number) => XY }> = [
+  const segs: { len: number; at: (t: number) => XY }[] = [
     { len: 0.5 * lx, at: (t) => [t, -y] },
     {
       len: arc,

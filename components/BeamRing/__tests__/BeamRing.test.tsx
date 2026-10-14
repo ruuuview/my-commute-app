@@ -7,17 +7,18 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { hexToLinearRgb } from '../beamPalettes';
+import BeamRing from '../BeamRing';
 
 const mockMake: jest.Mock = jest.fn(() => ({ __mockEffect: true }));
 let mockCapturedShaderProps: any = null;
 
 jest.mock('@shopify/react-native-skia', () => {
-  const React = require('react');
-  const { View: RNView } = require('react-native');
+  const ReactMock = jest.requireActual('react');
+  const { View: RNView } = jest.requireActual('react-native');
   return {
     Canvas: (props: any) =>
-      React.createElement(RNView, { ...props, testID: 'mock-skia-canvas' }),
-    Fill: (props: any) => React.createElement(RNView, null, props.children),
+      ReactMock.createElement(RNView, { ...props, testID: 'mock-skia-canvas' }),
+    Fill: (props: any) => ReactMock.createElement(RNView, null, props.children),
     Shader: (props: any) => {
       mockCapturedShaderProps = props;
       return null;
@@ -42,8 +43,6 @@ jest.mock('react-native-reanimated', () => {
     Easing: { linear: (x: number) => x },
   };
 });
-
-import BeamRing from '../BeamRing';
 
 const UNIFORM_KEYS = [
   'u_resolution',

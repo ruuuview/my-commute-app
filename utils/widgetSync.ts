@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import LiveActivityService from '../services/LiveActivityService';
+import { LiveActivityService } from '../services/LiveActivityService';
 
 export const syncToWidget = async (selectedLines: string[]) => {
   if (Platform.OS !== 'ios') return;

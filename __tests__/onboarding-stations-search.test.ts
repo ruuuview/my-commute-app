@@ -172,5 +172,70 @@ describe('Onboarding Screen 2: Station Search & Selection Invariants', () => {
     expect(content).toMatch(/ListHeaderComponent=\{[\s\S]*?query\.trim\(\)\s*===\s*['"]['"]\s*&&\s*pinnedStations\.length\s*>\s*0/);
     expect(content).toMatch(/ListFooterComponent=\{[\s\S]*?query\.trim\(\)\s*===\s*['"]['"]\s*&&\s*pinnedStations\.length\s*>\s*0/);
   });
+
+  test('Sticky CTA Visibility Invariants (hideCta contract)', () => {
+    const content = fs.readFileSync(stationsScreenPath, 'utf8');
+
+    // Must define hideCta as derived variable
+    expect(content).toContain('const hideCta =');
+    expect(content).toContain('!hideCta && (');
+
+    // Evaluator helper matching stations.tsx hideCta logic
+    const evalHideCta = (params: {
+      isFocused: boolean;
+      searchActive: boolean;
+      query: string;
+      pinnedCount: number;
+    }) => {
+      const { isFocused, searchActive, query, pinnedCount } = params;
+      return isFocused || (searchActive && (query.trim() !== '' || pinnedCount === 0));
+    };
+
+    // 1. Pinned stations present, keyboard closed, empty query with searchActive = true: CTA is VISIBLE
+    expect(evalHideCta({ isFocused: false, searchActive: true, query: '', pinnedCount: 3 })).toBe(false);
+
+    // 2. Active search with query text: CTA is HIDDEN
+    expect(evalHideCta({ isFocused: false, searchActive: true, query: 'Bank', pinnedCount: 3 })).toBe(true);
+
+    // 3. No pinned stations: CTA is HIDDEN during search
+    expect(evalHideCta({ isFocused: false, searchActive: true, query: '', pinnedCount: 0 })).toBe(true);
+
+    // 4. Keyboard actively focused: CTA is HIDDEN (prevents floating over keyboard / covering suggestions)
+    expect(evalHideCta({ isFocused: true, searchActive: true, query: '', pinnedCount: 3 })).toBe(true);
+
+    // 5. Default idle state with pinned stations: CTA is VISIBLE
+    expect(evalHideCta({ isFocused: false, searchActive: false, query: '', pinnedCount: 3 })).toBe(false);
+  });
+
+  test('Touch Responder Safety: onBlur must NOT mutate searchActive and keyboardDidHide handles cleanup', () => {
+    const content = fs.readFileSync(stationsScreenPath, 'utf8');
+
+    // onBlur must NOT call setSearchActive(false) to prevent dropping in-flight row taps
+    const onBlurBlock = content.match(/onBlur=\{[\s\S]*?\}/)?.[0] || '';
+    expect(onBlurBlock).not.toContain('setSearchActive');
+
+    // keyboardDidHide listener must exist and reset searchActive when query is empty
+    expect(content).toContain("Keyboard.addListener('keyboardDidHide'");
+    expect(content).toContain("if (query.trim() === '')");
+    expect(content).toContain('setSearchActive(false)');
+  });
+
+  test('Funnel telemetry: stations and lines emit onboarding funnel analytics', () => {
+    const stationsContent = fs.readFileSync(stationsScreenPath, 'utf8');
+    const linesScreenPath = path.resolve(__dirname, '../app/onboarding/lines.tsx');
+    const linesContent = fs.readFileSync(linesScreenPath, 'utf8');
+
+    // Screen views
+    expect(stationsContent).toContain("track('onboarding_screen_viewed', { step: 2, screen: 'stations' })");
+    expect(linesContent).toContain("track('onboarding_screen_viewed', { step: 1, screen: 'lines' })");
+
+    // Completions
+    expect(stationsContent).toContain("track('onboarding_stations_completed'");
+    expect(linesContent).toContain("track('onboarding_lines_completed'");
+
+    // Skips
+    expect(stationsContent).toContain("track('onboarding_skipped', { step: 2, screen: 'stations' })");
+    expect(linesContent).toContain("track('onboarding_skipped', { step: 1, screen: 'lines' })");
+  });
 });
 

@@ -29,6 +29,7 @@ import { Stack, useRouter, useLocalSearchParams, useNavigation } from 'expo-rout
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 import { ensureDeviceIdentity } from '../../services/deviceIdentity';
+import { track } from '../../services/analyticsService';
 import { resolveTflStopIdForStore } from '../../utils/resolveTflStopId';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName, sanitiseStationName, searchStations } from '../../data/tflStations';
 import { tflCapitalise } from '../../utils/tflCapitalise';
@@ -102,6 +103,20 @@ export default function StationsScreen() {
     }, 400);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    track('onboarding_screen_viewed', { step: 2, screen: 'stations' });
+  }, []);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidHide', () => {
+      setIsFocused(false);
+      if (query.trim() === '') {
+        setSearchActive(false);
+      }
+    });
+    return () => sub.remove();
+  }, [query]);
 
   useEffect(() => {
     if (openSearch === 'true') {
@@ -403,6 +418,7 @@ export default function StationsScreen() {
       // dashboard — no permission asks, no TfL registration. Permissions are
       // asked contextually post-activation (station pin, settings toggles,
       // Tier-1 upgrade); TfL registration resurfaces with Refund Radar.
+      track('onboarding_stations_completed', { pinnedCount: mappedStations.length });
       finishOnboarding();
     }
   };
@@ -411,6 +427,7 @@ export default function StationsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Skip station selection → dashboard. Onboarding is 2 value screens —
     // no TfL registration, no permission asks up front.
+    track('onboarding_skipped', { step: 2, screen: 'stations' });
     finishOnboarding();
   };
 
@@ -425,6 +442,10 @@ export default function StationsScreen() {
     : pinnedStations.length === 1
       ? 'Continue with 1 station'
       : `Continue with ${pinnedStations.length} stations`;
+
+  // CTA visibility: hide when keyboard is focused, or when searching with active query,
+  // or when searching without any pinned stations. Never hide when viewing pinned stations with empty query.
+  const hideCta = isFocused || (searchActive && (query.trim() !== '' || pinnedStations.length === 0));
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = isStationPinned(item);
@@ -542,9 +563,6 @@ export default function StationsScreen() {
                 }}
                 onBlur={() => {
                   setIsFocused(false);
-                  if (query.trim() === '') {
-                    setSearchActive(false);
-                  }
                 }}
                 onChangeText={(text) => {
                   setQuery(text);
@@ -754,7 +772,7 @@ export default function StationsScreen() {
         </View>
 
         {/* Sticky CTA Footer */}
-        {(!searchActive || (query.trim() === '' && pinnedStations.length > 0)) && (
+        {!hideCta && (
           <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
             pointerEvents="box-none"

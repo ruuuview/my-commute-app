@@ -28,6 +28,7 @@ import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PREMIUM_BUTTON } from '../../theme/colors';
 import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
+import { track } from '../../services/analyticsService';
 import { getSeverityLabel, getSeverityRank } from '../../utils/getSeverityColor';
 import {
   SCREEN_PADDING,
@@ -191,6 +192,10 @@ export default function LinesScreen() {
     [selectedLines, toggleLine]
   );
 
+  useEffect(() => {
+    track('onboarding_screen_viewed', { step: 1, screen: 'lines' });
+  }, []);
+
   const handleCTAPress = async () => {
     if (selectedLines.length === 0) {
       triggerCounterShake();
@@ -202,6 +207,8 @@ export default function LinesScreen() {
 
     const timestamp = Date.now();
     console.log(`[AUDIO_TRIGGER] playSound pushing from lines at ${timestamp}`);
+
+    track('onboarding_lines_completed', { selectedCount: selectedLines.length });
 
     useUserPreferencesStore.setState({ onboardingStep: 1 });
     useOnboardingStore.getState().setNavigationDirection('forward');
@@ -216,6 +223,7 @@ export default function LinesScreen() {
 
     // Skip line selection → dashboard. Onboarding is 2 value screens
     // (lines, stations): no TfL registration, no permission asks up front.
+    track('onboarding_skipped', { step: 1, screen: 'lines' });
     useUserPreferencesStore.getState().completeOnboarding();
     const parentNav = navigation.getParent();
     if (parentNav) {

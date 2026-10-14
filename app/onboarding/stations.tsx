@@ -542,6 +542,9 @@ export default function StationsScreen() {
                 }}
                 onBlur={() => {
                   setIsFocused(false);
+                  if (query.trim() === '') {
+                    setSearchActive(false);
+                  }
                 }}
                 onChangeText={(text) => {
                   setQuery(text);
@@ -751,7 +754,7 @@ export default function StationsScreen() {
         </View>
 
         {/* Sticky CTA Footer */}
-        {!searchActive && (
+        {(!searchActive || (query.trim() === '' && pinnedStations.length > 0)) && (
           <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
             pointerEvents="box-none"

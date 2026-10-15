@@ -103,11 +103,12 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
     await SessionManager.checkSessionStatus();
     const state = useUserPreferencesStore.getState();
-    const { notificationsGranted, selectedLines } = state;
+    const { notificationsGranted, selectedLines, shushPreferences } = state;
+    const deliveryMode = shushPreferences?.alertDeliveryMode || 'shush';
 
-    const canScheduleNotifications = notificationsGranted;
+    const canScheduleNotifications = notificationsGranted && deliveryMode !== 'off';
     if (!canScheduleNotifications) {
-      console.log('🔇 Background Fetch: Notifications not granted; refreshing widget cache only.');
+      console.log('🔇 Background Fetch: Notifications not granted or deliveryMode is OFF; refreshing widget cache only.');
     }
 
     // 2. Guard check: selected lines

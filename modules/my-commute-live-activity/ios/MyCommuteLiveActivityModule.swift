@@ -107,6 +107,31 @@ public class MyCommuteLiveActivityModule: Module {
       let activities = Activity<MyCommuteLiveActivityAttributes>.activities
       guard let activity = activities.first else { return }
 
+      let previousTier = activity.content.state.severityTier
+      let currentTier = state.severityTier
+      let isEscalationToSevere = previousTier < 2 && currentTier >= 2
+
+      let lineId = activity.attributes.lineId
+      let now = Date().timeIntervalSince1970
+      let lastAlert = UserDefaults.standard.double(forKey: "last_alert_\(lineId)")
+      let cooldownPassed = (now - lastAlert) > 600.0 // 10 minutes
+
+      let deliveryMode = payload["alertDeliveryMode"] as? String ?? "shush"
+      let isLoud = deliveryMode == "loud"
+
+      let alertConfig: AlertConfiguration?
+      if isEscalationToSevere && cooldownPassed {
+        UserDefaults.standard.set(now, forKey: "last_alert_\(lineId)")
+        let sound: AlertConfiguration.AlertSound = isLoud ? .default : .named("silent.wav")
+        alertConfig = AlertConfiguration(
+          title: LocalizedStringResource("\(state.lineName) severe delays"),
+          body: LocalizedStringResource("\(state.statusText)"),
+          sound: sound
+        )
+      } else {
+        alertConfig = nil
+      }
+
       let staleTimeout = TimeInterval(state.segmentMaxDuration > 0 ? state.segmentMaxDuration : 900)
       let staleDate: Date? = state.isOfflineMode
         ? nil
@@ -116,7 +141,7 @@ public class MyCommuteLiveActivityModule: Module {
 
       let content = ActivityContent(state: state, staleDate: staleDate)
       Task {
-        await activity.update(content)
+        await activity.update(content, alertConfiguration: alertConfig)
       }
     }
 

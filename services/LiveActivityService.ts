@@ -70,10 +70,8 @@ const getLiveActivityModule = () => {
     MyCommuteLiveActivityModuleDefault
   );
 };
-const MyCommuteLiveActivityModule = getLiveActivityModule();
-
 // Fail-loud dev invariant (Rule 21): Alert if native bridge was not linked in custom binary
-if (Platform.OS === 'ios' && !isExpoGo && !MyCommuteLiveActivityModule) {
+if (Platform.OS === 'ios' && !isExpoGo && !getLiveActivityModule()) {
   console.error(
     '[LiveActivityService] CRITICAL: MyCommuteLiveActivityModule is NOT linked in this binary! ' +
     'Live Activities and Dynamic Island require an EAS Development Client build with the native module autolinked.'
@@ -141,6 +139,8 @@ export interface LiveActivityBridgePayload {
   nextStationEtaMinutes?: number;
   nextStationEtaTimestamp?: number;
   isStaleEta?: boolean;
+  alertDeliveryMode?: 'loud' | 'shush' | 'off';
+  alertSound?: 'default' | 'silent';
 }
 
 const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
@@ -152,6 +152,8 @@ export class LiveActivityService {
   private static readonly WIDGET_RELOAD_DEBOUNCE_MS = 30_000;
   private static lastUpdatePayloadHash = '';
   private static lastUpdateTime = 0;
+  private static trailingFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private static lastSentTierByLine: Record<string, number> = {};
   private static tokenSubscriptions: { remove: () => void }[] = [];
 
   /**
@@ -449,6 +451,8 @@ export class LiveActivityService {
       nextStationEtaMinutes,
       nextStationEtaTimestamp,
       isStaleEta,
+      alertDeliveryMode: useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush',
+      alertSound: useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode === 'loud' ? 'default' : 'silent',
     };
   }
 
@@ -466,7 +470,8 @@ export class LiveActivityService {
     availableLines: string[]
   ): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.startCommuteActivity !== 'function') {
       return null;
     }
 
@@ -500,7 +505,7 @@ export class LiveActivityService {
     };
 
     try {
-      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(payload);
+      const activityId = await nativeModule.startCommuteActivity(payload);
       console.log(`[LiveActivityService] Started line picker activity ${activityId} at ${stationName}`);
       track('shush_session_started', { trigger: 'multi_line_hub', mode: 'shush' });
       return activityId;
@@ -541,7 +546,8 @@ export class LiveActivityService {
       return null;
     }
 
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.startCommuteActivity !== 'function') {
       console.warn('[LiveActivityService] MyCommuteLiveActivityModule.startCommuteActivity unavailable.');
       return null;
     }
@@ -553,7 +559,7 @@ export class LiveActivityService {
     }
 
     try {
-      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(payload);
+      const activityId = await nativeModule.startCommuteActivity(payload);
       console.log(`[LiveActivityService] Started activity ${activityId} in ${deliveryMode} mode`);
       track('shush_session_started', { trigger, mode: deliveryMode });
       if (payload.severityTier === 3) {
@@ -575,7 +581,8 @@ export class LiveActivityService {
     signalStateOverride?: LiveActivitySignalState
   ): Promise<void> {
     if (Platform.OS !== 'ios') return;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.updateCommuteActivity !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.updateCommuteActivity !== 'function') {
       return;
     }
     const payload = this.buildPayload(stationId, lineId, signalStateOverride);
@@ -583,16 +590,56 @@ export class LiveActivityService {
       return;
     }
 
-    const payloadHash = `${stationId}:${lineId}:${payload.statusText}:${payload.severityTier}:${payload.nextTrainMinutes}:${payload.phase}`;
+    const cleanLineId = lineId.toLowerCase().trim();
+    const currentTier = payload.severityTier ?? 0;
+    const previousTier = this.lastSentTierByLine[cleanLineId] ?? 0;
+    const isEscalation = currentTier > previousTier && currentTier >= 2;
+    const payloadHash = `${stationId}:${cleanLineId}:${payload.statusText}:${payload.severityTier}:${payload.nextTrainMinutes}:${payload.phase}`;
     const now = Date.now();
-    if (payloadHash === this.lastUpdatePayloadHash && now - this.lastUpdateTime < 2000) {
+
+    if (isEscalation) {
+      if (this.trailingFlushTimer) {
+        clearTimeout(this.trailingFlushTimer);
+        this.trailingFlushTimer = null;
+      }
+      this.lastSentTierByLine[cleanLineId] = currentTier;
+      this.lastUpdatePayloadHash = payloadHash;
+      this.lastUpdateTime = now;
+
+      try {
+        await nativeModule.updateCommuteActivity(payload);
+      } catch (e) {
+        console.error('[LiveActivityService] Update failed:', e);
+      }
       return;
     }
+
+    if (now - this.lastUpdateTime < 2000) {
+      if (this.trailingFlushTimer) {
+        clearTimeout(this.trailingFlushTimer);
+      }
+      this.trailingFlushTimer = setTimeout(() => {
+        this.trailingFlushTimer = null;
+        this.lastUpdateTime = Date.now();
+        this.lastUpdatePayloadHash = payloadHash;
+        this.lastSentTierByLine[cleanLineId] = currentTier;
+        void nativeModule.updateCommuteActivity(payload).catch((e: any) => {
+          console.error('[LiveActivityService] Trailing flush update failed:', e);
+        });
+      }, 2000 - (now - this.lastUpdateTime));
+      return;
+    }
+
+    if (this.trailingFlushTimer) {
+      clearTimeout(this.trailingFlushTimer);
+      this.trailingFlushTimer = null;
+    }
+    this.lastSentTierByLine[cleanLineId] = currentTier;
     this.lastUpdatePayloadHash = payloadHash;
     this.lastUpdateTime = now;
 
     try {
-      await MyCommuteLiveActivityModule.updateCommuteActivity(payload);
+      await nativeModule.updateCommuteActivity(payload);
     } catch (e) {
       console.error('[LiveActivityService] Update failed:', e);
     }
@@ -634,7 +681,8 @@ export class LiveActivityService {
    */
   static async syncWidgetCache(selectedLines: string[], customStatuses?: { id: string; name: string; status: string; severity: number }[]): Promise<void> {
     if (Platform.OS !== 'ios') return;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.syncWidgetCache !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.syncWidgetCache !== 'function') {
       return;
     }
 
@@ -687,7 +735,7 @@ export class LiveActivityService {
         statusesJson = JSON.stringify(baselineStatuses);
       }
 
-      await MyCommuteLiveActivityModule.syncWidgetCache(linesJson, statusesJson);
+      await nativeModule.syncWidgetCache(linesJson, statusesJson);
       console.log('[LiveActivityService] Synced widget pre-warmed snapshot cache.');
     } catch (e) {
       console.error('[LiveActivityService] syncWidgetCache failed:', e);
@@ -707,7 +755,8 @@ export class LiveActivityService {
       return null;
     }
     if (Platform.OS !== 'ios') return null;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.startCommuteActivity !== 'function') {
       return null;
     }
 
@@ -762,7 +811,7 @@ export class LiveActivityService {
     };
 
     try {
-      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(previewPayload);
+      const activityId = await nativeModule.startCommuteActivity(previewPayload);
       console.log(`[LiveActivityService] Started preview activity ${activityId}`);
       track('shush_session_started', { trigger: 'preview', mode: 'shush' });
 
@@ -799,7 +848,8 @@ export class LiveActivityService {
       return null;
     }
     if (Platform.OS !== 'ios') return null;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.startCommuteActivity !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.startCommuteActivity !== 'function') {
       return null;
     }
 
@@ -840,7 +890,7 @@ export class LiveActivityService {
     };
 
     try {
-      const activityId = await MyCommuteLiveActivityModule.startCommuteActivity(payload);
+      const activityId = await nativeModule.startCommuteActivity(payload);
       console.log(`[LiveActivityService] Started simulated Northern commute activity ${activityId}`);
       track('shush_session_started', { trigger: 'simulate_northern', mode: 'shush' });
       return activityId;
@@ -856,11 +906,12 @@ export class LiveActivityService {
 
   static async end(reason = 'destination_reached'): Promise<void> {
     if (Platform.OS !== 'ios') return;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.endCommuteActivity !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.endCommuteActivity !== 'function') {
       return;
     }
     try {
-      await MyCommuteLiveActivityModule.endCommuteActivity();
+      await nativeModule.endCommuteActivity();
       console.log(`[LiveActivityService] Ended activity. Reason: ${reason}`);
       track('shush_session_ended', { reason });
     } catch (e) {
@@ -870,11 +921,12 @@ export class LiveActivityService {
 
   static async isActive(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.isActivityActive !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.isActivityActive !== 'function') {
       return false;
     }
     try {
-      return await MyCommuteLiveActivityModule.isActivityActive();
+      return await nativeModule.isActivityActive();
     } catch (e) {
       console.error('[LiveActivityService] isActivityActive failed:', e);
       return false;
@@ -883,11 +935,12 @@ export class LiveActivityService {
 
   static async hasDynamicIsland(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.hasDynamicIsland !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.hasDynamicIsland !== 'function') {
       return false;
     }
     try {
-      return await MyCommuteLiveActivityModule.hasDynamicIsland();
+      return await nativeModule.hasDynamicIsland();
     } catch {
       return false;
     }
@@ -895,11 +948,12 @@ export class LiveActivityService {
 
   static async getTimeSensitiveStatus(): Promise<'not_supported' | 'disabled' | 'enabled'> {
     if (Platform.OS !== 'ios') return 'not_supported';
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.getTimeSensitiveStatus !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.getTimeSensitiveStatus !== 'function') {
       return 'not_supported';
     }
     try {
-      return await MyCommuteLiveActivityModule.getTimeSensitiveStatus();
+      return await nativeModule.getTimeSensitiveStatus();
     } catch {
       return 'not_supported';
     }
@@ -907,11 +961,12 @@ export class LiveActivityService {
 
   static async checkTimeSensitivePermission(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.checkTimeSensitivePermission !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.checkTimeSensitivePermission !== 'function') {
       return false;
     }
     try {
-      return await MyCommuteLiveActivityModule.checkTimeSensitivePermission();
+      return await nativeModule.checkTimeSensitivePermission();
     } catch {
       return false;
     }
@@ -919,11 +974,12 @@ export class LiveActivityService {
 
   static async requestTimeSensitivePermission(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
-    if (!MyCommuteLiveActivityModule || typeof MyCommuteLiveActivityModule.requestTimeSensitivePermission !== 'function') {
+    const nativeModule = getLiveActivityModule();
+    if (!nativeModule || typeof nativeModule.requestTimeSensitivePermission !== 'function') {
       return false;
     }
     try {
-      const granted = await MyCommuteLiveActivityModule.requestTimeSensitivePermission();
+      const granted = await nativeModule.requestTimeSensitivePermission();
       const status = await this.getTimeSensitiveStatus();
       useUserPreferencesStore.getState().setTimeSensitiveStatus(status);
       return granted;
@@ -934,6 +990,16 @@ export class LiveActivityService {
 
   static _setNativeModuleForTesting(mock: any) {
     testModuleOverride = mock;
+  }
+
+  static _resetThrottleForTesting(): void {
+    if (this.trailingFlushTimer) {
+      clearTimeout(this.trailingFlushTimer);
+      this.trailingFlushTimer = null;
+    }
+    this.lastUpdatePayloadHash = '';
+    this.lastUpdateTime = 0;
+    this.lastSentTierByLine = {};
   }
 
   /**

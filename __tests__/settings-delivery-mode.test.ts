@@ -50,10 +50,9 @@ describe('Settings Delivery Mode & Alert Configuration Invariants', () => {
     expect(segmentedContent).not.toContain('#FF9500');
     expect(segmentedContent).not.toContain('#BF5AF2');
 
-    // Intent x OS Permission delivery truth status line
-    expect(content).toContain('!osNotificationsGranted');
-    expect(content).toContain('Notifications disabled in iOS Settings. Lock screen banners cannot be delivered.');
-    expect(content).toContain('Alerts appear as banners with sound during disruptions.');
+    // Intent x OS Permission delivery truth status line via 8-row truth table
+    expect(content).toContain('deliveryRowId');
+    expect(content).toContain('DELIVERY_COPY[deliveryRowId]');
   });
 
   test('Settings file wires real Severe Suspension Bypass control', () => {

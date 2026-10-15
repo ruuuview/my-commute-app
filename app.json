@@ -90,7 +90,10 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#0098D4"
+          "color": "#0098D4",
+          "sounds": [
+            "./assets/audio/silent.wav"
+          ]
         }
       ],
       [

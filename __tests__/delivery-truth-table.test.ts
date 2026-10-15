@@ -1,62 +1,71 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { Platform } from 'react-native';
 import { LiveActivityService } from '../services/LiveActivityService';
+import { getDeliveryRow, DELIVERY_COPY, DeliveryRowId } from '../utils/deliveryRow';
 
 describe('Delivery Truth Table & Two-Bit Native Bridge Invariants', () => {
-  const settingsPath = path.resolve(__dirname, '../app/settings.tsx');
+  describe('Truth Table Row Logic (Pure Function Invariant)', () => {
+    test.each([
+      [{ mode: 'loud', notifGranted: true, notifCanAsk: false, la: { supported: true, enabled: true } }, 1],
+      [{ mode: 'loud', notifGranted: false, notifCanAsk: true, la: { supported: true, enabled: true } }, 2],
+      [{ mode: 'loud', notifGranted: false, notifCanAsk: false, la: { supported: true, enabled: true } }, 3],
+      [{ mode: 'shush', notifGranted: true, notifCanAsk: false, la: { supported: true, enabled: true } }, 4],
+      [{ mode: 'shush', notifGranted: true, notifCanAsk: false, la: { supported: true, enabled: false } }, 5],
+      [{ mode: 'off', notifGranted: true, notifCanAsk: false, la: { supported: true, enabled: true } }, 6],
+      [{ mode: 'shush', notifGranted: true, notifCanAsk: false, la: { supported: false, enabled: false } }, 7],
+      [{ mode: 'shush', notifGranted: false, notifCanAsk: false, la: { supported: true, enabled: true } }, 8],
+    ])('maps input %p to row %i', (input, expectedRow) => {
+      expect(getDeliveryRow(input as any)).toBe(expectedRow);
+    });
 
-  test('Settings file structurally enforces all 7 rows of the Intent × Delivery Truth Table', () => {
-    expect(fs.existsSync(settingsPath)).toBe(true);
-    const content = fs.readFileSync(settingsPath, 'utf8');
+    test('no copy row contains the forbidden word "Silent"', () => {
+      Object.values(DELIVERY_COPY).forEach((copy) => {
+        expect(copy).not.toMatch(/\bSilent\b/i);
+      });
+    });
 
-    // Row 1: Standard + Notifications Granted -> Zero warning banner, positive delivery confirmation
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'loud' && osNotificationsGranted");
-    expect(content).toContain('testID="truth-table-row-1"');
-    expect(content).toContain('Alerts appear as banners with sound during disruptions.');
+    test('Row 1 copy accurately specifies non-commute delivery', () => {
+      expect(DELIVERY_COPY[1]).toBe("Banners with sound when you're not commuting.");
+    });
 
-    // Row 2: Standard + Notifications Undetermined -> Anti-Badger Prominent Card with [Enable]
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'loud' && !osNotificationsGranted && (osNotifStatus === Notifications.PermissionStatus.UNDETERMINED");
-    expect(content).toContain('testID="truth-table-row-2"');
-    expect(content).toContain('styles.prominentWarningCard');
-    expect(content).toContain('Enable push notifications to receive line disruption banners on your lock screen.');
-    expect(content).toContain('styles.prominentEnableBtn');
+    test('Row 4 copy explicitly promises quiet delivery', () => {
+      expect(DELIVERY_COPY[4]).toContain('quietly');
+    });
 
-    // Row 3: Standard + Notifications Denied -> Anti-Badger Quiet Slate Line with [Settings]
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'loud' && !osNotificationsGranted && (osNotifStatus === Notifications.PermissionStatus.DENIED");
-    expect(content).toContain('testID="truth-table-row-3"');
-    expect(content).toContain('styles.quietSlateRow');
-    expect(content).toContain('Notifications disabled in iOS Settings. Lock screen banners cannot be delivered.');
-    expect(content).toContain('styles.inlineSettingsBtn');
+    test('capability invariant: only enabled Live Activities in Shush mode promise Dynamic Island', () => {
+      expect(DELIVERY_COPY[4]).toContain('Dynamic Island');
+      [1, 2, 3, 5, 6, 7, 8].forEach((rowId) => {
+        expect(DELIVERY_COPY[rowId as DeliveryRowId]).not.toContain('Dynamic Island');
+      });
+    });
 
-    // Row 4: Ambient + Live Activities Supported & Enabled -> Zero warning banner
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && liveActivityAuth.enabled");
-    expect(content).toContain('testID="truth-table-row-4"');
-    expect(content).toContain('Silent updates visible on Dynamic Island & Lock Screen.');
+    test('invariant: if Live Activities are unsupported or disabled, copy never mentions island', () => {
+      const modes: ('loud' | 'shush' | 'off')[] = ['loud', 'shush', 'off'];
+      const bools = [true, false];
 
-    // Row 5: Ambient + Live Activities Supported & Disabled -> Anti-Badger Quiet Slate Line with [Settings]
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && !liveActivityAuth.enabled");
-    expect(content).toContain('testID="truth-table-row-5"');
-    expect(content).toContain('Live Activities disabled in iOS Settings. Lock screen widget cannot update.');
+      for (const mode of modes) {
+        for (const notifGranted of bools) {
+          for (const notifCanAsk of bools) {
+            // Case 1: unsupported
+            const rowUnsupported = getDeliveryRow({
+              mode,
+              notifGranted,
+              notifCanAsk,
+              la: { supported: false, enabled: false },
+            });
+            expect(DELIVERY_COPY[rowUnsupported].toLowerCase()).not.toContain('island');
 
-    // Row 6: Muted -> Zero warning banner
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'off'");
-    expect(content).toContain('testID="truth-table-row-6"');
-    expect(content).toContain('No alerts. Check status manually in-app.');
-
-    // Row 7: Shush Mode + Live Activities Unsupported -> Anti-Badger Quiet Slate Line (NO button)
-    expect(content).toContain("shushPreferences.alertDeliveryMode === 'shush' && !liveActivityAuth.supported");
-    expect(content).toContain('testID="truth-table-row-7"');
-    expect(content).toContain('Live Activities require iOS 16.1 or later. Shush mode is unavailable on this device.');
-  });
-
-  test('AppState active listener refreshes permissions on foreground resume (Catch C round-trip invariant)', () => {
-    const content = fs.readFileSync(settingsPath, 'utf8');
-
-    expect(content).toContain("AppState.addEventListener('change'");
-    expect(content).toContain("state === 'active'");
-    expect(content).toContain('checkOsPermissions()');
-    expect(content).toContain('checkLiveActivityAuth()');
+            // Case 2: supported but disabled
+            const rowDisabled = getDeliveryRow({
+              mode,
+              notifGranted,
+              notifCanAsk,
+              la: { supported: true, enabled: false },
+            });
+            expect(DELIVERY_COPY[rowDisabled].toLowerCase()).not.toContain('island');
+          }
+        }
+      }
+    });
   });
 
   describe('Two-Bit Native Bridge Behavioral Evaluation (Catch A Invariant)', () => {

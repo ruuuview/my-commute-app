@@ -22,6 +22,7 @@ import { useRouter } from 'expo-router';
 import { LiveActivityService } from '../services/LiveActivityService';
 import { handleGoodServiceRecovery } from '../services/GoodServiceRecovery';
 import { track } from '../services/analyticsService';
+import { getDeliveryRow, DELIVERY_COPY } from '../utils/deliveryRow';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -135,7 +136,10 @@ export default function SettingsScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
       }
       setAlertDeliveryMode(mode);
-      if (mode === 'shush') {
+      if (mode === 'off') {
+        void LiveActivityService.end('switched_to_off');
+        track('shush_mode_disabled', { newMode: mode });
+      } else if (mode === 'shush') {
         track('shush_mode_enabled');
         const status = await LiveActivityService.getTimeSensitiveStatus();
         setTimeSensitiveStatus(status);
@@ -314,6 +318,21 @@ export default function SettingsScreen() {
     });
     return () => sub.remove();
   }, [checkOsPermissions, checkLiveActivityAuth, setTimeSensitiveStatus]);
+
+  const deliveryRowId = useMemo(() => {
+    return getDeliveryRow({
+      mode: shushPreferences.alertDeliveryMode,
+      notifGranted: osNotificationsGranted,
+      notifCanAsk: osNotifCanAskAgain && osNotifStatus === Notifications.PermissionStatus.UNDETERMINED,
+      la: liveActivityAuth,
+    });
+  }, [
+    shushPreferences.alertDeliveryMode,
+    osNotificationsGranted,
+    osNotifCanAskAgain,
+    osNotifStatus,
+    liveActivityAuth,
+  ]);
 
   // ── Station Helpers ───────────────────────────────────────────────
   const homeStation = useMemo(
@@ -592,110 +611,97 @@ export default function SettingsScreen() {
 
               <View style={styles.divider} />
 
-              {/* ── Intent × Capability Delivery Truth Table (7 Rows) ── */}
-
-              {/* Row 1: Standard + Notifications Granted → Zero warning, positive confirmation */}
-              {shushPreferences.alertDeliveryMode === 'loud' && osNotificationsGranted && (
-                <View style={styles.surfaceInfoRow} testID="truth-table-row-1">
-                  <Bell size={15} color="#0A84FF" weight="fill" />
-                  <Text style={styles.surfaceInfoText}>
-                    Alerts appear as banners with sound during disruptions.
-                  </Text>
-                </View>
-              )}
-
-              {/* Row 2: Standard + Notifications Undetermined → Prominent Card with [Enable] */}
-              {shushPreferences.alertDeliveryMode === 'loud' && !osNotificationsGranted && (osNotifStatus === Notifications.PermissionStatus.UNDETERMINED || (osNotifCanAskAgain && osNotifStatus !== Notifications.PermissionStatus.DENIED)) && (
-                <View style={styles.prominentWarningCard} testID="truth-table-row-2">
-                  <View style={styles.prominentCardHeader}>
-                    <IconBadge
-                      icon={<Bell size={18} color="#0A84FF" weight="fill" />}
-                      backgroundColor="rgba(10, 132, 255, 0.18)"
-                      borderColor="rgba(10, 132, 255, 0.35)"
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.prominentCardTitle}>Enable Line Disruption Banners</Text>
-                      <Text style={styles.prominentCardDesc}>
-                        Enable push notifications to receive line disruption banners on your lock screen.
-                      </Text>
-                    </View>
-                  </View>
-                  <Pressable
-                    style={styles.prominentEnableBtn}
-                    onPress={handleRequestNotificationPermission}
-                    accessibilityRole="button"
-                    accessibilityLabel="Enable push notifications"
-                  >
-                    <Text style={styles.prominentEnableBtnText}>Enable</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {/* Row 3: Standard + Notifications Denied → Quiet Slate Line with [Settings] */}
-              {shushPreferences.alertDeliveryMode === 'loud' && !osNotificationsGranted && (osNotifStatus === Notifications.PermissionStatus.DENIED || !osNotifCanAskAgain) && (
-                <View style={styles.quietSlateRow} testID="truth-table-row-3">
-                  <WarningCircle size={15} color="#8E8E93" weight="regular" />
-                  <Text style={styles.quietSlateText}>
-                    Notifications disabled in iOS Settings. Lock screen banners cannot be delivered.
-                  </Text>
-                  <Pressable
-                    style={styles.inlineSettingsBtn}
-                    onPress={() => Linking.openSettings().catch(() => { })}
-                    accessibilityRole="button"
-                    accessibilityLabel="Open iOS Settings"
-                  >
-                    <Text style={styles.inlineSettingsBtnText}>Settings</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {/* Row 4: Shush Mode + Live Activities Supported & Enabled → Zero warning */}
-              {shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && liveActivityAuth.enabled && (
-                <View style={styles.surfaceInfoRow} testID="truth-table-row-4">
-                  <ShushIcon size={15} color="#5E5CE6" />
-                  <Text style={styles.surfaceInfoText}>
-                    Silent updates visible on Dynamic Island & Lock Screen.
-                  </Text>
-                </View>
-              )}
-
-              {/* Row 5: Shush Mode + Live Activities Supported & Disabled → Quiet Slate Line with [Settings] */}
-              {shushPreferences.alertDeliveryMode === 'shush' && liveActivityAuth.supported && !liveActivityAuth.enabled && (
-                <View style={styles.quietSlateRow} testID="truth-table-row-5">
-                  <WarningCircle size={15} color="#8E8E93" weight="regular" />
-                  <Text style={styles.quietSlateText}>
-                    Live Activities disabled in iOS Settings. Lock screen widget cannot update.
-                  </Text>
-                  <Pressable
-                    style={styles.inlineSettingsBtn}
-                    onPress={() => Linking.openSettings().catch(() => { })}
-                    accessibilityRole="button"
-                    accessibilityLabel="Open iOS Settings"
-                  >
-                    <Text style={styles.inlineSettingsBtnText}>Settings</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {/* Row 6: Off → Zero warning banner */}
-              {shushPreferences.alertDeliveryMode === 'off' && (
-                <View style={styles.surfaceInfoRow} testID="truth-table-row-6">
-                  <BellSlash size={15} color="#8E8E93" weight="fill" />
-                  <Text style={styles.surfaceInfoText}>
-                    No alerts. Check status manually in-app.
-                  </Text>
-                </View>
-              )}
-
-              {/* Row 7: Shush Mode + Live Activities Unsupported → Quiet Slate Line (No action button) */}
-              {shushPreferences.alertDeliveryMode === 'shush' && !liveActivityAuth.supported && (
-                <View style={styles.quietSlateRow} testID="truth-table-row-7">
-                  <WarningCircle size={15} color="#8E8E93" weight="regular" />
-                  <Text style={styles.quietSlateText}>
-                    Live Activities require iOS 16.1 or later. Shush mode is unavailable on this device.
-                  </Text>
-                </View>
-              )}
+              {/* ── Intent × Capability Delivery Truth Table (8 Rows via deliveryRowId) ── */}
+              {(() => {
+                const text = DELIVERY_COPY[deliveryRowId];
+                switch (deliveryRowId) {
+                  case 1:
+                    return (
+                      <View style={styles.surfaceInfoRow} testID="truth-table-row-1">
+                        <Bell size={15} color="#0A84FF" weight="fill" />
+                        <Text style={styles.surfaceInfoText}>{text}</Text>
+                      </View>
+                    );
+                  case 2:
+                    return (
+                      <View style={styles.prominentWarningCard} testID="truth-table-row-2">
+                        <View style={styles.prominentCardHeader}>
+                          <IconBadge
+                            icon={<Bell size={18} color="#0A84FF" weight="fill" />}
+                            backgroundColor="rgba(10, 132, 255, 0.18)"
+                            borderColor="rgba(10, 132, 255, 0.35)"
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.prominentCardTitle}>Enable Line Disruption Banners</Text>
+                            <Text style={styles.prominentCardDesc}>{text}</Text>
+                          </View>
+                        </View>
+                        <Pressable
+                          style={styles.prominentEnableBtn}
+                          onPress={handleRequestNotificationPermission}
+                          accessibilityRole="button"
+                          accessibilityLabel="Enable push notifications"
+                        >
+                          <Text style={styles.prominentEnableBtnText}>Enable</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  case 3:
+                  case 5:
+                    return (
+                      <View style={styles.quietSlateRow} testID={`truth-table-row-${deliveryRowId}`}>
+                        <WarningCircle size={15} color="#8E8E93" weight="regular" />
+                        <Text style={styles.quietSlateText}>{text}</Text>
+                        <Pressable
+                          style={styles.inlineSettingsBtn}
+                          onPress={() => Linking.openSettings().catch(() => { })}
+                          accessibilityRole="button"
+                          accessibilityLabel="Open iOS Settings"
+                        >
+                          <Text style={styles.inlineSettingsBtnText}>Settings</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  case 8: {
+                    const canAsk = osNotifCanAskAgain && osNotifStatus === Notifications.PermissionStatus.UNDETERMINED;
+                    return (
+                      <View style={styles.quietSlateRow} testID="truth-table-row-8">
+                        <WarningCircle size={15} color="#8E8E93" weight="regular" />
+                        <Text style={styles.quietSlateText}>{text}</Text>
+                        <Pressable
+                          style={styles.inlineSettingsBtn}
+                          onPress={canAsk ? handleRequestNotificationPermission : () => Linking.openSettings().catch(() => { })}
+                          accessibilityRole="button"
+                          accessibilityLabel={canAsk ? 'Enable push notifications' : 'Open iOS Settings'}
+                        >
+                          <Text style={styles.inlineSettingsBtnText}>{canAsk ? 'Enable' : 'Settings'}</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  }
+                  case 4:
+                    return (
+                      <View style={styles.surfaceInfoRow} testID="truth-table-row-4">
+                        <ShushIcon size={15} color="#5E5CE6" />
+                        <Text style={styles.surfaceInfoText}>{text}</Text>
+                      </View>
+                    );
+                  case 6:
+                    return (
+                      <View style={styles.surfaceInfoRow} testID="truth-table-row-6">
+                        <BellSlash size={15} color="#8E8E93" weight="fill" />
+                        <Text style={styles.surfaceInfoText}>{text}</Text>
+                      </View>
+                    );
+                  case 7:
+                    return (
+                      <View style={styles.quietSlateRow} testID="truth-table-row-7">
+                        <WarningCircle size={15} color="#8E8E93" weight="regular" />
+                        <Text style={styles.quietSlateText}>{text}</Text>
+                      </View>
+                    );
+                }
+              })()}
 
               {/* Time-Sensitive Permission Soft Nag (Tri-state: only renders if capability exists in binary and is user-disabled) */}
               {shushPreferences.alertDeliveryMode === 'shush' && shushPreferences.timeSensitiveStatus === 'disabled' && (

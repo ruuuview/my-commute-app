@@ -7,6 +7,7 @@ import {
 } from './payload';
 import { getSeverityRank } from '../../utils/getSeverityColor';
 import { formatDisruptionNotificationBody } from './disruptionCopy';
+import { useUserPreferencesStore } from '../../store/userPreferencesStore';
 
 const notifStorage = createMMKV({ id: 'background-storage' });
 
@@ -88,6 +89,9 @@ export async function presentDisruptionNotification(
     cause: reason,
   });
 
+  const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+  const shouldPlaySound = deliveryMode === 'loud';
+
   return Notifications.scheduleNotificationAsync({
     identifier: `line-disruption-${lineId}`,
     content: {
@@ -95,7 +99,7 @@ export async function presentDisruptionNotification(
       body: bodyText,
       categoryIdentifier: NOTIFICATION_CATEGORIES.REROUTE_ONLY,
       data: data as unknown as Record<string, any>,
-      sound: true,
+      sound: shouldPlaySound,
     },
     trigger: null,
   });

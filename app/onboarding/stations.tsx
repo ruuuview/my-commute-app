@@ -654,7 +654,8 @@ export default function StationsScreen() {
                   )}
                   contentContainerStyle={styles.recentListContent}
                   showsVerticalScrollIndicator={false}
-                  keyboardDismissMode="interactive"
+                  keyboardDismissMode="on-drag"
+                  onScrollBeginDrag={Keyboard.dismiss}
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
@@ -672,7 +673,8 @@ export default function StationsScreen() {
                   windowSize={5}
                   contentContainerStyle={styles.lineRecsListContent}
                   showsVerticalScrollIndicator={false}
-                  keyboardDismissMode="interactive"
+                  keyboardDismissMode="on-drag"
+                  onScrollBeginDrag={Keyboard.dismiss}
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
@@ -686,7 +688,8 @@ export default function StationsScreen() {
                 windowSize={5}
                 contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
-                keyboardDismissMode="interactive"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={Keyboard.dismiss}
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
                   query.trim() === '' && pinnedStations.length > 0 ? (

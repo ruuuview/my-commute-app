@@ -62,6 +62,8 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your camera to scan QR codes.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>We read departure times alongside your calendar — all on your device. Nothing leaves your phone.</string>
     <key>NSCalendarsUsageDescription</key>

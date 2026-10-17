@@ -747,9 +747,14 @@ export class LiveActivityService {
   /**
    * 1-Tap Preview trigger for instant on-device testing of Dynamic Island & Lock Screen Live Activity.
    * Keeps preview active so user can lock their phone to view the Lock Screen card,
-   * backed by a 60s safety timeout.
+   * backed by a 45s safety timeout (or custom duration).
    */
-  static async startPreviewActivity(): Promise<string | null> {
+  static async startPreviewActivity(opts?: {
+    lineId?: string;
+    lineName?: string;
+    isDisruption?: boolean;
+    durationSeconds?: number;
+  }): Promise<string | null> {
     if (!__DEV__) {
       console.warn('[LiveActivityService] Preview activities are disabled in production builds.');
       return null;
@@ -765,61 +770,117 @@ export class LiveActivityService {
       this.previewTimeout = null;
     }
 
-    const previewPayload: LiveActivityBridgePayload = {
-      journeyId: `preview_${Math.floor(Date.now() / 1000)}`,
-      originStation: '940GZZLUCTN', // Camden Town
-      destinationStation: 'High Barnet',
-      stationId: '940GZZLUCTN',
-      lineId: 'northern',
-      lineName: 'Northern',
-      branchKnown: true,
-      branchName: 'via Bank',
-      arrivals: [
-        { destinationName: 'High Barnet', timeToStationSeconds: 180, via: 'Bank' },
-      ],
-      statusSeverity: 'good',
-      statusText: 'Good Service',
-      severityTier: 0,
-      nextTrainMinutes: 3,
-      etaTimestamp: Math.floor(Date.now() / 1000) + 180,
-      etaDelta: 'On time',
-      isDisrupted: false,
-      isEscalated: false,
-      delayRepayEligible: false,
-      delayMinutes: 0,
-      tunnelState: 'normal',
-      progress: 0.35,
-      segmentMaxDuration: 180,
-      signalState: 'ok',
-      phase: 'approaching',
-      availableEndpoints: ['High Barnet', 'Mill Hill East'],
-      selectedEndpoint: 'High Barnet',
-      sessionStartTime: Math.floor(Date.now() / 1000),
-      currentStationName: 'Camden Town',
-      destinationStationName: 'High Barnet',
-      approachingEndpoints: [
-        {
-          destinationName: 'High Barnet',
-          branchText: 'via Bank',
-          minutesToArrival: 3,
-          previousStationName: "King's Cross St. Pancras",
-          remainingStationSequence: ['Euston'],
-          stopsAway: 1,
+    const isDisruption = opts?.isDisruption ?? true;
+    const lineId = opts?.lineId || (isDisruption ? 'victoria' : 'northern');
+    const lineName = opts?.lineName || (isDisruption ? 'Victoria' : 'Northern');
+    const duration = opts?.durationSeconds ?? 45;
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const destName = lineId === 'northern' ? 'High Barnet' : 'Walthamstow Central';
+    const origName = lineId === 'northern' ? 'Camden Town' : 'Victoria';
+
+    const previewPayload: LiveActivityBridgePayload = isDisruption
+      ? {
+          journeyId: `preview_disruption_${nowSec}`,
+          originStation: lineId === 'northern' ? '940GZZLUCTN' : '940GZZLUVIC',
+          destinationStation: destName,
+          stationId: lineId === 'northern' ? '940GZZLUCTN' : '940GZZLUVIC',
+          lineId,
+          lineName,
+          branchKnown: false,
+          arrivals: [
+            { destinationName: destName, timeToStationSeconds: 900 },
+          ],
+          statusSeverity: 'severe_delays',
+          statusText: 'Severe Delays',
+          severityTier: 2,
+          nextTrainMinutes: 15,
+          etaTimestamp: nowSec + 900,
+          etaDelta: '+15m delay',
+          isDisrupted: true,
+          isEscalated: true,
+          delayRepayEligible: true,
+          delayMinutes: 15,
+          tunnelState: 'normal',
+          progress: 0.15,
+          segmentMaxDuration: duration,
+          signalState: 'ok',
+          phase: 'in_transit',
+          sessionStartTime: nowSec - 300,
+          currentStationName: origName,
+          destinationStationName: destName,
+          detourLine: lineId === 'northern' ? 'Victoria' : 'Piccadilly',
+          detourMinutes: 6,
+          detourStatus: 'good',
+          alertDeliveryMode: 'shush',
+          alertSound: 'silent',
+          approachingEndpoints: [
+            {
+              destinationName: destName,
+              branchText: '',
+              minutesToArrival: 15,
+              previousStationName: origName,
+              remainingStationSequence: [destName],
+              stopsAway: 4,
+              etaTimestamp: nowSec + 900,
+            },
+          ],
+        }
+      : {
+          journeyId: `preview_${Math.floor(Date.now() / 1000)}`,
+          originStation: '940GZZLUCTN', // Camden Town
+          destinationStation: 'High Barnet',
+          stationId: '940GZZLUCTN',
+          lineId: 'northern',
+          lineName: 'Northern',
+          branchKnown: true,
+          branchName: 'via Bank',
+          arrivals: [
+            { destinationName: 'High Barnet', timeToStationSeconds: 180, via: 'Bank' },
+          ],
+          statusSeverity: 'good',
+          statusText: 'Good Service',
+          severityTier: 0,
+          nextTrainMinutes: 3,
           etaTimestamp: Math.floor(Date.now() / 1000) + 180,
-        },
-      ],
-    };
+          etaDelta: 'On time',
+          isDisrupted: false,
+          isEscalated: false,
+          delayRepayEligible: false,
+          delayMinutes: 0,
+          tunnelState: 'normal',
+          progress: 0.35,
+          segmentMaxDuration: 180,
+          signalState: 'ok',
+          phase: 'approaching',
+          availableEndpoints: ['High Barnet', 'Mill Hill East'],
+          selectedEndpoint: 'High Barnet',
+          sessionStartTime: Math.floor(Date.now() / 1000),
+          currentStationName: 'Camden Town',
+          destinationStationName: 'High Barnet',
+          approachingEndpoints: [
+            {
+              destinationName: 'High Barnet',
+              branchText: 'via Bank',
+              minutesToArrival: 3,
+              previousStationName: "King's Cross St. Pancras",
+              remainingStationSequence: ['Euston'],
+              stopsAway: 1,
+              etaTimestamp: Math.floor(Date.now() / 1000) + 180,
+            },
+          ],
+        };
 
     try {
       const activityId = await nativeModule.startCommuteActivity(previewPayload);
       console.log(`[LiveActivityService] Started preview activity ${activityId}`);
       track('shush_session_started', { trigger: 'preview', mode: 'shush' });
 
-      // Generous 60s backstop so user has ample time to lock screen and inspect card
+      // Precise auto-dissolve timer (default 45s for Shush Disruption Flash)
       this.previewTimeout = setTimeout(() => {
         void this.end('demo_timeout');
         this.previewTimeout = null;
-      }, 60000);
+      }, duration * 1000);
 
       return activityId;
     } catch (e) {

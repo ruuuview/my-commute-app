@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import * as Notifications from 'expo-notifications';
 import {
   isLineId,
@@ -276,6 +278,45 @@ describe('Notifications Poka-Yoke & Routing Tests', () => {
       expect(viewRerouteAction?.buttonTitle).toBe('🧭 View Reroute');
       expect(viewRerouteAction?.options?.opensAppToForeground).toBe(true);
     });
+
+    it('enforces STRICT ZERO-EMOJI in notification titles (authentic TfL copy only)', async () => {
+      await presentDisruptionNotification({
+        lineId: 'victoria',
+        lineName: 'Victoria',
+        statusDescription: 'Severe Delays',
+        reason: 'Signal failure',
+        severity: 2,
+      });
+
+      const callArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      const title = callArgs.content.title;
+
+      // Authentic TfL copy without emojis
+      expect(title).toBe('Disruption on Victoria line');
+      expect(title).not.toMatch(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u);
+    });
+
+    it('asserts Swift UNNotificationAction strings match TypeScript exactly', () => {
+      const swiftPath = path.resolve(__dirname, '../modules/my-commute-live-activity/ios/MyCommuteLiveActivityModule.swift');
+      const swiftContent = fs.readFileSync(swiftPath, 'utf8');
+
+      expect(swiftContent).toContain('title: "🧭 View Reroute"');
+      expect(swiftContent).toContain('title: "🤫 Shush today"');
+    });
+
+    it('asserts Swift shushTodayAction executes in background with zero .foreground option', () => {
+      const swiftPath = path.resolve(__dirname, '../modules/my-commute-live-activity/ios/MyCommuteLiveActivityModule.swift');
+      const swiftContent = fs.readFileSync(swiftPath, 'utf8');
+
+      // Extract shushTodayAction UNNotificationAction block
+      const shushMatch = swiftContent.match(/let shushTodayAction = UNNotificationAction\([\s\S]*?\)/);
+      expect(shushMatch).not.toBeNull();
+      const shushBlock = shushMatch![0];
+
+      expect(shushBlock).toContain('options: []');
+      expect(shushBlock).not.toContain('.foreground');
+    });
   });
 });
+
 

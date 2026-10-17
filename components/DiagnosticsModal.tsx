@@ -86,8 +86,8 @@ export const DiagnosticsModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (visible) {
-      checkGeofenceHealthAsync().then(setGeofenceInfo).catch(() => {});
-      LiveActivityService.isActive().then(setIsSimulatingLiveActivity).catch(() => {});
+      checkGeofenceHealthAsync().then(setGeofenceInfo).catch(() => { });
+      LiveActivityService.isActive().then(setIsSimulatingLiveActivity).catch(() => { });
     }
   }, [visible]);
 
@@ -162,6 +162,16 @@ export const DiagnosticsModal: React.FC<Props> = ({
         }
       }
 
+      const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+      if (deliveryMode === 'off') {
+        Alert.alert(
+          'Alerts Suppressed',
+          'Notification Delivery is set to OFF in Settings. Switch to Shush or Loud mode to test disruption alerts.'
+        );
+        return;
+      }
+      const shouldPlaySound = deliveryMode === 'loud';
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: `Disruption on ${lineName} line`,
@@ -174,7 +184,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
             type: 'COMMUTE_DISRUPTION',
           },
           categoryIdentifier: 'REROUTE_ONLY',
-          sound: 'default',
+          sound: shouldPlaySound ? 'default' : false,
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -185,7 +195,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
 
       Alert.alert(
         '🔒 Lock Screen Now (5s)',
-        `Press side button to lock your phone now. In 5 seconds, the "${lineName} Line Disruption" push will arrive.\n\n• Normal Tap: Opens the in-detail card on the dashboard showing full status.\n• Long-Press: Expands banner to reveal "[View Reroute 🚇]" action button.`,
+        `Press side button to lock your phone now. In 5 seconds, the "${lineName} Line Disruption" push will arrive ${shouldPlaySound ? 'with sound' : 'silently (Shush Mode)'}.\n\n• Normal Tap: Opens the in-detail card on the dashboard showing full status.\n• Long-Press: Expands banner to reveal "[View Reroute 🚇]" action button.`,
         [{ text: 'OK, Locking Phone' }]
       );
     } catch (err) {
@@ -252,7 +262,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
         'Live Activities are turned off for My Commute in iOS Settings. Enable them to preview Shush Mode on your Dynamic Island and Lock Screen.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => { }) },
         ]
       );
       return;
@@ -260,12 +270,26 @@ export const DiagnosticsModal: React.FC<Props> = ({
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsTestingShush(true);
-    const activityId = await LiveActivityService.startPreviewActivity();
+    const activityId = await LiveActivityService.startPreviewActivity({
+      lineId: primaryLineId,
+      lineName: primaryLineName,
+      isDisruption: true,
+      durationSeconds: 45,
+    });
     if (!activityId) {
       setIsTestingShush(false);
       Alert.alert(
         'Unable to Start Preview',
         'Could not start the Live Activity. Ensure your device is running iOS 16.2+ and Live Activities are permitted in Settings.'
+      );
+    } else {
+      setTimeout(() => {
+        setIsTestingShush(false);
+      }, 45000);
+      Alert.alert(
+        `🤫 ${primaryLineName} Shush Disruption Flash (45s)`,
+        `Swipe to Lock Screen or view Dynamic Island now.\n\n• Visual Card: Shows severe delays on ${primaryLineName} line.\n• Zero Audio: Completely silent (Shush Mode).\n• Auto-Dissolve: Ends and vanishes automatically in 45 seconds leaving zero trace.\n• Tap Card: Clears card and opens app.`,
+        [{ text: 'OK, Locking Phone' }]
       );
     }
   };
@@ -274,7 +298,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // 1. If an unwanted preview activity was started, dismiss it cleanly:
-    await LiveActivityService.stopPreviewActivity().catch(() => {});
+    await LiveActivityService.stopPreviewActivity().catch(() => { });
 
     // 2. Dispatch genuine Good Service Recovery through unified state machine:
     await handleGoodServiceRecovery(primaryLineId);
@@ -479,8 +503,8 @@ export const DiagnosticsModal: React.FC<Props> = ({
                       </Text>
                       <Text style={styles.actionSubtitle}>
                         {isTestingShush
-                          ? 'Live preview running · Tap to end'
-                          : 'Spawns live Shush Mode preview on Lock Screen & Dynamic Island'}
+                          ? 'Severe delays flash active · Auto-dissolves in 45s'
+                          : `Spawns 45s silent disruption card for ${primaryLineName} on Dynamic Island & Lock Screen`}
                       </Text>
                     </View>
                   </Pressable>
@@ -559,63 +583,63 @@ export const DiagnosticsModal: React.FC<Props> = ({
                     </View>
                   </Pressable>
 
-              <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={() => {
-                  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  setSimulatedClaimActive(false);
-                  Alert.alert('Cleared', 'Simulated test claim removed.');
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Clear Test Claims"
-              >
-                <ArrowsClockwise size={20} color="rgba(255,255,255,0.7)" />
-                <View style={styles.actionInfo}>
-                  <Text style={styles.actionTitle}>Clear Test Claims</Text>
-                  <Text style={styles.actionSubtitle}>Restores clear Refund Radar zero-state</Text>
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={() => {
+                      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      setSimulatedClaimActive(false);
+                      Alert.alert('Cleared', 'Simulated test claim removed.');
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear Test Claims"
+                  >
+                    <ArrowsClockwise size={20} color="rgba(255,255,255,0.7)" />
+                    <View style={styles.actionInfo}>
+                      <Text style={styles.actionTitle}>Clear Test Claims</Text>
+                      <Text style={styles.actionSubtitle}>Restores clear Refund Radar zero-state</Text>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.divider} />
+
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={handleResetTflCoverage}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset TfL Coverage Status"
+                  >
+                    <Shield size={20} color="#0098D4" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#0098D4' }]}>
+                        Reset TfL Coverage Status
+                      </Text>
+                      <Text style={styles.actionSubtitle}>
+                        Current: {tflAccountStatus} · Force state for QA
+                      </Text>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.divider} />
+
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={onResetOnboarding}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset Onboarding State"
+                  >
+                    <Trash size={20} color="#FF3B30" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#FF3B30' }]}>
+                        Reset Onboarding State
+                      </Text>
+                      <Text style={styles.actionSubtitle}>Clears saved lines and stations</Text>
+                    </View>
+                  </Pressable>
                 </View>
-              </Pressable>
-
-              <View style={styles.divider} />
-
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={handleResetTflCoverage}
-                accessibilityRole="button"
-                accessibilityLabel="Reset TfL Coverage Status"
-              >
-                <Shield size={20} color="#0098D4" />
-                <View style={styles.actionInfo}>
-                  <Text style={[styles.actionTitle, { color: '#0098D4' }]}>
-                    Reset TfL Coverage Status
-                  </Text>
-                  <Text style={styles.actionSubtitle}>
-                    Current: {tflAccountStatus} · Force state for QA
-                  </Text>
-                </View>
-              </Pressable>
-
-              <View style={styles.divider} />
-
-              <Pressable
-                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                onPress={onResetOnboarding}
-                accessibilityRole="button"
-                accessibilityLabel="Reset Onboarding State"
-              >
-                <Trash size={20} color="#FF3B30" />
-                <View style={styles.actionInfo}>
-                  <Text style={[styles.actionTitle, { color: '#FF3B30' }]}>
-                    Reset Onboarding State
-                  </Text>
-                  <Text style={styles.actionSubtitle}>Clears saved lines and stations</Text>
-                </View>
-              </Pressable>
-            </View>
-          </>
-        )}
+              </>
+            )}
           </ScrollView>
         </View>
       </View>

@@ -4,6 +4,7 @@ import {
   LineId,
   DisruptionNotificationPayload,
   NOTIFICATION_CATEGORIES,
+  disruptionThreadId,
 } from './payload';
 import { getSeverityRank } from '../../utils/getSeverityColor';
 import { formatDisruptionNotificationBody } from './disruptionCopy';
@@ -58,6 +59,14 @@ export async function presentDisruptionNotification(
     return `suppressed_healthy_${lineId}`;
   }
 
+  // 1-Tap Silence Today: Suppress if user silenced this specific line for today
+  if (useUserPreferencesStore.getState().isLineSilencedToday(lineId)) {
+    console.log(
+      `[dispatch] Suppressed disruption notification for ${lineName} (${lineId}) — line silenced today.`
+    );
+    return `suppressed_silenced_${lineId}`;
+  }
+
   // Symmetric cross-system dedup: suppress if in-app pill or local notification already fired recently
   try {
     const lastNotified = notifStorage.getNumber(`notified_disruption_${lineId}`);
@@ -93,13 +102,14 @@ export async function presentDisruptionNotification(
   const shouldPlaySound = deliveryMode === 'loud';
 
   return Notifications.scheduleNotificationAsync({
-    identifier: `line-disruption-${lineId}`,
+    identifier: disruptionThreadId(lineId),
     content: {
       title: `Disruption on ${lineName} line`,
       body: bodyText,
       categoryIdentifier: NOTIFICATION_CATEGORIES.REROUTE_ONLY,
       data: data as unknown as Record<string, any>,
       sound: shouldPlaySound,
+      interruptionLevel: 'active',
     },
     trigger: null,
   });
@@ -119,7 +129,7 @@ export async function dismissDisruptionNotification(
 
   if (typeof Notifications.dismissNotificationAsync === 'function') {
     try {
-      await Notifications.dismissNotificationAsync(`line-disruption-${lineId}`);
+      await Notifications.dismissNotificationAsync(disruptionThreadId(lineId));
     } catch {
       // Graceful fallback
     }
@@ -137,6 +147,11 @@ export async function presentServiceImprovingNotification(
 ): Promise<string> {
   const { lineId, lineName, statusDescription, reason } = opts;
 
+  // 1-Tap Silence Today: Suppress if user silenced this specific line for today
+  if (useUserPreferencesStore.getState().isLineSilencedToday(lineId)) {
+    return `suppressed_silenced_${lineId}`;
+  }
+
   const data: DisruptionNotificationPayload = {
     type: 'SERVICE_IMPROVING',
     lineId,
@@ -151,14 +166,18 @@ export async function presentServiceImprovingNotification(
     cause: reason,
   });
 
+  const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+  const shouldPlaySound = deliveryMode === 'loud';
+
   return Notifications.scheduleNotificationAsync({
-    identifier: `line-disruption-${lineId}`,
+    identifier: disruptionThreadId(lineId),
     content: {
       title: `Service improving on ${lineName} line`,
       body: bodyText,
       categoryIdentifier: NOTIFICATION_CATEGORIES.COMMUTE_STATUS,
       data: data as unknown as Record<string, any>,
-      sound: true,
+      sound: shouldPlaySound,
+      interruptionLevel: 'active',
     },
     trigger: null,
   });

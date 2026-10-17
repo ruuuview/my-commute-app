@@ -331,8 +331,14 @@ export default function RootLayout() {
         // asked for quiet, not for the app — set the flag and stop here
         // (no navigation, unlike view_reroute).
         if (actionId === 'shush_today') {
-          useUserPreferencesStore.getState().setManualShushToday();
-          console.log('[NotificationResponse] shush_today action: manual shush set for today');
+          const resolvedLine = resolveRerouteTarget(data);
+          if (resolvedLine) {
+            useUserPreferencesStore.getState().silenceLineToday(resolvedLine);
+            console.log(`[NotificationResponse] shush_today action: silenced line "${resolvedLine}" for today`);
+          } else {
+            useUserPreferencesStore.getState().setManualShushToday();
+            console.log('[NotificationResponse] shush_today action: fallback manual shush set for today');
+          }
           return;
         }
         if (!data || Object.keys(data).length === 0) {

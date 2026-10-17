@@ -252,6 +252,11 @@ export interface UserPreferencesState {
   manualShushDate: string | null;
   setManualShushToday: () => void;
   clearManualShush: () => void;
+  // Per-line Silence Today: lineId -> YYYY-MM-DD
+  silencedLinesToday: Record<string, string>;
+  silenceLineToday: (lineId: string) => void;
+  isLineSilencedToday: (lineId: string) => boolean;
+  unsilenceLineToday: (lineId: string) => void;
   /** True when manual shush is active OR the smart/schedule/always evaluation says shushed. */
   isShushActiveForToday: () => boolean;
   // Assumption reveal (one-shot): the pin-order fallback (first pinned =
@@ -317,7 +322,7 @@ export interface UserPreferencesState {
   clearIntentPillLearning: () => void;
 }
 
-const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'isShushActiveForToday' | 'recordShushPillShown' | 'setAssumptionRevealed' | 'incrementPrimerPillPresentationCount'> = {
+const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGranted' | 'setNotificationsGranted' | 'setLocationGranted' | 'setEntitlementActive' | 'setLastHandledColdBootNotificationId' | 'completeOnboarding' | 'toggleLine' | 'pinStation' | 'unpinStation' | 'reorderLines' | 'reorderStations' | 'resetOnboarding' | 'setLastKnown' | 'addRecentSearch' | 'clearRecentSearches' | 'toggleStationFilter' | 'setHapticsEnabled' | 'toggleLineNotification' | 'toggleStationNotification' | 'confirmLabels' | 'dismissConfirmationCard' | 'setStationRole' | 'setArrivalNotificationsEnabled' | 'setArrivalSnoozeExpiry' | 'setTflRegistered' | 'setTflAccountStatus' | 'markClaimSubmittedLocally' | 'dismissClaimLocally' | 'pruneLocalClaimRecords' | 'setSimulatedClaimActive' | 'setAlertHoursMode' | 'setAlertHours' | 'setSevereBypassAlertHours' | 'setAlertDeliveryMode' | 'setShushActivation' | 'setShushSchedule' | 'setTimeSensitiveGranted' | 'setTimeSensitiveStatus' | 'setHasCompletedShushOnboarding' | 'updateShushRuntimeState' | 'setDeviceCapabilities' | 'recordIntentPillDismissal' | 'recordIntentPillFired' | 'clearIntentPillLearning' | 'setManualShushToday' | 'clearManualShush' | 'silenceLineToday' | 'isLineSilencedToday' | 'unsilenceLineToday' | 'isShushActiveForToday' | 'recordShushPillShown' | 'setAssumptionRevealed' | 'incrementPrimerPillPresentationCount'> = {
   schemaVersion: 0,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
@@ -350,6 +355,7 @@ const initialState: Omit<UserPreferencesState, 'setHasHydrated' | 'setCalendarGr
   lastHandledColdBootNotificationId: null,
   simulatedClaimActive: false,
   manualShushDate: null,
+  silencedLinesToday: {},
   assumptionRevealed: false,
   shushPillLastShownDay: null,
   primerPillPresentationCount: 0,
@@ -655,6 +661,34 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set({ manualShushDate: null });
         writeShushKeyToAppGroup(null);
       },
+      silenceLineToday: (lineId: string) => {
+        if (!lineId) return;
+        const normalized = lineId.toLowerCase().trim();
+        const todayKey = dayKeyFor(new Date());
+        set((state) => ({
+          silencedLinesToday: {
+            ...(state.silencedLinesToday || {}),
+            [normalized]: todayKey,
+          },
+        }));
+      },
+      isLineSilencedToday: (lineId: string) => {
+        if (!lineId) return false;
+        const normalized = lineId.toLowerCase().trim();
+        const state = get();
+        const storedDate = state.silencedLinesToday?.[normalized];
+        if (!storedDate) return false;
+        return storedDate === dayKeyFor(new Date());
+      },
+      unsilenceLineToday: (lineId: string) => {
+        if (!lineId) return;
+        const normalized = lineId.toLowerCase().trim();
+        set((state) => {
+          const copy = { ...(state.silencedLinesToday || {}) };
+          delete copy[normalized];
+          return { silencedLinesToday: copy };
+        });
+      },
       isShushActiveForToday: () => {
         const state = get();
         const prefs = state.shushPreferences;
@@ -676,7 +710,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       migrate: (persistedState, version) => runMigrations(persistedState, version, STORE_VERSION),
       storage: createJSONStorage(() => mmkvStorageAdapter),
       partialize: (state) => {
-        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, recordIntentPillDismissal, recordIntentPillFired, clearIntentPillLearning, setManualShushToday, clearManualShush, isShushActiveForToday, recordShushPillShown, ...persisted } = state;
+        const { _hasHydrated, setHasHydrated, setCalendarGranted, setNotificationsGranted, setLocationGranted, setEntitlementActive, setLastHandledColdBootNotificationId, toggleStationFilter, setHapticsEnabled, toggleLineNotification, toggleStationNotification, confirmLabels, dismissConfirmationCard, setStationRole, setArrivalNotificationsEnabled, setArrivalSnoozeExpiry, setTflAccountStatus, markClaimSubmittedLocally, dismissClaimLocally, pruneLocalClaimRecords, setAlertHoursMode, setAlertHours, setSevereBypassAlertHours, recordIntentPillDismissal, recordIntentPillFired, clearIntentPillLearning, setManualShushToday, clearManualShush, silenceLineToday, isLineSilencedToday, unsilenceLineToday, isShushActiveForToday, recordShushPillShown, ...persisted } = state;
         return persisted;
       },
       onRehydrateStorage: () => (state) => {

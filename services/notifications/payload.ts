@@ -90,3 +90,12 @@ export function resolveRerouteTarget(data: unknown): LineId | null {
 
   return null;
 }
+
+/**
+ * Canonical disruption thread key used across local and remote notifications.
+ * Ensures notifications for the same transit line collapse into a single screen slot.
+ */
+export function disruptionThreadId(lineId: string): string {
+  return `line-disruption-${lineId.toLowerCase().trim()}`;
+}
+

@@ -133,7 +133,6 @@ export default function StationsScreen() {
     }
   }, [openSearch]);
 
-  const canContinue = pinnedStations.length > 0;
   const backAnim = usePressAnimation('back_btn');
   const ctaBtnAnim = usePressAnimation('continue_btn');
 
@@ -786,7 +785,6 @@ export default function StationsScreen() {
               onPress={handleCTAPress}
               onPressIn={ctaBtnAnim.onPressIn}
               onPressOut={ctaBtnAnim.onPressOut}
-              disabled={!canContinue}
               style={styles.ctaPressable}
               accessibilityRole="button"
               accessibilityLabel={ctaLabel}

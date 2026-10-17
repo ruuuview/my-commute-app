@@ -214,6 +214,12 @@ describe('Onboarding Screen 2: Station Search & Selection Invariants', () => {
     expect(linesContent).toContain('shouldHideOnboardingCta({ itemCount: selectedLines.length, isFocused: false })');
     expect(linesContent).toContain('!hideCta && (');
     expect(linesContent).not.toContain('ctaOpacity');
+
+    // 8. Zero dead disabled props: CTA is never rendered disabled when mounted
+    expect(content).not.toContain('disabled={!');
+    expect(content).not.toContain('canContinue');
+    expect(linesContent).not.toContain('disabled={!');
+    expect(linesContent).not.toContain('canContinue');
   });
 
   test('Touch Responder Safety: onBlur must NOT mutate searchActive and keyboardDidHide handles cleanup', () => {

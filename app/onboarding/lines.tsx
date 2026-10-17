@@ -126,7 +126,6 @@ export default function LinesScreen() {
     };
   }, []);
 
-  const canContinue = selectedLines.length > 0;
   const hideCta = shouldHideOnboardingCta({ itemCount: selectedLines.length, isFocused: false });
   const continueAnim = usePressAnimation('continue_btn', hideCta);
 
@@ -370,7 +369,6 @@ export default function LinesScreen() {
             onPress={handleCTAPress}
             onPressIn={continueAnim.onPressIn}
             onPressOut={continueAnim.onPressOut}
-            disabled={!canContinue}
             style={styles.ctaPressable}
             accessibilityRole="button"
             accessibilityLabel={ctaLabel}

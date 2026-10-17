@@ -14,6 +14,8 @@ import Animated, {
   withTiming,
   Easing,
   useReducedMotion,
+  FadeInDown,
+  FadeOutDown,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +32,7 @@ import { PREMIUM_BUTTON } from '../../theme/colors';
 import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
 import { track } from '../../services/analyticsService';
 import { getSeverityLabel, getSeverityRank } from '../../utils/getSeverityColor';
+import { shouldHideOnboardingCta } from '../../utils/onboardingCta';
 import {
   SCREEN_PADDING,
   COLUMN_GAP,
@@ -54,9 +57,6 @@ const TFL_LINES = [
 ];
 
 function getCtaLabel(selectedCount: number): string {
-  if (selectedCount === 0) {
-    return 'Select at least one line';
-  }
   if (selectedCount === 1) {
     return 'Continue with 1 line';
   }
@@ -127,25 +127,12 @@ export default function LinesScreen() {
   }, []);
 
   const canContinue = selectedLines.length > 0;
-  const continueAnim = usePressAnimation('continue_btn', !canContinue);
+  const hideCta = shouldHideOnboardingCta({ itemCount: selectedLines.length, isFocused: false });
+  const continueAnim = usePressAnimation('continue_btn', hideCta);
 
   const shakeTranslationX = useSharedValue(0);
   const counterScale = useSharedValue(1);
   const prevCountRef = React.useRef(selectedLines.length);
-
-  // CTA button state transition opacity (200ms opacity animation on crossing zero)
-  const ctaOpacity = useSharedValue(canContinue ? 1 : 0.35);
-
-  useEffect(() => {
-    ctaOpacity.value = withTiming(canContinue ? 1 : 0.35, {
-      duration: 200,
-      easing: Easing.inOut(Easing.ease),
-    });
-  }, [canContinue, ctaOpacity]);
-
-  const ctaAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: ctaOpacity.value,
-  }));
 
   const triggerCounterShake = () => {
     shakeTranslationX.value = withSequence(
@@ -365,45 +352,50 @@ export default function LinesScreen() {
       </View>
 
       {/* Sticky CTA Footer */}
-      <View
-        style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
-        pointerEvents="box-none"
-      >
-        {/* Smooth gradient fade behind CTA so cards scroll underneath cleanly */}
-        <LinearGradient
-          colors={['transparent', 'rgba(2, 4, 10, 0.75)', '#02040A']}
-          locations={[0, 0.40, 1.0]}
-          style={StyleSheet.absoluteFillObject}
-          pointerEvents="none"
-        />
-        <Pressable
-          onPress={handleCTAPress}
-          onPressIn={continueAnim.onPressIn}
-          onPressOut={continueAnim.onPressOut}
-          disabled={!canContinue}
-          style={styles.ctaPressable}
+      {!hideCta && (
+        <Animated.View
+          entering={reducedMotion ? undefined : FadeInDown.duration(200)}
+          exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
+          style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
+          pointerEvents="box-none"
         >
-          <Animated.View
-            style={[
-              styles.cta,
-              continueAnim.animatedStyle,
-              ctaAnimatedStyle,
-              {
-                backgroundColor: '#FFFFFF',
-              },
-            ]}
+          {/* Smooth gradient fade behind CTA so cards scroll underneath cleanly */}
+          <LinearGradient
+            colors={['transparent', 'rgba(2, 4, 10, 0.75)', '#02040A']}
+            locations={[0, 0.40, 1.0]}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+          <Pressable
+            onPress={handleCTAPress}
+            onPressIn={continueAnim.onPressIn}
+            onPressOut={continueAnim.onPressOut}
+            disabled={!canContinue}
+            style={styles.ctaPressable}
+            accessibilityRole="button"
+            accessibilityLabel={ctaLabel}
           >
-            <Text
+            <Animated.View
               style={[
-                styles.ctaText,
-                { color: '#0A0F3C' },
+                styles.cta,
+                continueAnim.animatedStyle,
+                {
+                  backgroundColor: '#FFFFFF',
+                },
               ]}
             >
-              {ctaLabel}
-            </Text>
-          </Animated.View>
-        </Pressable>
-      </View>
+              <Text
+                style={[
+                  styles.ctaText,
+                  { color: '#0A0F3C' },
+                ]}
+              >
+                {ctaLabel}
+              </Text>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      )}
     </View>
   );
 }

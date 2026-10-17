@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { useOnboardingStore } from '../store/onboardingStore';
+import { shouldHideOnboardingCta } from '../utils/onboardingCta';
 
 describe('Onboarding Screen 2: Station Search & Selection Invariants', () => {
   const stationsScreenPath = path.resolve(__dirname, '../app/onboarding/stations.tsx');
@@ -176,35 +177,43 @@ describe('Onboarding Screen 2: Station Search & Selection Invariants', () => {
   test('Sticky CTA Visibility Invariants (hideCta contract)', () => {
     const content = fs.readFileSync(stationsScreenPath, 'utf8');
 
-    // Must define hideCta as derived variable
-    expect(content).toContain('const hideCta =');
+    // Must define hideCta as derived variable and call shouldHideOnboardingCta
+    expect(content).toContain('const hideCta = shouldHideOnboardingCta({');
     expect(content).toContain('!hideCta && (');
+    expect(content).not.toContain('ctaOpacity');
 
-    // Evaluator helper matching stations.tsx hideCta logic
-    const evalHideCta = (params: {
-      isFocused: boolean;
-      searchActive: boolean;
-      query: string;
-      pinnedCount: number;
-    }) => {
-      const { isFocused, searchActive, query, pinnedCount } = params;
-      return isFocused || (searchActive && (query.trim() !== '' || pinnedCount === 0));
-    };
+    // 1. Zero selections: CTA is strictly HIDDEN (empty canvas at bottom, no hint or button)
+    expect(shouldHideOnboardingCta({ itemCount: 0, isFocused: false, searchActive: false, query: '' })).toBe(true);
+    expect(shouldHideOnboardingCta({ itemCount: 0, isFocused: false, searchActive: true, query: '' })).toBe(true);
+    expect(shouldHideOnboardingCta({ itemCount: 0, isFocused: true, searchActive: false, query: '' })).toBe(true);
 
-    // 1. Pinned stations present, keyboard closed, empty query with searchActive = true: CTA is VISIBLE
-    expect(evalHideCta({ isFocused: false, searchActive: true, query: '', pinnedCount: 3 })).toBe(false);
+    // 2. Pinned stations present, idle state: CTA is VISIBLE
+    expect(shouldHideOnboardingCta({ itemCount: 1, isFocused: false, searchActive: false, query: '' })).toBe(false);
+    expect(shouldHideOnboardingCta({ itemCount: 3, isFocused: false, searchActive: false, query: '' })).toBe(false);
 
-    // 2. Active search with query text: CTA is HIDDEN
-    expect(evalHideCta({ isFocused: false, searchActive: true, query: 'Bank', pinnedCount: 3 })).toBe(true);
+    // 3. Pinned stations present, empty query with searchActive: CTA is VISIBLE
+    expect(shouldHideOnboardingCta({ itemCount: 3, isFocused: false, searchActive: true, query: '' })).toBe(false);
 
-    // 3. No pinned stations: CTA is HIDDEN during search
-    expect(evalHideCta({ isFocused: false, searchActive: true, query: '', pinnedCount: 0 })).toBe(true);
+    // 4. Active search with query text: CTA is HIDDEN
+    expect(shouldHideOnboardingCta({ itemCount: 3, isFocused: false, searchActive: true, query: 'Bank' })).toBe(true);
 
-    // 4. Keyboard actively focused: CTA is HIDDEN (prevents floating over keyboard / covering suggestions)
-    expect(evalHideCta({ isFocused: true, searchActive: true, query: '', pinnedCount: 3 })).toBe(true);
+    // 5. Keyboard actively focused: CTA is HIDDEN (prevents floating over keyboard / covering suggestions)
+    expect(shouldHideOnboardingCta({ itemCount: 3, isFocused: true, searchActive: false, query: '' })).toBe(true);
+    expect(shouldHideOnboardingCta({ itemCount: 3, isFocused: true, searchActive: true, query: '' })).toBe(true);
 
-    // 5. Default idle state with pinned stations: CTA is VISIBLE
-    expect(evalHideCta({ isFocused: false, searchActive: false, query: '', pinnedCount: 3 })).toBe(false);
+    // 6. Dynamic unselection cycle: 1 -> 0 transitions visible -> hidden
+    let count = 1;
+    expect(shouldHideOnboardingCta({ itemCount: count, isFocused: false, searchActive: false, query: '' })).toBe(false);
+    count = 0;
+    expect(shouldHideOnboardingCta({ itemCount: count, isFocused: false, searchActive: false, query: '' })).toBe(true);
+
+    // 7. LinesScreen (Screen 1) parity: imports and calls shouldHideOnboardingCta with explicit isFocused: false
+    const linesScreenPath = path.resolve(__dirname, '../app/onboarding/lines.tsx');
+    const linesContent = fs.readFileSync(linesScreenPath, 'utf8');
+    expect(linesContent).toContain('shouldHideOnboardingCta');
+    expect(linesContent).toContain('shouldHideOnboardingCta({ itemCount: selectedLines.length, isFocused: false })');
+    expect(linesContent).toContain('!hideCta && (');
+    expect(linesContent).not.toContain('ctaOpacity');
   });
 
   test('Touch Responder Safety: onBlur must NOT mutate searchActive and keyboardDidHide handles cleanup', () => {

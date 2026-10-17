@@ -20,6 +20,9 @@ import Animated, {
   withTiming,
   interpolateColor,
   Easing,
+  FadeInDown,
+  FadeOutDown,
+  useReducedMotion,
 } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
@@ -33,6 +36,7 @@ import { track } from '../../services/analyticsService';
 import { resolveTflStopIdForStore } from '../../utils/resolveTflStopId';
 import { TfLStation, FULL_STATIONS, cleanDisplayStationName, sanitiseStationName, searchStations } from '../../data/tflStations';
 import { tflCapitalise } from '../../utils/tflCapitalise';
+import { shouldHideOnboardingCta } from '../../utils/onboardingCta';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
 import { StationCard } from '../../components/StationCard';
@@ -55,6 +59,7 @@ const MAJOR_INTERCHANGE_IDS = new Set([
 
 export default function StationsScreen() {
   const reduceTransparency = useReduceTransparency();
+  const reducedMotion = useReducedMotion();
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -130,7 +135,7 @@ export default function StationsScreen() {
 
   const canContinue = pinnedStations.length > 0;
   const backAnim = usePressAnimation('back_btn');
-  const ctaBtnAnim = usePressAnimation('continue_btn', !canContinue);
+  const ctaBtnAnim = usePressAnimation('continue_btn');
 
   // ─── Luminous Focus Brightening (search bar glow on tap) ───────────────
   const searchFocusProgress = useSharedValue(0);
@@ -161,21 +166,6 @@ export default function StationsScreen() {
   }));
 
   const luminousIconColor = isFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.35)';
-
-
-
-  const ctaOpacity = useSharedValue(canContinue ? 1 : 0.35);
-
-  useEffect(() => {
-    ctaOpacity.value = withTiming(canContinue ? 1 : 0.35, {
-      duration: 200,
-      easing: Easing.inOut(Easing.ease),
-    });
-  }, [canContinue, ctaOpacity]);
-
-  const ctaOpacityAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: ctaOpacity.value,
-  }));
 
   const cleanFullStations = useMemo(() => {
     const map: Record<string, TfLStation> = {};
@@ -437,15 +427,18 @@ export default function StationsScreen() {
     setSearchActive(true);
   };
 
-  const ctaLabel = pinnedStations.length === 0
-    ? 'Add at least one station'
-    : pinnedStations.length === 1
-      ? 'Continue with 1 station'
-      : `Continue with ${pinnedStations.length} stations`;
+  const ctaLabel = pinnedStations.length === 1
+    ? 'Continue with 1 station'
+    : `Continue with ${pinnedStations.length} stations`;
 
-  // CTA visibility: hide when keyboard is focused, or when searching with active query,
-  // or when searching without any pinned stations. Never hide when viewing pinned stations with empty query.
-  const hideCta = isFocused || (searchActive && (query.trim() !== '' || pinnedStations.length === 0));
+  // CTA visibility: strictly hidden when 0 stations pinned, or when keyboard is focused,
+  // or when searching with active query text. Never hide when viewing pinned stations with empty query.
+  const hideCta = shouldHideOnboardingCta({
+    itemCount: pinnedStations.length,
+    isFocused,
+    searchActive,
+    query,
+  });
 
   const renderStationItem = useCallback(({ item }: { item: TfLStation }) => {
     const isPinned = isStationPinned(item);
@@ -776,7 +769,9 @@ export default function StationsScreen() {
 
         {/* Sticky CTA Footer */}
         {!hideCta && (
-          <View
+          <Animated.View
+            entering={reducedMotion ? undefined : FadeInDown.duration(200)}
+            exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
             pointerEvents="box-none"
           >
@@ -793,12 +788,13 @@ export default function StationsScreen() {
               onPressOut={ctaBtnAnim.onPressOut}
               disabled={!canContinue}
               style={styles.ctaPressable}
+              accessibilityRole="button"
+              accessibilityLabel={ctaLabel}
             >
               <Animated.View
                 style={[
                   styles.ctaButton,
                   ctaBtnAnim.animatedStyle,
-                  ctaOpacityAnimatedStyle,
                   {
                     backgroundColor: '#FFFFFF',
                   },
@@ -809,7 +805,7 @@ export default function StationsScreen() {
                 </Text>
               </Animated.View>
             </Pressable>
-          </View>
+          </Animated.View>
         )}
       </KeyboardAvoidingView>
     </View>

@@ -44,13 +44,27 @@ SplashScreen.preventAutoHideAsync();
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async (notification) => {
+      const data = notification?.request?.content?.data as Record<string, any> | undefined;
+      const lineId = (typeof data?.lineId === 'string' ? data.lineId : undefined) || resolveRerouteTarget(data);
+      if (lineId && useUserPreferencesStore.getState().isLineSilencedToday(lineId)) {
+        console.log(`[NotificationHandler] Remote/foreground alert for silenced line "${lineId}" suppressed.`);
+        return {
+          shouldShowAlert: false,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+          shouldShowBanner: false,
+          shouldShowList: false,
+        };
+      }
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      };
+    },
   });
 
   // On iOS, native MyCommuteLiveActivityModule registers REROUTE_ONLY with native
@@ -336,8 +350,7 @@ export default function RootLayout() {
             useUserPreferencesStore.getState().silenceLineToday(resolvedLine);
             console.log(`[NotificationResponse] shush_today action: silenced line "${resolvedLine}" for today`);
           } else {
-            useUserPreferencesStore.getState().setManualShushToday();
-            console.log('[NotificationResponse] shush_today action: fallback manual shush set for today');
+            console.warn('[NotificationResponse] shush_today action: line resolution failed, ignoring tap without global muting.', data);
           }
           return;
         }

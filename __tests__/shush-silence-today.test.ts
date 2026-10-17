@@ -94,6 +94,17 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
       expect(result).toBe('test-notification-id');
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
     });
+
+    it('guarantees unresolvable line never muters the whole app (zero global manualShushDate fallback)', () => {
+      useUserPreferencesStore.setState({ manualShushDate: null });
+      const store = useUserPreferencesStore.getState();
+
+      // Passing undefined / empty line to silenceLineToday is a safe no-op
+      store.silenceLineToday('');
+      expect(useUserPreferencesStore.getState().manualShushDate).toBeNull();
+      expect(useUserPreferencesStore.getState().isLineSilencedToday('victoria')).toBe(false);
+      expect(useUserPreferencesStore.getState().isLineSilencedToday('central')).toBe(false);
+    });
   });
 
   describe('2. Midnight Calendar Date Rollover Invariant', () => {

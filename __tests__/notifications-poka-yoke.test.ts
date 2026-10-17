@@ -300,8 +300,10 @@ describe('Notifications Poka-Yoke & Routing Tests', () => {
       const swiftPath = path.resolve(__dirname, '../modules/my-commute-live-activity/ios/MyCommuteLiveActivityModule.swift');
       const swiftContent = fs.readFileSync(swiftPath, 'utf8');
 
-      expect(swiftContent).toContain('title: "🧭 View Reroute"');
-      expect(swiftContent).toContain('title: "🤫 Shush today"');
+      for (const action of REROUTE_ONLY_ACTIONS) {
+        expect(swiftContent).toContain(`identifier: "${action.identifier}"`);
+        expect(swiftContent).toContain(`title: "${action.buttonTitle}"`);
+      }
     });
 
     it('asserts Swift shushTodayAction executes in background with zero .foreground option', () => {

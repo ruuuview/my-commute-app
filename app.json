@@ -15,7 +15,8 @@
     "ios": {
       "appleTeamId": "PM83YLJ8T9",
       "buildNumber": "727",
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.mycommute.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {

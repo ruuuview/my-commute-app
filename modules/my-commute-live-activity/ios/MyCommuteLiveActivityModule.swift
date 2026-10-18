@@ -313,9 +313,11 @@ public class MyCommuteLiveActivityModule: Module {
         options: []
       )
       UNUserNotificationCenter.current().getNotificationCategories { existing in
-        var updated = existing.filter { $0.identifier != "REROUTE_ONLY" }
-        updated.insert(rerouteCategory)
-        UNUserNotificationCenter.current().setNotificationCategories(updated)
+        DispatchQueue.main.async {
+          var updated = existing.filter { $0.identifier != "REROUTE_ONLY" }
+          updated.insert(rerouteCategory)
+          UNUserNotificationCenter.current().setNotificationCategories(updated)
+        }
       }
     }
   }

@@ -66,23 +66,6 @@ if (Platform.OS !== 'web') {
       };
     },
   });
-
-  // On iOS, native MyCommuteLiveActivityModule registers REROUTE_ONLY with native
-  // UNNotificationActionIcon (signpost.right.and.left.fill). Expo's setNotificationCategoryAsync
-  // does not support action icons and would strip them if called on iOS.
-  if (Platform.OS === 'ios' && typeof MyCommuteLiveActivityModule?.registerNotificationCategories === 'function') {
-    void MyCommuteLiveActivityModule.registerNotificationCategories()
-      .catch((err) => {
-        console.warn('[NotificationCategory] Top-level iOS REROUTE_ONLY register failed, falling back:', err);
-        void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS).catch(() => {});
-      });
-  } else {
-    void Notifications.setNotificationCategoryAsync('REROUTE_ONLY', REROUTE_ONLY_ACTIONS)
-      .catch((err) => console.warn('[NotificationCategory] Top-level REROUTE_ONLY register failed:', err));
-  }
-
-  void Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', CLAIM_REMINDER_ACTIONS)
-    .catch((err) => console.warn('[NotificationCategory] CLAIM_REMINDER register failed:', err));
 }
 
 LogBox.ignoreLogs([
@@ -274,6 +257,7 @@ export default function RootLayout() {
       }
       try {
         await Notifications.setNotificationCategoryAsync('ARRIVED_ALERT', ARRIVED_ALERT_ACTIONS);
+        await Notifications.setNotificationCategoryAsync('CLAIM_REMINDER', CLAIM_REMINDER_ACTIONS);
         if (Platform.OS === 'ios' && typeof MyCommuteLiveActivityModule?.registerNotificationCategories === 'function') {
           try {
             await MyCommuteLiveActivityModule.registerNotificationCategories();

@@ -14,8 +14,6 @@ import Animated, {
   withTiming,
   Easing,
   useReducedMotion,
-  FadeInDown,
-  FadeOutDown,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -352,9 +350,7 @@ export default function LinesScreen() {
 
       {/* Sticky CTA Footer */}
       {!hideCta && (
-        <Animated.View
-          entering={reducedMotion ? undefined : FadeInDown.duration(200)}
-          exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
+        <View
           style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}
           pointerEvents="box-none"
         >
@@ -392,7 +388,7 @@ export default function LinesScreen() {
               </Text>
             </Animated.View>
           </Pressable>
-        </Animated.View>
+        </View>
       )}
     </View>
   );

@@ -20,9 +20,6 @@ import Animated, {
   withTiming,
   interpolateColor,
   Easing,
-  FadeInDown,
-  FadeOutDown,
-  useReducedMotion,
 } from 'react-native-reanimated';
 import Fuse from 'fuse.js';
 import * as Haptics from 'expo-haptics';
@@ -59,7 +56,6 @@ const MAJOR_INTERCHANGE_IDS = new Set([
 
 export default function StationsScreen() {
   const reduceTransparency = useReduceTransparency();
-  const reducedMotion = useReducedMotion();
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -768,9 +764,7 @@ export default function StationsScreen() {
 
         {/* Sticky CTA Footer */}
         {!hideCta && (
-          <Animated.View
-            entering={reducedMotion ? undefined : FadeInDown.duration(200)}
-            exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
+          <View
             style={[styles.ctaStickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}
             pointerEvents="box-none"
           >
@@ -803,7 +797,7 @@ export default function StationsScreen() {
                 </Text>
               </Animated.View>
             </Pressable>
-          </Animated.View>
+          </View>
         )}
       </KeyboardAvoidingView>
     </View>

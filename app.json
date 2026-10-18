@@ -14,7 +14,7 @@
     },
     "ios": {
       "appleTeamId": "PM83YLJ8T9",
-      "buildNumber": "727",
+      "buildNumber": "728",
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.mycommute.app",

@@ -86,16 +86,26 @@ public class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     appWindow.windowScene = windowScene
     window = appWindow
     window?.makeKeyAndVisible()
+
+    if let userActivity = connectionOptions.userActivities.first {
+      _ = appDelegate.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+    }
+
+    for context in connectionOptions.urlContexts {
+      _ = appDelegate.application(UIApplication.shared, open: context.url, options: [:])
+    }
   }
 
   public func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
     for context in URLContexts {
-      _ = RCTLinkingManager.application(UIApplication.shared, open: context.url, options: [:])
+      _ = appDelegate.application(UIApplication.shared, open: context.url, options: [:])
     }
   }
 
   public func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-    _ = RCTLinkingManager.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+    _ = appDelegate.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
   }
 }
 

@@ -31,6 +31,8 @@ import {
   Train,
   Sparkle,
   CheckCircle,
+  WarningCircle,
+  Info,
 } from 'phosphor-react-native';
 import { usePermissionOrchestrator, PERMISSION_KEYS } from '../store/permissionOrchestrator';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
@@ -82,11 +84,19 @@ export const DiagnosticsModal: React.FC<Props> = ({
   }>({ active: false, regionCount: 0, taskRegistered: false });
   const [isSimulatingLiveActivity, setIsSimulatingLiveActivity] = useState(false);
   const [isTestingShush, setIsTestingShush] = useState(false);
+  const [liveActivitySupport, setLiveActivitySupport] = useState<string>('checking...');
+  const [testFeedback, setTestFeedback] = useState<{
+    text: string;
+    type: 'info' | 'success' | 'error';
+    action?: () => void;
+    actionText?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (visible) {
       checkGeofenceHealthAsync().then(setGeofenceInfo).catch(() => { });
       LiveActivityService.isActive().then(setIsSimulatingLiveActivity).catch(() => { });
+      LiveActivityService.getSupportStatus().then(setLiveActivitySupport).catch(() => setLiveActivitySupport('error'));
     }
   }, [visible]);
 
@@ -102,7 +112,12 @@ export const DiagnosticsModal: React.FC<Props> = ({
         });
         if (!req.granted && req.status !== 'granted') {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          console.warn('[Diagnostics] Notifications disabled in Settings');
+          setTestFeedback({
+            type: 'error',
+            text: 'Notifications are disabled in iOS Settings.',
+            actionText: 'Open Settings',
+            action: () => Linking.openSettings(),
+          });
           return;
         }
       }
@@ -122,9 +137,16 @@ export const DiagnosticsModal: React.FC<Props> = ({
         },
       });
 
-      // Notification scheduled silently; haptics already fired
+      setTestFeedback({
+        type: 'success',
+        text: `✓ ${primaryLineName} refund push scheduled! Lock phone now — banner fires in 5s.`,
+      });
     } catch (err) {
       console.warn('[SimulateClaim] Push schedule error:', err);
+      setTestFeedback({
+        type: 'error',
+        text: 'Failed to schedule simulated notification.',
+      });
     }
   };
 
@@ -139,7 +161,12 @@ export const DiagnosticsModal: React.FC<Props> = ({
         });
         if (!req.granted && req.status !== 'granted') {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          console.warn('[Diagnostics] Notifications disabled in Settings');
+          setTestFeedback({
+            type: 'error',
+            text: 'Notifications are disabled in iOS Settings.',
+            actionText: 'Open Settings',
+            action: () => Linking.openSettings(),
+          });
           return;
         }
       }
@@ -147,7 +174,10 @@ export const DiagnosticsModal: React.FC<Props> = ({
       const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
       if (deliveryMode === 'off') {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        console.warn('[Diagnostics] Notification delivery mode is off in Settings');
+        setTestFeedback({
+          type: 'error',
+          text: 'Notification delivery mode is OFF in Shush Mode settings.',
+        });
         return;
       }
       const shouldPlaySound = deliveryMode === 'loud';
@@ -173,9 +203,16 @@ export const DiagnosticsModal: React.FC<Props> = ({
         },
       });
 
-      // Notification scheduled silently; haptics already fired
+      setTestFeedback({
+        type: 'success',
+        text: `✓ ${lineName} disruption push scheduled! Fires in 5s.`,
+      });
     } catch (err) {
       console.warn('[SimulateReroute] Push schedule error:', err);
+      setTestFeedback({
+        type: 'error',
+        text: 'Failed to schedule disruption push.',
+      });
     }
   };
 
@@ -185,14 +222,53 @@ export const DiagnosticsModal: React.FC<Props> = ({
     if (isSimulatingLiveActivity) {
       await LiveActivityService.stopSimulatedCommute();
       setIsSimulatingLiveActivity(false);
+      setTestFeedback({
+        type: 'info',
+        text: 'Northern Line Live Activity simulation ended.',
+      });
       return;
     }
+
+    const status = await LiveActivityService.getSupportStatus();
+    setLiveActivitySupport(status);
+
+    if (status === 'system_disabled') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setTestFeedback({
+        type: 'error',
+        text: 'Live Activities are disabled in iOS Settings → My Commute.',
+        actionText: 'Open Settings',
+        action: () => Linking.openSettings(),
+      });
+      return;
+    }
+
+    if (status !== 'supported') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setTestFeedback({
+        type: 'error',
+        text: `Live Activities unavailable (${status}). Requires native build with ActivityKit.`,
+      });
+      return;
+    }
+
+    setTestFeedback({
+      type: 'info',
+      text: 'Starting Northern Line commute simulation...',
+    });
 
     const activityId = await LiveActivityService.startSimulatedNorthernCommute();
     if (activityId) {
       setIsSimulatingLiveActivity(true);
+      setTestFeedback({
+        type: 'success',
+        text: '✓ Northern Line Live Activity running! Swipe up to Home or lock phone to view.',
+      });
     } else {
-      console.warn('[Diagnostics] Live Activity unavailable');
+      setTestFeedback({
+        type: 'error',
+        text: 'ActivityKit failed to start Northern Line simulation.',
+      });
     }
   };
 
@@ -201,38 +277,85 @@ export const DiagnosticsModal: React.FC<Props> = ({
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await LiveActivityService.stopPreviewActivity();
       setIsTestingShush(false);
+      setTestFeedback({
+        type: 'info',
+        text: 'Shush preview ended.',
+      });
       return;
     }
 
+    setTestFeedback({
+      type: 'info',
+      text: 'Checking Live Activity support...',
+    });
+
     const status = await LiveActivityService.getSupportStatus();
+    setLiveActivitySupport(status);
+
     if (status === 'expo_go') {
-      console.warn('[Diagnostics] Preview Unavailable in Expo Go');
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setTestFeedback({
+        type: 'error',
+        text: 'Live Activities cannot run in Expo Go. Launch the app using Development Build 728.',
+      });
       return;
     }
 
     if (status === 'bridge_unlinked') {
-      console.warn('[Diagnostics] Native Bridge Unlinked');
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setTestFeedback({
+        type: 'error',
+        text: 'Native Live Activity module is not linked in this binary build.',
+      });
+      return;
+    }
+
+    if (status === 'system_disabled') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setTestFeedback({
+        type: 'error',
+        text: 'Live Activities are turned OFF in iOS Settings → My Commute.',
+        actionText: 'Open Settings',
+        action: () => Linking.openSettings(),
+      });
       return;
     }
 
     const areActivitiesEnabled = status === 'supported';
     if (!areActivitiesEnabled) {
-      console.warn('[Diagnostics] Live Activities Disabled in Settings');
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setTestFeedback({
+        type: 'error',
+        text: `Live Activities not supported (${status}). Requires iOS 16.2+.`,
+      });
       return;
     }
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsTestingShush(true);
+    setTestFeedback({
+      type: 'info',
+      text: `Spawning ${primaryLineName} Shush card...`,
+    });
+
     const activityId = await LiveActivityService.startPreviewActivity({
       lineId: primaryLineId,
       lineName: primaryLineName,
       isDisruption: true,
       durationSeconds: 45,
     });
+
     if (!activityId) {
       setIsTestingShush(false);
-      console.warn('[Diagnostics] Unable to start Live Activity preview');
+      setTestFeedback({
+        type: 'error',
+        text: 'ActivityKit returned nil. Check iOS Settings → Live Activities.',
+      });
     } else {
+      setTestFeedback({
+        type: 'success',
+        text: `✓ Shush preview running (${primaryLineName})! Swipe up or lock phone to view Dynamic Island & Lock Screen.`,
+      });
       setTimeout(() => {
         setIsTestingShush(false);
       }, 45000);
@@ -247,6 +370,11 @@ export const DiagnosticsModal: React.FC<Props> = ({
 
     // 2. Dispatch genuine Good Service Recovery through unified state machine:
     await handleGoodServiceRecovery(primaryLineId);
+
+    setTestFeedback({
+      type: 'success',
+      text: `✓ Good Service Recovery sent for ${primaryLineName}! Dynamic Island updated silently.`,
+    });
   };
 
   const handleResetTflCoverage = () => {
@@ -258,6 +386,10 @@ export const DiagnosticsModal: React.FC<Props> = ({
           : 'NOT_SET';
     setTflAccountStatus(nextStatus);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTestFeedback({
+      type: 'info',
+      text: `TfL coverage status reset to ${nextStatus}.`,
+    });
   };
 
   const bottomPadding = Math.max(insets.bottom + 20, 24);
@@ -342,6 +474,52 @@ export const DiagnosticsModal: React.FC<Props> = ({
                 </View>
                 <Text style={styles.statusBadge}>{tier1HitCount}</Text>
               </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.row}>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowTitle}>live activities (ios)</Text>
+                  <Text style={styles.rowSubtitle}>Dynamic Island & Lock Screen engine</Text>
+                </View>
+                <View style={styles.statusBadgeContainer}>
+                  <Text
+                    style={[
+                      styles.statusBadge,
+                      {
+                        color:
+                          liveActivitySupport === 'supported'
+                            ? '#30D158'
+                            : liveActivitySupport === 'system_disabled'
+                              ? '#FF453A'
+                              : liveActivitySupport === 'bridge_unlinked' || liveActivitySupport === 'expo_go'
+                                ? '#FF9F0A'
+                                : 'rgba(255,255,255,0.45)',
+                      },
+                    ]}
+                  >
+                    {liveActivitySupport === 'supported'
+                      ? 'SUPPORTED'
+                      : liveActivitySupport === 'system_disabled'
+                        ? 'OFF IN SETTINGS'
+                        : liveActivitySupport === 'bridge_unlinked'
+                          ? 'UNLINKED'
+                          : liveActivitySupport === 'expo_go'
+                            ? 'EXPO GO'
+                            : liveActivitySupport.toUpperCase()}
+                  </Text>
+                  {liveActivitySupport === 'system_disabled' && (
+                    <Pressable
+                      style={styles.inlineActionBtn}
+                      onPress={() => Linking.openSettings()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open iOS Settings"
+                    >
+                      <Text style={styles.inlineActionBtnText}>Open Settings</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
             </View>
 
             {/* CoreLocation Geofence Health */}
@@ -407,6 +585,48 @@ export const DiagnosticsModal: React.FC<Props> = ({
                 ))}
               </View>
             </View>
+
+            {/* Simulation Feedback Banner */}
+            {testFeedback && (
+              <View
+                style={[
+                  styles.feedbackCard,
+                  testFeedback.type === 'success' && styles.feedbackCardSuccess,
+                  testFeedback.type === 'error' && styles.feedbackCardError,
+                  testFeedback.type === 'info' && styles.feedbackCardInfo,
+                ]}
+              >
+                <View style={styles.feedbackContent}>
+                  {testFeedback.type === 'success' ? (
+                    <CheckCircle size={18} color="#30D158" weight="bold" />
+                  ) : testFeedback.type === 'error' ? (
+                    <WarningCircle size={18} color="#FF453A" weight="bold" />
+                  ) : (
+                    <Info size={18} color="#BF5AF2" weight="bold" />
+                  )}
+                  <Text style={styles.feedbackText}>{testFeedback.text}</Text>
+                </View>
+                {testFeedback.action && testFeedback.actionText && (
+                  <Pressable
+                    style={styles.feedbackActionBtn}
+                    onPress={testFeedback.action}
+                    accessibilityRole="button"
+                    accessibilityLabel={testFeedback.actionText}
+                  >
+                    <Text style={styles.feedbackActionText}>{testFeedback.actionText}</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  style={styles.feedbackDismissBtn}
+                  onPress={() => setTestFeedback(null)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss message"
+                >
+                  <X size={14} color="rgba(255,255,255,0.5)" />
+                </Pressable>
+              </View>
+            )}
 
             {/* Test Actions - Strictly Gated Behind __DEV__ */}
             {__DEV__ && (
@@ -514,6 +734,10 @@ export const DiagnosticsModal: React.FC<Props> = ({
                     onPress={() => {
                       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       setSimulatedClaimActive(false);
+                      setTestFeedback({
+                        type: 'info',
+                        text: 'Test claims cleared. Refund Radar zero-state restored.',
+                      });
                     }}
                     accessibilityRole="button"
                     accessibilityLabel="Clear Test Claims"
@@ -709,5 +933,80 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     color: '#FFFFFF',
+  },
+  statusBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inlineActionBtn: {
+    backgroundColor: 'rgba(255, 69, 58, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 69, 58, 0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  inlineActionBtnText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: '#FF453A',
+  },
+  feedbackCard: {
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    flexDirection: 'column',
+    gap: 8,
+    position: 'relative',
+  },
+  feedbackCardSuccess: {
+    backgroundColor: 'rgba(48, 209, 88, 0.1)',
+    borderColor: 'rgba(48, 209, 88, 0.4)',
+  },
+  feedbackCardError: {
+    backgroundColor: 'rgba(255, 69, 58, 0.12)',
+    borderColor: 'rgba(255, 69, 58, 0.45)',
+  },
+  feedbackCardInfo: {
+    backgroundColor: 'rgba(191, 90, 242, 0.12)',
+    borderColor: 'rgba(191, 90, 242, 0.4)',
+  },
+  feedbackContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingRight: 24,
+  },
+  feedbackText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: '#FFFFFF',
+    flex: 1,
+    lineHeight: 18,
+  },
+  feedbackActionBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    marginTop: 2,
+  },
+  feedbackActionText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  feedbackDismissBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 4,
   },
 });

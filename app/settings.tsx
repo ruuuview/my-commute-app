@@ -1060,7 +1060,6 @@ export default function SettingsScreen() {
                     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setDeveloperUnlocked(true);
                     setVersionTaps(0);
-                    Alert.alert('Developer Menu Unlocked', 'Diagnostics & Sensor Health is now available below.');
                   }
                 }}
                 accessibilityRole="button"

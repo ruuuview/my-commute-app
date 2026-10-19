@@ -14,7 +14,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Alert,
   Linking,
   Platform,
 } from 'react-native';
@@ -102,14 +101,8 @@ export const DiagnosticsModal: React.FC<Props> = ({
           ios: { allowAlert: true, allowBadge: true, allowSound: true },
         });
         if (!req.granted && req.status !== 'granted') {
-          Alert.alert(
-            'Notifications Disabled in Settings',
-            'To receive real lockscreen banners, please turn on Notifications for My Commute in Settings.',
-            [
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          );
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          console.warn('[Diagnostics] Notifications disabled in Settings');
           return;
         }
       }
@@ -129,14 +122,9 @@ export const DiagnosticsModal: React.FC<Props> = ({
         },
       });
 
-      Alert.alert(
-        '🔒 Lock Screen Now (5s)',
-        'Press your side button to lock your phone right now. In 5 seconds, iOS will light up your lock screen with the notification banner!',
-        [{ text: 'OK, Locking Phone' }]
-      );
+      // Notification scheduled silently; haptics already fired
     } catch (err) {
       console.warn('[SimulateClaim] Push schedule error:', err);
-      Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
     }
   };
 
@@ -150,24 +138,16 @@ export const DiagnosticsModal: React.FC<Props> = ({
           ios: { allowAlert: true, allowBadge: true, allowSound: true },
         });
         if (!req.granted && req.status !== 'granted') {
-          Alert.alert(
-            'Notifications Disabled in Settings',
-            'To receive real lockscreen banners, please turn on Notifications for My Commute in Settings.',
-            [
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          );
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          console.warn('[Diagnostics] Notifications disabled in Settings');
           return;
         }
       }
 
       const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
       if (deliveryMode === 'off') {
-        Alert.alert(
-          'Alerts Suppressed',
-          'Notification Delivery is set to OFF in Settings. Switch to Shush or Loud mode to test disruption alerts.'
-        );
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        console.warn('[Diagnostics] Notification delivery mode is off in Settings');
         return;
       }
       const shouldPlaySound = deliveryMode === 'loud';
@@ -193,14 +173,9 @@ export const DiagnosticsModal: React.FC<Props> = ({
         },
       });
 
-      Alert.alert(
-        '🔒 Lock Screen Now (5s)',
-        `Press side button to lock your phone now. In 5 seconds, the "${lineName} Line Disruption" push will arrive ${shouldPlaySound ? 'with sound' : 'silently (Shush Mode)'}.\n\n• Normal Tap: Opens the in-detail card on the dashboard showing full status.\n• Long-Press: Expands banner to reveal "[View Reroute 🚇]" action button.`,
-        [{ text: 'OK, Locking Phone' }]
-      );
+      // Notification scheduled silently; haptics already fired
     } catch (err) {
       console.warn('[SimulateReroute] Push schedule error:', err);
-      Alert.alert('Error', 'Failed to schedule notification: ' + String(err));
     }
   };
 
@@ -210,23 +185,14 @@ export const DiagnosticsModal: React.FC<Props> = ({
     if (isSimulatingLiveActivity) {
       await LiveActivityService.stopSimulatedCommute();
       setIsSimulatingLiveActivity(false);
-      Alert.alert('Simulated Commute Stopped', 'The Northern Line Live Activity has ended.');
       return;
     }
 
     const activityId = await LiveActivityService.startSimulatedNorthernCommute();
     if (activityId) {
       setIsSimulatingLiveActivity(true);
-      Alert.alert(
-        '🚇 Northern Line Live Activity Started!',
-        'Swipe to your Home Screen or Lock Screen now.\n\n• Lock Screen Card: Shows Euston → Morden journey progress and live countdown.\n• 1-Tap Switching: Tap "Morden (via Bank)" vs "Morden (via Charing Cross)" to test endpoint switching live outside of London.',
-        [{ text: 'OK, Locking Phone' }]
-      );
     } else {
-      Alert.alert(
-        'Live Activity Unavailable',
-        'Could not start Live Activity. Note: Live Activities require an EAS development build installed on a physical iPhone (they do not run in standard Expo Go).'
-      );
+      console.warn('[Diagnostics] Live Activity unavailable');
     }
   };
 
@@ -240,31 +206,18 @@ export const DiagnosticsModal: React.FC<Props> = ({
 
     const status = await LiveActivityService.getSupportStatus();
     if (status === 'expo_go') {
-      Alert.alert(
-        'Preview Unavailable in Expo Go',
-        'Live Activities and Dynamic Island require custom Apple targets. Please test on an EAS Development Client or install a native build.'
-      );
+      console.warn('[Diagnostics] Preview Unavailable in Expo Go');
       return;
     }
 
     if (status === 'bridge_unlinked') {
-      Alert.alert(
-        'Native Bridge Unlinked',
-        'MyCommuteLiveActivityModule was not detected in this native binary. Rebuild with EAS to link native Apple targets.'
-      );
+      console.warn('[Diagnostics] Native Bridge Unlinked');
       return;
     }
 
     const areActivitiesEnabled = status === 'supported';
     if (!areActivitiesEnabled) {
-      Alert.alert(
-        'Live Activities Disabled',
-        'Live Activities are turned off for My Commute in iOS Settings. Enable them to preview Shush Mode on your Dynamic Island and Lock Screen.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => { }) },
-        ]
-      );
+      console.warn('[Diagnostics] Live Activities Disabled in Settings');
       return;
     }
 
@@ -278,19 +231,11 @@ export const DiagnosticsModal: React.FC<Props> = ({
     });
     if (!activityId) {
       setIsTestingShush(false);
-      Alert.alert(
-        'Unable to Start Preview',
-        'Could not start the Live Activity. Ensure your device is running iOS 16.2+ and Live Activities are permitted in Settings.'
-      );
+      console.warn('[Diagnostics] Unable to start Live Activity preview');
     } else {
       setTimeout(() => {
         setIsTestingShush(false);
       }, 45000);
-      Alert.alert(
-        `🤫 ${primaryLineName} Shush Disruption Flash (45s)`,
-        `Swipe to Lock Screen or view Dynamic Island now.\n\n• Visual Card: Shows severe delays on ${primaryLineName} line.\n• Zero Audio: Completely silent (Shush Mode).\n• Auto-Dissolve: Ends and vanishes automatically in 45 seconds leaving zero trace.\n• Tap Card: Clears card and opens app.`,
-        [{ text: 'OK, Locking Phone' }]
-      );
     }
   };
 
@@ -305,35 +250,14 @@ export const DiagnosticsModal: React.FC<Props> = ({
   };
 
   const handleResetTflCoverage = () => {
-    Alert.alert(
-      'Reset TfL Coverage Status',
-      'Choose a state to force for testing:',
-      [
-        {
-          text: 'Set 28-Day Registered',
-          onPress: () => {
-            setTflAccountStatus('REGISTERED_28_DAY');
-            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-        {
-          text: 'Set 7-Day Unregistered',
-          onPress: () => {
-            setTflAccountStatus('UNREGISTERED_7_DAY');
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          },
-        },
-        {
-          text: 'Reset to Not Set (Unlinked)',
-          style: 'destructive',
-          onPress: () => {
-            setTflAccountStatus('NOT_SET');
-            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    const nextStatus =
+      tflAccountStatus === 'NOT_SET'
+        ? 'REGISTERED_28_DAY'
+        : tflAccountStatus === 'REGISTERED_28_DAY'
+          ? 'UNREGISTERED_7_DAY'
+          : 'NOT_SET';
+    setTflAccountStatus(nextStatus);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   const bottomPadding = Math.max(insets.bottom + 20, 24);
@@ -590,7 +514,6 @@ export const DiagnosticsModal: React.FC<Props> = ({
                     onPress={() => {
                       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       setSimulatedClaimActive(false);
-                      Alert.alert('Cleared', 'Simulated test claim removed.');
                     }}
                     accessibilityRole="button"
                     accessibilityLabel="Clear Test Claims"

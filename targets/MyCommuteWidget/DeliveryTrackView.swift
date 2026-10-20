@@ -58,13 +58,119 @@ public struct DeliveryTrackView: View {
 
   @ViewBuilder
   private var content: some View {
-    switch state.phase {
-    case "line_picker":  linePickerView
-    case "in_transit":   inTransitView
-    case "approaching":  approachingView
-    case "arrived":      arrivedView
-    default:             EmptyView()
+    if state.severityTier >= 2 {
+      disruptionView
+    } else {
+      switch state.phase {
+      case "line_picker":  linePickerView
+      case "in_transit":   inTransitView
+      case "approaching":  approachingView
+      case "arrived":      arrivedView
+      default:             EmptyView()
+      }
     }
+  }
+
+  // MARK: - Dedicated Disruption Takeover View (Severity Tier >= 2)
+  private var disruptionView: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      // Row 1: Line accent bar + Line Name + Preview indicator + Severity Status Icon
+      HStack(spacing: 6) {
+        AccentBar(lineId: lineId, width: 3.5, height: 13)
+        Text(lineDisplayName)
+          .font(.system(size: 13, weight: .bold))
+          .foregroundColor(.white)
+        if isDisruptionPreview {
+          Text("PREVIEW")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundColor(Color(hex: 0xFF9500))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1.5)
+            .background(Color(hex: 0xFF9500).opacity(0.18), in: Capsule())
+        }
+        Spacer()
+        DeliveryStatusIcon(severity: state.severityTier)
+      }
+
+      // Row 2: High-contrast Disruption Headline
+      Text(state.severityTier == 3 ? "Suspended" : "Severe Delays")
+        .font(.system(size: 18, weight: .bold))
+        .foregroundColor(state.severityTier == 3 ? Color(hex: 0xFF3B30) : Color(hex: 0xFF9500))
+
+      // Row 3: Genuine Status Reason / Cause (hidden if no distinct reason to prevent duplication)
+      if let cause = disruptionCauseText {
+        Text(cause)
+          .font(.system(size: 12, weight: .medium))
+          .foregroundColor(.white.opacity(0.85))
+          .lineLimit(2)
+      }
+
+      // Row 4: Genuine Detour Alternative (only if present in payload)
+      detourSlot
+
+      // Row 5: Shush Status Footer (interactive toggle disabled in preview to prevent App Group side-effects)
+      if isDisruptionPreview {
+        shushPreviewFooter
+      } else {
+        shushToggleSlot
+      }
+    }
+  }
+
+  private var isDisruptionPreview: Bool {
+    state.statusText.hasPrefix("Preview: ")
+  }
+
+  private var shushPreviewFooter: some View {
+    HStack(spacing: 6) {
+      Image(systemName: "bell.slash")
+        .font(.system(size: 11, weight: .bold))
+        .foregroundColor(.white.opacity(0.6))
+      Text("Preview Mode · Interactive toggle disabled")
+        .font(.system(size: 11, weight: .medium))
+        .foregroundColor(.white.opacity(0.6))
+      Spacer()
+    }
+    .padding(.horizontal, 8)
+    .padding(.vertical, 4)
+  }
+
+  private var disruptionCauseText: String? {
+    let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !raw.isEmpty else { return nil }
+
+    // If it's a preview without a distinct sub-reason, hide cause row so headline isn't repeated
+    if raw.hasPrefix("Preview: ") {
+      let afterColon = String(raw.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
+      if afterColon.localizedCaseInsensitiveCompare("Severe Delays") != .orderedSame &&
+         afterColon.localizedCaseInsensitiveCompare("Suspended") != .orderedSame &&
+         !afterColon.isEmpty {
+        return afterColon
+      }
+      return nil
+    }
+
+    let headline = state.severityTier == 3 ? "Suspended" : "Severe Delays"
+    // If statusText matches the headline, there is no distinct cause
+    if raw.localizedCaseInsensitiveCompare(headline) == .orderedSame ||
+       raw.localizedCaseInsensitiveCompare("Severe Delays") == .orderedSame ||
+       raw.localizedCaseInsensitiveCompare("Suspended") == .orderedSame {
+      return nil
+    }
+
+    // Extract cause if formatted like "Severe Delays — Faulty train at Camden" or "Severe Delays: Signal failure"
+    for separator in [" — ", " - ", ": "] {
+      if let sepRange = raw.range(of: separator) {
+        let cause = String(raw[sepRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cause.isEmpty &&
+           cause.localizedCaseInsensitiveCompare("Severe Delays") != .orderedSame &&
+           cause.localizedCaseInsensitiveCompare("Suspended") != .orderedSame {
+          return cause
+        }
+      }
+    }
+
+    return raw
   }
 
   private var lineDisplayName: String {

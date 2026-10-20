@@ -776,55 +776,30 @@ export class LiveActivityService {
     const duration = opts?.durationSeconds ?? 45;
 
     const nowSec = Math.floor(Date.now() / 1000);
-    const destName = lineId === 'northern' ? 'High Barnet' : 'Walthamstow Central';
-    const origName = lineId === 'northern' ? 'Camden Town' : 'Victoria';
 
     const previewPayload: LiveActivityBridgePayload = isDisruption
       ? {
           journeyId: `preview_disruption_${nowSec}`,
-          originStation: lineId === 'northern' ? '940GZZLUCTN' : '940GZZLUVIC',
-          destinationStation: destName,
-          stationId: lineId === 'northern' ? '940GZZLUCTN' : '940GZZLUVIC',
+          stationId: 'preview_disruption',
           lineId,
           lineName,
           branchKnown: false,
-          arrivals: [
-            { destinationName: destName, timeToStationSeconds: 900 },
-          ],
+          arrivals: [],
           statusSeverity: 'severe_delays',
-          statusText: 'Severe Delays',
+          statusText: 'Preview: Severe Delays',
           severityTier: 2,
-          nextTrainMinutes: 15,
-          etaTimestamp: nowSec + 900,
-          etaDelta: '+15m delay',
           isDisrupted: true,
-          isEscalated: true,
-          delayRepayEligible: true,
-          delayMinutes: 15,
+          isEscalated: false,
+          delayRepayEligible: false,
+          delayMinutes: 0,
           tunnelState: 'normal',
-          progress: 0.15,
+          progress: 0.0,
           segmentMaxDuration: duration,
           signalState: 'ok',
           phase: 'in_transit',
-          sessionStartTime: nowSec - 300,
-          currentStationName: origName,
-          destinationStationName: destName,
-          detourLine: lineId === 'northern' ? 'Victoria' : 'Piccadilly',
-          detourMinutes: 6,
-          detourStatus: 'good',
+          sessionStartTime: nowSec,
           alertDeliveryMode: 'shush',
           alertSound: 'silent',
-          approachingEndpoints: [
-            {
-              destinationName: destName,
-              branchText: '',
-              minutesToArrival: 15,
-              previousStationName: origName,
-              remainingStationSequence: [destName],
-              stopsAway: 4,
-              etaTimestamp: nowSec + 900,
-            },
-          ],
         }
       : {
           journeyId: `preview_${Math.floor(Date.now() / 1000)}`,

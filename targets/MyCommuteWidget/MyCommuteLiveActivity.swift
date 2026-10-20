@@ -241,7 +241,14 @@ private struct CompactIslandView: View {
 
   var body: some View {
     if trailing {
-      if context.state.phase == "line_picker" {
+      if context.state.severityTier >= 2 {
+        Text("Delays")
+          .font(.system(size: 11, weight: .bold))
+          .foregroundColor(.white)
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
+          .accessibilityLabel("Severe delays on \(lineDisplayName)")
+      } else if context.state.phase == "line_picker" {
         let count = context.state.availableLines?.count ?? 0
         Text("\(count) lines")
           .font(.system(size: 11, weight: .bold))
@@ -304,7 +311,16 @@ private struct CompactIslandView: View {
           .accessibilityLabel(countdownAccessibilityLabel)
       }
     } else {
-      if context.state.phase == "line_picker" {
+      if context.state.severityTier >= 2 {
+        HStack(spacing: 4) {
+          AccentBar(lineId: context.attributes.lineId)
+          Text(lineShortCode)
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+        }
+        .accessibilityLabel("\(lineDisplayName) line")
+      } else if context.state.phase == "line_picker" {
         HStack(spacing: 3) {
           Circle().fill(Color(hex: 0x007AFF)).frame(width: 6, height: 6)
           Text(context.state.currentStationName ?? "Station")

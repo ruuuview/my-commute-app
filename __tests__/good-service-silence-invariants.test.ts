@@ -165,4 +165,63 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       expect(jsonLineKeys).toContain('overground');
     });
   });
+
+  describe('Invariant 4: Shush Disruption Preview Invariant (Zero Fake Arrivals / Journey Squeeze)', () => {
+    it('strictly guarantees disruption preview contains zero arrivals and no station countdowns', async () => {
+      (global as any).__DEV__ = true;
+      const { startCommuteActivity } = jest.requireMock('../modules/my-commute-live-activity');
+      startCommuteActivity.mockClear();
+
+      await LiveActivityService.startPreviewActivity({
+        lineId: 'piccadilly',
+        lineName: 'Piccadilly',
+        isDisruption: true,
+        durationSeconds: 45,
+      });
+
+      expect(startCommuteActivity).toHaveBeenCalledTimes(1);
+      const payload = startCommuteActivity.mock.calls[0][0];
+
+      // Disruption preview must have zero arrivals
+      expect(payload.arrivals).toEqual([]);
+      expect(payload.isDisrupted).toBe(true);
+      expect(payload.isEscalated).toBe(false);
+      expect(payload.detourLine).toBeUndefined();
+      expect(payload.severityTier).toBe(2);
+      expect(payload.statusSeverity).toBe('severe_delays');
+      expect(payload.statusText).toBe('Preview: Severe Delays');
+      expect(payload.lineId).toBe('piccadilly');
+      expect(payload.lineName).toBe('Piccadilly');
+      expect(payload.stationId).toBe('preview_disruption');
+
+      // Rule 16: Zero fake delay repayment or delay minutes in preview
+      expect(payload.delayMinutes).toBe(0);
+      expect(payload.delayRepayEligible).toBe(false);
+
+      // Zero hardcoded stations
+      expect(payload.originStation).toBeUndefined();
+      expect(payload.destinationStation).toBeUndefined();
+      expect(payload.currentStationName).toBeUndefined();
+      expect(payload.destinationStationName).toBeUndefined();
+      expect(payload.approachingEndpoints).toBeUndefined();
+
+      await LiveActivityService.stopPreviewActivity();
+    });
+
+    it('guarantees Swift DeliveryTrackView intercepts severityTier >= 2 to render disruptionView', () => {
+      const swiftPath = path.resolve(__dirname, '../targets/MyCommuteWidget/DeliveryTrackView.swift');
+      const src = fs.readFileSync(swiftPath, 'utf8');
+      expect(src).toMatch(/if\s+state\.severityTier\s*>=\s*2\s*\{\s*disruptionView\s*\}/);
+      expect(src).toMatch(/private\s+var\s+disruptionView:\s+some\s+View/);
+      expect(src).toMatch(/shushPreviewFooter/);
+      expect(src).toMatch(/state\.statusText\.hasPrefix\("Preview: "\)/);
+    });
+
+    it('guarantees Swift CompactIslandView displays "Delays" text when severityTier >= 2', () => {
+      const liveActivitySwiftPath = path.resolve(__dirname, '../targets/MyCommuteWidget/MyCommuteLiveActivity.swift');
+      const src = fs.readFileSync(liveActivitySwiftPath, 'utf8');
+      expect(src).toMatch(/if\s+context\.state\.severityTier\s*>=\s*2\s*\{\s*Text\("Delays"\)/);
+    });
+  });
 });
+

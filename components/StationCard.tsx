@@ -13,6 +13,8 @@ import { fetchNormalizedStationArrivals } from '../services/apiService';
 import { LINE_IDENTITY_COLORS, NORTHERN_SHADES } from '../constants/lineColors';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { useOnboardingStore } from '../store/onboardingStore';
+import { useLineDataStore } from '../store/lineDataStore';
 
 export interface Departure {
   lineId: string;
@@ -36,94 +38,9 @@ interface StationCardProps {
   disabled?: boolean;
   selected?: boolean;
   showLedger?: boolean;
-  departures?: Departure[];
+  departures?: Departure[] | null;
+  fetchError?: boolean;
   mode: 'onboarding' | 'dashboard';
-}
-
-const LINE_TERMINALS: Record<string, string[]> = {
-  northern: ['Morden', 'Edgware', 'Mill Hill East', 'High Barnet'],
-  central: ['Epping', 'Hainault', 'Ruislip Gardens', 'West Ruislip'],
-  elizabeth: ['Reading', 'Heathrow T5', 'Shenfield', 'Abbey Wood'],
-  jubilee: ['Stanmore', 'Stratford'],
-  victoria: ['Brixton', 'Walthamstow Central'],
-  piccadilly: ['Cockfosters', 'Heathrow T5', 'Uxbridge'],
-  district: ['Richmond', 'Wimbledon', 'Ealing Broadway', 'Upminster'],
-  circle: ['Hammersmith', 'Edgware Road'],
-  bakerloo: ['Harrow & Wealdstone', 'Elephant & Castle'],
-  metropolitan: ['Aldgate', 'Watford', 'Amersham', 'Uxbridge'],
-  'hammersmith-city': ['Hammersmith', 'Barking'],
-  overground: ['Watford Junction', 'London Euston', 'Clapham Junction', 'Highbury & Islington', 'Stratford'],
-  weaver: ['Chingford', 'Liverpool Street', 'Enfield Town', 'Cheshunt'],
-  mildmay: ['Stratford', 'Richmond', 'Clapham Junction'],
-  windrush: ['Highbury & Islington', 'West Croydon', 'Crystal Palace', 'New Cross', 'Clapham Junction'],
-  suffragette: ['Gospel Oak', 'Barking Riverside'],
-  lioness: ['Watford Junction', 'London Euston'],
-  liberty: ['Romford', 'Upminster'],
-  dlr: ['Bank', 'Lewisham', 'Beckton', 'Woolwich Arsenal'],
-};
-
-function getSeedOffset(stationId: string): number {
-  let sum = 0;
-  for (let i = 0; i < stationId.length; i++) {
-    sum += stationId.charCodeAt(i);
-  }
-  return sum % 5;
-}
-
-function generateMockDepartures(stationId: string, lines: string[], count = 3): Departure[] {
-  const linesList = lines.length > 0 ? lines : ['central'];
-  const seed = getSeedOffset(stationId);
-  const departures: Departure[] = [];
-
-  const headwayMins: Record<string, number> = {
-    dlr: 4,
-    northern: 3,
-    elizabeth: 5,
-    overground: 6,
-  };
-
-  const lastMinsForLineDirection: Record<string, number> = {};
-  const lineOccurrenceCount: Record<string, number> = {};
-
-  let index = 0;
-  while (departures.length < count && index < 15) {
-    const lineId = linesList[index % linesList.length];
-    const minHeadway = headwayMins[lineId] ?? 3;
-
-    const lastVal = lastMinsForLineDirection[lineId];
-    let mins = 0;
-    if (lastVal === undefined) {
-      mins = seed % 3;
-    } else {
-      mins = lastVal + minHeadway + ((seed + index) % 3);
-    }
-
-    lastMinsForLineDirection[lineId] = mins;
-
-    const shortName = LINE_SHORT_NAMES[lineId] || lineId;
-    const terminals = LINE_TERMINALS[lineId] || ['See timetable'];
-    const occ = lineOccurrenceCount[lineId] ?? 0;
-    lineOccurrenceCount[lineId] = occ + 1;
-    const destination = terminals[(occ + seed) % terminals.length];
-
-    const platformNum = ((seed + index) % 4) + 1;
-    departures.push({
-      lineId,
-      lineColor: LINE_IDENTITY_COLORS[lineId] || '#888',
-      lineName: shortName,
-      destination,
-      timeText: `${mins} min`,
-      isImminent: mins <= 2,
-      platform: `Platform ${platformNum}`,
-    });
-    index++;
-  }
-
-  return departures.sort((a, b) => {
-    const valA = parseInt(a.timeText) || 0;
-    const valB = parseInt(b.timeText) || 0;
-    return valA - valB;
-  });
 }
 
 const getDepTimeStyle = (minutes: number) => {
@@ -144,6 +61,7 @@ export function StationCard({
   selected = false,
   showLedger = false,
   departures,
+  fetchError = false,
   mode,
 }: StationCardProps) {
   const reducedMotion = useReducedMotion();
@@ -152,14 +70,22 @@ export function StationCard({
   const cleanName = tflCapitalise(cleanDisplayStationName(station.name));
 
   const [liveDepartures, setLiveDepartures] = useState<Departure[] | null>(null);
+  const [fetchStatus, setFetchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  const userSelectedLines = useUserPreferencesStore(s => s.selectedLines);
+  const lineStoreLines = useLineDataStore(s => s.lines);
+
+  const selectedLinesFromPrefs = useUserPreferencesStore(s => s.selectedLines);
+  const selectedLinesFromOnboarding = useOnboardingStore(s => s.selectedLines);
+  const userSelectedLines = mode === 'onboarding'
+    ? (selectedLinesFromOnboarding.length > 0 ? selectedLinesFromOnboarding : selectedLinesFromPrefs)
+    : (selectedLinesFromPrefs.length > 0 ? selectedLinesFromPrefs : selectedLinesFromOnboarding);
 
   useEffect(() => {
-    if (mode !== 'onboarding' || !showLedger || departures) return;
+    if (!showLedger || departures !== undefined) return;
 
     let active = true;
     const fetchLive = async () => {
+      setFetchStatus('loading');
       try {
         const data = await fetchNormalizedStationArrivals(station.id);
         if (!active) return;
@@ -179,22 +105,62 @@ export function StationCard({
         }));
 
         setLiveDepartures(mapped);
-      } catch (e) {
-        console.log('Error fetching live departures in onboarding card:', e);
+        setFetchStatus('success');
+      } catch {
+        if (!active) return;
+        setFetchStatus('error');
       }
     };
 
     fetchLive();
     return () => { active = false; };
-  }, [station.id, showLedger, departures, mode, userSelectedLines]);
+  }, [station.id, showLedger, departures, userSelectedLines]);
 
   const displayDepartures = useMemo(() => {
     const shouldShow = showLedger || mode === 'dashboard';
     if (!shouldShow) return [];
-    const hasLive = liveDepartures && liveDepartures.length > 0;
-    const resolved = departures ?? (hasLive ? liveDepartures : (mode === 'onboarding' ? generateMockDepartures(station.id, station.lines, 3) : []));
+    const resolved = (departures && departures.length > 0) ? departures : (liveDepartures ?? []);
     return resolved.slice(0, 3);
-  }, [station.id, station.lines, showLedger, departures, mode, liveDepartures]);
+  }, [showLedger, mode, departures, liveDepartures]);
+
+  const emptyStateMessage = useMemo(() => {
+    if (displayDepartures.length > 0) return null;
+    const shouldShow = showLedger || mode === 'dashboard';
+    if (!shouldShow) return null;
+
+    const effectiveStatus = fetchError || departures === null
+      ? 'error'
+      : (departures !== undefined ? 'success' : fetchStatus);
+
+    if (effectiveStatus === 'error') {
+      return "Couldn't load arrivals";
+    }
+
+    if (effectiveStatus === 'loading') {
+      return "Loading arrivals...";
+    }
+
+    // Check if serving lines are closed (strictly code 20 or "Service Closed")
+    const selectedServing = station.lines.filter(l => userSelectedLines.includes(l));
+    const targetLines = selectedServing.length > 0 ? selectedServing : station.lines;
+
+    const allClosed = targetLines.length > 0 && targetLines.every(l => {
+      const lineData = lineStoreLines[l];
+      if (!lineData) return false;
+      const s = (lineData.status || '').toLowerCase().trim();
+      return lineData.status_severity === 20 || s === 'service closed';
+    });
+
+    if (allClosed) {
+      return "Service closed";
+    }
+
+    if (effectiveStatus === 'success') {
+      return "No trains due";
+    }
+
+    return null;
+  }, [displayDepartures.length, showLedger, mode, departures, fetchError, fetchStatus, station.lines, userSelectedLines, lineStoreLines]);
 
 
 
@@ -242,8 +208,8 @@ export function StationCard({
     );
   };
 
-  const hasLedger = displayDepartures.length > 0;
   const isDashboardMode = mode === 'dashboard';
+  const showLedgerSection = showLedger || isDashboardMode;
 
   return (
     <Pressable
@@ -277,48 +243,54 @@ export function StationCard({
             )}
           </View>
 
-          {hasLedger && (
+          {showLedgerSection && (
             <>
               <View style={styles.divider} />
-              <View style={styles.ledgerTable}>
-                {displayDepartures.map((dep, idx) => {
-                  const minutesVal = parseInt(dep.timeText) || 0;
-                  const depStyle = getDepTimeStyle(minutesVal);
+              {displayDepartures.length > 0 ? (
+                <View style={styles.ledgerTable} testID="ledger-table">
+                  {displayDepartures.map((dep, idx) => {
+                    const minutesVal = parseInt(dep.timeText) || 0;
+                    const depStyle = getDepTimeStyle(minutesVal);
 
-                  return (
-                    <View key={idx} style={styles.ledgerRow}>
-                      <View style={styles.columnIdentity}>
-                        <View
-                          style={[
-                            styles.ledgerBar,
-                            { backgroundColor: dep.lineColor },
-                            (dep.lineId === 'northern' || dep.lineColor === '#000000') && {
-                              borderWidth: 0.5,
-                              borderColor: NORTHERN_SHADES.highlightBorder,
-                            },
-                          ]}
-                        />
-                        <Text style={styles.ledgerLineText} numberOfLines={1}>{dep.lineName}</Text>
-                      </View>
-                      <View style={styles.columnDestination}>
-                        <Text style={styles.ledgerDestText} numberOfLines={1} ellipsizeMode="tail">
-                          {dep.destination}
-                        </Text>
-                        {dep.platform ? (
-                          <Text style={styles.ledgerPlatformText} numberOfLines={1}>
-                            {dep.platform}
+                    return (
+                      <View key={idx} style={styles.ledgerRow}>
+                        <View style={styles.columnIdentity}>
+                          <View
+                            style={[
+                              styles.ledgerBar,
+                              { backgroundColor: dep.lineColor },
+                              (dep.lineId === 'northern' || dep.lineColor === '#000000') && {
+                                borderWidth: 0.5,
+                                borderColor: NORTHERN_SHADES.highlightBorder,
+                              },
+                            ]}
+                          />
+                          <Text style={styles.ledgerLineText} numberOfLines={1}>{dep.lineName}</Text>
+                        </View>
+                        <View style={styles.columnDestination}>
+                          <Text style={styles.ledgerDestText} numberOfLines={1} ellipsizeMode="tail">
+                            {dep.destination}
                           </Text>
-                        ) : null}
+                          {dep.platform ? (
+                            <Text style={styles.ledgerPlatformText} numberOfLines={1}>
+                              {dep.platform}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.columnCountdown}>
+                          <Text style={[styles.ledgerTimeText, depStyle]} numberOfLines={1}>
+                            {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.columnCountdown}>
-                        <Text style={[styles.ledgerTimeText, depStyle]} numberOfLines={1}>
-                          {minutesVal === 0 ? 'Due' : `${minutesVal} min`}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
+                    );
+                  })}
+                </View>
+              ) : emptyStateMessage ? (
+                <View style={styles.emptyLedgerContainer}>
+                  <Text style={styles.emptyLedgerText}>{emptyStateMessage}</Text>
+                </View>
+              ) : null}
             </>
           )}
           </View>
@@ -469,5 +441,15 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
+  },
+  emptyLedgerContainer: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyLedgerText: {
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    color: 'rgba(255, 255, 255, 0.45)',
   },
 });

@@ -28,6 +28,7 @@ import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PREMIUM_BUTTON } from '../../theme/colors';
 import { LINE_IDENTITY_COLORS } from '../../constants/lineColors';
+import { useLineDataStore, LineStatus } from '../../store/lineDataStore';
 import { track } from '../../services/analyticsService';
 import { getSeverityLabel, getSeverityRank } from '../../utils/getSeverityColor';
 import { shouldHideOnboardingCta } from '../../utils/onboardingCta';
@@ -104,12 +105,21 @@ export default function LinesScreen() {
         if (!active) return;
 
         const mapped: Record<string, { severity: number; description: string }> = {};
+        const storeLines: LineStatus[] = [];
         data.forEach((line: any) => {
           const sev = line.lineStatuses?.[0]?.statusSeverity ?? 10;
           const desc = line.lineStatuses?.[0]?.statusSeverityDescription ?? 'Good Service';
           mapped[line.id] = { severity: sev, description: desc };
+          storeLines.push({
+            id: line.id,
+            name: line.name || line.id,
+            color: LINE_IDENTITY_COLORS[line.id] || '#888',
+            status: desc,
+            status_severity: sev,
+          });
         });
         setApiStatuses(mapped);
+        useLineDataStore.getState().setLines(storeLines);
         setLoadingStatuses(false);
       } catch (err) {
         console.log('Error fetching onboarding line statuses:', err);

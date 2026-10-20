@@ -87,12 +87,26 @@ export async function fetchNormalizedStationArrivals(
   if (hasInvalidId) {
     console.warn(`[apiService] WARNING: "${stationId}" resolved to non-NaPTAN ID: ${JSON.stringify(resolvedIds)}. Departures may fail to load.`);
   }
+  let anyNetworkSuccess = false;
+  let lastNetworkError: Error | null = null;
+
   const responses = await Promise.all(
-    resolvedIds.map(id =>
-      fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: effectiveSignal })
-        .then(res => (res.ok ? res.json() : null))
-        .catch(() => null)
-    )
+    resolvedIds.map(async id => {
+      try {
+        const res = await fetch(`${APP_CONFIG.BACKEND_URL}/api/stations/${id}`, { signal: effectiveSignal });
+        if (res.ok) {
+          anyNetworkSuccess = true;
+          return await res.json();
+        }
+        if (res.status !== 404) {
+          lastNetworkError = new Error(`Backend returned HTTP ${res.status}`);
+        }
+        return null;
+      } catch (err: any) {
+        lastNetworkError = err;
+        return null;
+      }
+    })
   );
 
   if (internalTimeout) clearTimeout(internalTimeout);
@@ -119,20 +133,30 @@ export async function fetchNormalizedStationArrivals(
           try {
             const res = await fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(id)}/Arrivals`, { signal: effectiveSignal });
             if (res.ok) {
+              anyNetworkSuccess = true;
               const data = await res.json();
-              if (Array.isArray(data) && data.length > 0) return data;
+              if (Array.isArray(data)) return data;
+            } else {
+              lastNetworkError = new Error(`TfL StopPoint returned HTTP ${res.status}`);
             }
-          } catch {}
+          } catch (err: any) {
+            lastNetworkError = err;
+          }
 
           // Rail stations fallback for Overground / Elizabeth / National Rail StopPoints
           if (id.startsWith('910G')) {
             try {
               const railRes = await fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(id)}/ArrivalDepartures`, { signal: effectiveSignal });
               if (railRes.ok) {
+                anyNetworkSuccess = true;
                 const railData = await railRes.json();
                 if (Array.isArray(railData)) return railData;
+              } else {
+                lastNetworkError = new Error(`TfL Rail returned HTTP ${railRes.status}`);
               }
-            } catch {}
+            } catch (err: any) {
+              lastNetworkError = err;
+            }
           }
           return null;
         })
@@ -157,6 +181,11 @@ export async function fetchNormalizedStationArrivals(
     } catch {
       // Ignore network errors in fallback
     }
+  }
+
+  // If no network request succeeded at all, throw so callers can distinguish failure from 0 trains
+  if (!anyNetworkSuccess && allRaw.length === 0) {
+    throw (lastNetworkError || new Error(`Failed to fetch arrivals for station ${stationId}`));
   }
 
   const processed = allRaw.map((dep: any) => {

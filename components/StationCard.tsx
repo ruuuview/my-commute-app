@@ -97,7 +97,7 @@ export function StationCard({
         const mapped: Departure[] = visible.map(d => ({
           lineId: d.lineId,
           lineColor: d.lineColor,
-          lineName: LINE_SHORT_NAMES[d.lineId] || d.lineName,
+          lineName: d.lineName,
           destination: d.destination,
           timeText: d.minutesAway <= 0 ? 'Due' : `${d.minutesAway} min`,
           isImminent: d.minutesAway <= 2,

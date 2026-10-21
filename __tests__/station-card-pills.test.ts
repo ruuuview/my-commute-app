@@ -60,22 +60,22 @@ describe('StationCard Line Pills & Compact Badging Invariants', () => {
 
     // 1-line station (e.g. Pimlico)
     const single = getCardPills(['victoria']);
-    expect(single.visibleLines).toEqual(['Victoria']);
+    expect(single.visibleLines).toEqual(['VIC']);
     expect(single.overflowCount).toBe(0);
 
     // 2-line station (e.g. London Bridge) -> shows BOTH, never "+1"
     const two = getCardPills(['jubilee', 'northern']);
-    expect(two.visibleLines).toEqual(['Jubilee', 'Northern']);
+    expect(two.visibleLines).toEqual(['JUB', 'NOR']);
     expect(two.overflowCount).toBe(0);
 
     // 3-line station (e.g. Oxford Circus) -> shows ALL 3, never "+2"
     const three = getCardPills(['victoria', 'central', 'bakerloo']);
-    expect(three.visibleLines).toEqual(['Victoria', 'Central', 'Bakerloo']);
+    expect(three.visibleLines).toEqual(['VIC', 'CEN', 'BAK']);
     expect(three.overflowCount).toBe(0);
 
     // 4-line station (e.g. Waterloo) -> shows ALL 4, never "+3"
     const four = getCardPills(['bakerloo', 'jubilee', 'northern', 'waterloo-city']);
-    expect(four.visibleLines).toEqual(['Bakerloo', 'Jubilee', 'Northern', 'WL&City']);
+    expect(four.visibleLines).toEqual(['BAK', 'JUB', 'NOR', 'W&C']);
     expect(four.overflowCount).toBe(0);
 
     // 6-line station (e.g. King's Cross) -> shows 3 lines + 3 overflow
@@ -85,7 +85,7 @@ describe('StationCard Line Pills & Compact Badging Invariants', () => {
 
     // User preference prioritization: if user rides Northern, Northern is prioritized first
     const prioritized = getCardPills(['jubilee', 'northern'], ['northern']);
-    expect(prioritized.visibleLines[0]).toBe('Northern');
-    expect(prioritized.visibleLines[1]).toBe('Jubilee');
+    expect(prioritized.visibleLines[0]).toBe('NOR');
+    expect(prioritized.visibleLines[1]).toBe('JUB');
   });
 });

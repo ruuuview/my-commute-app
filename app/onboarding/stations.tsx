@@ -687,57 +687,7 @@ export default function StationsScreen() {
                     </View>
                   ) : null
                 }
-                ListFooterComponent={
-                  query.trim() === '' && pinnedStations.length > 0 ? (
-                    <Pressable
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        if (Platform.OS === 'ios' || (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)) {
-                          try {
-                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                          } catch {}
-                        }
-                        setSearchActive(true);
-                        setIsFocused(true);
-                        InteractionManager.runAfterInteractions(() => {
-                          inputRef.current?.focus();
-                        });
-                      }}
-                      style={({ pressed }) => [
-                        styles.addAnotherCard,
-                        pressed && styles.addAnotherCardPressed,
-                        reduceTransparency && { backgroundColor: '#1C1C1E' },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={pinnedStations.length === 1 ? 'Add destination station' : 'Add another station'}
-                    >
-                      {!reduceTransparency && (
-                        isNativeGlassAvailable ? (
-                          <GlassView
-                            glassEffectStyle="regular"
-                            colorScheme="dark"
-                            style={StyleSheet.absoluteFillObject}
-                            pointerEvents="none"
-                          />
-                        ) : (
-                          <BlurView intensity={GLASS.blurIntensity} tint={GLASS.blurTint} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-                        )
-                      )}
-                      <View style={styles.addAnotherIconCircle}>
-                        <Ionicons name="add" size={16} color="#FFFFFF" />
-                      </View>
-                      <View style={styles.addAnotherTextContainer}>
-                        <Text style={styles.addAnotherTitle}>
-                          {pinnedStations.length === 1 ? 'Add destination (e.g. Work)' : 'Add another station'}
-                        </Text>
-                        <Text style={styles.addAnotherSubtitle}>
-                          {pinnedStations.length === 1 ? 'Pair with home station for automatic delay repay' : 'Pro Unlimited · Full corridor & disruption surveillance'}
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
-                    </Pressable>
-                  ) : null
-                }
+                ListFooterComponent={null}
                 ListEmptyComponent={() => {
                   if (query.trim() !== '') {
                     return (
@@ -961,48 +911,6 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     letterSpacing: 1.2,
     color: 'rgba(255, 255, 255, 0.45)',
-  },
-  addAnotherCard: {
-    height: 60,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 14,
-    position: 'relative',
-    overflow: 'hidden',
-    borderWidth: GLASS.borderWidth,
-    borderColor: 'rgba(0, 102, 204, 0.40)',
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(0, 102, 204, 0.06)',
-  },
-  addAnotherCardPressed: {
-    backgroundColor: 'rgba(0, 102, 204, 0.14)',
-  },
-  addAnotherIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 102, 204, 0.35)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 102, 204, 0.60)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  addAnotherTextContainer: {
-    flex: 1,
-  },
-  addAnotherTitle: {
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    color: '#FFFFFF',
-  },
-  addAnotherSubtitle: {
-    fontSize: 11,
-    fontFamily: 'SpaceGrotesk_500Medium',
-    color: 'rgba(255, 255, 255, 0.45)',
-    marginTop: 1,
   },
   recentsContainer: {
     flex: 1,

@@ -45,9 +45,9 @@ import type { NormalizedDeparture } from '../services/apiService';
 const MAX_ROWS = 3;
 const NIGHT_TUBE_SET = new Set(['central', 'jubilee', 'northern', 'piccadilly', 'victoria']);
 
-function getLondonTime(): { day: number; hours: number } {
+export function getLondonTime(date?: Date): { day: number; hours: number } {
   try {
-    const now = new Date();
+    const now = date ?? new Date();
     const formatter = new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Europe/London',
       weekday: 'short',
@@ -70,16 +70,16 @@ function getLondonTime(): { day: number; hours: number } {
     const day = weekdayStr ? (dayMap[weekdayStr] ?? now.getDay()) : now.getDay();
     return { day, hours };
   } catch {
-    const now = new Date();
+    const now = date ?? new Date();
     return { day: now.getDay(), hours: now.getHours() };
   }
 }
 
-function getStationNightTubeStatus(lineIds: string[]) {
+export function getStationNightTubeStatus(lineIds: string[], date?: Date) {
   const hasNightTube = lineIds.some(id => NIGHT_TUBE_SET.has(id.toLowerCase()));
   if (!hasNightTube) return null;
 
-  const { day, hours } = getLondonTime();
+  const { day, hours } = getLondonTime(date);
 
   if ((day === 6 || day === 0) && hours >= 0 && hours < 5) {
     return { label: '24h', active: true };
@@ -422,7 +422,8 @@ export const DepartureCard = memo(function DepartureCard({
             <Text
               style={styles.stationName}
               adjustsFontSizeToFit={true}
-              minimumFontScale={0.75}
+              minimumFontScale={0.70}
+              numberOfLines={2}
             >
               {cleanName}
             </Text>

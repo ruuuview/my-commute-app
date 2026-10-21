@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import { LiveActivityService } from '../services/LiveActivityService';
 
 export const syncToWidget = async (selectedLines: string[]) => {
   if (Platform.OS !== 'ios') return;
@@ -8,6 +7,8 @@ export const syncToWidget = async (selectedLines: string[]) => {
     if (!selectedLines || !Array.isArray(selectedLines)) {
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { LiveActivityService } = require('../services/LiveActivityService');
     if (typeof LiveActivityService?.syncWidgetCache === 'function') {
       await LiveActivityService.syncWidgetCache(selectedLines);
     }

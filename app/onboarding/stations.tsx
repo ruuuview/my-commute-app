@@ -36,7 +36,7 @@ import { tflCapitalise } from '../../utils/tflCapitalise';
 import { shouldHideOnboardingCta } from '../../utils/onboardingCta';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
-import { StationCard } from '../../components/StationCard';
+import { DepartureCard } from '../../components/DepartureCard';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
@@ -468,13 +468,12 @@ export default function StationsScreen() {
     );
 
     return (
-      <StationCard
-        station={item}
+      <DepartureCard
+        stationId={item.id}
+        stationName={item.name}
+        lines={item.lines}
         rightElement={rightElement}
-        onPress={() => handleToggleStation(item)}
-        selected={isPinned}
-        mode="onboarding"
-        showLedger={true}
+        onCardTap={() => handleToggleStation(item)}
       />
     );
   }, [isStationPinned, handleToggleStation, query, pinnedStations.length]);

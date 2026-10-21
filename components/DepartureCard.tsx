@@ -2,8 +2,9 @@
  * DepartureCard.tsx
  * ─────────────────────────────────────────────────────────────────
  * Expanded departure card showing station header + up to 3 arrival rows.
- * Tap → calls onCardTap (opens StationDetailScreen via router push).
- * Long-press → triggers direct drag reordering.
+ * Shared WYSIWYG single source of truth across Onboarding & Dashboard.
+ * Tap → calls onCardTap (opens StationDetailScreen or toggles onboarding).
+ * Long-press → triggers direct drag reordering on Dashboard.
  * ─────────────────────────────────────────────────────────────────
  */
 
@@ -31,26 +32,60 @@ import { GLASS, DUE_TIME_STYLE } from '../theme/colors';
 import { useStationArrivals } from '../services/stationArrivalsStore';
 import { getVisibleArrivals } from '../selectors/stationLines';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { NORTHERN_SHADES } from '../constants/lineColors';
-import { useShallow } from 'zustand/react/shallow';
+import { useOnboardingStore } from '../store/onboardingStore';
+import { useLineDataStore } from '../store/lineDataStore';
+import { NORTHERN_SHADES, LINE_IDENTITY_COLORS } from '../constants/lineColors';
+import { LINE_SHORT_NAMES } from '../data/lineMetadata';
+import { getPillColors } from '../utils/pillColors';
+import { cleanDisplayStationName } from '../data/tflStations';
+import { tflCapitalise } from '../utils/tflCapitalise';
+import type { NormalizedDeparture } from '../services/apiService';
 
 // ─── Constants ────────────────────────────────────────────────────
 const MAX_ROWS = 3;
 const NIGHT_TUBE_SET = new Set(['central', 'jubilee', 'northern', 'piccadilly', 'victoria']);
 
+function getLondonTime(): { day: number; hours: number } {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      weekday: 'short',
+      hour: 'numeric',
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(now);
+    const weekdayStr = parts.find(p => p.type === 'weekday')?.value;
+    const hourStr = parts.find(p => p.type === 'hour')?.value ?? '0';
+    const hours = parseInt(hourStr, 10);
+    const dayMap: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+    const day = weekdayStr ? (dayMap[weekdayStr] ?? now.getDay()) : now.getDay();
+    return { day, hours };
+  } catch {
+    const now = new Date();
+    return { day: now.getDay(), hours: now.getHours() };
+  }
+}
+
 function getStationNightTubeStatus(lineIds: string[]) {
   const hasNightTube = lineIds.some(id => NIGHT_TUBE_SET.has(id.toLowerCase()));
   if (!hasNightTube) return null;
 
-  const now = new Date();
-  const day = now.getDay();
-  const hours = now.getHours();
+  const { day, hours } = getLondonTime();
 
   if ((day === 6 || day === 0) && hours >= 0 && hours < 5) {
-    return { label: 'Running All Night', active: true };
+    return { label: '24h', active: true };
   }
   if ((day === 5 || day === 6) && hours >= 5) {
-    return { label: 'Night Tube Tonight', active: false };
+    return { label: '24h', active: false };
   }
   return null;
 }
@@ -78,6 +113,9 @@ function cleanPlatform(platform: string | null | undefined): string {
 export interface DepartureCardProps {
   stationId: string;
   stationName: string;
+  lines?: string[];
+  departures?: NormalizedDeparture[];
+  rightElement?: React.ReactNode;
   onLongPress?: () => void;
   onCardTap?: (stationId: string, stationName: string) => void;
   hideCard?: boolean;
@@ -88,12 +126,16 @@ export interface DepartureCardProps {
   onMoveUp?: (index: number) => void;
   onMoveDown?: (index: number) => void;
   totalStations?: number;
+  disabled?: boolean;
 }
 
 // ─── Main component ──────────────────────────────────────────────
 export const DepartureCard = memo(function DepartureCard({
   stationId,
   stationName,
+  lines,
+  departures,
+  rightElement,
   onLongPress,
   onCardTap,
   hideCard = false,
@@ -103,37 +145,132 @@ export const DepartureCard = memo(function DepartureCard({
   onMoveUp,
   onMoveDown,
   totalStations = 1,
+  disabled = false,
 }: DepartureCardProps) {
   const reducedMotion = useLiveReducedMotion();
   const reduceTransparency = useReduceTransparency();
-  const { arrivals, loading } = useStationArrivals(stationId, { enabled: true });
+  const { arrivals: storeArrivals, loading: storeLoading, error: storeError } = useStationArrivals(
+    stationId,
+    { enabled: !hideCard && departures === undefined }
+  );
 
-  const selectedLines = useUserPreferencesStore(useShallow(s => s.selectedLines || []));
+  const arrivals = departures !== undefined ? departures : storeArrivals;
+  const loading = departures !== undefined ? false : storeLoading;
+  const isError = departures !== undefined ? false : storeError;
 
-  const pressAnim = usePressAnimation('departure_card', false, isActive);
+  const selectedLinesFromPrefs = useUserPreferencesStore(s => s.selectedLines || []);
+  const selectedLinesFromOnboarding = useOnboardingStore(s => s.selectedLines || []);
+  const userSelectedLines = selectedLinesFromOnboarding.length > 0
+    ? selectedLinesFromOnboarding
+    : selectedLinesFromPrefs;
+
+  const lineStoreLines = useLineDataStore(s => s.lines);
+
+  const pressAnim = usePressAnimation('departure_card', disabled, isActive);
 
   // ── Derived values ───────────────────────────────────────────
-  const cleanName = String(stationName ?? '')
-    .replace(
-      /\s*(?:Underground Station|Elizabeth line Station|Overground Station|DLR Station|Rail Station|Station)$/i,
-      ''
-    )
-    .trim();
+  const cleanName = tflCapitalise(cleanDisplayStationName(String(stationName ?? '')));
 
   const visibleArrivals = useMemo(
-    () => getVisibleArrivals(arrivals, selectedLines),
-    [arrivals, selectedLines]
+    () => getVisibleArrivals(arrivals, userSelectedLines),
+    [arrivals, userSelectedLines]
   );
 
   const stationLines = useMemo(() => {
-    return arrivals.map(a => a.lineId.toLowerCase());
-  }, [arrivals]);
+    return (lines && lines.length > 0)
+      ? lines
+      : arrivals.map(a => a.lineId.toLowerCase());
+  }, [lines, arrivals]);
 
   const nightTubeStatus = useMemo(() => {
     return getStationNightTubeStatus(stationLines);
   }, [stationLines]);
 
   const displayArrivals = visibleArrivals.slice(0, MAX_ROWS);
+
+  // ── Empty state message resolution ────────────────────────────
+  const emptyStateMessage = useMemo(() => {
+    if (displayArrivals.length > 0 || loading) return null;
+
+    const selectedServing = stationLines.filter(l => userSelectedLines.includes(l));
+    const targetLines = selectedServing.length > 0 ? selectedServing : stationLines;
+
+    // 1. All closed (code 20 or 'service closed')
+    const allClosed = targetLines.length > 0 && targetLines.every(l => {
+      const lineData = lineStoreLines[l];
+      if (!lineData) return false;
+      const s = (lineData.status || '').toLowerCase().trim();
+      return lineData.status_severity === 20 || s === 'service closed';
+    });
+
+    if (allClosed) {
+      return 'Service closed';
+    }
+
+    // 2. Official TfL Disruption Status (e.g. Planned Closure, Part Suspended, Suspended)
+    const disruptedLine = targetLines.map(l => lineStoreLines[l]).find(ld => {
+      if (!ld) return false;
+      const s = (ld.status || '').toLowerCase().trim();
+      return ld.status_severity !== 10 && ld.status_severity !== 20 && s !== 'good service' && s !== 'service closed';
+    });
+
+    if (disruptedLine) {
+      return `${disruptedLine.name}: ${disruptedLine.status}`;
+    }
+
+    // 3. Network error with zero cache on cold start
+    if (isError) {
+      return 'Waiting for signal...';
+    }
+
+    // 4. Good service but 0 trains due
+    return 'No trains due';
+  }, [displayArrivals.length, loading, stationLines, userSelectedLines, lineStoreLines, isError]);
+
+  // ── Line Pills ────────────────────────────────────────────────
+  const renderLinePills = () => {
+    if (!stationLines || stationLines.length === 0) return null;
+
+    const sortedLines = [...stationLines].sort((a, b) => {
+      const aSelected = userSelectedLines.includes(a);
+      const bSelected = userSelectedLines.includes(b);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0;
+    });
+
+    const maxVisible = sortedLines.length === 4 ? 4 : 3;
+    const visibleLines = sortedLines.slice(0, maxVisible);
+    const overflowCount = Math.max(0, sortedLines.length - maxVisible);
+
+    return (
+      <View style={styles.pillsContainer}>
+        {visibleLines.map((lineId) => {
+          const shortName = LINE_SHORT_NAMES[lineId] || lineId;
+          const brandColor = LINE_IDENTITY_COLORS[lineId] || '#888';
+          const colors = getPillColors(lineId, brandColor);
+
+          return (
+            <View
+              key={lineId}
+              style={[styles.pillItem, { borderColor: colors.borderColor }]}
+              accessibilityLabel={`${shortName} line`}
+              accessibilityRole="text"
+            >
+              <View style={[styles.pillColorLayer, { backgroundColor: colors.backgroundColor }]} />
+              <View style={[styles.pillBar, { backgroundColor: colors.dotColor }]} />
+              <Text style={[styles.pillText, { color: colors.textColor }]}>{shortName}</Text>
+            </View>
+          );
+        })}
+        {overflowCount > 0 && (
+          <View style={styles.overflowBadge}>
+            <Text style={styles.overflowText}>+{overflowCount}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   // ── Search-collapse animation (hideCard prop) ─────────────────
   const collapseOpacity = useSharedValue(hideCard ? 0 : 1);
@@ -156,17 +293,19 @@ export const DepartureCard = memo(function DepartureCard({
 
   // ── Tap & Long-Press handlers ─────────────────────────────────
   const handlePress = () => {
+    if (disabled) return;
     pressAnim.onPress(() => {
       onCardTap?.(stationId, stationName);
     });
   };
 
   const handleBodyLongPress = () => {
+    if (disabled) return;
     if (drag) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
       drag();
     } else if (onLongPress) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
       onLongPress();
     }
   };
@@ -247,6 +386,7 @@ export const DepartureCard = memo(function DepartureCard({
           onLongPress={handleBodyLongPress}
           onPressIn={() => pressAnim.onPressIn()}
           onPressOut={() => pressAnim.onPressOut()}
+          disabled={disabled}
           accessibilityRole="adjustable"
           accessibilityLabel={`Station ${cleanName}`}
           accessibilityHint="Long-press and drag to reorder, or swipe left to delete"
@@ -259,7 +399,7 @@ export const DepartureCard = memo(function DepartureCard({
             if (event.nativeEvent.actionName === 'increment') {
               if (index > 0) {
                 onMoveUp?.(index);
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                 AccessibilityInfo.announceForAccessibility(
                   `${cleanName} moved up to position ${index} of ${totalStations}`
                 );
@@ -267,7 +407,7 @@ export const DepartureCard = memo(function DepartureCard({
             } else if (event.nativeEvent.actionName === 'decrement') {
               if (index < totalStations - 1) {
                 onMoveDown?.(index);
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
                 AccessibilityInfo.announceForAccessibility(
                   `${cleanName} moved down to position ${index + 2} of ${totalStations}`
                 );
@@ -279,10 +419,18 @@ export const DepartureCard = memo(function DepartureCard({
         >
           {/* Station header */}
           <View style={styles.headerRow}>
-            <Text style={styles.stationName} numberOfLines={1} ellipsizeMode="tail">
+            <Text
+              style={styles.stationName}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.75}
+            >
               {cleanName}
             </Text>
-            {nightTubeStatus ? (
+            {renderLinePills()}
+            <View style={styles.headerSpacer} />
+            {rightElement ? (
+              <View style={styles.rightContainer}>{rightElement}</View>
+            ) : nightTubeStatus ? (
               <View style={styles.nightTubeCapsule}>
                 <Text style={styles.nightTubeMoon}>🌙</Text>
                 <Text style={styles.nightTubeCapsuleText}>{nightTubeStatus.label}</Text>
@@ -297,47 +445,51 @@ export const DepartureCard = memo(function DepartureCard({
           {loading ? (
             <Text style={styles.loadingText}>...</Text>
           ) : displayArrivals.length === 0 ? (
-            <Text style={styles.emptyText}>No upcoming departures</Text>
+            <View style={styles.emptyContainer} testID="departure-card-empty">
+              <Text style={styles.emptyText}>{emptyStateMessage}</Text>
+            </View>
           ) : (
-            displayArrivals.map((arr, idx) => {
-              const isDue = arr.minutesAway <= 0;
-              const timeText = isDue ? 'Due' : `${arr.minutesAway} min`;
-              const platform = cleanPlatform(arr.platform);
+            <View testID="ledger-table">
+              {displayArrivals.map((arr, idx) => {
+                const isDue = arr.minutesAway <= 0;
+                const timeText = isDue ? 'Due' : `${arr.minutesAway} min`;
+                const platform = cleanPlatform(arr.platform);
 
-              return (
-                <View key={`${arr.lineId}-${idx}`} style={styles.arrivalRow} testID={`departure-row-${idx}`}>
-                  <View
-                    style={[
-                      styles.lineBar,
-                      { backgroundColor: arr.lineColor },
-                      (arr.lineId === 'northern' || arr.lineColor === '#000000') && {
-                        borderWidth: 0.5,
-                        borderColor: NORTHERN_SHADES.highlightBorder,
-                      },
-                    ]}
-                  />
-                  <Text style={styles.arrLineName} numberOfLines={1}>
-                    {arr.lineName}
-                  </Text>
-                  <View style={styles.destPlatform}>
-                    <Text style={styles.arrDest} numberOfLines={1}>
-                      {cleanDestinationName(arr.destination)}
-                      {arr.via ? (
-                        <Text style={styles.arrVia}> {arr.via}</Text>
-                      ) : null}
+                return (
+                  <View key={`${arr.lineId}-${idx}`} style={styles.arrivalRow} testID={`departure-row-${idx}`}>
+                    <View
+                      style={[
+                        styles.lineBar,
+                        { backgroundColor: arr.lineColor },
+                        (arr.lineId === 'northern' || arr.lineColor === '#000000') && {
+                          borderWidth: 0.5,
+                          borderColor: NORTHERN_SHADES.highlightBorder,
+                        },
+                      ]}
+                    />
+                    <Text style={styles.arrLineName} numberOfLines={1}>
+                      {arr.lineName}
                     </Text>
-                    {platform ? (
-                      <Text style={styles.arrPlatform} numberOfLines={1}>
-                        {platform}
+                    <View style={styles.destPlatform}>
+                      <Text style={styles.arrDest} numberOfLines={1}>
+                        {cleanDestinationName(arr.destination)}
+                        {arr.via ? (
+                          <Text style={styles.arrVia}> {arr.via}</Text>
+                        ) : null}
                       </Text>
-                    ) : null}
+                      {platform ? (
+                        <Text style={styles.arrPlatform} numberOfLines={1}>
+                          {platform}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={[styles.arrTime, isDue && styles.arrTimeDue, DUE_TIME_STYLE]} numberOfLines={1}>
+                      {timeText}
+                    </Text>
                   </View>
-                  <Text style={[styles.arrTime, isDue && styles.arrTimeDue, DUE_TIME_STYLE]} numberOfLines={1}>
-                    {timeText}
-                  </Text>
-                </View>
-              );
-            })
+                );
+              })}
+            </View>
           )}
         </Pressable>
       </Animated.View>
@@ -354,6 +506,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'visible',
     position: 'relative',
+    marginBottom: 12,
   },
   innerGlass: {
     width: '100%',
@@ -380,15 +533,67 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 20,
+    minHeight: 22,
   },
   stationName: {
-    fontSize: 13.5,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_700Bold',
     letterSpacing: -0.1,
-    color: 'rgba(255, 255, 255, 0.95)',
+    color: '#FFFFFF',
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  headerSpacer: {
     flex: 1,
+  },
+  rightContainer: {
+    flexShrink: 0,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
+  },
+  pillItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    position: 'relative',
+  },
+  pillColorLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pillBar: {
+    width: 2,
+    height: 8,
+    borderRadius: 0.8,
+  },
+  pillText: {
+    fontSize: 9,
+    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
+  overflowBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overflowText: {
+    fontSize: 8,
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   nightTubeCapsule: {
     flexDirection: 'row',
@@ -424,11 +629,16 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     paddingVertical: 4,
   },
+  emptyContainer: {
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyText: {
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontSize: 13,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    paddingVertical: 4,
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontSize: 12.5,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    textAlign: 'center',
   },
   arrivalRow: {
     flexDirection: 'row',
@@ -474,6 +684,7 @@ const styles = StyleSheet.create({
   arrTime: {
     fontSize: 13,
     fontFamily: 'SpaceGrotesk_700Bold',
+    fontVariant: ['tabular-nums'],
     color: 'rgba(255, 255, 255, 0.95)',
     minWidth: 44,
     textAlign: 'right',

@@ -132,14 +132,6 @@ export function StationCard({
       ? 'error'
       : (departures !== undefined ? 'success' : fetchStatus);
 
-    if (effectiveStatus === 'error') {
-      return "Couldn't load arrivals";
-    }
-
-    if (effectiveStatus === 'loading') {
-      return "Loading arrivals...";
-    }
-
     // Check if serving lines are closed (strictly code 20 or "Service Closed")
     const selectedServing = station.lines.filter(l => userSelectedLines.includes(l));
     const targetLines = selectedServing.length > 0 ? selectedServing : station.lines;
@@ -153,6 +145,24 @@ export function StationCard({
 
     if (allClosed) {
       return "Service closed";
+    }
+
+    const disruptedLine = targetLines.map(l => lineStoreLines[l]).find(ld => {
+      if (!ld) return false;
+      const s = (ld.status || '').toLowerCase().trim();
+      return ld.status_severity !== 10 && ld.status_severity !== 20 && s !== 'good service' && s !== 'service closed';
+    });
+
+    if (disruptedLine) {
+      return `${disruptedLine.name}: ${disruptedLine.status}`;
+    }
+
+    if (effectiveStatus === 'error') {
+      return "Waiting for signal...";
+    }
+
+    if (effectiveStatus === 'loading') {
+      return "Loading arrivals...";
     }
 
     if (effectiveStatus === 'success') {

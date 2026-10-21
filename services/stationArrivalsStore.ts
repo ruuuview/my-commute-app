@@ -7,6 +7,7 @@ export const FRESH_MS = 20_000;
 export interface CachedArrivalEntry {
   departures: NormalizedDeparture[];
   fetchedAt: number;
+  error?: boolean;
 }
 
 // Module-level hoisted cache surviving component mount/unmount across mode switches
@@ -26,6 +27,7 @@ export function setCachedArrivals(stationId: string, departures: NormalizedDepar
   arrivalsStore.set(stationId, {
     departures,
     fetchedAt: Date.now(),
+    error: false,
   });
   const listeners = activeListeners.get(stationId);
   if (listeners) {
@@ -119,6 +121,17 @@ export async function fetchOnce(
     } catch (err) {
       if (!signal?.aborted) {
         console.log('[stationArrivalsStore] fetch error for', stationId, err);
+        if (!existing) {
+          arrivalsStore.set(stationId, {
+            departures: [],
+            fetchedAt: Date.now(),
+            error: true,
+          });
+          const listeners = activeListeners.get(stationId);
+          if (listeners) {
+            listeners.forEach(cb => cb([]));
+          }
+        }
       }
       return existing?.departures ?? [];
     } finally {
@@ -208,8 +221,8 @@ export function subscribeToStation(
 
 export function useStationArrivals(stationId: string, options?: UseStationArrivalsOptions) {
   const enabled = options?.enabled ?? true;
-  const [arrivals, setArrivals] = useState<NormalizedDeparture[] | undefined>(() =>
-    arrivalsStore.get(stationId)?.departures
+  const [entry, setEntry] = useState<CachedArrivalEntry | undefined>(() =>
+    arrivalsStore.get(stationId)
   );
 
   // Sync state if another instance or background refresh updated store
@@ -219,8 +232,8 @@ export function useStationArrivals(stationId: string, options?: UseStationArriva
       listeners = new Set();
       activeListeners.set(stationId, listeners);
     }
-    const updateHandler = (newArrivals: NormalizedDeparture[]) => {
-      setArrivals(newArrivals);
+    const updateHandler = () => {
+      setEntry(arrivalsStore.get(stationId));
     };
     listeners.add(updateHandler);
 
@@ -251,8 +264,9 @@ export function useStationArrivals(stationId: string, options?: UseStationArriva
   }, [enabled, executeFetch, stationId]);
 
   return {
-    arrivals: arrivals ?? [],
-    loading: arrivals === undefined,
+    arrivals: entry?.departures ?? [],
+    loading: entry === undefined,
+    error: entry?.error ?? false,
     refetch: () => executeFetch(undefined, true),
   };
 }

@@ -1268,21 +1268,8 @@ export default function SettingsScreen() {
         onClose={() => setShowDiagnosticsModal(false)}
         onResetOnboarding={() => {
           setShowDiagnosticsModal(false);
-          Alert.alert(
-            'Reset Onboarding',
-            'Are you sure? This clears your saved lines and stations.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Reset',
-                style: 'destructive',
-                onPress: () => {
-                  resetOnboarding();
-                  router.back();
-                },
-              },
-            ]
-          );
+          resetOnboarding();
+          router.back();
         }}
       />
     </View>

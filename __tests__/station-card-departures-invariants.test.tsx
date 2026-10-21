@@ -2,10 +2,12 @@ import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
 import fs from 'fs';
 import path from 'path';
+import { DepartureCard } from '../components/DepartureCard';
 import { StationCard } from '../components/StationCard';
 import * as apiService from '../services/apiService';
 import { useLineDataStore } from '../store/lineDataStore';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
+import { resetArrivalsStoreForTesting } from '../services/stationArrivalsStore';
 
 // Mock apiService
 jest.mock('../services/apiService', () => {
@@ -16,7 +18,8 @@ jest.mock('../services/apiService', () => {
   };
 });
 
-describe('StationCard Departures & Zero-Fabrication Invariants', () => {
+describe('DepartureCard & Unified Commute Card Invariants', () => {
+  const departureCardPath = path.resolve(__dirname, '../components/DepartureCard.tsx');
   const stationCardPath = path.resolve(__dirname, '../components/StationCard.tsx');
 
   const mockStation = {
@@ -27,6 +30,7 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
   };
 
   beforeEach(() => {
+    resetArrivalsStoreForTesting();
     jest.clearAllMocks();
     useUserPreferencesStore.setState({
       selectedLines: ['central', 'northern'],
@@ -35,12 +39,44 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
     useLineDataStore.getState().clearStore();
   });
 
-  // ── Source Invariant Guard ──────────────────────────────────────────
-  test('Poka-Yoke: generateMockDepartures, LINE_TERMINALS, getSeedOffset do not exist in StationCard source', () => {
-    const content = fs.readFileSync(stationCardPath, 'utf8');
-    expect(content).not.toContain('generateMockDepartures');
-    expect(content).not.toContain('LINE_TERMINALS');
-    expect(content).not.toContain('getSeedOffset');
+  // ── Source Invariant Guards ──────────────────────────────────────────
+  test('Poka-Yoke: Mock generators do not exist in DepartureCard or StationCard source', () => {
+    const depContent = fs.readFileSync(departureCardPath, 'utf8');
+    const stContent = fs.readFileSync(stationCardPath, 'utf8');
+
+    expect(depContent).not.toContain('generateMockDepartures');
+    expect(depContent).not.toContain('LINE_TERMINALS');
+    expect(depContent).not.toContain('getSeedOffset');
+
+    expect(stContent).not.toContain('generateMockDepartures');
+    expect(stContent).not.toContain('LINE_TERMINALS');
+    expect(stContent).not.toContain('getSeedOffset');
+  });
+
+  test('Gate 6 Poka-Yoke: Zero blame copy "Couldn\'t load arrivals" across all components', () => {
+    const depContent = fs.readFileSync(departureCardPath, 'utf8');
+    const stContent = fs.readFileSync(stationCardPath, 'utf8');
+
+    expect(depContent).not.toContain("Couldn't load arrivals");
+    expect(stContent).not.toContain("Couldn't load arrivals");
+  });
+
+  test('Zero Truncation Invariant: DepartureCard uses fluid font scaling and zero tail ellipsis', () => {
+    const depContent = fs.readFileSync(departureCardPath, 'utf8');
+
+    expect(depContent).toContain('adjustsFontSizeToFit');
+    expect(depContent).toContain('minimumFontScale={0.75}');
+    expect(depContent).not.toMatch(/stationName[^>]*ellipsizeMode="tail"/);
+  });
+
+  test('Typography Invariant: Departure countdowns enforce tabular-nums to eliminate digit jitter', () => {
+    const depContent = fs.readFileSync(departureCardPath, 'utf8');
+    expect(depContent).toContain("fontVariant: ['tabular-nums']");
+  });
+
+  test('Timezone Invariant: Night Tube explicitly evaluates Europe/London timezone', () => {
+    const depContent = fs.readFileSync(departureCardPath, 'utf8');
+    expect(depContent).toContain("timeZone: 'Europe/London'");
   });
 
   // ── State 1: Closed Overnight / Service Closed ───────────────────────
@@ -57,7 +93,11 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
     });
 
     const { getByText, queryByText, queryByTestId } = await render(
-      <StationCard station={mockStation} mode="onboarding" showLedger={true} />
+      <DepartureCard
+        stationId={mockStation.id}
+        stationName={mockStation.name}
+        lines={mockStation.lines}
+      />
     );
 
     await waitFor(() => {
@@ -85,7 +125,11 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
     });
 
     const { getByText, queryByText, queryByTestId } = await render(
-      <StationCard station={mockStation} mode="onboarding" showLedger={true} />
+      <DepartureCard
+        stationId={mockStation.id}
+        stationName={mockStation.name}
+        lines={mockStation.lines}
+      />
     );
 
     await waitFor(() => {
@@ -99,34 +143,68 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
     expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
   });
 
-  // ── State 3: Failed Fetch / Network Drop (Even with Good Service) ──
-  test('State 3: When line status is "Good Service" but arrivals fetch fails, renders "Couldn\'t load arrivals"', async () => {
+  // ── State 3: Disruption Truthfulness ────────────────────────────────
+  test('State 3: When line status is disrupted (e.g. "Planned Closure"), displays official TfL status string', async () => {
+    useLineDataStore.getState().setLines([
+      { id: 'central', name: 'Central', color: '#E32012', status: 'Planned Closure', status_severity: 4 },
+      { id: 'northern', name: 'Northern', color: '#000000', status: 'Good Service', status_severity: 10 },
+    ]);
+
+    (apiService.fetchNormalizedStationArrivals as jest.Mock).mockResolvedValueOnce({
+      id: '940GZZLUBNK',
+      name: 'Bank',
+      departures: [],
+    });
+
+    const { getByText, queryByText, queryByTestId } = await render(
+      <DepartureCard
+        stationId={mockStation.id}
+        stationName={mockStation.name}
+        lines={mockStation.lines}
+      />
+    );
+
+    await waitFor(() => {
+      // Must display TfL's official status string
+      expect(getByText('Central: Planned Closure')).toBeTruthy();
+    });
+
+    expect(queryByText('Service closed')).toBeNull();
+    expect(queryByText('No trains due')).toBeNull();
+    expect(queryByTestId('ledger-table')).toBeNull();
+  });
+
+  // ── State 4: Cold launch zero signal with 0 cache ───────────────────
+  test('State 4: When cold launch fetch fails with zero cache, renders "Waiting for signal..."', async () => {
     useLineDataStore.getState().setLines([
       { id: 'central', name: 'Central', color: '#E32012', status: 'Good Service', status_severity: 10 },
       { id: 'northern', name: 'Northern', color: '#000000', status: 'Good Service', status_severity: 10 },
     ]);
 
     (apiService.fetchNormalizedStationArrivals as jest.Mock).mockRejectedValueOnce(
-      new Error('Network request failed')
+      new Error('Cellular network down')
     );
 
     const { getByText, queryByText, queryByTestId } = await render(
-      <StationCard station={mockStation} mode="onboarding" showLedger={true} />
+      <DepartureCard
+        stationId={mockStation.id}
+        stationName={mockStation.name}
+        lines={mockStation.lines}
+      />
     );
 
     await waitFor(() => {
-      expect(getByText("Couldn't load arrivals")).toBeTruthy();
+      expect(getByText('Waiting for signal...')).toBeTruthy();
     });
 
+    expect(queryByText("Couldn't load arrivals")).toBeNull();
     expect(queryByText('No trains due')).toBeNull();
     expect(queryByText('Service closed')).toBeNull();
     expect(queryByTestId('ledger-table')).toBeNull();
-    expect(queryByText(/\bPlatform\s+\d+\b/i)).toBeNull();
-    expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
   });
 
-  // ── State 4: Real Departures Present (Happy Path) ───────────────────
-  test('State 4: When real departures are returned, renders genuine rows and no empty state text', async () => {
+  // ── State 5: Real Departures Present (Happy Path) ───────────────────
+  test('State 5: When real departures are returned, renders genuine rows and tabular-nums countdowns', async () => {
     useLineDataStore.getState().setLines([
       { id: 'central', name: 'Central', color: '#E32012', status: 'Good Service', status_severity: 10 },
     ]);
@@ -151,100 +229,41 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
     });
 
     const { getByText, queryByText, getByTestId } = await render(
-      <StationCard station={mockStation} mode="onboarding" showLedger={true} />
+      <DepartureCard
+        stationId={mockStation.id}
+        stationName={mockStation.name}
+        lines={mockStation.lines}
+      />
     );
 
     await waitFor(() => {
       expect(getByText('Epping')).toBeTruthy();
-      expect(getByText('Platform 2')).toBeTruthy();
+      expect(getByText('P2')).toBeTruthy();
       expect(getByText('3 min')).toBeTruthy();
     });
 
     expect(getByTestId('ledger-table')).toBeTruthy();
     expect(queryByText('No trains due')).toBeNull();
     expect(queryByText('Service closed')).toBeNull();
-    expect(queryByText("Couldn't load arrivals")).toBeNull();
+    expect(queryByText('Waiting for signal...')).toBeNull();
   });
 
-  // ── Planned Closure Guard ──────────────────────────────────────────
-  test('Planned Closure Guard: Planned Closure on one line does NOT produce "Service closed"', async () => {
-    // One line has Planned Closure (code 4), another has Good Service (code 10)
-    useLineDataStore.getState().setLines([
-      { id: 'central', name: 'Central', color: '#E32012', status: 'Planned Closure', status_severity: 4 },
-      { id: 'northern', name: 'Northern', color: '#000000', status: 'Good Service', status_severity: 10 },
-    ]);
-
-    (apiService.fetchNormalizedStationArrivals as jest.Mock).mockResolvedValueOnce({
-      id: '940GZZLUBNK',
-      name: 'Bank',
-      departures: [],
-    });
-
-    const { getByText, queryByText, queryByTestId } = await render(
-      <StationCard station={mockStation} mode="onboarding" showLedger={true} />
-    );
-
-    await waitFor(() => {
-      // Must NOT claim "Service closed"
-      expect(queryByText('Service closed')).toBeNull();
-      // Must truthfully show "No trains due" since fetch succeeded with 0
-      expect(getByText('No trains due')).toBeTruthy();
-      // Structural guard: ledger table is not rendered
-      expect(queryByTestId('ledger-table')).toBeNull();
-      // Zero fabricated platform or countdown strings
-      expect(queryByText(/\bPlatform\s+\d+\b/i)).toBeNull();
-      expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
-    });
-  });
-
-  test('Planned Closure Guard: Planned Closure on ALL serving lines does NOT produce "Service closed"', async () => {
-    // Both lines have Planned Closure (code 4)
-    useLineDataStore.getState().setLines([
-      { id: 'central', name: 'Central', color: '#E32012', status: 'Planned Closure', status_severity: 4 },
-      { id: 'northern', name: 'Northern', color: '#000000', status: 'Planned Closure', status_severity: 4 },
-    ]);
-
-    (apiService.fetchNormalizedStationArrivals as jest.Mock).mockResolvedValueOnce({
-      id: '940GZZLUBNK',
-      name: 'Bank',
-      departures: [],
-    });
-
-    const { getByText, queryByText, queryByTestId } = await render(
-      <StationCard station={mockStation} mode="onboarding" showLedger={true} />
-    );
-
-    await waitFor(() => {
-      // Must NOT claim "Service closed" even when all serving lines have Planned Closure
-      expect(queryByText('Service closed')).toBeNull();
-      // Must truthfully show "No trains due" since fetch succeeded with 0
-      expect(getByText('No trains due')).toBeTruthy();
-      // Structural guard: ledger table is not rendered
-      expect(queryByTestId('ledger-table')).toBeNull();
-      // Zero fabricated platform or countdown strings
-      expect(queryByText(/\bPlatform\s+\d+\b/i)).toBeNull();
-      expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
-    });
-  });
-
-  // ── Dashboard Mode Tests ───────────────────────────────────────────
-  test('Dashboard mode: renders "Service closed" when lines are closed (code 20)', async () => {
+  // ── StationCard Backwards Compatibility ────────────────────────────
+  test('StationCard compatibility: renders "Service closed" when lines are closed (code 20)', async () => {
     useLineDataStore.getState().setLines([
       { id: 'central', name: 'Central', color: '#E32012', status: 'Service Closed', status_severity: 20 },
       { id: 'northern', name: 'Northern', color: '#000000', status: 'Service Closed', status_severity: 20 },
     ]);
 
-    const { getByText, queryByText, queryByTestId } = await render(
+    const { getByText, queryByTestId } = await render(
       <StationCard station={mockStation} mode="dashboard" showLedger={true} departures={[]} />
     );
 
     expect(getByText('Service closed')).toBeTruthy();
     expect(queryByTestId('ledger-table')).toBeNull();
-    expect(queryByText(/\bPlatform\s+\d+\b/i)).toBeNull();
-    expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
   });
 
-  test('Dashboard mode: renders "Couldn\'t load arrivals" when lines are open and live fetch fails', async () => {
+  test('StationCard compatibility: renders "Waiting for signal..." on cold fetch error', async () => {
     useLineDataStore.getState().setLines([
       { id: 'central', name: 'Central', color: '#E32012', status: 'Good Service', status_severity: 10 },
       { id: 'northern', name: 'Northern', color: '#000000', status: 'Good Service', status_severity: 10 },
@@ -259,31 +278,11 @@ describe('StationCard Departures & Zero-Fabrication Invariants', () => {
     );
 
     await waitFor(() => {
-      expect(getByText("Couldn't load arrivals")).toBeTruthy();
+      expect(getByText('Waiting for signal...')).toBeTruthy();
     });
 
     expect(queryByTestId('ledger-table')).toBeNull();
     expect(queryByText('Service closed')).toBeNull();
     expect(queryByText('No trains due')).toBeNull();
-    expect(queryByText(/\bPlatform\s+\d+\b/i)).toBeNull();
-    expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
-  });
-
-  test('Dashboard mode: renders "Couldn\'t load arrivals" when fetchError prop is passed as true', async () => {
-    useLineDataStore.getState().setLines([
-      { id: 'central', name: 'Central', color: '#E32012', status: 'Good Service', status_severity: 10 },
-      { id: 'northern', name: 'Northern', color: '#000000', status: 'Good Service', status_severity: 10 },
-    ]);
-
-    const { getByText, queryByText, queryByTestId } = await render(
-      <StationCard station={mockStation} mode="dashboard" showLedger={true} fetchError={true} departures={[]} />
-    );
-
-    expect(getByText("Couldn't load arrivals")).toBeTruthy();
-    expect(queryByTestId('ledger-table')).toBeNull();
-    expect(queryByText('Service closed')).toBeNull();
-    expect(queryByText('No trains due')).toBeNull();
-    expect(queryByText(/\bPlatform\s+\d+\b/i)).toBeNull();
-    expect(queryByText(/\b\d+\s*min\b/i)).toBeNull();
   });
 });

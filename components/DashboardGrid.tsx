@@ -95,6 +95,7 @@ export default function DashboardGrid({
             <DepartureCard
               stationId={item.id}
               stationName={item.name}
+              lines={item.lines}
               onCardTap={handleCardTap}
               index={index}
               isActive={isActive}

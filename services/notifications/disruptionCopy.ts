@@ -27,9 +27,9 @@ export function formatDisruptionNotificationBody(opts: DisruptionBodyInput): str
   // Strip accidental outer parentheses or trailing spaces
   let cleanCause = rawCause.replace(/^\(/, '').replace(/\)$/, '').trim();
 
-  // Strip redundant leading line prefix (e.g. "Northern Line: " or "Northern line - ")
-  // to prevent clumsy repetition when the line name is already in the notification title
-  cleanCause = cleanCause.replace(/^[a-z0-9\s&-]+line\s*[:-]\s*/i, '').trim();
+  // Strip redundant leading line prefix (e.g. "Northern Line: ", "Piccadilly Line: ",
+  // or "Docklands Light Railway: ") to prevent clumsy repetition when line name is in title
+  cleanCause = cleanCause.replace(/^(?:[a-z0-9\s&-]+line|docklands\s+light\s+railway|dlr)\s*[:-]\s*/i, '').trim();
 
   let body: string;
   const causeLower = cleanCause.toLowerCase();

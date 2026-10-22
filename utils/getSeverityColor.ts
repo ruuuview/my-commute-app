@@ -14,6 +14,8 @@
 // Severity colors (app-wide canonical values):
 //   good #30D158 · minor #FFB000 · severe #FF3B30
 
+import severityColorsData from '../constants/severityColors.json';
+
 export type Severity = 'good' | 'minor' | 'severe';
 
 export interface SeverityColor {
@@ -22,9 +24,9 @@ export interface SeverityColor {
 }
 
 export const STATUS_SEVERITY_COLORS: Record<Severity, string> = {
-  good: '#30D158',
-  minor: '#FFB000',
-  severe: '#FF3B30',
+  good: severityColorsData.good,
+  minor: severityColorsData.minor,
+  severe: severityColorsData.severe,
 };
 
 const TFL_CODE_TO_SEVERITY: Record<number, Severity> = {

@@ -189,7 +189,7 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       expect(payload.detourLine).toBeUndefined();
       expect(payload.severityTier).toBe(2);
       expect(payload.statusSeverity).toBe('severe_delays');
-      expect(payload.statusText).toBe('Preview: Severe Delays');
+      expect(payload.statusText).toBe('Severe Delays');
       expect(payload.lineId).toBe('piccadilly');
       expect(payload.lineName).toBe('Piccadilly');
       expect(payload.stationId).toBe('preview_disruption');
@@ -208,19 +208,20 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       await LiveActivityService.stopPreviewActivity();
     });
 
-    it('guarantees Swift DeliveryTrackView intercepts severityTier >= 2 to render disruptionView', () => {
+    it('guarantees Swift DeliveryTrackView intercepts severityTier >= 2 to render disruptionView without preview developer copy', () => {
       const swiftPath = path.resolve(__dirname, '../targets/MyCommuteWidget/DeliveryTrackView.swift');
       const src = fs.readFileSync(swiftPath, 'utf8');
       expect(src).toMatch(/if\s+state\.severityTier\s*>=\s*2\s*\{\s*disruptionView\s*\}/);
       expect(src).toMatch(/private\s+var\s+disruptionView:\s+some\s+View/);
-      expect(src).toMatch(/shushPreviewFooter/);
-      expect(src).toMatch(/state\.statusText\.hasPrefix\("Preview: "\)/);
+      expect(src).not.toMatch(/shushPreviewFooter/);
+      expect(src).not.toMatch(/hasPrefix\("Preview: "\)/);
     });
 
-    it('guarantees Swift CompactIslandView displays "Delays" text when severityTier >= 2', () => {
+    it('guarantees Swift CompactIslandView displays dynamic status label from approved TfL table', () => {
       const liveActivitySwiftPath = path.resolve(__dirname, '../targets/MyCommuteWidget/MyCommuteLiveActivity.swift');
       const src = fs.readFileSync(liveActivitySwiftPath, 'utf8');
-      expect(src).toMatch(/if\s+context\.state\.severityTier\s*>=\s*2\s*\{\s*Text\("Delays"\)/);
+      expect(src).toMatch(/compactStatusLabel/);
+      expect(src).toMatch(/Text\(label\)/);
     });
   });
 });

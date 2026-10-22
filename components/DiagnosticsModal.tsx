@@ -43,6 +43,8 @@ import { LiveActivityService } from '../services/LiveActivityService';
 import { handleGoodServiceRecovery } from '../services/GoodServiceRecovery';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useReduceTransparency } from '../hooks/useReduceTransparency';
+import { LINE_NAMES } from '../constants/lineColors';
+import { useLineDataStore } from '../store/lineDataStore';
 
 let isNativeGlassAvailable = false;
 try {
@@ -75,7 +77,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
   const shushPreferences = useUserPreferencesStore((s) => s.shushPreferences);
   const setShushActivation = useUserPreferencesStore((s) => s.setShushActivation);
   const primaryLineId = (selectedLines && selectedLines[0]) || 'piccadilly';
-  const primaryLineName = primaryLineId.charAt(0).toUpperCase() + primaryLineId.slice(1);
+  const primaryLineName = LINE_NAMES[primaryLineId] || (primaryLineId === 'dlr' ? 'DLR' : primaryLineId.charAt(0).toUpperCase() + primaryLineId.slice(1));
 
   const [geofenceInfo, setGeofenceInfo] = useState<{
     active: boolean;
@@ -338,11 +340,15 @@ export const DiagnosticsModal: React.FC<Props> = ({
       text: `Spawning ${primaryLineName} Shush card...`,
     });
 
+    const lineData = useLineDataStore.getState().lines[primaryLineId];
+    const disruptionReason = lineData?.reason;
+
     const activityId = await LiveActivityService.startPreviewActivity({
       lineId: primaryLineId,
       lineName: primaryLineName,
       isDisruption: true,
       durationSeconds: 45,
+      disruptionReason,
     });
 
     if (!activityId) {

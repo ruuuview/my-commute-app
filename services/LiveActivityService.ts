@@ -39,6 +39,7 @@ import MyCommuteLiveActivityModuleDefault, {
 import { track } from './analyticsService';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
+import { formatDisruptionNotificationBody } from './notifications/disruptionCopy';
 
 export interface SavedLinePayload {
   id: string;   // Canonical TfL line ID slug (e.g. 'jubilee', 'elizabeth')
@@ -263,10 +264,11 @@ export class LiveActivityService {
     // Shush Mode Severity Classification (Section 8)
     let severityTier = 0;
     let statusSeverity: 'good' | 'minor_delays' | 'severe_delays' | 'suspended' = 'good';
+    const statusDescription = disruption?.description || (isDisrupted ? 'Severe Delays' : 'Good Service');
 
     if (isDisrupted) {
-      const desc = (disruption?.description || '').toLowerCase();
-      if (desc.includes('suspended') || desc.includes('closure') || desc.includes('no service')) {
+      const desc = statusDescription.toLowerCase();
+      if (desc.includes('suspended') || desc.includes('closure') || desc.includes('no service') || desc.includes('closed')) {
         severityTier = 3;
         statusSeverity = 'suspended';
       } else if (desc.includes('severe') || desc.includes('part suspended')) {
@@ -278,11 +280,13 @@ export class LiveActivityService {
       }
     }
 
-    const rawStatusText = isDisrupted
-      ? `${disruption?.description || 'Minor Delays'}${disruption?.reason ? ` — ${disruption.reason}` : ''}`
+    // Format disruption copy via single shared formatter (zero arbitrary 60-char cuts)
+    const statusText = isDisrupted
+      ? formatDisruptionNotificationBody({
+          statusDescription,
+          cause: disruption?.reason,
+        })
       : 'Good Service';
-    // Max 60 chars per APNs payload limit (Section 6.1)
-    const statusText = rawStatusText.length > 60 ? `${rawStatusText.slice(0, 57)}...` : rawStatusText;
 
     const nextTrainMinutes = Math.max(0, Math.round(arrivals[0].timeToStationSeconds / 60));
     const nowUnix = Math.floor(Date.now() / 1000);
@@ -754,6 +758,8 @@ export class LiveActivityService {
     lineName?: string;
     isDisruption?: boolean;
     durationSeconds?: number;
+    statusText?: string;
+    disruptionReason?: string;
   }): Promise<string | null> {
     if (!__DEV__) {
       console.warn('[LiveActivityService] Preview activities are disabled in production builds.');
@@ -776,6 +782,10 @@ export class LiveActivityService {
     const duration = opts?.durationSeconds ?? 45;
 
     const nowSec = Math.floor(Date.now() / 1000);
+    const statusText = opts?.statusText ?? formatDisruptionNotificationBody({
+      statusDescription: 'Severe Delays',
+      cause: opts?.disruptionReason,
+    });
 
     const previewPayload: LiveActivityBridgePayload = isDisruption
       ? {
@@ -786,7 +796,7 @@ export class LiveActivityService {
           branchKnown: false,
           arrivals: [],
           statusSeverity: 'severe_delays',
-          statusText: 'Preview: Severe Delays',
+          statusText,
           severityTier: 2,
           isDisrupted: true,
           isEscalated: false,

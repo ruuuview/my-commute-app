@@ -121,15 +121,23 @@ private struct ArrivalRow: View {
   }
 
   private func lineName(for id: String) -> String {
+    let norm = id.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    if norm == "dlr" { return "DLR" }
     // Map canonical id -> display "Northern" etc. for the branch-unknown fallback.
     let map: [String: String] = [
       "bakerloo": "Bakerloo", "central": "Central", "circle": "Circle",
-      "district": "District", "elizabeth": "Elizabeth", "hammersmith": "Hammersmith",
+      "district": "District", "dlr": "DLR", "elizabeth": "Elizabeth",
+      "hammersmith": "Hammersmith & City", "hammersmithcity": "Hammersmith & City",
+      "hammersmith-city": "Hammersmith & City",
       "jubilee": "Jubilee", "metropolitan": "Metropolitan", "northern": "Northern",
-      "piccadilly": "Piccadilly", "victoria": "Victoria", "waterlooandcity": "Waterloo",
-      "overground": "Overground"
+      "piccadilly": "Piccadilly", "victoria": "Victoria",
+      "waterlooandcity": "Waterloo & City", "waterloocity": "Waterloo & City",
+      "waterloo-city": "Waterloo & City",
+      "overground": "Overground", "liberty": "Liberty", "lioness": "Lioness",
+      "mildmay": "Mildmay", "suffragette": "Suffragette", "weaver": "Weaver",
+      "windrush": "Windrush"
     ]
-    return map[id.lowercased()] ?? id.capitalized
+    return map[norm] ?? id.capitalized
   }
 
   var body: some View {
@@ -170,6 +178,7 @@ struct MyCommuteLiveActivityWidget: Widget {
     ActivityConfiguration(for: MyCommuteLiveActivityAttributes.self) { context in
       // ---- Lock Screen / Standby (expanded) ----
       LockScreenView(context: context)
+        .activityBackgroundTint(Color.clear)
     } dynamicIsland: { context in
       // ---- Dynamic Island ----
       DynamicIsland {
@@ -203,6 +212,70 @@ struct MyCommuteLiveActivityWidget: Widget {
   }
 }
 
+// MARK: - Canonical TfL Status Abbreviation Table (Rule: Zero Truncation)
+
+func compactStatusLabel(for rawStatus: String) -> String? {
+  let cleaned = rawStatus.trimmingCharacters(in: .whitespacesAndNewlines)
+  let statusKey: String
+  if let openParen = cleaned.range(of: " (") {
+    statusKey = String(cleaned[..<openParen.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+  } else if let dash = cleaned.range(of: " — ") {
+    statusKey = String(cleaned[..<dash.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+  } else if let colon = cleaned.range(of: ": ") {
+    statusKey = String(cleaned[..<colon.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+  } else {
+    statusKey = cleaned
+  }
+
+  let table: [String: String] = [
+    "Good Service": "Good",
+    "Minor Delays": "Minor",
+    "Severe Delays": "Severe",
+    "Part Suspended": "Part Susp",
+    "Suspended": "Susp",
+    "Part Closure": "Part Clsd",
+    "Part Closed": "Part Clsd",
+    "Planned Closure": "Closure",
+    "Closure": "Closed",
+    "Closed": "Closed",
+    "Service Closed": "Closed",
+    "No Service": "No Serv",
+    "Not Running": "Not Running",
+    "Reduced Service": "Reduced",
+    "Special Service": "Special",
+    "Bus Service": "Bus",
+    "Change of frequency": "Freq Chg",
+    "Diverted": "Diverted",
+    "Exit Only": "Exit Only",
+    "Information": "Info",
+    "Issues Reported": "Issues",
+    "No Issues": "Good",
+    "No Step Free Access": "Access",
+    "Minimal": "Minimal",
+    "Moderate": "Moderate",
+    "Serious": "Serious",
+    "Severe": "Severe",
+    "No Exceptional Delays": "Good"
+  ]
+  return table[statusKey]
+}
+
+func disruptionHeadline(for rawStatus: String, severityTier: Int) -> String {
+  let cleaned = rawStatus.trimmingCharacters(in: .whitespacesAndNewlines)
+  if let openParen = cleaned.range(of: " (") {
+    let candidate = String(cleaned[..<openParen.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+    if !candidate.isEmpty { return candidate }
+  }
+  for separator in [" — ", " - ", ": "] {
+    if let sepRange = cleaned.range(of: separator) {
+      let candidate = String(cleaned[..<sepRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+      if !candidate.isEmpty { return candidate }
+    }
+  }
+  if !cleaned.isEmpty { return cleaned }
+  return severityTier == 3 ? "Suspended" : "Severe Delays"
+}
+
 // MARK: - Compact / Minimal
 
 private struct CompactIslandView: View {
@@ -219,10 +292,28 @@ private struct CompactIslandView: View {
   }
 
   private var lineDisplayName: String {
-    if let name = context.attributes.lineName { return name }
-    return context.state.lineName.isEmpty
-      ? context.attributes.lineId.capitalized
-      : context.state.lineName
+    let norm = context.attributes.lineId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    if norm == "dlr" { return "DLR" }
+    if let name = context.attributes.lineName, !name.isEmpty, name.lowercased() != "dlr" {
+      return name
+    }
+    if !context.state.lineName.isEmpty && context.state.lineName.lowercased() != "dlr" {
+      return context.state.lineName
+    }
+    let map: [String: String] = [
+      "bakerloo": "Bakerloo", "central": "Central", "circle": "Circle",
+      "district": "District", "dlr": "DLR", "elizabeth": "Elizabeth",
+      "hammersmith": "Hammersmith & City", "hammersmithcity": "Hammersmith & City",
+      "hammersmith-city": "Hammersmith & City",
+      "jubilee": "Jubilee", "metropolitan": "Metropolitan", "northern": "Northern",
+      "piccadilly": "Piccadilly", "victoria": "Victoria",
+      "waterlooandcity": "Waterloo & City", "waterloocity": "Waterloo & City",
+      "waterloo-city": "Waterloo & City",
+      "overground": "Overground", "liberty": "Liberty", "lioness": "Lioness",
+      "mildmay": "Mildmay", "suffragette": "Suffragette", "weaver": "Weaver",
+      "windrush": "Windrush"
+    ]
+    return map[norm] ?? context.attributes.lineId.capitalized
   }
 
   private var countdownText: String {
@@ -241,13 +332,35 @@ private struct CompactIslandView: View {
 
   var body: some View {
     if trailing {
-      if context.state.severityTier >= 2 {
-        Text("Delays")
-          .font(.system(size: 11, weight: .bold))
-          .foregroundColor(.white)
-          .lineLimit(1)
-          .fixedSize(horizontal: true, vertical: false)
-          .accessibilityLabel("Severe delays on \(lineDisplayName)")
+      if context.state.severityTier >= 1, let label = compactStatusLabel(for: context.state.statusText) {
+        let isSevere = context.state.severityTier >= 2
+        let dotColor = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
+        HStack(spacing: 3.5) {
+          ZStack {
+            Circle()
+              .fill(dotColor.opacity(0.25))
+              .frame(width: 8, height: 8)
+            Circle()
+              .fill(dotColor)
+              .frame(width: 4.5, height: 4.5)
+          }
+          Text(label)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(dotColor)
+            .lineLimit(1)
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(
+          Capsule()
+            .fill(dotColor.opacity(0.16))
+        )
+        .overlay(
+          Capsule()
+            .stroke(dotColor.opacity(0.35), lineWidth: 0.5)
+        )
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityLabel("\(label) on \(lineDisplayName)")
       } else if context.state.phase == "line_picker" {
         let count = context.state.availableLines?.count ?? 0
         Text("\(count) lines")
@@ -313,9 +426,19 @@ private struct CompactIslandView: View {
     } else {
       if context.state.severityTier >= 2 {
         HStack(spacing: 4) {
-          AccentBar(lineId: context.attributes.lineId)
+          ZStack {
+            Circle()
+              .fill(LineColor.color(for: context.attributes.lineId).opacity(0.35))
+              .frame(width: 8, height: 8)
+            Circle()
+              .fill(LineColor.color(for: context.attributes.lineId))
+              .frame(width: 5, height: 5)
+            Circle()
+              .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+              .frame(width: 8, height: 8)
+          }
           Text(lineShortCode)
-            .font(.system(size: 12, weight: .bold))
+            .font(.system(size: 11, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
         }
@@ -385,15 +508,21 @@ private struct CompactIslandView: View {
   }
 
   private var lineShortCode: String {
+    let norm = context.attributes.lineId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    if norm == "dlr" { return "DLR" }
     let map: [String: String] = [
-      "bakerloo": "Bak", "central": "Cen", "circle": "Cir",
-      "district": "Dis", "elizabeth": "Eliz", "hammersmith": "H&C",
-      "jubilee": "Jub", "metropolitan": "Met", "northern": "Nor",
-      "piccadilly": "Picc", "victoria": "Vic", "waterlooandcity": "W&C",
-      "overground": "Over"
+      "bakerloo": "BAK", "central": "CEN", "circle": "CIR",
+      "district": "DIS", "dlr": "DLR", "elizabeth": "ELI",
+      "hammersmith": "H&C", "hammersmithcity": "H&C", "hammersmith-city": "H&C",
+      "jubilee": "JUB", "metropolitan": "MET", "northern": "NOR",
+      "piccadilly": "PIC", "victoria": "VIC",
+      "waterlooandcity": "W&C", "waterloocity": "W&C", "waterloo-city": "W&C",
+      "overground": "OVER",
+      "liberty": "LIB", "lioness": "LIO", "mildmay": "MLD",
+      "suffragette": "SUF", "weaver": "WEA", "windrush": "WND"
     ]
     let name = context.attributes.lineName ?? context.state.lineName
-    return map[context.attributes.lineId.lowercased()] ?? String(name.prefix(4)).capitalized
+    return map[norm] ?? String(name.prefix(4)).uppercased()
   }
 }
 
@@ -429,21 +558,16 @@ private struct ExpandedStatusPill: View {
         .padding(.vertical, 2)
         .background(Color.white.opacity(0.12))
         .cornerRadius(4)
-    } else if context.state.severityTier >= 2 {
-      Text(context.state.severityTier == 3 ? "Suspended" : "Severe Delays")
+    } else if context.state.severityTier >= 1 {
+      let isSevere = context.state.severityTier >= 2
+      let color = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
+      let headline = disruptionHeadline(for: context.state.statusText, severityTier: context.state.severityTier)
+      Text(headline)
         .font(.system(size: 10, weight: .bold))
-        .foregroundColor(Color(hex: 0xFF3B30))
+        .foregroundColor(color)
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(Color(hex: 0xFF3B30).opacity(0.18))
-        .cornerRadius(4)
-    } else if context.state.severityTier == 1 {
-      Text("Minor Delays")
-        .font(.system(size: 10, weight: .bold))
-        .foregroundColor(Color(hex: 0xFFB000))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(Color(hex: 0xFFB000).opacity(0.18))
+        .background(color.opacity(0.18))
         .cornerRadius(4)
     } else {
       Text("Good Service")
@@ -495,21 +619,16 @@ private struct ExpandedIslandView: View {
             .padding(.vertical, 2)
             .background(Color.white.opacity(0.12))
             .cornerRadius(4)
-        } else if context.state.severityTier >= 2 {
-          Text(context.state.severityTier == 3 ? "Suspended" : "Severe Delays")
+        } else if context.state.severityTier >= 1 {
+          let isSevere = context.state.severityTier >= 2
+          let color = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
+          let headline = disruptionHeadline(for: context.state.statusText, severityTier: context.state.severityTier)
+          Text(headline)
             .font(.system(size: 10, weight: .bold))
-            .foregroundColor(Color(hex: 0xFF3B30))
+            .foregroundColor(color)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color(hex: 0xFF3B30).opacity(0.18))
-            .cornerRadius(4)
-        } else if context.state.severityTier == 1 {
-          Text("Minor Delays")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(Color(hex: 0xFFB000))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color(hex: 0xFFB000).opacity(0.18))
+            .background(color.opacity(0.18))
             .cornerRadius(4)
         } else {
           Text("Good Service")
@@ -550,13 +669,22 @@ private struct LockScreenView: View {
     DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
       .padding(14)
       .background(
-        ZStack {
-          ContainerRelativeShape().fill(.ultraThinMaterial)
-          ContainerRelativeShape().fill(Color.black.opacity(0.35))
-        }
+        ContainerRelativeShape().fill(.ultraThinMaterial)
       )
       .overlay(
-        ContainerRelativeShape().stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+        ContainerRelativeShape()
+          .stroke(
+            LinearGradient(
+              gradient: Gradient(colors: [
+                Color.white.opacity(0.24),
+                Color.white.opacity(0.06),
+                Color.white.opacity(0.02)
+              ]),
+              startPoint: .topLeading,
+              endPoint: .bottomTrailing
+            ),
+            lineWidth: 0.75
+          )
       )
   }
 }

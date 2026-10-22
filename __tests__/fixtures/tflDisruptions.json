@@ -1,0 +1,33 @@
+{
+  "provenance": {
+    "sourceUrl": "https://api.tfl.gov.uk/Line/Mode/tube,dlr,overground,elizabeth-line/Status",
+    "capturedAt": "2026-10-22T14:26:24Z",
+    "notes": "Authentic verbatim responses captured live from TfL Unified API"
+  },
+  "fixtures": [
+    {
+      "id": "dlr",
+      "name": "DLR",
+      "archetype": "part_suspended",
+      "statusSeverity": 3,
+      "statusSeverityDescription": "Part Suspended",
+      "reason": "Docklands Light Railway: No service between Stratford and Stratford International while we investigate a fire alert at Stratford International Station. Good SERVICE on the rest of the line. "
+    },
+    {
+      "id": "piccadilly",
+      "name": "Piccadilly",
+      "archetype": "severe_delays",
+      "statusSeverity": 6,
+      "statusSeverityDescription": "Severe Delays",
+      "reason": "Piccadilly Line: No service between Hammersmith and Cockfosters eastbound only while we fix signal failure at Leicester Square. SEVERE DELAYS on the rest of the line. Tickets are being accepted on London Buses, Elizabeth Line, Great Northern and Weaver line via any reasonable route. "
+    },
+    {
+      "id": "bakerloo",
+      "name": "Bakerloo",
+      "archetype": "minor_delays",
+      "statusSeverity": 9,
+      "statusSeverityDescription": "Minor Delays",
+      "reason": "Bakerloo Line: Minor delays due to an earlier customer incident at Maida Vale. "
+    }
+  ]
+}

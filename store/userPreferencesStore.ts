@@ -9,6 +9,12 @@ import { STORE_VERSION, runMigrations } from './migrations';
 
 import { syncToWidget } from '../utils/widgetSync';
 import { applyDismissal, dayKeyFor } from '../utils/intentPillPolicy';
+import {
+  getLondonWallClockMinutes,
+  getLondonWeekday,
+  manualShushLiftTimeMs,
+  parseHHMM,
+} from '../utils/londonTime';
 
 // ── Watch-list sync (Push-to-Start) ─────────────────────────────────────
 // The backend watches exactly the lines the user cares about: selectedLines
@@ -108,36 +114,14 @@ export type TimeSensitiveStatus = 'not_supported' | 'disabled' | 'enabled';
 // smart/schedule/always activation preferences (previously stored but never
 // evaluated).
 // ---------------------------------------------------------------------------
+// Manual shush (WORKER 3) — additive extension of the Shush Mode system above.
+// No parallel shush state: this reuses ShushPreferences/ShushRuntimeState and
+// adds one persisted timestamp + the first canonical evaluation of the
+// smart/schedule/always activation preferences (previously stored but never
+// evaluated). All lift boundaries and commute windows follow Europe/London.
+// ---------------------------------------------------------------------------
 
-/** Parse 'HH:MM' into minutes since midnight (device local); null when malformed. */
-export function parseHHMM(value: string | null | undefined): number | null {
-  if (typeof value !== 'string') return null;
-  const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  if (h > 23 || min > 59) return null;
-  return h * 60 + min;
-}
-
-/**
- * Lift boundary for a manual shush set at setMs (epoch ms): the NEXT
- * alertWindowStart strictly after the set moment. When no alert window is
- * configured (unparseable alertWindowStart), lifts at the next local
- * midnight. Pure date+time comparison — no background timers.
- */
-export function manualShushLiftTimeMs(setMs: number, alertWindowStart: string | null | undefined): number {
-  const setDate = new Date(setMs);
-  const startMin = parseHHMM(alertWindowStart);
-  if (startMin != null) {
-    const h = Math.floor(startMin / 60);
-    const min = startMin % 60;
-    const sameDay = new Date(setDate.getFullYear(), setDate.getMonth(), setDate.getDate(), h, min, 0, 0).getTime();
-    if (sameDay > setMs) return sameDay;
-    return new Date(setDate.getFullYear(), setDate.getMonth(), setDate.getDate() + 1, h, min, 0, 0).getTime();
-  }
-  return new Date(setDate.getFullYear(), setDate.getMonth(), setDate.getDate() + 1, 0, 0, 0, 0).getTime();
-}
+export { parseHHMM, manualShushLiftTimeMs };
 
 /** True when a manual shush recorded at the persisted ISO date is still in force at nowMs. */
 export function isManualShushActiveAt(
@@ -184,16 +168,16 @@ function writeShushKeyToAppGroup(epochSeconds: number | null): void {
  *                  listed shushSchedule weekday.
  * - 'smart'    -> shushed during the shushSchedule windows (which default to
  *                  the commute peaks 07:30-09:30 / 17:00-19:00) on weekdays
- *                  (Mon-Fri). The adaptive inference engine is not built yet;
- *                  this commute-window heuristic is the documented v1 rule.
+ *                  (Mon-Fri).
+ * Evaluated strictly in Europe/London wall-clock time, independent of device tz.
  * Pure. Exported for unit tests.
  */
 export function evaluateShushActivationAt(prefs: ShushPreferences, nowMs: number): boolean {
   const activation = prefs?.shushActivation ?? 'smart';
   if (activation === 'always') return true;
   const now = new Date(nowMs);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const weekday = now.getDay(); // 0=Sun..6=Sat
+  const nowMin = getLondonWallClockMinutes(now);
+  const weekday = getLondonWeekday(now); // 0=Sun..6=Sat strictly in Europe/London
   const schedule = prefs?.shushSchedule;
   const windows = Array.isArray(schedule?.windows) ? schedule!.windows : [];
   const inWindow = windows.some((w) => {

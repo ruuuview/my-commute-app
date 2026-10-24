@@ -23,9 +23,65 @@ import routeData from '../data/tflRouteData.json';
 import tflStatusLabels from '../constants/tflStatusLabels.json';
 import severityColors from '../constants/severityColors.json';
 import { getSeverityColor, getSeverityLabel } from '../utils/getSeverityColor';
+import tflDisruptions from './fixtures/tflDisruptions.json';
 
 describe('Shush Disruption Card & Push Notification Parity Invariants', () => {
   describe('Invariant 1: Disruption Copy Single Source of Truth & Verbatim Casing', () => {
+    it('verifies all live recorded TfL fixtures from tflDisruptions.json produce authentic formatting', () => {
+      expect(tflDisruptions.fixtures.length).toBeGreaterThanOrEqual(3);
+
+      for (const fixture of tflDisruptions.fixtures) {
+        const formatted = formatDisruptionNotificationBody({
+          statusDescription: fixture.statusSeverityDescription,
+          cause: fixture.reason,
+        });
+
+        // 1. Must never exceed safe lockscreen budget
+        expect(formatted.length).toBeLessThanOrEqual(MAX_NOTIFICATION_BODY_CHARS);
+
+        // 2. Must not end with whitespace
+        expect(formatted.endsWith(' ')).toBe(false);
+
+        // 3. Must not leak redundant line headers
+        expect(formatted).not.toContain('Docklands Light Railway:');
+        expect(formatted).not.toContain('Piccadilly Line:');
+        expect(formatted).not.toContain('Bakerloo Line:');
+
+        // 4. Must never contain fabricated phrases
+        expect(formatted).not.toMatch(/\+\d+\s*min|running normally/i);
+      }
+
+      // Exact assertion on DLR fixture: preserves verbatim uppercase "SERVICE"
+      const dlrFixture = tflDisruptions.fixtures.find((f) => f.id === 'dlr')!;
+      const dlrFormatted = formatDisruptionNotificationBody({
+        statusDescription: dlrFixture.statusSeverityDescription,
+        cause: dlrFixture.reason,
+      });
+      expect(dlrFormatted).toContain('Good SERVICE on the rest of the line.');
+      expect(dlrFormatted).toBe(
+        'Part Suspended (No service between Stratford and Stratford International while we investigate a fire alert at Stratford International Station. Good SERVICE on the rest of the line.)'
+      );
+
+      // Exact assertion on Piccadilly fixture: preserves "SEVERE DELAYS" and truncates cleanly
+      const piccFixture = tflDisruptions.fixtures.find((f) => f.id === 'piccadilly')!;
+      const piccFormatted = formatDisruptionNotificationBody({
+        statusDescription: piccFixture.statusSeverityDescription,
+        cause: piccFixture.reason,
+      });
+      expect(piccFormatted).toContain('SEVERE DELAYS on the rest of the line.');
+      expect(piccFormatted.endsWith('…')).toBe(true);
+
+      // Exact assertion on Bakerloo fixture: clean single-sentence without redundant parentheses
+      const bakFixture = tflDisruptions.fixtures.find((f) => f.id === 'bakerloo')!;
+      const bakFormatted = formatDisruptionNotificationBody({
+        statusDescription: bakFixture.statusSeverityDescription,
+        cause: bakFixture.reason,
+      });
+      expect(bakFormatted).toBe(
+        'Minor delays due to an earlier customer incident at Maida Vale.'
+      );
+    });
+
     it('preserves exact TfL uppercase words ("SERVICE") while stripping redundant line prefixes and trailing whitespace', () => {
       const rawTflInput = {
         statusDescription: 'Part Suspended',

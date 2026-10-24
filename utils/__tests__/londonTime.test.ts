@@ -2,7 +2,14 @@
 // Europe/London wall-clock primitives. All assertions must hold regardless of
 // the device/test-runner timezone (keys are derived strictly via
 // Intl.DateTimeFormat with timeZone 'Europe/London').
-import { getLondonDayKey, getNextLondonMidnightMs } from '../londonTime';
+import {
+  getLondonDayKey,
+  getNextLondonMidnightMs,
+  getLondonWallClockMinutes,
+  getLondonWeekday,
+  parseHHMM,
+  manualShushLiftTimeMs,
+} from '../londonTime';
 
 const londonParts = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/London',
@@ -89,5 +96,58 @@ describe('getNextLondonMidnightMs', () => {
     const midnight30 = getNextLondonMidnightMs(new Date('2026-03-29T12:00:00Z'));
     expect(asLondon(midnight30)).toEqual({ dayKey: '2026-03-30', hour: 0, minute: 0 });
     expect(midnight30 - midnight29).toBe(23 * 60 * 60 * 1000);
+  });
+});
+
+describe('getLondonWallClockMinutes & getLondonWeekday', () => {
+  it('computes correct London minutes and weekday in winter (GMT)', () => {
+    // 2026-01-05 is a Monday. 08:30 UTC == 08:30 GMT.
+    const d = new Date('2026-01-05T08:30:00Z');
+    expect(getLondonWeekday(d)).toBe(1); // Monday
+    expect(getLondonWallClockMinutes(d)).toBe(8 * 60 + 30);
+  });
+
+  it('computes correct London minutes and weekday in summer (BST == UTC+1)', () => {
+    // 2026-06-30 is Tuesday. 23:30 UTC is Wednesday 00:30 BST in London.
+    const d = new Date('2026-06-30T23:30:00Z');
+    expect(getLondonWeekday(d)).toBe(3); // Wednesday (0=Sun, 1=Mon, 2=Tue, 3=Wed)
+    expect(getLondonWallClockMinutes(d)).toBe(30); // 00:30 BST
+  });
+
+  it('parses valid and invalid HH:MM strings with parseHHMM', () => {
+    expect(parseHHMM('07:30')).toBe(450);
+    expect(parseHHMM('00:00')).toBe(0);
+    expect(parseHHMM('23:59')).toBe(1439);
+    expect(parseHHMM('24:00')).toBeNull();
+    expect(parseHHMM('invalid')).toBeNull();
+    expect(parseHHMM(null)).toBeNull();
+  });
+});
+
+describe('manualShushLiftTimeMs', () => {
+  it('lifts at the next London midnight when alertWindowStart is not provided', () => {
+    const setMs = new Date('2026-06-30T12:00:00Z').getTime();
+    const lift = manualShushLiftTimeMs(setMs, null);
+    const wall = asLondon(lift);
+    expect(wall).toEqual({ dayKey: '2026-07-01', hour: 0, minute: 0 });
+  });
+
+  it('lifts later the same London day when set moment is before alertWindowStart', () => {
+    // Set at 05:00 BST in London on 15 July 2026 (04:00 UTC)
+    const setMs = new Date('2026-07-15T04:00:00Z').getTime();
+    const lift = manualShushLiftTimeMs(setMs, '06:30');
+    const wall = asLondon(lift);
+    expect(wall).toEqual({ dayKey: '2026-07-15', hour: 6, minute: 30 });
+    // In BST, 06:30 BST is 05:30 UTC
+    expect(lift).toBe(new Date('2026-07-15T05:30:00Z').getTime());
+  });
+
+  it('lifts the next London day when set moment is after alertWindowStart', () => {
+    // Set at 08:00 BST in London on 15 July 2026 (07:00 UTC)
+    const setMs = new Date('2026-07-15T07:00:00Z').getTime();
+    const lift = manualShushLiftTimeMs(setMs, '06:30');
+    const wall = asLondon(lift);
+    expect(wall).toEqual({ dayKey: '2026-07-16', hour: 6, minute: 30 });
+    expect(lift).toBe(new Date('2026-07-16T05:30:00Z').getTime());
   });
 });

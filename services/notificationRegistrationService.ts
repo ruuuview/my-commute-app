@@ -16,6 +16,20 @@ const MAX_REGISTRATION_RETRIES = 1;
 const STORAGE_KEY_TOKEN = 'registered_push_token_railway_v2';
 const STORAGE_KEY_LINES = 'registered_push_lines_railway_v2';
 
+/**
+ * Normalize watched line ids for the backend watch list:
+ * lowercased, trimmed, empties dropped, deduped, sorted (stable diffing).
+ */
+export function normalizeLineIds(lines: string[]): string[] {
+  return [
+    ...new Set(
+      (lines ?? [])
+        .map((l) => String(l ?? '').toLowerCase().trim())
+        .filter((l) => l.length > 0)
+    ),
+  ].sort();
+}
+
 // Lazy load FCM on Android
 let messaging: any = null;
 if (Platform.OS === 'android') {
@@ -35,7 +49,7 @@ async function registerDevicePushToken(
   selectedLines: string[],
   retriesRemaining: number = MAX_REGISTRATION_RETRIES
 ): Promise<boolean> {
-  const normalizedLines = [...selectedLines].sort();
+  const normalizedLines = normalizeLineIds(selectedLines);
   try {
     const { userId, apiKey } = await ensureDeviceIdentity().catch(() => ({ userId: undefined, apiKey: undefined }));
     console.log(
@@ -138,7 +152,7 @@ export async function syncPushTokenWithBackend(selectedLines: string[]) {
       return;
     }
 
-    const normalizedLines = [...selectedLines].sort();
+    const normalizedLines = normalizeLineIds(selectedLines);
     const { userId } = await ensureDeviceIdentity().catch(() => ({ userId: undefined }));
     // Always perform registration to guarantee backend profile has the live token
     const registered = await registerDevicePushToken(token, normalizedLines);

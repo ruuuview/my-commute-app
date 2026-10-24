@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { requireOptionalNativeModule, EventEmitter } from 'expo-modules-core';
 
 export type TimeSensitiveStatus = 'not_supported' | 'disabled' | 'enabled';
@@ -23,6 +24,7 @@ const mockFallbackModule = {
   getManualShushDate: async () => null,
   setManualShushDate: async () => {},
   registerNotificationCategories: async () => {},
+  getPushToStartToken: async () => null,
   addListener: () => ({ remove: () => {} }),
   removeListeners: () => {},
 };
@@ -115,6 +117,8 @@ export interface MyCommuteLiveActivity {
   setManualShushDate(epochSeconds: number | null): Promise<void>;
   /** Registers native UNNotificationCategory with UNNotificationActionIcon for REROUTE_ONLY. */
   registerNotificationCategories(): Promise<void>;
+  /** Bridge-cached Push-to-Start token (hex), or null when none has been emitted yet. */
+  getPushToStartToken(): Promise<string | null>;
 }
 
 export function addPushToStartListener(listener: (event: { token: string }) => void): EventSubscription {
@@ -125,6 +129,24 @@ export function addLiveActivityPushTokenListener(
   listener: (event: { journeyId: string; token: string }) => void
 ): EventSubscription {
   return (emitter as any).addListener('onLiveActivityPushTokenUpdate', listener);
+}
+
+/**
+ * Returns the Push-to-Start token most recently observed (and cached) by the
+ * native bridge, recovering tokens emitted before JS listeners attached.
+ * Resolves to null on any error or on non-iOS platforms.
+ */
+export async function getPushToStartToken(): Promise<string | null> {
+  if (Platform.OS !== 'ios') return null;
+  try {
+    const mod = MyCommuteLiveActivityModule as unknown as {
+      getPushToStartToken?: () => Promise<string | null>;
+    };
+    if (typeof mod.getPushToStartToken !== 'function') return null;
+    return await mod.getPushToStartToken();
+  } catch {
+    return null;
+  }
 }
 
 export default MyCommuteLiveActivityModule as MyCommuteLiveActivity;

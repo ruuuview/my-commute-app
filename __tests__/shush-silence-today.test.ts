@@ -1,6 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import { useUserPreferencesStore } from '../store/userPreferencesStore';
-import { presentDisruptionNotification } from '../services/notifications/dispatch';
+import {
+  presentDisruptionNotification,
+  presentServiceImprovingNotification,
+} from '../services/notifications/dispatch';
 import { LiveActivityService } from '../services/LiveActivityService';
 import { SessionManager } from '../services/SessionManager';
 import { dayKeyFor } from '../utils/intentPillPolicy';
@@ -29,11 +32,23 @@ global.fetch = jest.fn().mockResolvedValue({
   json: async () => ({ sessionId: 'mock-1', claimsCreated: 0, notificationsSent: 0 }),
 } as any);
 
+// NOTE: dispatch.ts enforces a 10-minute cross-system dedup bucket per line id
+// (persisted in the MMKV mock for the whole file), so each dispatch test below
+// uses a distinct line id to stay isolated.
+
 describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useUserPreferencesStore.setState({
       silencedLinesToday: {},
+      shushPreferences: {
+        alertDeliveryMode: 'shush',
+        shushActivation: 'always',
+        shushSchedule: { weekdays: [1, 2, 3, 4, 5], windows: [] },
+        hasCompletedShushOnboarding: true,
+        timeSensitiveGranted: false,
+        timeSensitiveStatus: 'disabled',
+      },
     });
   });
 
@@ -41,8 +56,8 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
     await SessionManager.closeSession(true).catch(() => {});
   });
 
-  describe('1. Per-Line Silence Suppression', () => {
-    it('silences only the targeted line for today and normalizes casing', async () => {
+  describe('1. Per-Line Silent Delivery (Truthful-Silent Contract)', () => {
+    it('silences only the targeted line for today and normalizes casing — delivered with sound: false, NOT suppressed', async () => {
       const store = useUserPreferencesStore.getState();
       expect(store.isLineSilencedToday('victoria')).toBe(false);
 
@@ -50,7 +65,7 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
       expect(useUserPreferencesStore.getState().isLineSilencedToday('victoria')).toBe(true);
       expect(useUserPreferencesStore.getState().isLineSilencedToday('central')).toBe(false);
 
-      // Attempt to dispatch disruption for Victoria
+      // Attempt to dispatch disruption for Victoria: STILL DELIVERED, but silent
       const vicResult = await presentDisruptionNotification({
         lineId: 'victoria',
         lineName: 'Victoria',
@@ -59,10 +74,13 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
         severity: 2,
       });
 
-      expect(vicResult).toBe('suppressed_silenced_victoria');
-      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      expect(vicResult).toBe('test-notification-id');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      const vicArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(vicArgs.content.sound).toBe(false);
+      expect(vicArgs.content.data.lineId).toBe('victoria');
 
-      // Central is not silenced and dispatches normally
+      // Central is not silenced and dispatches normally (shush mode => no sound by default)
       const centralResult = await presentDisruptionNotification({
         lineId: 'central',
         lineName: 'Central',
@@ -72,20 +90,46 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
       });
 
       expect(centralResult).toBe('test-notification-id');
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('a silenced line stays silent even in loud delivery mode (no sound from the app)', async () => {
+      useUserPreferencesStore.setState({
+        shushPreferences: {
+          alertDeliveryMode: 'loud',
+          shushActivation: 'always',
+          shushSchedule: { weekdays: [1, 2, 3, 4, 5], windows: [] },
+          hasCompletedShushOnboarding: true,
+          timeSensitiveGranted: false,
+          timeSensitiveStatus: 'disabled',
+        },
+      });
+      useUserPreferencesStore.getState().silenceLineToday('bakerloo');
+
+      const result = await presentDisruptionNotification({
+        lineId: 'bakerloo',
+        lineName: 'Bakerloo',
+        statusDescription: 'Severe Delays',
+        reason: 'Signal failure',
+        severity: 3,
+      });
+
+      expect(result).toBe('test-notification-id');
+      const callArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(callArgs.content.sound).toBe(false); // silence overrides loud mode
     });
 
     it('manually unsilences a line immediately when requested', async () => {
       const store = useUserPreferencesStore.getState();
-      store.silenceLineToday('victoria');
-      expect(store.isLineSilencedToday('victoria')).toBe(true);
+      store.silenceLineToday('jubilee');
+      expect(store.isLineSilencedToday('jubilee')).toBe(true);
 
-      store.unsilenceLineToday('victoria');
-      expect(useUserPreferencesStore.getState().isLineSilencedToday('victoria')).toBe(false);
+      store.unsilenceLineToday('jubilee');
+      expect(useUserPreferencesStore.getState().isLineSilencedToday('jubilee')).toBe(false);
 
       const result = await presentDisruptionNotification({
-        lineId: 'victoria',
-        lineName: 'Victoria',
+        lineId: 'jubilee',
+        lineName: 'Jubilee',
         statusDescription: 'Part Suspended',
         reason: 'Track inspection at Highbury',
         severity: 2,
@@ -108,11 +152,11 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
   });
 
   describe('2. Midnight Calendar Date Rollover Invariant', () => {
-    it('automatically lifts silence when device calendar rolls over to tomorrow', () => {
+    it('automatically lifts silence when the London calendar rolls over to tomorrow', () => {
       const today = new Date('2026-10-16T14:00:00Z');
       const tomorrow = new Date('2026-10-17T07:00:00Z');
 
-      // Silence Victoria on today's date
+      // Silence Victoria on today's (London) date
       useUserPreferencesStore.setState({
         silencedLinesToday: {
           victoria: dayKeyFor(today),
@@ -148,12 +192,12 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
 
   describe('3. Active Commute Immunity Invariant', () => {
     it('never suppresses Live Activity or in-transit commute tracking when line was silenced', async () => {
-      // Commuter silenced Victoria earlier today at breakfast
-      useUserPreferencesStore.getState().silenceLineToday('victoria');
-      expect(useUserPreferencesStore.getState().isLineSilencedToday('victoria')).toBe(true);
+      // Commuter silenced Piccadilly earlier today at breakfast
+      useUserPreferencesStore.getState().silenceLineToday('piccadilly');
+      expect(useUserPreferencesStore.getState().isLineSilencedToday('piccadilly')).toBe(true);
 
-      // Now commuter is on the evening commute riding Victoria
-      await SessionManager.startSession('940GZZLUVIC', '940GZZLUOXC', 'victoria', 'Victoria');
+      // Now commuter is on the evening commute riding Piccadilly
+      await SessionManager.startSession('940GZZLUPCO', '940GZZLUOXC', 'piccadilly', 'Piccadilly');
 
       // Live state verified directly from SessionManager at dispatch time
       const isSessionActive = SessionManager.getSessionState() === 'active';
@@ -161,35 +205,37 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
       const activeStationId = SessionManager.getCommuteOriginId();
 
       expect(isSessionActive).toBe(true);
-      expect(activeLineId).toBe('victoria');
-      expect(activeStationId).toBe('940GZZLUVIC');
+      expect(activeLineId).toBe('piccadilly');
+      expect(activeStationId).toBe('940GZZLUPCO');
 
       // Commute tracking logic as executed in backgroundTask:
       // In-transit session active on line -> updates Live Activity directly without noisy banner
-      if (isSessionActive && activeLineId && activeLineId.toLowerCase() === 'victoria' && activeStationId) {
+      if (isSessionActive && activeLineId && activeLineId.toLowerCase() === 'piccadilly' && activeStationId) {
         await LiveActivityService.update(activeStationId, activeLineId);
       }
 
       // Assert Live Activity updated without obstruction
-      expect(LiveActivityService.update).toHaveBeenCalledWith('940GZZLUVIC', 'victoria');
+      expect(LiveActivityService.update).toHaveBeenCalledWith('940GZZLUPCO', 'piccadilly');
 
-      // But an idle notification dispatch attempt remains silenced
+      // An idle notification dispatch for the silenced line is DELIVERED but silent
       const idleDisruption = await presentDisruptionNotification({
-        lineId: 'victoria',
-        lineName: 'Victoria',
+        lineId: 'piccadilly',
+        lineName: 'Piccadilly',
         statusDescription: 'Severe Delays',
         severity: 2,
       });
-      expect(idleDisruption).toBe('suppressed_silenced_victoria');
-      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      expect(idleDisruption).toBe('test-notification-id');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      const idleArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(idleArgs.content.sound).toBe(false);
 
       await SessionManager.closeSession(true);
     });
 
-    it('silences disruption alerts for line A while commuter is actively commuting on line B (cross-line silence)', async () => {
-      // Commuter silenced Victoria earlier today
-      useUserPreferencesStore.getState().silenceLineToday('victoria');
-      expect(useUserPreferencesStore.getState().isLineSilencedToday('victoria')).toBe(true);
+    it('delivers disruption alerts for silenced line A silently while commuter is actively commuting on line B', async () => {
+      // Commuter silenced Metropolitan earlier today
+      useUserPreferencesStore.getState().silenceLineToday('metropolitan');
+      expect(useUserPreferencesStore.getState().isLineSilencedToday('metropolitan')).toBe(true);
 
       // Commuter is now actively riding Central
       await SessionManager.startSession('940GZZLUCHX', '940GZZLUHOL', 'central', 'Central');
@@ -197,24 +243,80 @@ describe('Shush Mode Per-Line Silence & Active Commute Immunity', () => {
       expect(SessionManager.getSessionState()).toBe('active');
       expect(SessionManager.getCommuteLineId()).toBe('central');
 
-      // Victoria disruption arrives during Central commute
-      const vicResult = await presentDisruptionNotification({
-        lineId: 'victoria',
-        lineName: 'Victoria',
+      // Metropolitan disruption arrives during Central commute
+      const metResult = await presentDisruptionNotification({
+        lineId: 'metropolitan',
+        lineName: 'Metropolitan',
         statusDescription: 'Severe Delays',
-        reason: 'Signal failure at Oxford Circus',
+        reason: 'Signal failure at Baker Street',
         severity: 2,
       });
 
-      // Victoria disruption is completely silenced — zero sound, zero banner
-      expect(vicResult).toBe('suppressed_silenced_victoria');
-      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      // Metropolitan disruption is delivered silently — banner yes, sound no
+      expect(metResult).toBe('test-notification-id');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      const metArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(metArgs.content.sound).toBe(false);
 
       // Central commute session remains fully active and unaffected
       expect(SessionManager.getSessionState()).toBe('active');
       expect(SessionManager.getCommuteLineId()).toBe('central');
 
       await SessionManager.closeSession(true);
+    });
+  });
+
+  describe('4. Service-Improving Silent Delivery (Truthful-Silent Contract)', () => {
+    it('silenced line still receives the improving notification, with sound: false', async () => {
+      useUserPreferencesStore.getState().silenceLineToday('elizabeth');
+      expect(useUserPreferencesStore.getState().isLineSilencedToday('elizabeth')).toBe(true);
+
+      const result = await presentServiceImprovingNotification({
+        lineId: 'elizabeth',
+        lineName: 'Elizabeth',
+        statusDescription: 'Minor Delays',
+        reason: 'Earlier signal failure at Paddington',
+      });
+
+      expect(result).toBe('test-notification-id');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      const callArgs = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(callArgs.content.sound).toBe(false);
+      expect(callArgs.content.data.lineId).toBe('elizabeth');
+    });
+
+    it('silenced line stays silent in loud mode; unsilenced line honours loud mode', async () => {
+      useUserPreferencesStore.setState({
+        shushPreferences: {
+          alertDeliveryMode: 'loud',
+          shushActivation: 'always',
+          shushSchedule: { weekdays: [1, 2, 3, 4, 5], windows: [] },
+          hasCompletedShushOnboarding: true,
+          timeSensitiveGranted: false,
+          timeSensitiveStatus: 'disabled',
+        },
+      });
+      useUserPreferencesStore.getState().silenceLineToday('district');
+
+      const silencedResult = await presentServiceImprovingNotification({
+        lineId: 'district',
+        lineName: 'District',
+        statusDescription: 'Minor Delays',
+      });
+      expect(silencedResult).toBe('test-notification-id');
+      expect(
+        (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0].content.sound
+      ).toBe(false); // silence overrides loud
+
+      const loudResult = await presentServiceImprovingNotification({
+        lineId: 'hammersmith-city',
+        lineName: 'Hammersmith & City',
+        statusDescription: 'Minor Delays',
+      });
+      expect(loudResult).toBe('test-notification-id');
+      expect(
+        (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[1][0].content.sound
+      ).toBe(true); // loud mode respected when not silenced
     });
   });
 });

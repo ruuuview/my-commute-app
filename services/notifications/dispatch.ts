@@ -59,12 +59,14 @@ export async function presentDisruptionNotification(
     return `suppressed_healthy_${lineId}`;
   }
 
-  // 1-Tap Silence Today: Suppress if user silenced this specific line for today
-  if (useUserPreferencesStore.getState().isLineSilencedToday(lineId)) {
+  // 1-Tap Silence Today: the line is silenced — the notification is STILL
+  // DELIVERED (truthful banner) but strictly without sound. No audible output
+  // from the app for silenced lines; delivery itself is never suppressed.
+  const isSilencedToday = useUserPreferencesStore.getState().isLineSilencedToday(lineId);
+  if (isSilencedToday) {
     console.log(
-      `[dispatch] Suppressed disruption notification for ${lineName} (${lineId}) — line silenced today.`
+      `[dispatch] Delivering disruption notification for ${lineName} (${lineId}) silently — line silenced today (sound: false).`
     );
-    return `suppressed_silenced_${lineId}`;
   }
 
   // Symmetric cross-system dedup: suppress if in-app pill or local notification already fired recently
@@ -99,7 +101,8 @@ export async function presentDisruptionNotification(
   });
 
   const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
-  const shouldPlaySound = deliveryMode === 'loud';
+  // Silenced-today lines never play sound, even in loud delivery mode.
+  const shouldPlaySound = deliveryMode === 'loud' && !isSilencedToday;
 
   return Notifications.scheduleNotificationAsync({
     identifier: disruptionThreadId(lineId),
@@ -147,9 +150,13 @@ export async function presentServiceImprovingNotification(
 ): Promise<string> {
   const { lineId, lineName, statusDescription, reason } = opts;
 
-  // 1-Tap Silence Today: Suppress if user silenced this specific line for today
-  if (useUserPreferencesStore.getState().isLineSilencedToday(lineId)) {
-    return `suppressed_silenced_${lineId}`;
+  // 1-Tap Silence Today: the line is silenced — the notification is STILL
+  // DELIVERED but strictly without sound (no audible output from the app).
+  const isSilencedToday = useUserPreferencesStore.getState().isLineSilencedToday(lineId);
+  if (isSilencedToday) {
+    console.log(
+      `[dispatch] Delivering service-improving notification for ${lineName} (${lineId}) silently — line silenced today (sound: false).`
+    );
   }
 
   const data: DisruptionNotificationPayload = {
@@ -167,7 +174,8 @@ export async function presentServiceImprovingNotification(
   });
 
   const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
-  const shouldPlaySound = deliveryMode === 'loud';
+  // Silenced-today lines never play sound, even in loud delivery mode.
+  const shouldPlaySound = deliveryMode === 'loud' && !isSilencedToday;
 
   return Notifications.scheduleNotificationAsync({
     identifier: disruptionThreadId(lineId),

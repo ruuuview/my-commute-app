@@ -23,6 +23,8 @@
 //  6. ONCE-PER-WINDOW-PER-DAY: at most one intent pill per window
 //     ('morning' | 'evening') per local calendar day, regardless of taps.
 
+import { getLondonDayKey } from './londonTime';
+
 export type IntentWindow = 'morning' | 'evening';
 
 // Commute windows in device-local minutes since midnight.
@@ -36,12 +38,14 @@ export const DISMISSAL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // rolling 7 days
 export const DISMISSALS_TO_SUPPRESS = 3;
 export const SUPPRESSION_MS = 7 * 24 * 60 * 60 * 1000; // suppressed 7 days
 
-/** Local calendar day key: 'YYYY-MM-DD' in device timezone. */
+/**
+ * Calendar day key: 'YYYY-MM-DD' in Europe/London (the only "today" that
+ * matters for a London commute app). Delegates to utils/londonTime so every
+ * once-per-day / silence-today rule shares one wall clock. Exported name and
+ * signature are unchanged for existing callers.
+ */
 export function dayKeyFor(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return getLondonDayKey(date);
 }
 
 /** Which intent window (if any) the given local time falls in. */

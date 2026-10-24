@@ -130,9 +130,6 @@ public struct DeliveryTrackView: View {
 
       // Row 4: Genuine Detour Alternative (only if present in payload)
       detourSlot
-
-      // Row 5: Consumer Interactive Shush Toggle
-      shushToggleSlot
     }
   }
 
@@ -141,12 +138,16 @@ public struct DeliveryTrackView: View {
   }
 
   private var disruptionHeadline: String {
-    let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
-    if let openParen = raw.range(of: " (") {
-      let candidate = String(raw[..<openParen.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-      if !candidate.isEmpty { return candidate }
+    let rawSeverity = state.statusSeverity.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !rawSeverity.isEmpty && rawSeverity.lowercased() != "good" && rawSeverity.lowercased() != "normal" {
+      if rawSeverity == "severe_delays" { return "Severe Delays" }
+      if rawSeverity == "minor_delays" { return "Minor Delays" }
+      if rawSeverity == "part_suspended" { return "Part Suspended" }
+      if rawSeverity == "suspended" { return "Suspended" }
+      return rawSeverity
     }
-    for separator in [" — ", " - ", ": "] {
+    let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
+    for separator in [" — ", " - ", ": ", " ("] {
       if let sepRange = raw.range(of: separator) {
         let candidate = String(raw[..<sepRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
         if !candidate.isEmpty { return candidate }
@@ -158,54 +159,27 @@ public struct DeliveryTrackView: View {
 
   private var disruptionCauseText: String? {
     let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !raw.isEmpty else { return authenticFallbackReason }
+    guard !raw.isEmpty else { return nil }
 
-    if let openParen = raw.range(of: " (") {
-      var cause = String(raw[openParen.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-      if cause.hasSuffix(")") {
-        cause = String(cause.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
-      }
-      if !cause.isEmpty { return cause }
-    }
-
-    for separator in [" — ", " - ", ": "] {
-      if let sepRange = raw.range(of: separator) {
-        let cause = String(raw[sepRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cause.isEmpty && cause.localizedCaseInsensitiveCompare(disruptionHeadline) != .orderedSame {
-          return cause
+    let headline = disruptionHeadline
+    if raw.localizedCaseInsensitiveContains(headline) {
+      if let range = raw.range(of: headline, options: .caseInsensitive) {
+        var remainder = String(raw[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        for prefix in ["—", "-", ":", "(", ")"] {
+          remainder = remainder.trimmingCharacters(in: CharacterSet(charactersIn: " -—:()"))
+        }
+        if !remainder.isEmpty {
+          return remainder
         }
       }
     }
 
-    if raw.localizedCaseInsensitiveCompare(disruptionHeadline) != .orderedSame {
+    if raw.localizedCaseInsensitiveCompare(headline) != .orderedSame {
       return raw
     }
 
-    return authenticFallbackReason
-  }
-
-  private var authenticFallbackReason: String? {
-    let norm = lineId.lowercased().replacingOccurrences(of: "-", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
-    switch norm {
-    case "dlr":
-      return "Between Bank and Canary Wharf due to a signal failure at Poplar."
-    case "central":
-      return "Between White City and Ealing Broadway due to a points failure at North Acton."
-    case "piccadilly":
-      return "Between Acton Town and Heathrow Airport due to train cancellations."
-    case "victoria":
-      return "Between Victoria and Brixton due to a faulty train at Stockwell."
-    case "northern":
-      return "Between Camden Town and High Barnet due to a signal failure at Finchley Central."
-    case "jubilee":
-      return "Between Waterloo and Canary Wharf due to track inspection."
-    case "district":
-      return "Between Earl's Court and Wimbledon due to a signal failure."
-    case "elizabeth":
-      return "Between Paddington and Heathrow Terminals due to overhead wire issues."
-    default:
-      return "Severe delays across the route due to operational issues. Please use alternative routes."
-    }
+    // Zero fake fallback: if there is no distinct cause text, return nil
+    return nil
   }
 
   private var lineDisplayName: String {
@@ -381,9 +355,6 @@ public struct DeliveryTrackView: View {
 
       // Detour Alternative (if service is disrupted/escalated)
       detourSlot
-
-      // Shush Toggle (1-tap manual shush for today, App Group channel)
-      shushToggleSlot
     }
   }
 
@@ -607,9 +578,6 @@ public struct DeliveryTrackView: View {
       }
 
       detourSlot
-
-      // Shush Toggle (1-tap manual shush for today, App Group channel)
-      shushToggleSlot
     }
   }
 
@@ -632,78 +600,31 @@ public struct DeliveryTrackView: View {
     }
   }
 
-  // MARK: - Detour Slot (Alternative lines during disruption)
+  // MARK: - Reroute Slot (truthful action during disruption)
+  //
+  // Zero-Fabrication Invariant: the previous fabricated detour guess
+  // ("<Line> Line alternative (+Xm)" Text and the SwitchCommuteRouteIntent
+  // button built on it) is removed — detourLine/detourMinutes were invented,
+  // never verified journey-planner results. Until real detour data exists, the
+  // only truthful action is deep-linking into the in-app reroute flow.
+  // Property name kept as `detourSlot` so the three existing call sites
+  // (disruptionView, inTransitView, approachingView) are unchanged; it now
+  // renders solely on `state.isEscalated`.
   @ViewBuilder
   private var detourSlot: some View {
-    if state.isEscalated, let detour = state.detourLine, !detour.isEmpty {
-      if #available(iOS 17.0, *) {
-        Button(intent: SwitchCommuteRouteIntent(
-          newLineId: detour,
-          transferStation: state.statusText.contains("via") ? state.statusText : "Interchange",
-          detourCurrentStatus: state.detourStatus ?? "good",
-          detourEtaDelta: "+\(state.detourMinutes ?? 5)m"
-        )) {
-          detourBanner(detour: detour)
+    if state.isEscalated {
+      Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
+        HStack(spacing: 6) {
+          Image(systemName: "signpost.right.and.left.fill").font(.system(size: 13, weight: .semibold))
+          Text("View Reroute").font(.system(size: 13, weight: .semibold))
         }
-        .buttonStyle(.plain)
-      } else {
-        detourBanner(detour: detour)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.15))
+        .clipShape(Capsule())
       }
     }
   }
 
-  private func detourBanner(detour: String) -> some View {
-    HStack(spacing: 6) {
-      Image(systemName: "arrow.triangle.swap")
-        .font(.system(size: 11, weight: .bold))
-        .foregroundColor(Color(hex: 0x007AFF))
-      Text("\(detour.capitalized) Line alternative (+\(state.detourMinutes ?? 5)m)")
-        .font(.system(size: 11, weight: .semibold))
-        .foregroundColor(.white)
-      Spacer()
-      if let detourStatus = state.detourStatus {
-        Text(detourStatus.replacingOccurrences(of: "_", with: " ").capitalized)
-          .font(.system(size: 9.5, weight: .bold))
-          .foregroundColor(detourStatus == "good" ? Color(hex: 0x30D158) : Color(hex: 0xFFCC00))
-      }
-    }
-    .padding(.horizontal, 8)
-    .padding(.vertical, 4)
-    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-  }
-
-  // MARK: - Shush Toggle (manual shush for today, App Group channel)
-  private var isShushedToday: Bool {
-    isManualShushActiveToday()
-  }
-
-  @ViewBuilder
-  private var shushToggleSlot: some View {
-    let shushed = isShushedToday
-    if #available(iOS 17.0, *) {
-      Button(intent: ToggleShushIntent()) {
-        shushToggleLabel(isShushed: shushed)
-      }
-      .buttonStyle(.plain)
-    } else {
-      Link(destination: URL(string: "mycommute://shush-toggle")!) {
-        shushToggleLabel(isShushed: shushed)
-      }
-    }
-  }
-
-  private func shushToggleLabel(isShushed: Bool) -> some View {
-    HStack(spacing: 6) {
-      Image(systemName: isShushed ? "bell.slash.fill" : "bell.fill")
-        .font(.system(size: 11, weight: .bold))
-        .foregroundColor(isShushed ? Color(hex: 0xFF9500) : .white.opacity(0.85))
-      Text(isShushed ? "Shush on · tap to turn off" : "Shush today")
-        .font(.system(size: 11, weight: .semibold))
-        .foregroundColor(.white)
-      Spacer()
-    }
-    .padding(.horizontal, 8)
-    .padding(.vertical, 4)
-    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-  }
 }

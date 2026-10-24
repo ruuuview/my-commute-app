@@ -20,7 +20,7 @@ export const REROUTE_ONLY_ACTIONS: NotificationActionItem[] = [
   },
   {
     identifier: 'shush_today',
-    buttonTitle: '🤫 Shush today',
+    buttonTitle: '🤫 Shush this line',
     options: {
       opensAppToForeground: false,
     },

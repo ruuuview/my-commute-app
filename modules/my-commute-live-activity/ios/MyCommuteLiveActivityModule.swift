@@ -18,6 +18,10 @@ public class MyCommuteLiveActivityModule: Module {
   private let appGroupId = "group.com.mycommute.app"
   private let mirrorFileName = "live-activity-mirror.json"
   private var pushToStartTask: Task<Void, Never>?
+  // Startup race fix: caches the most recent Push-to-Start token (hex string)
+  // so JS can recover it via getPushToStartToken even if the token was emitted
+  // before the JS listener attached.
+  private var cachedPushToStartToken: String?
 
   public func definition() -> ModuleDefinition {
     Name("MyCommuteLiveActivityModule")
@@ -274,6 +278,13 @@ public class MyCommuteLiveActivityModule: Module {
     AsyncFunction("registerNotificationCategories") { () -> Void in
       self.registerNotificationCategories()
     }
+
+    // Startup race fix: the Push-to-Start observer starts in OnCreate, before
+    // JS attaches its listener, so an early token emission would be lost. JS
+    // queries this cached value once during initTokenListeners().
+    AsyncFunction("getPushToStartToken") { () -> String? in
+      return self.cachedPushToStartToken
+    }
   }
 
   // MARK: - Push-to-Start Token Observation (iOS 17.2+)
@@ -285,6 +296,7 @@ public class MyCommuteLiveActivityModule: Module {
       for await tokenData in Activity<MyCommuteLiveActivityAttributes>.pushToStartTokenUpdates {
         guard let self = self else { return }
         let tokenStr = tokenData.map { String(format: "%02x", $0) }.joined()
+        self.cachedPushToStartToken = tokenStr
         self.sendEvent("onPushToStartTokenUpdate", ["token": tokenStr])
       }
     }
@@ -302,7 +314,7 @@ public class MyCommuteLiveActivityModule: Module {
       )
       let shushTodayAction = UNNotificationAction(
         identifier: "shush_today",
-        title: "🤫 Shush today",
+        title: "🤫 Shush this line",
         options: [],
         icon: UNNotificationActionIcon(systemImageName: "speaker.slash.fill")
       )

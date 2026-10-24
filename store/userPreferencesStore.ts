@@ -10,6 +10,47 @@ import { STORE_VERSION, runMigrations } from './migrations';
 import { syncToWidget } from '../utils/widgetSync';
 import { applyDismissal, dayKeyFor } from '../utils/intentPillPolicy';
 
+// ── Watch-list sync (Push-to-Start) ─────────────────────────────────────
+// The backend watches exactly the lines the user cares about: selectedLines
+// ∪ (lines of every pinned station). Whenever that derived set can change
+// (line toggled, station pinned/unpinned/reordered) we re-register the push
+// token with the normalized line ids so the backend watch list never drifts.
+function deriveWatchedLineIds(state: {
+  selectedLines?: string[];
+  pinnedStations?: { lines?: string[] }[];
+}): string[] {
+  const ids = new Set<string>();
+  for (const l of state.selectedLines ?? []) {
+    const n = String(l ?? '').toLowerCase().trim();
+    if (n) ids.add(n);
+  }
+  for (const s of state.pinnedStations ?? []) {
+    for (const l of s.lines ?? []) {
+      const n = String(l ?? '').toLowerCase().trim();
+      if (n) ids.add(n);
+    }
+  }
+  return [...ids].sort();
+}
+
+function syncWatchedLinesWithBackend(state: {
+  selectedLines?: string[];
+  pinnedStations?: { lines?: string[] }[];
+}): void {
+  try {
+    // Lazy require: keeps expo-notifications out of this store's static import
+    // graph (several pure-store tests import it without notification mocks).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { syncPushTokenWithBackend } = require('../services/notificationRegistrationService');
+    void Promise.resolve(syncPushTokenWithBackend(deriveWatchedLineIds(state))).catch(() => {
+      // Registration failures are already logged inside the service; never
+      // let a sync failure break a UI state update.
+    });
+  } catch {
+    // Registration service unavailable (e.g. bare test environment) — skip.
+  }
+}
+
 let storage: any = null;
 let backgroundStorage: any = null;
 
@@ -475,6 +516,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           void syncToWidget(lines);
           return { selectedLines: lines };
         });
+        syncWatchedLinesWithBackend(get());
       },
       pinStation: (station: { id: string; name: string; lines: string[]; zone: number }, role: 'home' | 'work' | 'other') => {
         set(state => {
@@ -488,6 +530,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           stations.push({ ...station, id: resolvedId, role });
           return { pinnedStations: stations };
         });
+        syncWatchedLinesWithBackend(get());
       },
       unpinStation: (id: string) => {
         set(state => {
@@ -500,13 +543,16 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           }
           return state;
         });
+        syncWatchedLinesWithBackend(get());
       },
       reorderLines: (order: string[]) => {
         void syncToWidget(order);
         set({ selectedLines: order });
+        syncWatchedLinesWithBackend(get());
       },
       reorderStations: (order: { id: string; name: string; lines: string[]; zone: number; role: 'home' | 'work' | 'other' }[]) => {
         set({ pinnedStations: order });
+        syncWatchedLinesWithBackend(get());
       },
       toggleStationFilter: (stationId: string) => {
         set(state => {

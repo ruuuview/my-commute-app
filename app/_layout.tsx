@@ -31,7 +31,9 @@ import {
   ARRIVED_ALERT_ACTIONS,
 } from '../services/notifications/categories';
 import MyCommuteLiveActivityModule from '../modules/my-commute-live-activity';
+import { LiveActivityService } from '../services/LiveActivityService';
 import { setupAuthCallbackListener } from '../services/authSession';
+import * as Linking from 'expo-linking';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
 import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
 import { HomeWorkSheetHost } from '../components/HomeWorkSheetHost';
@@ -162,6 +164,19 @@ export default function RootLayout() {
     }
   }, [_hasHydrated]);
 
+  // Initialize Live Activity APNs dual-token listeners once store hydrates.
+  // Also recovers the Push-to-Start token cached by the native bridge when it
+  // was emitted before JS attached (startup race fix). Idempotent by design.
+  useEffect(() => {
+    if (_hasHydrated) {
+      try {
+        LiveActivityService.initTokenListeners();
+      } catch (e) {
+        console.warn('Failed to initialize Live Activity token listeners:', e);
+      }
+    }
+  }, [_hasHydrated]);
+
   // Synchronize geofences whenever hydration is complete, location permissions change, or pinned stations change
   useEffect(() => {
     if (_hasHydrated) {
@@ -233,6 +248,40 @@ export default function RootLayout() {
   // Keychain, and router.replace()s back to the recorded origin screen.
   useEffect(() => {
     return setupAuthCallbackListener({ replace: (href) => router.replace(href as never) });
+  }, [router]);
+
+  // Widget deep links (cold + warm start): mycommute://reroute?line=<id> opens the
+  // in-app reroute flow for the escalated line the widget was displaying.
+  // Poka-yoke: an unrecognized or missing line degrades to the overview, never a guess.
+  useEffect(() => {
+    const handleWidgetUrl = (url: string | null) => {
+      if (!url || !url.startsWith('mycommute://reroute')) return;
+      let data: Record<string, string> | null = null;
+      try {
+        const query = url.split('?')[1];
+        const lineParam = new URLSearchParams(query ?? '').get('line');
+        if (lineParam) data = { lineId: lineParam };
+      } catch {
+        data = null;
+      }
+      const lineId = resolveRerouteTarget(data);
+      const timer = setTimeout(() => {
+        if (lineId) {
+          navigateToIntent(router, {
+            action: 'show-reroute',
+            lineId,
+            initialSection: 'alternatives',
+            statusAsOf: Date.now(),
+          });
+        } else {
+          navigateToIntent(router, { action: 'overview' });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    };
+    const subscription = Linking.addEventListener('url', ({ url }) => handleWidgetUrl(url));
+    Linking.getInitialURL().then((url) => handleWidgetUrl(url)).catch(() => {});
+    return () => subscription.remove();
   }, [router]);
 
   // Run session check once store has hydrated

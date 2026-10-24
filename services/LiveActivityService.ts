@@ -35,6 +35,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import MyCommuteLiveActivityModuleDefault, {
   addPushToStartListener,
   addLiveActivityPushTokenListener,
+  getPushToStartToken,
 } from '../modules/my-commute-live-activity';
 import { track } from './analyticsService';
 import { APP_CONFIG } from '../config/app.config';
@@ -187,6 +188,21 @@ export class LiveActivityService {
     } catch (e) {
       console.warn('[LiveActivityService] Error initializing token listeners:', e);
     }
+
+    // Startup race fix: the native bridge starts observing pushToStartTokenUpdates
+    // in OnCreate — before this JS listener attaches — so an early token emission
+    // would be missed by the event listener above. Query the bridge-cached token
+    // once at init and sync it immediately if one exists.
+    void getPushToStartToken()
+      .then((cachedToken) => {
+        if (!cachedToken) return;
+        console.log('[LiveActivityService] Recovered startup Push-to-Start token from native cache.');
+        backgroundStorage.set('push_to_start_token', cachedToken);
+        void this.syncTokenToBackend('pushToStart', cachedToken);
+      })
+      .catch((e) => {
+        console.warn('[LiveActivityService] Startup Push-to-Start token query failed:', e);
+      });
   }
 
   private static async syncTokenToBackend(

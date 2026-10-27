@@ -53,7 +53,7 @@ const TabsLayout = () => {
       <View style={styles.flex1}>
         <Slot />
       </View>
-      <Animated.View style={[styles.tabBarContainer, tabBarStyle]}>
+      <Animated.View pointerEvents="box-none" style={[styles.tabBarContainer, tabBarStyle]}>
         <FractalGlassTabBar 
           tabs={tabs} 
           activeKey={activeKey} 
@@ -81,6 +81,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 10,
+    elevation: 10,
+    pointerEvents: 'box-none',
   },
   flex1: { flex: 1 },
 });

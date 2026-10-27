@@ -85,7 +85,7 @@ const FractalGlassTabBar: React.FC<TabBarProps> = ({ tabs, activeKey, onPress })
   const reduceTransparency = useReduceTransparency();
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom || 16 }]}>
+    <View pointerEvents="box-none" style={[styles.container, { paddingBottom: insets.bottom || 16 }]}>
       <View style={styles.outerShadowWrapper}>
         <View style={[styles.blurContainer, reduceTransparency && { backgroundColor: '#1C1C1E' }]}>
           {!reduceTransparency && (

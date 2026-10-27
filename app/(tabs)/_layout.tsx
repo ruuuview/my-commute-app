@@ -4,7 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Slot, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useReducedMotion, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, useReducedMotion } from 'react-native-reanimated';
 import FractalGlassTabBar from '../../components/FractalGlassTabBar';
 
 import { House, Broadcast } from 'phosphor-react-native';
@@ -33,7 +33,6 @@ const TabsLayout = () => {
   }, []);
 
   const tabBarTranslateY = useSharedValue(40);
-  const contentOpacity = useSharedValue(1);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -44,39 +43,16 @@ const TabsLayout = () => {
     tabBarTranslateY.value = withDelay(60, withSpring(0, { damping: 20, stiffness: 180 }));
   }, [reducedMotion, tabBarTranslateY]);
 
-  const isInitialMount = React.useRef(true);
-
-  // Tab content opacity crossfades on switch (skips initial mount to prevent blank flash)
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    if (reducedMotion) {
-      contentOpacity.value = 1;
-      return;
-    }
-    contentOpacity.value = withTiming(0, { duration: 120 }, (finished) => {
-      if (finished) {
-        contentOpacity.value = withDelay(20, withTiming(1, { duration: 160 }));
-      }
-    });
-  }, [pathname, contentOpacity, reducedMotion]);
-
   const tabBarStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: tabBarTranslateY.value }],
-  }));
-
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: contentOpacity.value,
   }));
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <Animated.View style={[styles.flex1, contentStyle]}>
+      <View style={styles.flex1}>
         <Slot />
-      </Animated.View>
+      </View>
       <Animated.View style={[styles.tabBarContainer, tabBarStyle]}>
         <FractalGlassTabBar 
           tabs={tabs} 

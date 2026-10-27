@@ -37,7 +37,6 @@ import { shouldHideOnboardingCta } from '../../utils/onboardingCta';
 import { OnboardingGradient } from '../../components/OnboardingGradient';
 import { ProgressDots } from '../../components/ProgressDots';
 import { DepartureCard } from '../../components/DepartureCard';
-import { SkeletonCard } from '../../components/SkeletonCard';
 import { playSound } from '../../utils/sound';
 import { usePressAnimation } from '../../hooks/usePressAnimation';
 import { BlurView } from 'expo-blur';
@@ -94,16 +93,8 @@ export default function StationsScreen() {
   const [query, setQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const inputRef = useRef<TextInput>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     track('onboarding_screen_viewed', { step: 2, screen: 'stations' });
@@ -217,7 +208,7 @@ export default function StationsScreen() {
       if (aHub !== bHub) return aHub - bHub;
       return a.name.localeCompare(b.name);
     });
-    return matching.slice(0, 30); // Cap visual list at 30 for performance
+    return matching.slice(0, 12); // Cap recommendations at 12 for instant render performance
   }, [selectedLines, cleanFullStations, isStationPinned]);
 
   const recentStations = useMemo(() => {
@@ -593,13 +584,7 @@ export default function StationsScreen() {
 
           {/* Main List Area */}
           <View style={styles.listArea}>
-            {loading ? (
-              <View style={styles.loadingListContainer}>
-                {[1, 2, 3, 4, 5].map((idx) => (
-                  <SkeletonCard key={idx} />
-                ))}
-              </View>
-            ) : isShowRecents ? (
+            {isShowRecents ? (
               /* Recent Searches Deck */
               <View style={styles.recentsContainer}>
                 <View style={styles.recentsHeaderRow}>
@@ -656,8 +641,9 @@ export default function StationsScreen() {
                   data={lineRecommendedStations}
                   renderItem={renderStationItem}
                   keyExtractor={(item) => `rec-${item.id}`}
-                  initialNumToRender={12}
-                  windowSize={5}
+                  initialNumToRender={5}
+                  maxToRenderPerBatch={4}
+                  windowSize={3}
                   contentContainerStyle={styles.lineRecsListContent}
                   showsVerticalScrollIndicator={false}
                   keyboardDismissMode="on-drag"
@@ -671,8 +657,9 @@ export default function StationsScreen() {
                 data={query.trim() !== '' ? results : pinnedStations}
                 renderItem={renderStationItem}
                 keyExtractor={(item) => item.id}
-                initialNumToRender={12}
-                windowSize={5}
+                initialNumToRender={5}
+                maxToRenderPerBatch={4}
+                windowSize={3}
                 contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="on-drag"
@@ -841,18 +828,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 130,
-  },
-  loadingListContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    gap: 9,
-  },
-  skeletonCard: {
-    height: 68,
-    borderRadius: 18,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   emptyState: {
     alignItems: 'center',

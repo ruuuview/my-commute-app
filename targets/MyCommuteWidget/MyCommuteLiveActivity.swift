@@ -178,16 +178,13 @@ struct MyCommuteLiveActivityWidget: Widget {
     ActivityConfiguration(for: MyCommuteLiveActivityAttributes.self) { context in
       // ---- Lock Screen / Standby (expanded) ----
       LockScreenView(context: context)
-        .activityBackgroundTint(Color.clear)
     } dynamicIsland: { context in
       // ---- Dynamic Island ----
       DynamicIsland {
         // Expanded (long-press) — Apple HIG 3-region expanded layout
         DynamicIslandExpandedRegion(.leading) {
           HStack(spacing: 5) {
-            Circle()
-              .fill(LineColor.color(for: context.attributes.lineId))
-              .frame(width: 8, height: 8)
+            AccentBar(lineId: context.attributes.lineId, width: 3.5, height: 13)
             Text(context.attributes.lineName ?? context.state.lineName)
               .font(.system(size: 13, weight: .bold))
               .foregroundColor(.white)
@@ -199,7 +196,12 @@ struct MyCommuteLiveActivityWidget: Widget {
             .padding(.trailing, 4)
         }
         DynamicIslandExpandedRegion(.bottom) {
-          DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+          if context.state.severityTier >= 2 {
+            DisruptionExpandedBottomView(state: context.state, lineId: context.attributes.lineId)
+              .padding(.horizontal, 4)
+          } else {
+            DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+          }
         }
       } compactLeading: {
         CompactIslandView(context: context, trailing: false)
@@ -335,32 +337,22 @@ private struct CompactIslandView: View {
       if context.state.severityTier >= 1, let label = compactStatusLabel(for: context.state.statusText) {
         let isSevere = context.state.severityTier >= 2
         let dotColor = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
-        HStack(spacing: 3.5) {
-          ZStack {
-            Circle()
-              .fill(dotColor.opacity(0.25))
-              .frame(width: 8, height: 8)
-            Circle()
-              .fill(dotColor)
-              .frame(width: 4.5, height: 4.5)
-          }
-          Text(label)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(dotColor)
-            .lineLimit(1)
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2)
-        .background(
-          Capsule()
-            .fill(dotColor.opacity(0.16))
-        )
-        .overlay(
-          Capsule()
-            .stroke(dotColor.opacity(0.35), lineWidth: 0.5)
-        )
-        .fixedSize(horizontal: true, vertical: false)
-        .accessibilityLabel("\(label) on \(lineDisplayName)")
+        Text(label)
+          .font(.system(size: 11, weight: .bold))
+          .foregroundColor(dotColor)
+          .lineLimit(1)
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2.5)
+          .background(
+            Capsule()
+              .fill(dotColor.opacity(0.16))
+          )
+          .overlay(
+            Capsule()
+              .stroke(dotColor.opacity(0.35), lineWidth: 0.5)
+          )
+          .fixedSize(horizontal: true, vertical: false)
+          .accessibilityLabel("\(label) on \(lineDisplayName)")
       } else if context.state.phase == "line_picker" {
         let count = context.state.availableLines?.count ?? 0
         Text("\(count) lines")
@@ -425,20 +417,10 @@ private struct CompactIslandView: View {
       }
     } else {
       if context.state.severityTier >= 2 {
-        HStack(spacing: 4) {
-          ZStack {
-            Circle()
-              .fill(LineColor.color(for: context.attributes.lineId).opacity(0.35))
-              .frame(width: 8, height: 8)
-            Circle()
-              .fill(LineColor.color(for: context.attributes.lineId))
-              .frame(width: 5, height: 5)
-            Circle()
-              .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-              .frame(width: 8, height: 8)
-          }
+        HStack(spacing: 4.5) {
+          AccentBar(lineId: context.attributes.lineId, width: 3.5, height: 11)
           Text(lineShortCode)
-            .font(.system(size: 11, weight: .bold))
+            .font(.system(size: 12, weight: .bold))
             .foregroundColor(.white)
             .lineLimit(1)
         }

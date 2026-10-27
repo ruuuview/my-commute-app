@@ -91,41 +91,35 @@ public struct DeliveryTrackView: View {
   // MARK: - Dedicated Disruption Takeover View (Severity Tier >= 2)
   private var disruptionView: some View {
     VStack(alignment: .leading, spacing: 9) {
-      // Row 1: Line accent bar + Canonical Line Name + Status Bezel (Zero debug badges)
+      // Row 1: Line accent bar + Canonical Line Name
       HStack(spacing: 7) {
         AccentBar(lineId: lineId, width: 3.5, height: 14)
         Text(lineDisplayName)
           .font(.system(size: 14, weight: .bold))
           .foregroundColor(.white)
         Spacer()
-        StatusBezelView(severity: state.severityTier)
       }
 
       // Row 2: High-contrast Disruption Headline (RED for Severe / Suspended, AMBER for Minor)
       Text(disruptionHeadline)
-        .font(.system(size: 19, weight: .heavy))
+        .font(.system(size: 20, weight: .heavy))
         .foregroundColor(headlineColor)
 
-      // Row 3: Genuine Status Reason / Cause in a luxury dark frosted glass highlight box
+      // Row 3: Genuine Status Reason / Cause in a luxury translucent highlight box
       if let cause = disruptionCauseText, !cause.isEmpty {
-        HStack(alignment: .top, spacing: 7) {
-          Circle()
-            .fill(headlineColor)
-            .frame(width: 5, height: 5)
-            .padding(.top, 4.5)
-          Text(cause)
-            .font(.system(size: 12.5, weight: .medium))
-            .foregroundColor(.white.opacity(0.92))
-            .lineLimit(3)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-          RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-        )
+        Text(cause)
+          .font(.system(size: 12.5, weight: .medium))
+          .foregroundColor(.white.opacity(0.92))
+          .lineLimit(3)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 8)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+          .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+              .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+          )
       }
 
       // Row 4: Genuine Detour Alternative (only if present in payload)
@@ -612,7 +606,7 @@ public struct DeliveryTrackView: View {
   // renders solely on `state.isEscalated`.
   @ViewBuilder
   private var detourSlot: some View {
-    if state.isEscalated {
+    if state.isEscalated && !lineId.isEmpty {
       Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
         HStack(spacing: 6) {
           Image(systemName: "signpost.right.and.left.fill").font(.system(size: 13, weight: .semibold))
@@ -627,4 +621,61 @@ public struct DeliveryTrackView: View {
     }
   }
 
+}
+
+// MARK: - Dedicated Disruption Bottom View for Dynamic Island Expanded
+public struct DisruptionExpandedBottomView: View {
+  let state: MyCommuteLiveActivityAttributes.ContentState
+  let lineId: String
+
+  public init(state: MyCommuteLiveActivityAttributes.ContentState, lineId: String) {
+    self.state = state
+    self.lineId = lineId
+  }
+
+  private var causeText: String? {
+    let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !raw.isEmpty else { return nil }
+    for separator in [" — ", " - ", ": "] {
+      if let sepRange = raw.range(of: separator) {
+        let remainder = String(raw[sepRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !remainder.isEmpty { return remainder }
+      }
+    }
+    return raw
+  }
+
+  public var body: some View {
+    HStack(alignment: .center, spacing: 10) {
+      if let cause = causeText, !cause.isEmpty {
+        Text(cause)
+          .font(.system(size: 11.5, weight: .medium))
+          .foregroundColor(.white.opacity(0.85))
+          .lineLimit(2)
+          .fixedSize(horizontal: false, vertical: true)
+      } else {
+        Text("Service currently disrupted on this line.")
+          .font(.system(size: 11.5, weight: .medium))
+          .foregroundColor(.white.opacity(0.70))
+      }
+
+      Spacer(minLength: 4)
+
+      if !lineId.isEmpty {
+        Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
+          HStack(spacing: 4) {
+            Image(systemName: "arrow.triangle.swap")
+              .font(.system(size: 10, weight: .bold))
+            Text("Reroute")
+              .font(.system(size: 11, weight: .bold))
+          }
+          .foregroundColor(.white)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+          .background(Color.white.opacity(0.18))
+          .clipShape(Capsule())
+        }
+      }
+    }
+  }
 }

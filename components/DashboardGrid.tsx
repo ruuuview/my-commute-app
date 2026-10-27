@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, memo } from 'react';
 import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { NestableDraggableFlatList, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -17,6 +17,74 @@ export interface DashboardGridProps {
   skipEntrance?: boolean;
   onDragActiveChange?: (active: boolean) => void;
 }
+
+interface DashboardGridRowProps {
+  item: any;
+  index: number;
+  isActive: boolean;
+  drag: () => void;
+  totalStations: number;
+  onDelete: (id: string) => void;
+  onStationTap?: (id: string, name: string) => void;
+  onMoveUp?: (index: number) => void;
+  onMoveDown?: (index: number) => void;
+  onScrollEnabledChange: (enabled: boolean) => void;
+}
+
+const DashboardGridRow = memo(function DashboardGridRow({
+  item,
+  index,
+  isActive,
+  drag,
+  totalStations,
+  onDelete,
+  onStationTap,
+  onMoveUp,
+  onMoveDown,
+  onScrollEnabledChange,
+}: DashboardGridRowProps) {
+  const handleDelete = useCallback(() => {
+    onDelete(item.id);
+  }, [item.id, onDelete]);
+
+  const handleDragWithScrollLock = useCallback(() => {
+    onScrollEnabledChange(false);
+    drag();
+  }, [drag, onScrollEnabledChange]);
+
+  const handleTap = useCallback(
+    (stationId: string, stationName: string) => {
+      onStationTap?.(stationId, stationName);
+    },
+    [onStationTap]
+  );
+
+  return (
+    <AppleSwipeableRow
+      onDelete={handleDelete}
+      cardRadius={16}
+      marginBottom={12}
+      disabled={isActive}
+      testID={`swipe-departure-${item.id}`}
+    >
+      <ScaleDecorator activeScale={1.03}>
+        <DepartureCard
+          stationId={item.id}
+          stationName={item.name}
+          lines={item.lines}
+          onCardTap={handleTap}
+          index={index}
+          isActive={isActive}
+          drag={handleDragWithScrollLock}
+          onDelete={onDelete}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          totalStations={totalStations}
+        />
+      </ScaleDecorator>
+    </AppleSwipeableRow>
+  );
+});
 
 export default function DashboardGrid({
   stations,
@@ -67,54 +135,30 @@ export default function DashboardGrid({
     [stations, onReorderStations]
   );
 
-  const handleCardTap = useCallback(
-    (stationId: string, stationName: string) => {
-      onStationTap?.(stationId, stationName);
-    },
-    [onStationTap]
-  );
-
   const renderItem = useCallback(
     ({ item, drag, isActive, getIndex }: RenderItemParams<any>) => {
       const index = getIndex() ?? stations.findIndex(s => s.id === item.id);
-
-      const handleDragWithScrollLock = () => {
-        onScrollEnabledChange(false);
-        drag();
-      };
-
       return (
-        <AppleSwipeableRow
-          onDelete={() => onDelete(item.id)}
-          cardRadius={16}
-          marginBottom={12}
-          disabled={isActive}
-          testID={`swipe-departure-${item.id}`}
-        >
-          <ScaleDecorator activeScale={1.03}>
-            <DepartureCard
-              stationId={item.id}
-              stationName={item.name}
-              lines={item.lines}
-              onCardTap={handleCardTap}
-              index={index}
-              isActive={isActive}
-              drag={handleDragWithScrollLock}
-              onDelete={onDelete}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
-              totalStations={stations.length}
-            />
-          </ScaleDecorator>
-        </AppleSwipeableRow>
+        <DashboardGridRow
+          item={item}
+          index={index}
+          isActive={isActive}
+          drag={drag}
+          totalStations={stations.length}
+          onDelete={onDelete}
+          onStationTap={onStationTap}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+          onScrollEnabledChange={onScrollEnabledChange}
+        />
       );
     },
     [
       stations,
       onDelete,
+      onStationTap,
       handleMoveUp,
       handleMoveDown,
-      handleCardTap,
       onScrollEnabledChange,
     ]
   );

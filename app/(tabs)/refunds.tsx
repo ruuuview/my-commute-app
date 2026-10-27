@@ -219,7 +219,11 @@ export default function RefundsScreen() {
   // 3. Pull-to-refresh: Always forces immediate fresh fetch.
   useFocusEffect(
     useCallback(() => {
-      void fetchClaims(true)
+      const now = Date.now()
+      if (now - lastFetchTimeRef.current > 60_000) {
+        lastFetchTimeRef.current = now
+        void fetchClaims(true)
+      }
     }, [fetchClaims])
   )
 

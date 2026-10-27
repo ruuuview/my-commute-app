@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, memo } from 'react';
 import {
   View,
   Text,
@@ -61,6 +61,43 @@ function getCtaLabel(selectedCount: number): string {
   }
   return `Continue with ${selectedCount} lines`;
 }
+
+interface LineItemRowProps {
+  item: typeof TFL_LINES[0];
+  isSelected: boolean;
+  statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown';
+  statusLabel: string;
+  cardWidth: number;
+  dynamicCardHeight: number;
+  onToggle: (id: string) => void;
+}
+
+const LineItemRow = memo(function LineItemRow({
+  item,
+  isSelected,
+  statusType,
+  statusLabel,
+  cardWidth,
+  dynamicCardHeight,
+  onToggle,
+}: LineItemRowProps) {
+  const handlePress = useCallback(() => {
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+
+  return (
+    <View style={{ width: cardWidth, height: dynamicCardHeight }}>
+      <LineCard
+        line={item}
+        selected={isSelected}
+        onPress={handlePress}
+        statusType={statusType}
+        statusLabel={statusLabel}
+        cardHeight={dynamicCardHeight}
+      />
+    </View>
+  );
+});
 
 export default function LinesScreen() {
   const router = useRouter();
@@ -241,7 +278,7 @@ export default function LinesScreen() {
     return { statusType, label };
   };
 
-  const resolveLineStatus = (lineId: string) => {
+  const resolveLineStatus = useCallback((lineId: string) => {
     let statusType: 'good' | 'minor' | 'severe' | 'suspended' | 'closure' | 'loading' | 'error' | 'unknown' = 'loading';
     let statusLabel = 'Loading status...';
 
@@ -285,24 +322,26 @@ export default function LinesScreen() {
       }
     }
     return { statusType, statusLabel };
-  };
+  }, [loadingStatuses, apiStatuses]);
 
-  const renderItem = ({ item }: { item: typeof TFL_LINES[0] }) => {
-    const isSelected = selectedLines.includes(item.id);
-    const { statusType, statusLabel } = resolveLineStatus(item.id);
-    return (
-      <View style={{ width: cardWidth, height: dynamicCardHeight }}>
-        <LineCard
-          line={item}
-          selected={isSelected}
-          onPress={() => handleToggleLine(item.id)}
+  const renderItem = useCallback(
+    ({ item }: { item: typeof TFL_LINES[0] }) => {
+      const isSelected = selectedLines.includes(item.id);
+      const { statusType, statusLabel } = resolveLineStatus(item.id);
+      return (
+        <LineItemRow
+          item={item}
+          isSelected={isSelected}
           statusType={statusType}
           statusLabel={statusLabel}
-          cardHeight={dynamicCardHeight}
+          cardWidth={cardWidth}
+          dynamicCardHeight={dynamicCardHeight}
+          onToggle={handleToggleLine}
         />
-      </View>
-    );
-  };
+      );
+    },
+    [selectedLines, resolveLineStatus, cardWidth, dynamicCardHeight, handleToggleLine]
+  );
 
   return (
     <View style={styles.root}>

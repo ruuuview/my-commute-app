@@ -135,7 +135,7 @@ export async function fetchNormalizedStationArrivals(
             if (res.ok) {
               anyNetworkSuccess = true;
               const data = await res.json();
-              if (Array.isArray(data)) return data;
+              if (Array.isArray(data) && data.length > 0) return data;
             } else {
               lastNetworkError = new Error(`TfL StopPoint returned HTTP ${res.status}`);
             }
@@ -150,7 +150,7 @@ export async function fetchNormalizedStationArrivals(
               if (railRes.ok) {
                 anyNetworkSuccess = true;
                 const railData = await railRes.json();
-                if (Array.isArray(railData)) return railData;
+                if (Array.isArray(railData) && railData.length > 0) return railData;
               } else {
                 lastNetworkError = new Error(`TfL Rail returned HTTP ${railRes.status}`);
               }

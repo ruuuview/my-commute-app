@@ -77,15 +77,15 @@ export function deleteCachedArrivals(stationId: string): void {
 }
 
 /**
- * Deterministic jitter based on stationId string hash (0 - 1499ms).
- * De-synchronizes network bursts when multiple cards mount or exit edit mode together.
+ * Deterministic micro-jitter based on stationId string hash (0 - 119ms).
+ * De-synchronizes initial network requests without introducing perceptible delay.
  */
 function getStationJitterMs(stationId: string): number {
   let hash = 0;
   for (let i = 0; i < stationId.length; i++) {
     hash = ((hash << 5) - hash + stationId.charCodeAt(i)) | 0;
   }
-  return Math.abs(hash) % 1500;
+  return Math.abs(hash) % 120;
 }
 
 /**

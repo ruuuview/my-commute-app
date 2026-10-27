@@ -31,7 +31,11 @@ import { createMMKV } from 'react-native-mmkv';
 import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { tflCapitalise } from '../utils/tflCapitalise';
-import { useUserPreferencesStore } from '../store/userPreferencesStore';
+// Lazy require to eliminate circular dependency cycle with userPreferencesStore (AGENTS.md / startup performance)
+function getUserPreferencesStore(): typeof import('../store/userPreferencesStore').useUserPreferencesStore {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('../store/userPreferencesStore').useUserPreferencesStore;
+}
 import MyCommuteLiveActivityModuleDefault, {
   addPushToStartListener,
   addLiveActivityPushTokenListener,
@@ -471,8 +475,8 @@ export class LiveActivityService {
       nextStationEtaMinutes,
       nextStationEtaTimestamp,
       isStaleEta,
-      alertDeliveryMode: useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush',
-      alertSound: useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode === 'loud' ? 'default' : 'silent',
+      alertDeliveryMode: getUserPreferencesStore()?.getState?.()?.shushPreferences?.alertDeliveryMode || 'shush',
+      alertSound: getUserPreferencesStore()?.getState?.()?.shushPreferences?.alertDeliveryMode === 'loud' ? 'default' : 'silent',
     };
   }
 
@@ -560,7 +564,7 @@ export class LiveActivityService {
   static async start(stationId: string, lineId: string, trigger = 'geofence'): Promise<string | null> {
     if (Platform.OS !== 'ios') return null;
 
-    const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+    const deliveryMode = getUserPreferencesStore()?.getState?.()?.shushPreferences?.alertDeliveryMode || 'shush';
     if (deliveryMode === 'off') {
       console.log('[LiveActivityService] Delivery mode is OFF — suppressing Live Activity start.');
       return null;
@@ -713,9 +717,9 @@ export class LiveActivityService {
     this.lastWidgetSyncAt = now;
 
     try {
-      const lines = (selectedLines && selectedLines.length > 0)
+      const lines: string[] = (selectedLines && selectedLines.length > 0)
         ? selectedLines
-        : (useUserPreferencesStore?.getState?.()?.selectedLines || []);
+        : (getUserPreferencesStore()?.getState?.()?.selectedLines || []);
 
       const linesArray: SavedLinePayload[] = (lines && lines.length > 0)
         ? lines.map(rawId => ({
@@ -1043,7 +1047,7 @@ export class LiveActivityService {
     try {
       const granted = await nativeModule.requestTimeSensitivePermission();
       const status = await this.getTimeSensitiveStatus();
-      useUserPreferencesStore.getState().setTimeSensitiveStatus(status);
+      getUserPreferencesStore()?.getState?.()?.setTimeSensitiveStatus(status);
       return granted;
     } catch {
       return false;

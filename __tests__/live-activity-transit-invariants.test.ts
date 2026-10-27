@@ -118,4 +118,43 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(sequence).toEqual([]);
     });
   });
+
+  describe('Pass 6: Disruption Layout & Dynamic Island Parity Invariants', () => {
+    it('verifies DeliveryTrackView disruptionView contains zero redundant StatusBezelView circle dots', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).not.toContain('StatusBezelView(severity: state.severityTier)');
+    });
+
+    it('verifies DeliveryTrackView disruptionView uses AccentBar for line identity', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toContain('AccentBar(lineId: lineId, width: 3.5, height: 14)');
+    });
+
+    it('verifies DeliveryTrackView defines DisruptionExpandedBottomView and guards lineId', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toContain('public struct DisruptionExpandedBottomView: View');
+      expect(deliveryTrack).toContain('if state.isEscalated && !lineId.isEmpty');
+    });
+
+    it('verifies DisruptionExpandedBottomView uses MyCommuteLiveActivityAttributes.ContentState and zero hallucinated types', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).not.toContain('DeliveryTrackState');
+      expect(deliveryTrack).toContain('state: MyCommuteLiveActivityAttributes.ContentState');
+    });
+
+    it('verifies MyCommuteLiveActivity contains zero .activityBackgroundTint(Color.clear) overrides', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).not.toContain('.activityBackgroundTint(Color.clear)');
+    });
+
+    it('verifies DynamicIslandExpandedRegion(.bottom) routes disruptions to DisruptionExpandedBottomView', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toContain('DisruptionExpandedBottomView(state: context.state, lineId: context.attributes.lineId)');
+    });
+
+    it('verifies Dynamic Island Expanded leading uses AccentBar instead of Circle dot', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toContain('AccentBar(lineId: context.attributes.lineId, width: 3.5, height: 13)');
+    });
+  });
 });

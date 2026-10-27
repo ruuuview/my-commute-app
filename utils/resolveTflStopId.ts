@@ -28,6 +28,7 @@ const MANUAL_HUBS: Record<string, string[]> = {
 };
 
 const SLUG_TO_HUB: Record<string, string> = {
+  'abbey-wood': 'HUBABW',
   'bank': 'HUBBAN',
   'bank-monument': 'HUBBAN',
   'canary-wharf': 'HUBCAW',
@@ -89,6 +90,7 @@ const EXPLICIT_MAP: Record<string, string[]> = {
   ...MANUAL_HUBS,
  
   // Manual slug aliases for interchanges / common variants
+  'abbey-wood':       ['910GABWDXR'],
   'camden-road':      ['910GCMDNRD'],
   'camden-road-station': ['910GCMDNRD'],
   'camden-town':      ['940GZZLUCTN'],

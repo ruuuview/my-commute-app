@@ -16,7 +16,7 @@ import { useDiagnosticsStore } from '../store/diagnosticsStore';
  *
  * Hermetic invariant: this path must never read live line data.
  */
-const SHAKE_THRESHOLD_G = 1.9;
+const SHAKE_THRESHOLD_G = 1.35;
 const TRIGGER_DEBOUNCE_MS = 1500;
 
 export function useDiagnosticsTriggers() {
@@ -31,6 +31,18 @@ export function useDiagnosticsTriggers() {
       if (now - lastFireAt < TRIGGER_DEBOUNCE_MS) return;
       lastFireAt = now;
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const devMenu = require('expo-dev-menu');
+        if (devMenu && typeof devMenu.openMenu === 'function') {
+          devMenu.openMenu();
+          return;
+        }
+      } catch {
+        // expo-dev-menu not available
+      }
+
       useDiagnosticsStore.getState().open();
     };
 

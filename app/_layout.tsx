@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, AccessibilityInfo, AppState, LogBox, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -35,6 +35,9 @@ import { LiveActivityService } from '../services/LiveActivityService';
 import { setupAuthCallbackListener } from '../services/authSession';
 import * as Linking from 'expo-linking';
 import { PermissionPrimerModal } from '../components/PermissionPrimerModal';
+import { DiagnosticsModal } from '../components/DiagnosticsModal';
+import { useDiagnosticsStore } from '../store/diagnosticsStore';
+import { useDiagnosticsTriggers } from '../hooks/useDiagnosticsTriggers';
 import { PillBridge } from '../components/DynamicIslandBanner/PillBridge';
 import { HomeWorkSheetHost } from '../components/HomeWorkSheetHost';
 import { DynamicNotifications } from '../components/DynamicIslandBanner/components';
@@ -108,6 +111,40 @@ export default function RootLayout() {
   });
 
   const [timedOut, setTimedOut] = useState(false);
+
+  const diagnosticsOpen = useDiagnosticsStore((s) => s.isOpen);
+  const closeDiagnostics = useDiagnosticsStore((s) => s.close);
+  useDiagnosticsTriggers();
+
+  // Dev-only global gesture: 3-finger double-tap anywhere opens Diagnostics.
+  // (RNGH LongPress is single-pointer; Tap is the only multi-pointer gesture.)
+  const openDiagnosticsGesture = Gesture.Tap()
+    .minPointers(3)
+    .numberOfTaps(2)
+    .enabled(__DEV__)
+    .runOnJS(true)
+    .onStart(() => {
+      useDiagnosticsStore.getState().open();
+    });
+
+  useEffect(() => {
+    if (__DEV__) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { requireOptionalNativeModule } = require('expo-modules-core');
+        const devMenuPrefs = requireOptionalNativeModule('DevMenuPreferences');
+        if (devMenuPrefs && typeof devMenuPrefs.setPreferencesAsync === 'function') {
+          void devMenuPrefs.setPreferencesAsync({
+            motionGestureEnabled: true,
+            touchGestureEnabled: true,
+            keyCommandsEnabled: true,
+          });
+        }
+      } catch {
+        // Safe dev fallback
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -551,6 +588,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
+      <GestureDetector gesture={openDiagnosticsGesture}>
       <SafeAreaProvider style={styles.root}>
         <DynamicNotifications
           duration={null}
@@ -568,9 +606,18 @@ export default function RootLayout() {
           ) : null}
           <Animated.View style={[StyleSheet.absoluteFillObject, styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
           <PermissionPrimerModal />
+          <DiagnosticsModal
+            visible={diagnosticsOpen}
+            onClose={closeDiagnostics}
+            onResetOnboarding={() => {
+              closeDiagnostics();
+              useUserPreferencesStore.getState().resetOnboarding();
+            }}
+          />
           <FlashMessage position="top" />
         </DynamicNotifications>
       </SafeAreaProvider>
+      </GestureDetector>
     </GestureHandlerRootView>
   );
 }

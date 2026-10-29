@@ -39,7 +39,7 @@ import { scheduleCalendarCommuteAlerts, cancelCalendarCommuteAlerts } from '../s
 import { ProStatusCard } from '../components/ProStatusCard';
 import { FixItSheet } from '../components/FixItSheet';
 import { AlertHoursSheet } from '../components/AlertHoursSheet';
-import { DiagnosticsModal } from '../components/DiagnosticsModal';
+import { useDiagnosticsStore } from '../store/diagnosticsStore';
 import { LiquidGlassView } from '../components/LiquidGlassView';
 import { SegmentedGlassControl } from '../components/SegmentedGlassControl';
 import TfLConnectSheet from '../components/refunds/TfLConnectSheet';
@@ -89,7 +89,6 @@ export default function SettingsScreen() {
     setTflAccountStatus,
     completedJourneys,
     pinnedStations,
-    resetOnboarding,
     alertHoursMode,
     alertWindowStart,
     alertWindowEnd,
@@ -110,7 +109,6 @@ export default function SettingsScreen() {
       setTflAccountStatus: s.setTflAccountStatus,
       completedJourneys: s.completedJourneys,
       pinnedStations: s.pinnedStations || [],
-      resetOnboarding: s.resetOnboarding,
       alertHoursMode: s.alertHoursMode || (s.alertWindowStart === '00:00' && s.alertWindowEnd === '23:59' ? '24h' : 'custom'),
       alertWindowStart: s.alertWindowStart || '06:00',
       alertWindowEnd: s.alertWindowEnd || '22:00',
@@ -158,7 +156,7 @@ export default function SettingsScreen() {
   // ── Modals & Sheets ───────────────────────────────────────────────
   const [showFixItSheet, setShowFixItSheet] = useState(false);
   const [showAlertHoursSheet, setShowAlertHoursSheet] = useState(false);
-  const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
+  const openDiagnostics = useDiagnosticsStore((s) => s.open);
   const [showTflConnectSheet, setShowTflConnectSheet] = useState(false);
   const [versionTaps, setVersionTaps] = useState(0);
   const [developerUnlocked, setDeveloperUnlocked] = useState(false);
@@ -1123,7 +1121,7 @@ export default function SettingsScreen() {
                 >
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                    onPress={() => setShowDiagnosticsModal(true)}
+                    onPress={openDiagnostics}
                     accessibilityRole="button"
                     accessibilityLabel="Diagnostics & Sensor Health"
                     accessibilityHint="Opens sensor health and permissions diagnostics drawer"
@@ -1263,15 +1261,6 @@ export default function SettingsScreen() {
         }}
       />
 
-      <DiagnosticsModal
-        visible={showDiagnosticsModal}
-        onClose={() => setShowDiagnosticsModal(false)}
-        onResetOnboarding={() => {
-          setShowDiagnosticsModal(false);
-          resetOnboarding();
-          router.back();
-        }}
-      />
     </View>
   );
 }

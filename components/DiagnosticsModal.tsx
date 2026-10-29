@@ -778,6 +778,66 @@ export const DiagnosticsModal: React.FC<Props> = ({
 
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={() => {
+                      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      try {
+                        // eslint-disable-next-line @typescript-eslint/no-require-imports
+                        const devMenu = require('expo-dev-menu');
+                        if (devMenu && typeof devMenu.openMenu === 'function') {
+                          devMenu.openMenu();
+                        }
+                      } catch (err) {
+                        console.warn('[DiagnosticsModal] Could not open DevMenu:', err);
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open Expo Developer Menu"
+                  >
+                    <Wrench size={20} color="#BF5AF2" weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#BF5AF2' }]}>
+                        Open Expo Developer Menu
+                      </Text>
+                      <Text style={styles.actionSubtitle}>
+                        Directly opens the Expo Dev Client menu without gestures
+                      </Text>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.divider} />
+
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={() => {
+                      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      try {
+                        // eslint-disable-next-line @typescript-eslint/no-require-imports
+                        const { DevSettings } = require('react-native');
+                        if (DevSettings && typeof DevSettings.reload === 'function') {
+                          DevSettings.reload();
+                        }
+                      } catch (err) {
+                        console.warn('[DiagnosticsModal] Could not reload bundle:', err);
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reload JavaScript Bundle"
+                  >
+                    <ArrowsClockwise size={20} color="#0A84FF" weight="bold" />
+                    <View style={styles.actionInfo}>
+                      <Text style={[styles.actionTitle, { color: '#0A84FF' }]}>
+                        Reload JavaScript Bundle
+                      </Text>
+                      <Text style={styles.actionSubtitle}>
+                        Fast-reloads Metro bundle immediately
+                      </Text>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.divider} />
+
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                     onPress={onResetOnboarding}
                     accessibilityRole="button"
                     accessibilityLabel="Reset Onboarding State"

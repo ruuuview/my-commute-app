@@ -106,25 +106,30 @@ public struct DeliveryTrackView: View {
         .foregroundColor(headlineColor)
 
       // Row 3: Genuine Status Reason / Cause in a luxury translucent highlight box
-      if let cause = disruptionCauseText, !cause.isEmpty {
-        Text(cause)
-          .font(.system(size: 12.5, weight: .medium))
-          .foregroundColor(.white.opacity(0.92))
-          .lineLimit(3)
-          .fixedSize(horizontal: false, vertical: true)
-          .padding(.horizontal, 10)
-          .padding(.vertical, 8)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-          .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-              .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-          )
-      }
+      Text(resolvedDisruptionCause)
+        .font(.system(size: 12.5, weight: .medium))
+        .foregroundColor(.white.opacity(0.92))
+        .lineLimit(3)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+        )
 
       // Row 4: Genuine Detour Alternative (only if present in payload)
       detourSlot
     }
+  }
+
+  private var resolvedDisruptionCause: String {
+    if let cause = disruptionCauseText, !cause.isEmpty {
+      return cause
+    }
+    return "Service currently disrupted on this line."
   }
 
   private var headlineColor: Color {

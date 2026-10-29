@@ -149,10 +149,17 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(deliveryTrack).toMatch(/raw\.lowercased\(\)\s*==\s*statusHeadline\.lowercased\(\)|headlines\.contains\(raw\.lowercased\(\)\)/);
     });
 
-    it('verifies DiagnosticsModal handleTestShushDemo supplies realistic fallback disruption reason for testing', () => {
+    it('verifies DiagnosticsModal handleTestShushDemo injects hermetic test disruption reason without relying on live network data', () => {
       const modalPath = path.resolve(rootDir, 'components/DiagnosticsModal.tsx');
       const modalContent = fs.readFileSync(modalPath, 'utf8');
       expect(modalContent).toContain('No service between Whitechapel and Shenfield due to an urgent track inspection');
+      expect(modalContent).not.toContain('useLineDataStore.getState().lines');
+    });
+
+    it('verifies DeliveryTrackView disruptionView Row 3 provides fallback context when causeText is nil', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toContain('resolvedDisruptionCause');
+      expect(deliveryTrack).toContain('Service currently disrupted on this line.');
     });
 
     it('verifies DisruptionExpandedBottomView uses MyCommuteLiveActivityAttributes.ContentState and zero hallucinated types', () => {

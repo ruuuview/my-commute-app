@@ -29,6 +29,7 @@
         "NSLocationAlwaysUsageDescription": "Allow My Commute to use your location in the background to detect station arrival and automate delay repay.",
         "NSLocationWhenInUseUsageDescription": "Allow My Commute to use your location to show nearby stations and departures.",
         "NSCameraUsageDescription": "Allow My Commute to access your camera to scan development QR codes.",
+        "NSMotionUsageDescription": "Allow My Commute to use motion sensors for shake gestures and movement detection.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "citymapper",

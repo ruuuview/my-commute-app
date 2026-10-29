@@ -14,6 +14,7 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(fs.existsSync(routeDataPath)).toBe(true);
       const rawData = fs.readFileSync(routeDataPath, 'utf8');
       const routeData = JSON.parse(rawData);
+      expect(routeData.routes).toBeDefined();
 
       // Northern line bank branch corridor checks
       // In TfL Northern line, King's Cross St. Pancras connects directly to Euston on the Bank branch,
@@ -133,7 +134,25 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
     it('verifies DeliveryTrackView defines DisruptionExpandedBottomView and guards lineId', () => {
       const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
       expect(deliveryTrack).toContain('public struct DisruptionExpandedBottomView: View');
-      expect(deliveryTrack).toContain('if state.isEscalated && !lineId.isEmpty');
+      expect(deliveryTrack).toContain('if (state.severityTier >= 2 || state.isEscalated) && !lineId.isEmpty');
+    });
+
+    it('verifies CompactIslandView uses ViewThatFits with lineDisplayName before lineShortCode for severityTier >= 2', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toContain('ViewThatFits(in: .horizontal)');
+      expect(liveActivity).toMatch(/ViewThatFits\(in: \.horizontal\)\s*\{\s*Text\(lineDisplayName\)/);
+      expect(liveActivity).toContain('Text(lineShortCode)');
+    });
+
+    it('verifies DisruptionExpandedBottomView prevents headline duplication when causeText equals headline', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toMatch(/raw\.lowercased\(\)\s*==\s*statusHeadline\.lowercased\(\)|headlines\.contains\(raw\.lowercased\(\)\)/);
+    });
+
+    it('verifies DiagnosticsModal handleTestShushDemo supplies realistic fallback disruption reason for testing', () => {
+      const modalPath = path.resolve(rootDir, 'components/DiagnosticsModal.tsx');
+      const modalContent = fs.readFileSync(modalPath, 'utf8');
+      expect(modalContent).toContain('No service between Whitechapel and Shenfield due to an urgent track inspection');
     });
 
     it('verifies DisruptionExpandedBottomView uses MyCommuteLiveActivityAttributes.ContentState and zero hallucinated types', () => {

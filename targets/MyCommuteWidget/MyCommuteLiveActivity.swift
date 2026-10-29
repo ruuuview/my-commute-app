@@ -419,10 +419,16 @@ private struct CompactIslandView: View {
       if context.state.severityTier >= 2 {
         HStack(spacing: 4.5) {
           AccentBar(lineId: context.attributes.lineId, width: 3.5, height: 11)
-          Text(lineShortCode)
-            .font(.system(size: 12, weight: .bold))
-            .foregroundColor(.white)
-            .lineLimit(1)
+          ViewThatFits(in: .horizontal) {
+            Text(lineDisplayName)
+              .font(.system(size: 12, weight: .bold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+            Text(lineShortCode)
+              .font(.system(size: 12, weight: .bold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+          }
         }
         .accessibilityLabel("\(lineDisplayName) line")
       } else if context.state.phase == "line_picker" {

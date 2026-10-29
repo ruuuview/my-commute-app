@@ -31,11 +31,6 @@ import { createMMKV } from 'react-native-mmkv';
 import { getTier2Cache } from '../services/tier2Cache';
 import { normaliseLineId } from '../utils/normaliseLineId';
 import { tflCapitalise } from '../utils/tflCapitalise';
-// Lazy require to eliminate circular dependency cycle with userPreferencesStore (AGENTS.md / startup performance)
-function getUserPreferencesStore(): typeof import('../store/userPreferencesStore').useUserPreferencesStore {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require('../store/userPreferencesStore').useUserPreferencesStore;
-}
 import MyCommuteLiveActivityModuleDefault, {
   addPushToStartListener,
   addLiveActivityPushTokenListener,
@@ -45,6 +40,12 @@ import { track } from './analyticsService';
 import { APP_CONFIG } from '../config/app.config';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { formatDisruptionNotificationBody } from './notifications/disruptionCopy';
+
+// Lazy require to eliminate circular dependency cycle with userPreferencesStore (AGENTS.md / startup performance)
+function getUserPreferencesStore(): typeof import('../store/userPreferencesStore').useUserPreferencesStore {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('../store/userPreferencesStore').useUserPreferencesStore;
+}
 
 export interface SavedLinePayload {
   id: string;   // Canonical TfL line ID slug (e.g. 'jubilee', 'elizabeth')

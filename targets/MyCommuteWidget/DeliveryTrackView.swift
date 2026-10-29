@@ -606,7 +606,7 @@ public struct DeliveryTrackView: View {
   // renders solely on `state.isEscalated`.
   @ViewBuilder
   private var detourSlot: some View {
-    if state.isEscalated && !lineId.isEmpty {
+    if (state.severityTier >= 2 || state.isEscalated) && !lineId.isEmpty {
       Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
         HStack(spacing: 6) {
           Image(systemName: "signpost.right.and.left.fill").font(.system(size: 13, weight: .semibold))
@@ -641,6 +641,10 @@ public struct DisruptionExpandedBottomView: View {
         let remainder = String(raw[sepRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
         if !remainder.isEmpty { return remainder }
       }
+    }
+    let headlines = ["severe delays", "minor delays", "suspended", "part suspended", "special service", "planned closure"]
+    if headlines.contains(raw.lowercased()) {
+      return nil
     }
     return raw
   }

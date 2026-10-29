@@ -341,7 +341,7 @@ export const DiagnosticsModal: React.FC<Props> = ({
     });
 
     const lineData = useLineDataStore.getState().lines[primaryLineId];
-    const disruptionReason = lineData?.reason;
+    const disruptionReason = lineData?.reason ?? 'No service between Whitechapel and Shenfield due to an urgent track inspection';
 
     const activityId = await LiveActivityService.startPreviewActivity({
       lineId: primaryLineId,

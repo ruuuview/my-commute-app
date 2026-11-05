@@ -34,7 +34,7 @@ import { useUserPreferencesStore } from '../store/userPreferencesStore';
 import { usePillStore } from '../store/pillStore';
 import { requestPermission, usePermissionOrchestrator } from '../store/permissionOrchestrator';
 import { syncGeofencesAsync } from '../services/backgroundTask';
-import { syncPushTokenWithBackend } from '../services/notificationRegistrationService';
+import { syncPushTokenWithBackend, syncAlertDeliveryMode } from '../services/notificationRegistrationService';
 import { scheduleCalendarCommuteAlerts, cancelCalendarCommuteAlerts } from '../services/calendarScheduler';
 import { ProStatusCard } from '../components/ProStatusCard';
 import { FixItSheet } from '../components/FixItSheet';
@@ -134,6 +134,9 @@ export default function SettingsScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
       }
       setAlertDeliveryMode(mode);
+      // Sync the mode to the backend profile immediately; offline changes are
+      // MMKV-queued inside the service and flushed on the next sync cycle.
+      void syncAlertDeliveryMode(mode);
       if (mode === 'off') {
         void LiveActivityService.end('switched_to_off');
         track('shush_mode_disabled', { newMode: mode });

@@ -50,6 +50,17 @@ export async function presentDisruptionNotification(
 ): Promise<string> {
   const { lineId, lineName, statusDescription, reason, severity } = opts;
 
+  // 3-mode contract: OFF is absolute silence — no banner, no dedup stamp.
+  // Must run before the dedup bucket so re-enabling a mode is never
+  // suppressed by a stale entry from an off-mode evaluation.
+  const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+  if (deliveryMode === 'off') {
+    console.log(
+      `[dispatch] Delivery mode OFF — suppressing ${lineName} (${lineId}) disruption banner entirely (zero notices).`
+    );
+    return `suppressed_mode_off_${lineId}`;
+  }
+
   // Defensive guard: never dispatch a disruption notification for healthy status
   const rank = getSeverityRank(severity, statusDescription);
   if (rank === 0 || statusDescription.toLowerCase().includes('good service')) {
@@ -100,7 +111,7 @@ export async function presentDisruptionNotification(
     cause: reason,
   });
 
-  const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+  // Mode was already read at the entry gate (off early-return).
   // Silenced-today lines never play sound, even in loud delivery mode.
   const shouldPlaySound = deliveryMode === 'loud' && !isSilencedToday;
 
@@ -150,6 +161,15 @@ export async function presentServiceImprovingNotification(
 ): Promise<string> {
   const { lineId, lineName, statusDescription, reason } = opts;
 
+  // 3-mode contract: OFF = zero notices, including improving transitions.
+  const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+  if (deliveryMode === 'off') {
+    console.log(
+      `[dispatch] Delivery mode OFF — suppressing ${lineName} (${lineId}) service-improving banner entirely.`
+    );
+    return `suppressed_mode_off_${lineId}`;
+  }
+
   // 1-Tap Silence Today: the line is silenced — the notification is STILL
   // DELIVERED but strictly without sound (no audible output from the app).
   const isSilencedToday = useUserPreferencesStore.getState().isLineSilencedToday(lineId);
@@ -173,7 +193,7 @@ export async function presentServiceImprovingNotification(
     cause: reason,
   });
 
-  const deliveryMode = useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode || 'shush';
+  // Mode already read at the entry gate (off early-return).
   // Silenced-today lines never play sound, even in loud delivery mode.
   const shouldPlaySound = deliveryMode === 'loud' && !isSilencedToday;
 

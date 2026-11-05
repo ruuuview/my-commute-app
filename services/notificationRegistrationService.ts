@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { createMMKV } from 'react-native-mmkv';
 import { APP_CONFIG } from '../config/app.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchWithTimeout, TimeoutError } from '../utils/network';
@@ -15,6 +16,104 @@ const MAX_REGISTRATION_RETRIES = 1;
 
 const STORAGE_KEY_TOKEN = 'registered_push_token_railway_v2';
 const STORAGE_KEY_LINES = 'registered_push_lines_railway_v2';
+
+// ── Delivery-mode profile sync (3-mode contract: loud/shush/off) ──────
+// PROFILE_SYNC_TIMEOUT_MS: 10s timeout — half the push registration budget,
+// a single tiny JSON body against /api/profile.
+export const DELIVERY_MODE_SYNC_TIMEOUT_MS = 10000;
+
+export type AlertDeliveryMode = 'loud' | 'shush' | 'off';
+export const ALERT_DELIVERY_MODES: AlertDeliveryMode[] = ['loud', 'shush', 'off'];
+
+// Offline queue: latest-wins string in its own MMKV store id so the live
+// delivery decision never depends on network availability.
+const DELIVERY_MODE_QUEUE_ID = 'delivery-mode-queue';
+const DELIVERY_MODE_QUEUE_KEY = 'pending_delivery_mode_sync';
+const deliveryModeQueue = createMMKV({ id: DELIVERY_MODE_QUEUE_ID });
+
+function assertDeliveryMode(mode: AlertDeliveryMode): void {
+  if (!ALERT_DELIVERY_MODES.includes(mode)) {
+    throw new Error(`invalid delivery mode: ${String(mode)} (expected loud|shush|off)`);
+  }
+}
+
+async function postDeliveryModeProfile(mode: AlertDeliveryMode): Promise<boolean> {
+  const { userId, apiKey } = await ensureDeviceIdentity().catch(() => ({
+    userId: undefined as string | undefined,
+    apiKey: undefined as string | undefined,
+  }));
+  const response = await fetchWithTimeout(`${APP_CONFIG.BACKEND_URL}/api/profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId && { 'x-user-id': userId }),
+      ...(apiKey && { 'x-api-key': apiKey }),
+    },
+    timeoutMs: DELIVERY_MODE_SYNC_TIMEOUT_MS,
+    body: JSON.stringify({ alertDeliveryMode: mode }),
+  });
+  return response.ok;
+}
+
+/**
+ * Sync the delivery mode to the backend profile. On network failure the mode
+ * is persisted latest-wins into the MMKV offline queue; flushPendingDeliveryModeSync
+ * delivers it on the next successful registration cycle.
+ */
+export async function syncAlertDeliveryMode(
+  mode: AlertDeliveryMode
+): Promise<{ synced: boolean; queued: boolean }> {
+  assertDeliveryMode(mode);
+  try {
+    const ok = await postDeliveryModeProfile(mode);
+    if (ok) {
+      // Success also drains any stale queued mode — server is reachable again.
+      try {
+        if (deliveryModeQueue.contains(DELIVERY_MODE_QUEUE_KEY)) {
+          const pending = deliveryModeQueue.getString(DELIVERY_MODE_QUEUE_KEY);
+          deliveryModeQueue.remove(DELIVERY_MODE_QUEUE_KEY);
+          if (pending && pending !== mode) {
+            await postDeliveryModeProfile(pending as AlertDeliveryMode);
+          }
+        }
+      } catch {
+        // Queue drain is best-effort; primary sync already succeeded.
+      }
+      return { synced: true, queued: false };
+    }
+    // 4xx = server permanently rejected (never queue-retry those); 5xx = retryable.
+    return { synced: false, queued: false };
+  } catch {
+    deliveryModeQueue.set(DELIVERY_MODE_QUEUE_KEY, mode);
+    return { synced: false, queued: true };
+  }
+}
+
+/**
+ * Deliver the queued delivery mode after a network recovery point.
+ * Returns true only when a queued value existed AND was delivered.
+ */
+export async function flushPendingDeliveryModeSync(): Promise<boolean> {
+  try {
+    if (!deliveryModeQueue.contains(DELIVERY_MODE_QUEUE_KEY)) {
+      return false;
+    }
+    const pending = deliveryModeQueue.getString(DELIVERY_MODE_QUEUE_KEY) as
+      | AlertDeliveryMode
+      | undefined;
+    if (!pending) {
+      deliveryModeQueue.remove(DELIVERY_MODE_QUEUE_KEY);
+      return false;
+    }
+    const ok = await postDeliveryModeProfile(pending);
+    if (ok) {
+      deliveryModeQueue.remove(DELIVERY_MODE_QUEUE_KEY);
+    }
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Normalize watched line ids for the backend watch list:
@@ -110,6 +209,9 @@ async function registerDevicePushToken(
 
 export async function syncPushTokenWithBackend(selectedLines: string[]) {
   try {
+    // Network recovery point: drain any offline delivery-mode change first.
+    void flushPendingDeliveryModeSync();
+
     const notif = await Notifications.getPermissionsAsync().catch(() => null);
     const isGranted = Boolean(
       notif?.granted ||

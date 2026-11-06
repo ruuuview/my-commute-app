@@ -55,6 +55,7 @@ public class MyCommuteLiveActivityModule: Module {
       let destinationStation = payload["destinationStation"] as? String ?? ""
       let lineId = payload["lineId"] as? String ?? ""
       let lineName = payload["lineName"] as? String ?? ""
+      let cardKind = payload["cardKind"] as? String
 
       let attrs = MyCommuteLiveActivityAttributes(
         journeyId: journeyId,
@@ -62,7 +63,8 @@ public class MyCommuteLiveActivityModule: Module {
         destinationStation: destinationStation,
         lineId: lineId,
         lineName: lineName,
-        stationId: originStation
+        stationId: originStation,
+        cardKind: cardKind
       )
 
       let state = Self.state(from: payload)

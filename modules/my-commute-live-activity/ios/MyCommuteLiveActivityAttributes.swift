@@ -80,6 +80,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
   public var lineId: String
   public var lineName: String?
   public var stationId: String? // legacy compatibility
+  public var cardKind: String? = nil // "shush" | "journey"
 
   public struct ContentState: Codable, Hashable {
     public var lineName: String
@@ -237,7 +238,8 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
     destinationStation: String = "",
     lineId: String = "",
     lineName: String? = nil,
-    stationId: String? = nil
+    stationId: String? = nil,
+    cardKind: String? = nil
   ) {
     self.journeyId = journeyId
     self.originStation = originStation
@@ -245,5 +247,6 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
     self.lineId = lineId
     self.lineName = lineName
     self.stationId = stationId
+    self.cardKind = cardKind
   }
 }

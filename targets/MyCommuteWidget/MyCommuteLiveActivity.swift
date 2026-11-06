@@ -200,7 +200,7 @@ struct MyCommuteLiveActivityWidget: Widget {
             DisruptionExpandedBottomView(state: context.state, lineId: context.attributes.lineId)
               .padding(.horizontal, 4)
           } else {
-            DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+            DeliveryTrackView(attributes: context.attributes, state: context.state, lineId: context.attributes.lineId)
           }
         }
       } compactLeading: {
@@ -630,7 +630,7 @@ private struct ExpandedIslandView: View {
       }
 
       if hasArrival {
-        DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+        DeliveryTrackView(attributes: context.attributes, state: context.state, lineId: context.attributes.lineId)
       } else {
         Text("No trains currently scheduled")
           .font(.system(size: 12, weight: .medium))
@@ -654,7 +654,7 @@ private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
   var body: some View {
-    DeliveryTrackView(state: context.state, lineId: context.attributes.lineId)
+    DeliveryTrackView(attributes: context.attributes, state: context.state, lineId: context.attributes.lineId)
       .padding(14)
       .background(
         ContainerRelativeShape().fill(.ultraThinMaterial)

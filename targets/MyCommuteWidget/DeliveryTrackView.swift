@@ -58,10 +58,18 @@ public struct DeliveryStatusIcon: View {
 }
 
 public struct DeliveryTrackView: View {
+  let attributes: MyCommuteLiveActivityAttributes
   let state: MyCommuteLiveActivityAttributes.ContentState
   let lineId: String
 
+  public init(attributes: MyCommuteLiveActivityAttributes, state: MyCommuteLiveActivityAttributes.ContentState, lineId: String? = nil) {
+    self.attributes = attributes
+    self.state = state
+    self.lineId = lineId ?? attributes.lineId
+  }
+
   public init(state: MyCommuteLiveActivityAttributes.ContentState, lineId: String) {
+    self.attributes = MyCommuteLiveActivityAttributes(lineId: lineId)
     self.state = state
     self.lineId = lineId
   }
@@ -75,15 +83,17 @@ public struct DeliveryTrackView: View {
 
   @ViewBuilder
   private var content: some View {
-    if state.severityTier >= 2 {
+    let isShushCard = attributes.cardKind == "shush" || (attributes.cardKind == nil && attributes.originStation.isEmpty && attributes.destinationStation.isEmpty)
+    if isShushCard {
       disruptionView
     } else {
+      // Journey Card: NEVER hijack the view! Train track stays visible during delays.
       switch state.phase {
-      case "line_picker":  linePickerView
-      case "in_transit":   inTransitView
-      case "approaching":  approachingView
-      case "arrived":      arrivedView
-      default:             EmptyView()
+      case "line_picker": linePickerView
+      case "in_transit":  inTransitView
+      case "approaching": approachingView
+      case "arrived":     arrivedView
+      default:            EmptyView()
       }
     }
   }
@@ -472,6 +482,8 @@ public struct DeliveryTrackView: View {
 
     return Text(text)
       .font(.system(size: 11, weight: .semibold))
+      .lineLimit(1)
+      .fixedSize(horizontal: true, vertical: false)
       .foregroundColor(color)
       .padding(.horizontal, 6)
       .padding(.vertical, 2)

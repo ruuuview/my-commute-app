@@ -96,6 +96,7 @@ export interface LiveActivityBridgePayload {
   sessionStartTime?: number;
   currentStationName?: string;
   destinationStationName?: string;
+  cardKind?: 'shush' | 'journey';
 }
 
 export interface MyCommuteLiveActivity {

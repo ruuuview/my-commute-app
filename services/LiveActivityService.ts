@@ -148,6 +148,7 @@ export interface LiveActivityBridgePayload {
   isStaleEta?: boolean;
   alertDeliveryMode?: 'loud' | 'shush' | 'off';
   alertSound?: 'default' | 'silent';
+  cardKind?: 'shush' | 'journey';
 }
 
 const MAX_CACHE_AGE_MS = 5 * 60 * 1000; // 5 minutes
@@ -478,6 +479,7 @@ export class LiveActivityService {
       isStaleEta,
       alertDeliveryMode: getUserPreferencesStore()?.getState?.()?.shushPreferences?.alertDeliveryMode || 'shush',
       alertSound: getUserPreferencesStore()?.getState?.()?.shushPreferences?.alertDeliveryMode === 'loud' ? 'default' : 'silent',
+      cardKind: 'journey',
     };
   }
 
@@ -527,6 +529,7 @@ export class LiveActivityService {
       sessionStartTime: Math.floor(Date.now() / 1000),
       delayRepayEligible: false,
       estimatedFare: null,
+      cardKind: 'journey',
     };
 
     try {
@@ -831,6 +834,7 @@ export class LiveActivityService {
           sessionStartTime: nowSec,
           alertDeliveryMode: 'shush',
           alertSound: 'silent',
+          cardKind: 'shush',
         }
       : {
           journeyId: `preview_${Math.floor(Date.now() / 1000)}`,
@@ -875,6 +879,7 @@ export class LiveActivityService {
               etaTimestamp: Math.floor(Date.now() / 1000) + 180,
             },
           ],
+          cardKind: 'journey',
         };
 
     try {
@@ -954,6 +959,7 @@ export class LiveActivityService {
       sessionStartTime: Math.floor(Date.now() / 1000),
       currentStationName: 'Euston',
       destinationStationName: 'Morden',
+      cardKind: 'journey',
     };
 
     try {

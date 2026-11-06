@@ -129,6 +129,16 @@ describe('Good Service Silence & Production Gating Invariants', () => {
 
       const { startCommuteActivity } = jest.requireMock('../modules/my-commute-live-activity');
       expect(startCommuteActivity).toHaveBeenCalled();
+      const payload = startCommuteActivity.mock.calls[0][0];
+      expect(payload.cardKind).toBe('shush');
+      await LiveActivityService.stopPreviewActivity();
+
+      // Non-disruption preview emits journey cardKind
+      startCommuteActivity.mockClear();
+      await LiveActivityService.startPreviewActivity({ isDisruption: false });
+      expect(startCommuteActivity).toHaveBeenCalled();
+      const journeyPayload = startCommuteActivity.mock.calls[0][0];
+      expect(journeyPayload.cardKind).toBe('journey');
       await LiveActivityService.stopPreviewActivity();
     });
   });
@@ -193,6 +203,7 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       expect(payload.lineId).toBe('piccadilly');
       expect(payload.lineName).toBe('Piccadilly');
       expect(payload.stationId).toBe('preview_disruption');
+      expect(payload.cardKind).toBe('shush');
 
       // Rule 16: Zero fake delay repayment or delay minutes in preview
       expect(payload.delayMinutes).toBe(0);
@@ -208,10 +219,10 @@ describe('Good Service Silence & Production Gating Invariants', () => {
       await LiveActivityService.stopPreviewActivity();
     });
 
-    it('guarantees Swift DeliveryTrackView intercepts severityTier >= 2 to render disruptionView without preview developer copy', () => {
+    it('guarantees Swift DeliveryTrackView renders disruptionView for Shush Mode cards without preview developer copy', () => {
       const swiftPath = path.resolve(__dirname, '../targets/MyCommuteWidget/DeliveryTrackView.swift');
       const src = fs.readFileSync(swiftPath, 'utf8');
-      expect(src).toMatch(/if\s+state\.severityTier\s*>=\s*2\s*\{\s*disruptionView\s*\}/);
+      expect(src).toMatch(/if\s+isShushCard\s*\{\s*disruptionView\s*\}/);
       expect(src).toMatch(/private\s+var\s+disruptionView:\s+some\s+View/);
       expect(src).not.toMatch(/shushPreviewFooter/);
       expect(src).not.toMatch(/hasPrefix\("Preview: "\)/);

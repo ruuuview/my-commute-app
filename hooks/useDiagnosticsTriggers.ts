@@ -32,18 +32,17 @@ export function useDiagnosticsTriggers() {
       lastFireAt = now;
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      useDiagnosticsStore.getState().open();
+
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const devMenu = require('expo-dev-menu');
         if (devMenu && typeof devMenu.openMenu === 'function') {
           devMenu.openMenu();
-          return;
         }
       } catch {
         // expo-dev-menu not available
       }
-
-      useDiagnosticsStore.getState().open();
     };
 
     try {

@@ -5,6 +5,7 @@ import { APP_CONFIG } from '../config/app.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchWithTimeout, TimeoutError } from '../utils/network';
 import { ensureDeviceIdentity } from './deviceIdentity';
+import { useUserPreferencesStore } from '../store/userPreferencesStore';
 
 // ── Operational Constants ─────────────────────────────────────────────
 // PUSH_REGISTRATION_TIMEOUT_MS: 15-second network timeout for device token backend registration
@@ -143,12 +144,17 @@ if (Platform.OS === 'android') {
 /**
  * Internal helper to send push token registration to backend with retry & timeout handling.
  */
-async function registerDevicePushToken(
+export async function registerDevicePushToken(
   token: string,
   selectedLines: string[],
-  retriesRemaining: number = MAX_REGISTRATION_RETRIES
+  retriesRemaining: number = MAX_REGISTRATION_RETRIES,
+  explicitMode?: AlertDeliveryMode
 ): Promise<boolean> {
   const normalizedLines = normalizeLineIds(selectedLines);
+  const mode =
+    explicitMode ||
+    useUserPreferencesStore.getState().shushPreferences?.alertDeliveryMode ||
+    'shush';
   try {
     const { userId, apiKey } = await ensureDeviceIdentity().catch(() => ({ userId: undefined, apiKey: undefined }));
     console.log(
@@ -168,6 +174,7 @@ async function registerDevicePushToken(
         token: token,
         lines: normalizedLines,
         userId,
+        alertDeliveryMode: mode,
       }),
     });
 
@@ -184,7 +191,7 @@ async function registerDevicePushToken(
     if (response.status >= 500 && retriesRemaining > 0) {
       console.warn(`⚠️ [PushService] Backend returned HTTP ${response.status}. Retrying in ${PUSH_REGISTRATION_RETRY_DELAY_MS}ms...`);
       await new Promise(res => setTimeout(res, PUSH_REGISTRATION_RETRY_DELAY_MS));
-      return registerDevicePushToken(token, selectedLines, retriesRemaining - 1);
+      return registerDevicePushToken(token, selectedLines, retriesRemaining - 1, mode);
     }
 
     console.error(`❌ [PushService] Failed to register push token (HTTP ${response.status}):`, errorText);
@@ -199,7 +206,7 @@ async function registerDevicePushToken(
     if (retriesRemaining > 0) {
       console.log(`🔄 [PushService] Retrying registration in ${PUSH_REGISTRATION_RETRY_DELAY_MS}ms (${retriesRemaining} retry left)...`);
       await new Promise(res => setTimeout(res, PUSH_REGISTRATION_RETRY_DELAY_MS));
-      return registerDevicePushToken(token, selectedLines, retriesRemaining - 1);
+      return registerDevicePushToken(token, selectedLines, retriesRemaining - 1, mode);
     }
 
     console.error('❌ [PushService] Push token registration exhausted retries.');

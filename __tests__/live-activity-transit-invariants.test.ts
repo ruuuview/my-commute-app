@@ -156,10 +156,11 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(modalContent).not.toContain('useLineDataStore.getState().lines');
     });
 
-    it('verifies DeliveryTrackView disruptionView Row 3 provides fallback context when causeText is nil', () => {
+    it('verifies disruption cards render only real TfL cause text — zero fake fallback filler', () => {
       const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
       expect(deliveryTrack).toContain('resolvedDisruptionCause');
-      expect(deliveryTrack).toContain('Service currently disrupted on this line.');
+      expect(deliveryTrack).not.toContain('Service currently disrupted on this line.');
+      expect(deliveryTrack).toMatch(/if let cause = resolvedDisruptionCause/);
     });
 
     it('verifies DisruptionExpandedBottomView uses MyCommuteLiveActivityAttributes.ContentState and zero hallucinated types', () => {
@@ -176,11 +177,80 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
     it('verifies DynamicIslandExpandedRegion(.bottom) routes disruptions to DisruptionExpandedBottomView', () => {
       const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
       expect(liveActivity).toContain('DisruptionExpandedBottomView(state: context.state, lineId: context.attributes.lineId)');
+      expect(liveActivity).toMatch(/isShushCard[\s\S]*DisruptionExpandedBottomView/);
     });
 
     it('verifies Dynamic Island Expanded leading uses AccentBar instead of Circle dot', () => {
       const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
       expect(liveActivity).toContain('AccentBar(lineId: context.attributes.lineId, width: 3.5, height: 13)');
+    });
+  });
+
+  describe('Pass 7: Native Glass & Two-Column Roundel Contract', () => {
+    it('verifies LockScreenView uses native activityBackgroundTint — zero inner ultraThinMaterial blur', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toContain('.activityBackgroundTint(LineColor.tint(for:');
+      expect(liveActivity).toContain('.activitySystemActionForegroundColor');
+      expect(liveActivity).not.toContain('.ultraThinMaterial');
+      expect(liveActivity).not.toContain('ContainerRelativeShape().fill(.ultraThinMaterial)');
+    });
+
+    it('verifies LineColor exposes glass tint alpha (bright lines lower alpha) and onColor contrast', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toMatch(/static func tint\(for lineId: String\)/);
+      expect(liveActivity).toMatch(/opacity\(0\.20\)/);
+      expect(liveActivity).toMatch(/opacity\(0\.25\)/);
+      expect(liveActivity).toMatch(/static func onColor\(for lineId: String\)/);
+      expect(liveActivity).toMatch(/return \.black/);
+    });
+
+    it('verifies disruptionView is two-column: 44pt roundel + onColor glyph on the right', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toMatch(/Circle\(\)\s*\.fill\(LineColor\.color\(for: lineId\)\)\s*\.frame\(width: 44, height: 44\)/);
+      expect(deliveryTrack).toContain('Image(systemName: "exclamationmark.triangle.fill")');
+      expect(deliveryTrack).toContain('LineColor.onColor(for: lineId)');
+      expect(deliveryTrack).toMatch(/font\(\.system\(size: 24, weight: \.bold, design: \.rounded\)\)/);
+    });
+
+    it('verifies LockScreenView carries the whitelisted reroute deep link via widgetURL', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toContain('widgetURL(URL(string: "mycommute://reroute?line=');
+    });
+
+    it('verifies dead code deleted: ExpandedIslandView, ArrivalRow, displayText, SOFTEN constant', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).not.toContain('private struct ExpandedIslandView');
+      expect(liveActivity).not.toContain('private struct ArrivalRow');
+      expect(liveActivity).not.toContain('func displayText');
+      expect(liveActivity).not.toContain('SOFTEN_THRESHOLD_SECONDS');
+    });
+
+    it('verifies DisruptionExpandedBottomView has 24pt circle with headlineColor and warning glyph on left', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toMatch(/Circle\(\)\s*\.fill\(headlineColor\)\s*\.frame\(width: 24, height: 24\)/);
+      expect(deliveryTrack).toMatch(/DisruptionExpandedBottomView[\s\S]*Image\(systemName: "exclamationmark\.triangle\.fill"\)/);
+      expect(deliveryTrack).toMatch(/headlineColor[\s\S]*0xFF3B30[\s\S]*0xFFB000/);
+    });
+
+    it('verifies approachingView separates destination and non-truncating ETA countdown into HStack', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toContain('.truncationMode(.tail)');
+      expect(deliveryTrack).toContain('.fixedSize(horizontal: true, vertical: false)');
+      expect(deliveryTrack).not.toContain('etaHeadline(for: ep)');
+    });
+
+    it('verifies statusPill deletes green Good Service badge and renders quiet on normal service', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      expect(deliveryTrack).toContain('@ViewBuilder');
+      expect(deliveryTrack).toContain('if state.severityTier >= 1');
+      const marker = 'private var statusPill: some View';
+      const start = deliveryTrack.indexOf(marker);
+      expect(start).toBeGreaterThan(-1);
+      const pillBlock = deliveryTrack.slice(start, deliveryTrack.indexOf('\n  }\n', start));
+      expect(pillBlock).not.toContain('Good Service');
+      expect(pillBlock).not.toContain('0x30D158');
+      expect(pillBlock).toContain('disruptionHeadline');
+      expect(pillBlock).not.toContain('state.statusText');
     });
   });
 });

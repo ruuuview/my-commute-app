@@ -40,6 +40,34 @@ enum LineColor {
     }
     return color(for: lineId)
   }
+
+  /// Native glass tint for .activityBackgroundTint: line color at low alpha.
+  /// Bright yellow (Circle), pink (H&C) and pale Waterloo & City lines drop
+  /// to 0.20 so white system text stays legible through the tint.
+  static func tint(for lineId: String) -> Color {
+    switch norm(lineId) {
+    case "circle", "hammersmith", "hammersmithcity",
+         "waterlooandcity", "waterloocity":
+      return color(for: lineId).opacity(0.20)
+    default:
+      return color(for: lineId).opacity(0.25)
+    }
+  }
+
+  /// Contrast-safe foreground for glyphs rendered on a line-color fill.
+  static func onColor(for lineId: String) -> Color {
+    switch norm(lineId) {
+    case "circle", "hammersmith", "hammersmithcity",
+         "waterlooandcity", "waterloocity":
+      return .black
+    default:
+      return .white
+    }
+  }
+
+  private static func norm(_ lineId: String) -> String {
+    lineId.lowercased().replacingOccurrences(of: "-", with: "")
+  }
 }
 
 extension Color {
@@ -49,18 +77,6 @@ extension Color {
     let b = Double(hex & 0xFF) / 255.0
     self.init(.sRGB, red: r, green: g, blue: b, opacity: 1.0)
   }
-}
-
-// ============================================================
-// Confidence softening: under ~5 min = full; over = softened "~".
-// ============================================================
-
-private let SOFTEN_THRESHOLD_SECONDS = 5 * 60
-
-func displayText(for arrival: Arrival, isHero: Bool) -> (minutes: Int, softened: Bool) {
-  let minutes = max(0, Int((arrival.timeToStationSeconds + 30) / 60)) // round to nearest minute
-  let softened = !isHero && arrival.timeToStationSeconds > SOFTEN_THRESHOLD_SECONDS
-  return (minutes, softened)
 }
 
 // ============================================================
@@ -106,58 +122,6 @@ struct AccentBar: View {
   }
 }
 
-/// A single arrival row used in both Compact-minimal and Expanded lists.
-private struct ArrivalRow: View {
-  let arrival: Arrival
-  let branchKnown: Bool
-  let lineId: String
-
-  private var destination: String {
-    // Branch unknown: collapse to line name (e.g. "Northern").
-    if !branchKnown {
-      return lineName(for: lineId)
-    }
-    return arrival.destinationName.isEmpty ? lineName(for: lineId) : arrival.destinationName
-  }
-
-  private func lineName(for id: String) -> String {
-    let norm = id.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-    if norm == "dlr" { return "DLR" }
-    // Map canonical id -> display "Northern" etc. for the branch-unknown fallback.
-    let map: [String: String] = [
-      "bakerloo": "Bakerloo", "central": "Central", "circle": "Circle",
-      "district": "District", "dlr": "DLR", "elizabeth": "Elizabeth",
-      "hammersmith": "Hammersmith & City", "hammersmithcity": "Hammersmith & City",
-      "hammersmith-city": "Hammersmith & City",
-      "jubilee": "Jubilee", "metropolitan": "Metropolitan", "northern": "Northern",
-      "piccadilly": "Piccadilly", "victoria": "Victoria",
-      "waterlooandcity": "Waterloo & City", "waterloocity": "Waterloo & City",
-      "waterloo-city": "Waterloo & City",
-      "overground": "Overground", "liberty": "Liberty", "lioness": "Lioness",
-      "mildmay": "Mildmay", "suffragette": "Suffragette", "weaver": "Weaver",
-      "windrush": "Windrush"
-    ]
-    return map[norm] ?? id.capitalized
-  }
-
-  var body: some View {
-    let (minutes, softened) = displayText(for: arrival, isHero: arrival.isHero)
-    return HStack(spacing: 6) {
-      AccentBar(lineId: lineId)
-      Text(destination)
-        .font(.mcBody)
-        .fontWeight(arrival.isHero ? .bold : .regular)
-        .foregroundColor(.white)
-      Spacer(minLength: 4)
-      Text("\(softened ? "~" : "")\(minutes) min")
-        .font(.mcBody)
-        .fontWeight(arrival.isHero ? .bold : .regular)
-        .monospacedDigit()
-        .foregroundColor(arrival.isHero ? .white : .white.opacity(0.65))
-    }
-  }
-}
-
 // ============================================================
 // The Live Activity widget (Dynamic Island + Lock Screen)
 // ============================================================
@@ -196,7 +160,8 @@ struct MyCommuteLiveActivityWidget: Widget {
             .padding(.trailing, 4)
         }
         DynamicIslandExpandedRegion(.bottom) {
-          if context.state.severityTier >= 2 {
+          let isShushCard = context.attributes.cardKind == "shush" || (context.attributes.cardKind == nil && context.attributes.originStation.isEmpty && context.attributes.destinationStation.isEmpty)
+          if isShushCard || context.state.severityTier >= 2 {
             DisruptionExpandedBottomView(state: context.state, lineId: context.attributes.lineId)
               .padding(.horizontal, 4)
           } else {
@@ -416,7 +381,8 @@ private struct CompactIslandView: View {
           .accessibilityLabel(countdownAccessibilityLabel)
       }
     } else {
-      if context.state.severityTier >= 2 {
+      let isShushCard = context.attributes.cardKind == "shush" || (context.attributes.cardKind == nil && context.attributes.originStation.isEmpty && context.attributes.destinationStation.isEmpty)
+      if context.state.severityTier >= 2 || isShushCard {
         HStack(spacing: 4.5) {
           AccentBar(lineId: context.attributes.lineId, width: 3.5, height: 11)
           ViewThatFits(in: .horizontal) {
@@ -569,110 +535,19 @@ private struct ExpandedStatusPill: View {
   }
 }
 
-// MARK: - Expanded Island (Dynamic Island Expanded on Long Press)
-
-private struct ExpandedIslandView: View {
-  let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
-
-  private var hero: Arrival? { context.state.arrivals?.first }
-  private var signalDegraded: Bool { context.state.tunnelState == "held" }
-  private var hasArrival: Bool { hero != nil || context.state.nextTrainMinutes >= 0 }
-  private var minutesAway: Int {
-    if let hero = hero {
-      return max(0, Int((hero.timeToStationSeconds + 30) / 60))
-    }
-    return context.state.nextTrainMinutes
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack(spacing: 6) {
-        Circle()
-          .fill(LineColor.color(for: context.attributes.lineId))
-          .frame(width: 8, height: 8)
-        Text(context.attributes.lineName ?? context.state.lineName)
-          .font(.system(size: 13, weight: .bold))
-          .foregroundColor(.white)
-        if let branch = context.state.branchName, !branch.isEmpty {
-          Text("· \(branch)")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.white.opacity(0.85))
-        }
-        Spacer()
-        if signalDegraded {
-          Text("Reconnecting")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(.white.opacity(0.7))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.white.opacity(0.12))
-            .cornerRadius(4)
-        } else if context.state.severityTier >= 1 {
-          let isSevere = context.state.severityTier >= 2
-          let color = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
-          let headline = disruptionHeadline(for: context.state.statusText, severityTier: context.state.severityTier)
-          Text(headline)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.18))
-            .cornerRadius(4)
-        } else {
-          Text("Good Service")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(Color(hex: 0x30D158))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color(hex: 0x30D158).opacity(0.18))
-            .cornerRadius(4)
-        }
-      }
-
-      if hasArrival {
-        DeliveryTrackView(attributes: context.attributes, state: context.state, lineId: context.attributes.lineId)
-      } else {
-        Text("No trains currently scheduled")
-          .font(.system(size: 12, weight: .medium))
-          .foregroundColor(.white.opacity(0.65))
-      }
-    }
-    .padding(10)
-  }
-
-  private var destinationText: String {
-    if let hero = hero, !hero.destinationName.isEmpty {
-      return hero.destinationName
-    }
-    return context.attributes.lineName ?? context.state.lineName
-  }
-}
-
 // MARK: - Lock Screen / Standby (Delivery-Style Transit Card)
 
 private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
   var body: some View {
+    // Native frosted glass: system activityBackgroundTint tinted with the
+    // line color. No inner material overlays — zero UIVisualEffectView-style
+    // blur layering, zero fake scrim strokes (Rule 5 / Rule 12).
     DeliveryTrackView(attributes: context.attributes, state: context.state, lineId: context.attributes.lineId)
       .padding(14)
-      .background(
-        ContainerRelativeShape().fill(.ultraThinMaterial)
-      )
-      .overlay(
-        ContainerRelativeShape()
-          .stroke(
-            LinearGradient(
-              gradient: Gradient(colors: [
-                Color.white.opacity(0.24),
-                Color.white.opacity(0.06),
-                Color.white.opacity(0.02)
-              ]),
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            ),
-            lineWidth: 0.75
-          )
-      )
+      .activityBackgroundTint(LineColor.tint(for: context.attributes.lineId))
+      .activitySystemActionForegroundColor(.white)
+      .widgetURL(URL(string: "mycommute://reroute?line=\(context.attributes.lineId)"))
   }
 }

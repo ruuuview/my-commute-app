@@ -99,47 +99,65 @@ public struct DeliveryTrackView: View {
   }
 
   // MARK: - Dedicated Disruption Takeover View (Severity Tier >= 2)
+  // Two-column layout: severity typography on the left, a 44pt line-colored
+  // roundel with warning glyph and the Reroute capsule on the right.
   private var disruptionView: some View {
-    VStack(alignment: .leading, spacing: 9) {
-      // Row 1: Line accent bar + Canonical Line Name
-      HStack(spacing: 7) {
-        AccentBar(lineId: lineId, width: 3.5, height: 14)
-        Text(lineDisplayName)
-          .font(.system(size: 14, weight: .bold))
-          .foregroundColor(.white)
-        Spacer()
+    HStack(alignment: .top, spacing: 12) {
+      VStack(alignment: .leading, spacing: 7) {
+        // Row 1: Line accent bar + canonical line name
+        HStack(spacing: 7) {
+          AccentBar(lineId: lineId, width: 3.5, height: 14)
+          Text(lineDisplayName)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.85))
+        }
+
+        // Row 2: High-contrast disruption headline (rounded 24pt)
+        Text(disruptionHeadline)
+          .font(.system(size: 24, weight: .bold, design: .rounded))
+          .foregroundColor(headlineColor)
+          .lineLimit(2)
+          .fixedSize(horizontal: false, vertical: true)
+
+        // Row 3: Real TfL cause only — zero fake fallback filler.
+        if let cause = resolvedDisruptionCause {
+          Text(cause)
+            .font(.system(size: 12.5, weight: .medium))
+            .foregroundColor(.white.opacity(0.92))
+            .lineLimit(3)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+
+        // Row 4: Genuine detour alternative (only if present in payload)
+        detourSlot
       }
 
-      // Row 2: High-contrast Disruption Headline (RED for Severe / Suspended, AMBER for Minor)
-      Text(disruptionHeadline)
-        .font(.system(size: 20, weight: .heavy))
-        .foregroundColor(headlineColor)
-
-      // Row 3: Genuine Status Reason / Cause in a luxury translucent highlight box
-      Text(resolvedDisruptionCause)
-        .font(.system(size: 12.5, weight: .medium))
-        .foregroundColor(.white.opacity(0.92))
-        .lineLimit(3)
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-          RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-        )
-
-      // Row 4: Genuine Detour Alternative (only if present in payload)
-      detourSlot
+      VStack(alignment: .trailing, spacing: 10) {
+        Circle()
+          .fill(LineColor.color(for: lineId))
+          .frame(width: 44, height: 44)
+          .overlay(
+            Image(systemName: "exclamationmark.triangle.fill")
+              .font(.system(size: 18, weight: .bold))
+              .foregroundColor(LineColor.onColor(for: lineId))
+          )
+        if !lineId.isEmpty {
+          Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
+            Text("Reroute")
+              .font(.system(size: 11, weight: .bold))
+              .foregroundColor(.white)
+              .padding(.horizontal, 10)
+              .padding(.vertical, 6)
+              .background(Color.white.opacity(0.18))
+              .clipShape(Capsule())
+          }
+        }
+      }
     }
   }
 
-  private var resolvedDisruptionCause: String {
-    if let cause = disruptionCauseText, !cause.isEmpty {
-      return cause
-    }
-    return "Service currently disrupted on this line."
+  private var resolvedDisruptionCause: String? {
+    disruptionCauseText
   }
 
   private var headlineColor: Color {
@@ -174,9 +192,7 @@ public struct DeliveryTrackView: View {
     if raw.localizedCaseInsensitiveContains(headline) {
       if let range = raw.range(of: headline, options: .caseInsensitive) {
         var remainder = String(raw[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        for prefix in ["—", "-", ":", "(", ")"] {
-          remainder = remainder.trimmingCharacters(in: CharacterSet(charactersIn: " -—:()"))
-        }
+        remainder = remainder.trimmingCharacters(in: CharacterSet(charactersIn: " -—:()"))
         if !remainder.isEmpty {
           return remainder
         }
@@ -281,18 +297,6 @@ public struct DeliveryTrackView: View {
     return " (\(branch))"
   }
 
-  private func etaHeadline(for ep: ApproachingEndpoint) -> Text {
-    let prefix = Text("Arriving at \(ep.destinationName)\(branchSuffix(ep.branchText)) ")
-      .foregroundColor(.white)
-
-    if ep.minutesToArrival <= 0 {
-      return prefix + Text("now").foregroundColor(accentColor).bold()
-    }
-    return prefix
-      + Text("in ").foregroundColor(.white)
-      + Text("\(ep.minutesToArrival) mins").foregroundColor(accentColor).bold()
-  }
-
   private var activeEndpoint: ApproachingEndpoint {
     if let first = state.approachingEndpoints?.first {
       return first
@@ -310,15 +314,24 @@ public struct DeliveryTrackView: View {
 
   private var approachingView: some View {
     let ep = activeEndpoint
+    let mins = ep.minutesToArrival
+    let etaCountdown = mins <= 0 ? "Due" : "\(mins) mins"
 
     return VStack(alignment: .leading, spacing: 8) {
-      // Row 1: Zomato-style high-contrast ETA headline
+      // Row 1: Destination on left, non-truncating ETA countdown on right (Guaranteed-fit)
       HStack(alignment: .firstTextBaseline) {
-        etaHeadline(for: ep)
+        Text("\(ep.destinationName)\(branchSuffix(ep.branchText))")
           .font(.system(size: 17, weight: .semibold))
+          .foregroundColor(.white)
           .lineLimit(1)
           .truncationMode(.tail)
-        Spacer()
+
+        Spacer(minLength: 8)
+
+        Text(etaCountdown)
+          .font(.system(size: 17, weight: .bold))
+          .foregroundColor(accentColor)
+          .fixedSize(horizontal: true, vertical: false)
       }
 
       // Row 2: 3.5pt Specular Line Color Bar + Line Name (Left-Aligned, No Indent)
@@ -467,27 +480,21 @@ public struct DeliveryTrackView: View {
     }
   }
 
+  @ViewBuilder
   private var statusPill: some View {
-    let severity = state.severityTier
-    let text = state.statusText.isEmpty ? "Good Service" : state.statusText
-    let color: Color = {
-      if severity >= 2 {
-        return Color(hex: 0xFF3B30)
-      } else if severity == 1 {
-        return Color(hex: 0xFFB000)
-      } else {
-        return Color(hex: 0x30D158)
-      }
-    }()
-
-    return Text(text)
-      .font(.system(size: 11, weight: .semibold))
-      .lineLimit(1)
-      .fixedSize(horizontal: true, vertical: false)
-      .foregroundColor(color)
-      .padding(.horizontal, 6)
-      .padding(.vertical, 2)
-      .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 4))
+    if state.severityTier >= 1 {
+      let severity = state.severityTier
+      let text = disruptionHeadline
+      let color: Color = severity >= 2 ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
+      Text(text)
+        .font(.system(size: 11, weight: .semibold))
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .foregroundColor(color)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 4))
+    }
   }
 
   // MARK: - Phase 2: In-Transit (Your Ride to Next Stop)
@@ -650,6 +657,10 @@ public struct DisruptionExpandedBottomView: View {
     self.lineId = lineId
   }
 
+  private var headlineColor: Color {
+    state.severityTier >= 2 ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
+  }
+
   private var causeText: String? {
     let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !raw.isEmpty else { return nil }
@@ -668,16 +679,21 @@ public struct DisruptionExpandedBottomView: View {
 
   public var body: some View {
     HStack(alignment: .center, spacing: 10) {
+      Circle()
+        .fill(headlineColor)
+        .frame(width: 24, height: 24)
+        .overlay(
+          Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(.white)
+        )
+
       if let cause = causeText, !cause.isEmpty {
         Text(cause)
           .font(.system(size: 11.5, weight: .medium))
           .foregroundColor(.white.opacity(0.85))
           .lineLimit(2)
           .fixedSize(horizontal: false, vertical: true)
-      } else {
-        Text("Service currently disrupted on this line.")
-          .font(.system(size: 11.5, weight: .medium))
-          .foregroundColor(.white.opacity(0.70))
       }
 
       Spacer(minLength: 4)

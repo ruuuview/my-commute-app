@@ -208,6 +208,9 @@ export default function RootLayout() {
     if (_hasHydrated) {
       try {
         LiveActivityService.initTokenListeners();
+        void LiveActivityService.flushPendingTokenSync().catch(() => {
+          console.warn('Failed to flush pending Live Activity token sync');
+        });
       } catch (e) {
         console.warn('Failed to initialize Live Activity token listeners:', e);
       }
@@ -260,6 +263,9 @@ export default function RootLayout() {
       if (nextAppState === 'background') {
         lastBackgroundTime = Date.now();
       } else if (nextAppState === 'active') {
+        void LiveActivityService.flushPendingTokenSync().catch(() => {
+          console.warn('Failed to flush pending Live Activity token sync');
+        });
         void SessionManager.checkSessionStatus().catch(() => {
           console.warn('Failed to check session status');
         });

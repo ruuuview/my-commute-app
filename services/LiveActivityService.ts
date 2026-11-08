@@ -67,6 +67,28 @@ export const isExpoGo =
 // Re-use the same background MMKV the SessionManager uses (single store).
 const backgroundStorage = createMMKV({ id: 'background-storage' });
 
+// Offline token queue: latest-wins per tokenType in dedicated MMKV store
+// so token updates never depend on network availability.
+export const LIVE_ACTIVITY_TOKEN_QUEUE_ID = 'live-activity-token-queue';
+export const LIVE_ACTIVITY_TOKEN_QUEUE_KEY = 'pending_token_sync';
+const tokenQueue = createMMKV({ id: LIVE_ACTIVITY_TOKEN_QUEUE_ID });
+
+function removeMMKVKey(mmkv: any, key: string) {
+  if (typeof mmkv.remove === 'function') {
+    mmkv.remove(key);
+  } else if (typeof mmkv.delete === 'function') {
+    mmkv.delete(key);
+  }
+}
+
+export interface PendingTokenSyncItem {
+  tokenType: 'device' | 'liveActivity' | 'pushToStart';
+  token: string;
+  journeyId?: string;
+  enqueuedAt: number;
+}
+export type PendingTokenQueue = Record<string, PendingTokenSyncItem>;
+
 // The Expo Modules bridge (expo-modules-core requireOptionalNativeModule with fallback).
 let testModuleOverride: any = null;
 const getLiveActivityModule = () => {
@@ -163,6 +185,104 @@ export class LiveActivityService {
   private static trailingFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private static lastSentTierByLine: Record<string, number> = {};
   private static tokenSubscriptions: { remove: () => void }[] = [];
+  private static startupTokenRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private static flushTokenPromise: Promise<boolean> | null = null;
+
+  /**
+   * Deliver queued tokens after network recovery, app launch, or foregrounding.
+   * Returns true when all queued items were successfully flushed.
+   * Deduplicates concurrent calls via single in-flight promise.
+   */
+  static async flushPendingTokenSync(): Promise<boolean> {
+    if (this.flushTokenPromise) {
+      return this.flushTokenPromise;
+    }
+    this.flushTokenPromise = this.performFlushPendingTokenSync().finally(() => {
+      this.flushTokenPromise = null;
+    });
+    return this.flushTokenPromise;
+  }
+
+  private static async performFlushPendingTokenSync(): Promise<boolean> {
+    try {
+      if (!tokenQueue.contains(LIVE_ACTIVITY_TOKEN_QUEUE_KEY)) {
+        return false;
+      }
+      const raw = tokenQueue.getString(LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+      if (!raw) {
+        removeMMKVKey(tokenQueue, LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+        return false;
+      }
+      let queue: PendingTokenQueue;
+      try {
+        queue = JSON.parse(raw);
+      } catch {
+        removeMMKVKey(tokenQueue, LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+        return false;
+      }
+      const keys = Object.keys(queue);
+      if (keys.length === 0) {
+        removeMMKVKey(tokenQueue, LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+        return false;
+      }
+
+      const { userId, apiKey } = await ensureDeviceIdentity();
+      let allSucceeded = true;
+      const succeededKeys: string[] = [];
+
+      for (const k of keys) {
+        const item = queue[k];
+        try {
+          const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/devices/tokens`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(userId && { 'x-user-id': userId }),
+              ...(apiKey && { 'x-api-key': apiKey }),
+            },
+            body: JSON.stringify({
+              tokenType: item.tokenType,
+              token: item.token,
+              journeyId: item.journeyId,
+              userId,
+            }),
+          });
+          if (res.ok) {
+            succeededKeys.push(k);
+          } else {
+            allSucceeded = false;
+          }
+        } catch {
+          allSucceeded = false;
+        }
+      }
+
+      if (succeededKeys.length > 0) {
+        try {
+          const latestRaw = tokenQueue.getString(LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+          if (latestRaw) {
+            const latestQueue: PendingTokenQueue = JSON.parse(latestRaw);
+            for (const key of succeededKeys) {
+              if (latestQueue[key] && latestQueue[key].enqueuedAt === queue[key]?.enqueuedAt) {
+                delete latestQueue[key];
+              }
+            }
+            if (Object.keys(latestQueue).length === 0) {
+              removeMMKVKey(tokenQueue, LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+            } else {
+              tokenQueue.set(LIVE_ACTIVITY_TOKEN_QUEUE_KEY, JSON.stringify(latestQueue));
+            }
+          }
+        } catch {
+          // queue cleanup is best effort
+        }
+      }
+
+      return allSucceeded;
+    } catch {
+      return false;
+    }
+  }
 
   /**
    * Initialize dual-token listeners for APNs push updates.
@@ -195,40 +315,101 @@ export class LiveActivityService {
       console.warn('[LiveActivityService] Error initializing token listeners:', e);
     }
 
-    // Startup race fix: the native bridge starts observing pushToStartTokenUpdates
-    // in OnCreate — before this JS listener attaches — so an early token emission
-    // would be missed by the event listener above. Query the bridge-cached token
-    // once at init and sync it immediately if one exists.
-    void getPushToStartToken()
-      .then((cachedToken) => {
-        if (!cachedToken) return;
-        console.log('[LiveActivityService] Recovered startup Push-to-Start token from native cache.');
-        backgroundStorage.set('push_to_start_token', cachedToken);
-        void this.syncTokenToBackend('pushToStart', cachedToken);
-      })
-      .catch((e) => {
-        console.warn('[LiveActivityService] Startup Push-to-Start token query failed:', e);
-      });
+    // Flush any pending tokens on startup
+    void this.flushPendingTokenSync();
+
+    // Startup race fix with retry backoff: the native bridge starts observing
+    // pushToStartTokenUpdates in OnCreate — before this JS listener attaches — so an early
+    // token emission would be missed by the event listener above. Query the bridge-cached
+    // token once at init and retry with backoff (1s, 2s, 5s) until a token is returned.
+    const retryDelays = [1000, 2000, 5000];
+    const queryStartupToken = (delaysRemaining: number[]) => {
+      void getPushToStartToken()
+        .then((cachedToken) => {
+          if (cachedToken) {
+            console.log('[LiveActivityService] Recovered startup Push-to-Start token from native cache.');
+            backgroundStorage.set('push_to_start_token', cachedToken);
+            void this.syncTokenToBackend('pushToStart', cachedToken);
+            return;
+          }
+          if (delaysRemaining.length > 0) {
+            const [nextDelay, ...rest] = delaysRemaining;
+            if (this.startupTokenRetryTimer) clearTimeout(this.startupTokenRetryTimer);
+            this.startupTokenRetryTimer = setTimeout(() => queryStartupToken(rest), nextDelay);
+          }
+        })
+        .catch((e) => {
+          console.warn('[LiveActivityService] Startup Push-to-Start token query failed:', e);
+          if (delaysRemaining.length > 0) {
+            const [nextDelay, ...rest] = delaysRemaining;
+            if (this.startupTokenRetryTimer) clearTimeout(this.startupTokenRetryTimer);
+            this.startupTokenRetryTimer = setTimeout(() => queryStartupToken(rest), nextDelay);
+          }
+        });
+    };
+
+    queryStartupToken(retryDelays);
   }
 
   private static async syncTokenToBackend(
     tokenType: 'device' | 'liveActivity' | 'pushToStart',
     token: string,
     journeyId?: string
-  ): Promise<void> {
+  ): Promise<boolean> {
+    const queueKey = journeyId ? `${tokenType}:${journeyId}` : tokenType;
     try {
       const { userId, apiKey } = await ensureDeviceIdentity();
-      await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/devices/tokens`, {
+      const res = await fetch(`${APP_CONFIG.BACKEND_API_URL}/api/devices/tokens`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
-          'x-api-key': apiKey,
+          ...(userId && { 'x-user-id': userId }),
+          ...(apiKey && { 'x-api-key': apiKey }),
         },
         body: JSON.stringify({ tokenType, token, journeyId, userId }),
       });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      // Successful sync removes any pending token for this key if it hasn't been replaced
+      try {
+        if (tokenQueue.contains(LIVE_ACTIVITY_TOKEN_QUEUE_KEY)) {
+          const raw = tokenQueue.getString(LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+          if (raw) {
+            const queue: PendingTokenQueue = JSON.parse(raw);
+            if (queue[queueKey] && queue[queueKey].token === token) {
+              delete queue[queueKey];
+              if (Object.keys(queue).length === 0) {
+                removeMMKVKey(tokenQueue, LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+              } else {
+                tokenQueue.set(LIVE_ACTIVITY_TOKEN_QUEUE_KEY, JSON.stringify(queue));
+              }
+            }
+          }
+        }
+      } catch {
+        // queue cleanup is best effort
+      }
+
+      return true;
     } catch (err) {
       console.warn(`[LiveActivityService] Failed to sync ${tokenType} token to backend:`, err);
+      try {
+        const raw = tokenQueue.getString(LIVE_ACTIVITY_TOKEN_QUEUE_KEY);
+        const queue: PendingTokenQueue = raw ? JSON.parse(raw) : {};
+        queue[queueKey] = {
+          tokenType,
+          token,
+          journeyId,
+          enqueuedAt: Date.now(),
+        };
+        tokenQueue.set(LIVE_ACTIVITY_TOKEN_QUEUE_KEY, JSON.stringify(queue));
+      } catch (queueErr) {
+        console.warn('[LiveActivityService] Failed to write token to MMKV queue:', queueErr);
+      }
+      return false;
     }
   }
 
@@ -1075,6 +1256,18 @@ export class LiveActivityService {
     this.lastSentTierByLine = {};
   }
 
+  static _resetTokenListenersForTesting(): void {
+    if (this.startupTokenRetryTimer) {
+      clearTimeout(this.startupTokenRetryTimer);
+      this.startupTokenRetryTimer = null;
+    }
+    this.flushTokenPromise = null;
+    for (const sub of this.tokenSubscriptions) {
+      sub.remove();
+    }
+    this.tokenSubscriptions = [];
+  }
+
   /**
    * Tri-state/multi-state support check distinguishing Expo Go, unlinked bridge module, iOS capability, and iOS user setting.
    */
@@ -1141,5 +1334,6 @@ export class LiveActivityService {
   }
 }
 
+export const flushPendingTokenSync = LiveActivityService.flushPendingTokenSync.bind(LiveActivityService);
 export default LiveActivityService;
 

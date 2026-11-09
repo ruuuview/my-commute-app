@@ -98,6 +98,10 @@ public struct DeliveryTrackView: View {
     }
   }
 
+  private var rerouteURL: URL? {
+    URL(string: "mycommute://reroute?line=\(lineId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? lineId)")
+  }
+
   // MARK: - Dedicated Disruption Takeover View (Severity Tier >= 2)
   // Single-column natural hierarchy: line identity on top, status icon
   // paired directly with disruption headline, unsevered cause, and a single
@@ -107,8 +111,9 @@ public struct DeliveryTrackView: View {
       // Row 1: Line accent bar + canonical line name
       HStack(spacing: 7) {
         AccentBar(lineId: lineId, width: 3.5, height: 14)
+          .accessibilityHidden(true)
         Text(lineDisplayName)
-          .font(.system(size: 11, weight: .semibold))
+          .font(.system(size: 12, weight: .semibold))
           .foregroundColor(.white.opacity(0.85))
         Spacer()
       }
@@ -118,11 +123,13 @@ public struct DeliveryTrackView: View {
         Image(systemName: disruptionStatusIcon(for: state.severityTier))
           .font(.system(size: 20, weight: .bold))
           .foregroundColor(disruptionStatusColor(for: state.severityTier))
+          .accessibilityHidden(true)
 
         Text(disruptionHeadline)
           .font(.system(size: 24, weight: .bold, design: .rounded))
           .foregroundColor(headlineColor)
           .lineLimit(1)
+          .minimumScaleFactor(0.75)
           .fixedSize(horizontal: false, vertical: true)
       }
 
@@ -136,18 +143,19 @@ public struct DeliveryTrackView: View {
       }
 
       // Row 4: Single Reroute action at bottom right
-      if !lineId.isEmpty {
+      if let url = rerouteURL, !lineId.isEmpty {
         HStack {
           Spacer()
-          Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
+          Link(destination: url) {
             Text("Reroute")
-              .font(.system(size: 11, weight: .bold))
+              .font(.system(size: 12, weight: .bold))
               .foregroundColor(.white)
               .padding(.horizontal, 12)
               .padding(.vertical, 6)
               .background(Color.white.opacity(0.18))
               .clipShape(Capsule())
           }
+          .accessibilityLabel("Reroute \(lineDisplayName)")
         }
       }
     }

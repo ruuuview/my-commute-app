@@ -130,22 +130,11 @@ public struct DeliveryTrackView: View {
       }
 
       VStack(alignment: .trailing, spacing: 10) {
-        if state.severityTier >= 2 {
-          // Suspended / Severe: red glyph in a white disc.
-          Circle()
-            .fill(Color.white)
-            .frame(width: 44, height: 44)
-            .overlay(
-              Image(systemName: disruptionStatusIcon(for: state.severityTier))
-                .font(.system(size: 19, weight: .bold))
-                .foregroundColor(disruptionStatusColor(for: state.severityTier))
-            )
-        } else {
-          // Minor: bare amber clock (matches widget StatusIcon weight).
-          Image(systemName: disruptionStatusIcon(for: state.severityTier))
-            .font(.system(size: 30, weight: .bold))
-            .foregroundColor(disruptionStatusColor(for: state.severityTier))
-        }
+        Image(systemName: disruptionStatusIcon(for: state.severityTier))
+          .font(.system(size: 30, weight: .bold))
+          .foregroundColor(disruptionStatusColor(for: state.severityTier))
+          .frame(width: 44, height: 36, alignment: .trailing)
+
         if !lineId.isEmpty {
           Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
             Text("Reroute")

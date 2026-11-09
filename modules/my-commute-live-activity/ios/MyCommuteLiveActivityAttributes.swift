@@ -131,6 +131,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       lineName: String = "",
       statusSeverity: String = "good",
       statusText: String = "On time",
+      reason: String? = nil,
       severityTier: Int = 0,
       nextTrainMinutes: Int = 0,
       etaTimestamp: Int = 0,
@@ -164,6 +165,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       self.lineName = lineName
       self.statusSeverity = statusSeverity
       self.statusText = statusText
+      self.reason = reason
       self.severityTier = severityTier
       self.nextTrainMinutes = nextTrainMinutes
       self.etaTimestamp = etaTimestamp
@@ -201,6 +203,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
       lineName = try container.decodeIfPresent(String.self, forKey: .lineName) ?? ""
       statusSeverity = try container.decodeIfPresent(String.self, forKey: .statusSeverity) ?? "good"
       statusText = try container.decodeIfPresent(String.self, forKey: .statusText) ?? "On time"
+      reason = try container.decodeIfPresent(String.self, forKey: .reason)
       severityTier = try container.decodeIfPresent(Int.self, forKey: .severityTier) ?? 0
       nextTrainMinutes = try container.decodeIfPresent(Int.self, forKey: .nextTrainMinutes) ?? 0
       etaTimestamp = try container.decodeIfPresent(Int.self, forKey: .etaTimestamp) ?? 0

@@ -258,7 +258,11 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
         path.resolve(rootDir, 'targets/MyCommuteWidget/MyCommuteLiveActivityAttributes.swift'),
         path.resolve(rootDir, 'modules/my-commute-live-activity/ios/MyCommuteLiveActivityAttributes.swift'),
       ]) {
-        expect(fs.readFileSync(candidate, 'utf8')).toContain('public var reason: String?');
+        const content = fs.readFileSync(candidate, 'utf8');
+        expect(content).toContain('public var reason: String?');
+        expect(content).toMatch(/public init\([\s\S]*?reason: String\? = nil/);
+        expect(content).toMatch(/self\.reason = reason/);
+        expect(content).toMatch(/reason = try container\.decodeIfPresent\(String\.self, forKey: \.reason\)/);
       }
     });
 

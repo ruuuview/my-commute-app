@@ -187,29 +187,25 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
   });
 
   describe('Pass 7: Native Glass & Two-Column Roundel Contract', () => {
-    it('verifies LockScreenView uses native activityBackgroundTint — zero inner ultraThinMaterial blur', () => {
+    it('verifies LockScreenView is neutral glass — zero line-color tint, zero blur, 0.5pt white rim', () => {
       const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
-      expect(liveActivity).toContain('.activityBackgroundTint(LineColor.tint(for:');
+      expect(liveActivity).not.toContain('.activityBackgroundTint');
+      expect(liveActivity).not.toContain('LineColor.tint');
       expect(liveActivity).toContain('.activitySystemActionForegroundColor');
       expect(liveActivity).not.toContain('.ultraThinMaterial');
-      expect(liveActivity).not.toContain('ContainerRelativeShape().fill(.ultraThinMaterial)');
+      expect(liveActivity).toMatch(/stroke\(Color\.white\.opacity\(0\.12\), lineWidth: 0\.5\)/);
     });
 
-    it('verifies LineColor exposes glass tint alpha (bright lines lower alpha) and onColor contrast', () => {
-      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
-      expect(liveActivity).toMatch(/static func tint\(for lineId: String\)/);
-      expect(liveActivity).toMatch(/opacity\(0\.20\)/);
-      expect(liveActivity).toMatch(/opacity\(0\.25\)/);
-      expect(liveActivity).toMatch(/static func onColor\(for lineId: String\)/);
-      expect(liveActivity).toMatch(/return \.black/);
-    });
-
-    it('verifies disruptionView is two-column: 44pt roundel + onColor glyph on the right', () => {
+    it('verifies disruptionView is two-column with widget-parity StatusIcon gestures (no line roundel)', () => {
       const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
-      expect(deliveryTrack).toMatch(/Circle\(\)\s*\.fill\(LineColor\.color\(for: lineId\)\)\s*\.frame\(width: 44, height: 44\)/);
-      expect(deliveryTrack).toContain('Image(systemName: "exclamationmark.triangle.fill")');
-      expect(deliveryTrack).toContain('LineColor.onColor(for: lineId)');
       expect(deliveryTrack).toMatch(/font\(\.system\(size: 24, weight: \.bold, design: \.rounded\)\)/);
+      expect(deliveryTrack).toContain('func disruptionStatusIcon(for tier: Int) -> String');
+      expect(deliveryTrack).toContain('func disruptionStatusColor(for tier: Int) -> Color');
+      expect(deliveryTrack).not.toContain('LineColor.onColor');
+      // Widget parity (CommuteWidget StatusIcon): minor=amber clock, severe=red triangle, suspended=red X
+      expect(deliveryTrack).toMatch(/tier == 1[\s\S]{0,40}"clock\.fill"/);
+      expect(deliveryTrack).toMatch(/tier == 2[\s\S]{0,40}"exclamationmark\.triangle\.fill"/);
+      expect(deliveryTrack).toContain('"xmark"');
     });
 
     it('verifies LockScreenView carries the whitelisted reroute deep link via widgetURL', () => {
@@ -251,6 +247,60 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(pillBlock).not.toContain('0x30D158');
       expect(pillBlock).toContain('disruptionHeadline');
       expect(pillBlock).not.toContain('state.statusText');
+    });
+  });
+
+  describe('Pass 8: Reason Contract, Icon Parity, Island Exhaustiveness', () => {
+    it('verifies BOTH attribute files carry the optional reason field (Rule 3 parity)', () => {
+      for (const candidate of [
+        path.resolve(rootDir, 'targets/MyCommuteWidget/MyCommuteLiveActivityAttributes.swift'),
+        path.resolve(rootDir, 'modules/my-commute-live-activity/ios/MyCommuteLiveActivityAttributes.swift'),
+      ]) {
+        expect(fs.readFileSync(candidate, 'utf8')).toContain('public var reason: String?');
+      }
+    });
+
+    it('verifies the disruption card renders exactly one Reroute action (left detourSlot button deleted)', () => {
+      const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
+      const start = deliveryTrack.indexOf('private var disruptionView');
+      const end = deliveryTrack.indexOf('private var resolvedDisruptionCause');
+      const block = deliveryTrack.slice(start, end);
+      expect(block).not.toContain('detourSlot');
+      expect((block.match(/Text\("Reroute"\)/g) || []).length).toBe(1);
+    });
+
+    it('verifies the compact island never fabricates a 2m ETA when none is known', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).not.toContain('nextStationEtaMinutes ?? 2');
+    });
+
+    it('verifies the compact island is exhaustive at severityTier >= 1 even when the status label is unknown', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toMatch(/severityTier >= 1 \{\s*\n\s*let label = compactStatusLabel\(for: context\.state\.statusText\)\s*\?\?/s);
+    });
+
+    it('verifies the expanded pill clamps to short status labels and never leaks raw statusText', () => {
+      const liveActivity = fs.readFileSync(liveActivityPath, 'utf8');
+      expect(liveActivity).toMatch(/ExpandedStatusPill[\s\S]{0,1400}compactStatusLabel\(for: context\.state\.statusText\)/s);
+    });
+
+    it('verifies LiveActivityService startPreviewActivity passes reason field', () => {
+      const service = fs.readFileSync(path.resolve(rootDir, 'services/LiveActivityService.ts'), 'utf8');
+      expect(service).toMatch(/reason:\s*opts\?\.disruptionReason\s*\?\?\s*null/);
+    });
+
+    it('verifies backend push-to-start carries reason + severity-mapped aps relevance-score', () => {
+      const dispatcher = fs.readFileSync(
+        path.resolve(rootDir, '..', 'backend', 'push', 'apnsDispatcher.ts'),
+        'utf8'
+      );
+      expect(dispatcher).toContain('const relevanceScore');
+      expect(dispatcher).toMatch(/severityTier === 3\s*\? 1\.0/);
+      expect(dispatcher).toMatch(/severityTier === 2\s*\? 0\.8/);
+      expect(dispatcher).toMatch(/severityTier === 1\s*\? 0\.4/);
+      expect(dispatcher).toContain("'relevance-score'");
+      expect(dispatcher).toMatch(/reason: cleanReasonForPayload/);
+      expect(dispatcher).toContain('function cleanReasonForPayload');
     });
   });
 });

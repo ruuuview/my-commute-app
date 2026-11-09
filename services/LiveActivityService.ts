@@ -139,6 +139,7 @@ export interface LiveActivityBridgePayload {
   arrivals: { destinationName: string; timeToStationSeconds: number; via?: string; branch?: string }[];
   statusSeverity?: 'good' | 'minor_delays' | 'severe_delays' | 'suspended';
   statusText: string;
+  reason?: string | null;
   severityTier?: number;
   nextTrainMinutes?: number;
   etaTimestamp?: number;
@@ -492,6 +493,9 @@ export class LiveActivityService {
       : 'Good Service';
 
     const nextTrainMinutes = Math.max(0, Math.round(arrivals[0].timeToStationSeconds / 60));
+
+    // Raw unsevered TfL reason, pushed as a separate field for the card.
+    const reason = isDisrupted ? ((disruption?.reason ?? '').trim() || null) : null;
     const nowUnix = Math.floor(Date.now() / 1000);
     const estimatedTransitSec = 12 * 60; // 12m typical leg baseline
     const etaTimestamp = nowUnix + arrivals[0].timeToStationSeconds + estimatedTransitSec;
@@ -631,6 +635,7 @@ export class LiveActivityService {
       arrivals,
       statusSeverity,
       statusText,
+      reason,
       severityTier,
       nextTrainMinutes,
       etaTimestamp,
@@ -1002,6 +1007,7 @@ export class LiveActivityService {
           arrivals: [],
           statusSeverity: 'severe_delays',
           statusText,
+          reason: opts?.disruptionReason ?? null,
           severityTier: 2,
           isDisrupted: true,
           isEscalated: false,

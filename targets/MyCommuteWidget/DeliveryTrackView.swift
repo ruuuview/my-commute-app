@@ -99,8 +99,8 @@ public struct DeliveryTrackView: View {
   }
 
   // MARK: - Dedicated Disruption Takeover View (Severity Tier >= 2)
-  // Two-column layout: severity typography on the left, a 44pt line-colored
-  // roundel with warning glyph and the Reroute capsule on the right.
+  // Two-column layout: severity typography on the left, warning glyph
+  // (widget StatusIcon parity) and the Reroute capsule on the right.
   private var disruptionView: some View {
     HStack(alignment: .top, spacing: 12) {
       VStack(alignment: .leading, spacing: 7) {
@@ -119,7 +119,7 @@ public struct DeliveryTrackView: View {
           .lineLimit(2)
           .fixedSize(horizontal: false, vertical: true)
 
-        // Row 3: Real TfL cause only — zero fake fallback filler.
+        // Row 3: Real TfL cause only — reason field first, zero fake fallback filler.
         if let cause = resolvedDisruptionCause {
           Text(cause)
             .font(.system(size: 12.5, weight: .medium))
@@ -127,20 +127,25 @@ public struct DeliveryTrackView: View {
             .lineLimit(3)
             .fixedSize(horizontal: false, vertical: true)
         }
-
-        // Row 4: Genuine detour alternative (only if present in payload)
-        detourSlot
       }
 
       VStack(alignment: .trailing, spacing: 10) {
-        Circle()
-          .fill(LineColor.color(for: lineId))
-          .frame(width: 44, height: 44)
-          .overlay(
-            Image(systemName: "exclamationmark.triangle.fill")
-              .font(.system(size: 18, weight: .bold))
-              .foregroundColor(LineColor.onColor(for: lineId))
-          )
+        if state.severityTier >= 2 {
+          // Suspended / Severe: red glyph in a white disc.
+          Circle()
+            .fill(Color.white)
+            .frame(width: 44, height: 44)
+            .overlay(
+              Image(systemName: disruptionStatusIcon(for: state.severityTier))
+                .font(.system(size: 19, weight: .bold))
+                .foregroundColor(disruptionStatusColor(for: state.severityTier))
+            )
+        } else {
+          // Minor: bare amber clock (matches widget StatusIcon weight).
+          Image(systemName: disruptionStatusIcon(for: state.severityTier))
+            .font(.system(size: 30, weight: .bold))
+            .foregroundColor(disruptionStatusColor(for: state.severityTier))
+        }
         if !lineId.isEmpty {
           Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
             Text("Reroute")
@@ -157,7 +162,23 @@ public struct DeliveryTrackView: View {
   }
 
   private var resolvedDisruptionCause: String? {
-    disruptionCauseText
+    // Pushed reason field first: raw, unsevered TfL copy. Legacy payloads
+    // (pre-reason) fall back to the statusText parser below.
+    state.reason ?? disruptionCauseText
+  }
+
+  // Widget StatusIcon parity (CommuteWidget.swift:639): minor = amber clock,
+  // severe = red warning triangle, suspended = red X mark.
+  func disruptionStatusIcon(for tier: Int) -> String {
+    tier == 1 ? "clock.fill"
+      : tier == 2 ? "exclamationmark.triangle.fill"
+      : "xmark"
+  }
+
+  func disruptionStatusColor(for tier: Int) -> Color {
+    tier == 1 ? Color(hex: 0xFFB000)
+      : tier == 0 ? Color(hex: 0xFFB000)
+      : Color(hex: 0xFF3B30)
   }
 
   private var headlineColor: Color {
@@ -662,6 +683,10 @@ public struct DisruptionExpandedBottomView: View {
   }
 
   private var causeText: String? {
+    // Reason field first (unsevered), legacy statusText parse as fallback.
+    if let reason = state.reason, !reason.isEmpty {
+      return reason
+    }
     let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !raw.isEmpty else { return nil }
     for separator in [" — ", " - ", ": "] {

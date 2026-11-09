@@ -40,34 +40,6 @@ enum LineColor {
     }
     return color(for: lineId)
   }
-
-  /// Native glass tint for .activityBackgroundTint: line color at low alpha.
-  /// Bright yellow (Circle), pink (H&C) and pale Waterloo & City lines drop
-  /// to 0.20 so white system text stays legible through the tint.
-  static func tint(for lineId: String) -> Color {
-    switch norm(lineId) {
-    case "circle", "hammersmith", "hammersmithcity",
-         "waterlooandcity", "waterloocity":
-      return color(for: lineId).opacity(0.20)
-    default:
-      return color(for: lineId).opacity(0.25)
-    }
-  }
-
-  /// Contrast-safe foreground for glyphs rendered on a line-color fill.
-  static func onColor(for lineId: String) -> Color {
-    switch norm(lineId) {
-    case "circle", "hammersmith", "hammersmithcity",
-         "waterlooandcity", "waterloocity":
-      return .black
-    default:
-      return .white
-    }
-  }
-
-  private static func norm(_ lineId: String) -> String {
-    lineId.lowercased().replacingOccurrences(of: "-", with: "")
-  }
 }
 
 extension Color {
@@ -299,7 +271,9 @@ private struct CompactIslandView: View {
 
   var body: some View {
     if trailing {
-      if context.state.severityTier >= 1, let label = compactStatusLabel(for: context.state.statusText) {
+      if context.state.severityTier >= 1 {
+        let label = compactStatusLabel(for: context.state.statusText)
+          ?? (context.state.severityTier >= 2 ? "Severe" : "Minor")
         let isSevere = context.state.severityTier >= 2
         let dotColor = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
         Text(label)
@@ -348,7 +322,7 @@ private struct CompactIslandView: View {
               .accessibilityLabel("\(elapsedMins) minutes in transit")
           }
         } else {
-          let nextMins = context.state.nextStationEtaMinutes ?? 2
+          let nextMins = context.state.nextStationEtaMinutes ?? 0
           let text = nextMins <= 0 ? "Due" : "\(nextMins)m"
           Text(text)
             .font(.system(size: 13, weight: .bold))
@@ -515,8 +489,9 @@ private struct ExpandedStatusPill: View {
     } else if context.state.severityTier >= 1 {
       let isSevere = context.state.severityTier >= 2
       let color = isSevere ? Color(hex: 0xFF3B30) : Color(hex: 0xFFB000)
-      let headline = disruptionHeadline(for: context.state.statusText, severityTier: context.state.severityTier)
-      Text(headline)
+      let label = compactStatusLabel(for: context.state.statusText)
+        ?? (isSevere ? "Severe" : "Minor")
+      Text(label)
         .font(.system(size: 10, weight: .bold))
         .foregroundColor(color)
         .padding(.horizontal, 6)
@@ -541,12 +516,14 @@ private struct LockScreenView: View {
   let context: ActivityViewContext<MyCommuteLiveActivityAttributes>
 
   var body: some View {
-    // Native frosted glass: system activityBackgroundTint tinted with the
-    // line color. No inner material overlays — zero UIVisualEffectView-style
-    // blur layering, zero fake scrim strokes (Rule 5 / Rule 12).
+    // Neutral glass: bare system activity background with a sharp 0.5pt white
+    // rim. No line-color wash, no inner material overlays (Rule 5 / Rule 12).
     DeliveryTrackView(attributes: context.attributes, state: context.state, lineId: context.attributes.lineId)
       .padding(14)
-      .activityBackgroundTint(LineColor.tint(for: context.attributes.lineId))
+      .overlay(
+        ContainerRelativeShape()
+          .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+      )
       .activitySystemActionForegroundColor(.white)
       .widgetURL(URL(string: "mycommute://reroute?line=\(context.attributes.lineId)"))
   }

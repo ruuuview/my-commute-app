@@ -342,6 +342,7 @@ public class MyCommuteLiveActivityModule: Module {
     let lineName = payload["lineName"] as? String ?? ""
     let statusSeverity = payload["statusSeverity"] as? String ?? "good"
     let statusText = payload["statusText"] as? String ?? "On time"
+    let reason = payload["reason"] as? String
     let severityTier = payload["severityTier"] as? Int ?? 0
     let nextTrainMinutes = payload["nextTrainMinutes"] as? Int ?? 0
     let etaTimestamp = payload["etaTimestamp"] as? Int ?? Int(Date().addingTimeInterval(480).timeIntervalSince1970)
@@ -387,6 +388,7 @@ public class MyCommuteLiveActivityModule: Module {
       lineName: lineName,
       statusSeverity: statusSeverity,
       statusText: statusText,
+      reason: reason,
       severityTier: severityTier,
       nextTrainMinutes: nextTrainMinutes,
       etaTimestamp: etaTimestamp,

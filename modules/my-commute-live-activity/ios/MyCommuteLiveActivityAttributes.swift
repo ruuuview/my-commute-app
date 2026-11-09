@@ -86,6 +86,7 @@ public struct MyCommuteLiveActivityAttributes: ActivityAttributes {
     public var lineName: String
     public var statusSeverity: String      // "good" | "minor_delays" | "severe_delays" | "suspended"
     public var statusText: String          // Max 60 chars (4KB payload limit)
+    public var reason: String?            // Raw unsevered TfL reason, null when unknown
     public var severityTier: Int           // 0-3
     public var nextTrainMinutes: Int
     public var etaTimestamp: Int           // Unix timestamp

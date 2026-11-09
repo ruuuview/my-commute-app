@@ -196,7 +196,7 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(liveActivity).toMatch(/stroke\(Color\.white\.opacity\(0\.12\), lineWidth: 0\.5\)/);
     });
 
-    it('verifies disruptionView is two-column with widget-parity StatusIcon gestures (no line roundel)', () => {
+    it('verifies disruptionView pairs status icon directly with headline and places Reroute at bottom right', () => {
       const deliveryTrack = fs.readFileSync(deliveryTrackPath, 'utf8');
       expect(deliveryTrack).toMatch(/font\(\.system\(size: 24, weight: \.bold, design: \.rounded\)\)/);
       expect(deliveryTrack).toContain('func disruptionStatusIcon(for tier: Int) -> String');
@@ -206,6 +206,8 @@ describe('Live Activity Transit Corridor & Invariant Suite', () => {
       expect(deliveryTrack).toMatch(/tier == 1[\s\S]{0,40}"clock\.fill"/);
       expect(deliveryTrack).toMatch(/tier == 2[\s\S]{0,40}"exclamationmark\.triangle\.fill"/);
       expect(deliveryTrack).toContain('"xmark"');
+      // Icon and headline paired together in HStack (zero 200pt gap across card)
+      expect(deliveryTrack).toMatch(/HStack\(spacing:\s*8\)\s*\{\s*\n\s*Image\(systemName:\s*disruptionStatusIcon[\s\S]*?Text\(disruptionHeadline\)/);
     });
 
     it('verifies LockScreenView carries the whitelisted reroute deep link via widgetURL', () => {

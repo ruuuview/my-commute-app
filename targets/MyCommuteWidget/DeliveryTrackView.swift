@@ -99,48 +99,51 @@ public struct DeliveryTrackView: View {
   }
 
   // MARK: - Dedicated Disruption Takeover View (Severity Tier >= 2)
-  // Two-column layout: severity typography on the left, warning glyph
-  // (widget StatusIcon parity) and the Reroute capsule on the right.
+  // Single-column natural hierarchy: line identity on top, status icon
+  // paired directly with disruption headline, unsevered cause, and a single
+  // Reroute action capsule at the bottom right.
   private var disruptionView: some View {
-    HStack(alignment: .top, spacing: 12) {
-      VStack(alignment: .leading, spacing: 7) {
-        // Row 1: Line accent bar + canonical line name
-        HStack(spacing: 7) {
-          AccentBar(lineId: lineId, width: 3.5, height: 14)
-          Text(lineDisplayName)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.85))
-        }
+    VStack(alignment: .leading, spacing: 8) {
+      // Row 1: Line accent bar + canonical line name
+      HStack(spacing: 7) {
+        AccentBar(lineId: lineId, width: 3.5, height: 14)
+        Text(lineDisplayName)
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundColor(.white.opacity(0.85))
+        Spacer()
+      }
 
-        // Row 2: High-contrast disruption headline (rounded 24pt)
+      // Row 2: Status Icon + Disruption Headline (Together)
+      HStack(spacing: 8) {
+        Image(systemName: disruptionStatusIcon(for: state.severityTier))
+          .font(.system(size: 20, weight: .bold))
+          .foregroundColor(disruptionStatusColor(for: state.severityTier))
+
         Text(disruptionHeadline)
           .font(.system(size: 24, weight: .bold, design: .rounded))
           .foregroundColor(headlineColor)
-          .lineLimit(2)
+          .lineLimit(1)
           .fixedSize(horizontal: false, vertical: true)
-
-        // Row 3: Real TfL cause only — reason field first, zero fake fallback filler.
-        if let cause = resolvedDisruptionCause {
-          Text(cause)
-            .font(.system(size: 12.5, weight: .medium))
-            .foregroundColor(.white.opacity(0.92))
-            .lineLimit(3)
-            .fixedSize(horizontal: false, vertical: true)
-        }
       }
 
-      VStack(alignment: .trailing, spacing: 10) {
-        Image(systemName: disruptionStatusIcon(for: state.severityTier))
-          .font(.system(size: 30, weight: .bold))
-          .foregroundColor(disruptionStatusColor(for: state.severityTier))
-          .frame(width: 44, height: 36, alignment: .trailing)
+      // Row 3: Real TfL cause only — reason field first, zero fake fallback filler.
+      if let cause = resolvedDisruptionCause {
+        Text(cause)
+          .font(.system(size: 12.5, weight: .medium))
+          .foregroundColor(.white.opacity(0.92))
+          .lineLimit(3)
+          .fixedSize(horizontal: false, vertical: true)
+      }
 
-        if !lineId.isEmpty {
+      // Row 4: Single Reroute action at bottom right
+      if !lineId.isEmpty {
+        HStack {
+          Spacer()
           Link(destination: URL(string: "mycommute://reroute?line=\(lineId)")!) {
             Text("Reroute")
               .font(.system(size: 11, weight: .bold))
               .foregroundColor(.white)
-              .padding(.horizontal, 10)
+              .padding(.horizontal, 12)
               .padding(.vertical, 6)
               .background(Color.white.opacity(0.18))
               .clipShape(Capsule())

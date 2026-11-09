@@ -162,9 +162,14 @@ public struct DeliveryTrackView: View {
   }
 
   private var resolvedDisruptionCause: String? {
-    // Pushed reason field first: raw, unsevered TfL copy. Legacy payloads
-    // (pre-reason) fall back to the statusText parser below.
-    state.reason ?? disruptionCauseText
+    if let reason = state.reason, let cleaned = cleanDisruptionReason(reason) {
+      return cleaned
+    }
+    if let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines) as String?,
+       let cleaned = cleanDisruptionReason(raw) {
+      return cleaned
+    }
+    return nil
   }
 
   // Widget StatusIcon parity (CommuteWidget.swift:639): minor = amber clock,
@@ -668,6 +673,54 @@ public struct DeliveryTrackView: View {
 
 }
 
+// MARK: - Deterministic Cause Cleaner (Zero-Fabrication Invariant)
+/// Normalizes raw TfL disruption sentences into crisp cause phrases:
+/// - Strips line prefix: "Bakerloo Line: "
+/// - Strips causal lead-ins: "Severe delays reported across this line due to an " -> "Urgent track inspection"
+/// - Strips leading articles ("an ", "a ", "the ")
+/// - Cuts at first period; returns nil if remainder is merely a headline or empty.
+public func cleanDisruptionReason(_ raw: String, max: Int = 70) -> String? {
+  var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard !s.isEmpty else { return nil }
+
+  if let c = s.range(of: #"^[A-Za-z &\-]+ (line|railway|service):\s*"#, options: [.regularExpression, .caseInsensitive]) {
+    s.removeSubrange(c)
+  }
+
+  for key in [" due to an ", " due to a ", " due to the ", " due to ", " because of "] {
+    if let r = s.range(of: key, options: .caseInsensitive) {
+      s = String(s[r.upperBound...])
+      break
+    }
+  }
+
+  for art in ["an ", "a ", "the "] {
+    if s.lowercased().hasPrefix(art) {
+      s.removeFirst(art.count)
+      break
+    }
+  }
+
+  if let dot = s.firstIndex(of: ".") {
+    s = String(s[..<dot])
+  }
+
+  s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+  s = s.trimmingCharacters(in: CharacterSet(charactersIn: " -—:()"))
+  guard let f = s.first else { return nil }
+
+  let headlines = ["severe delays", "minor delays", "suspended", "part suspended", "special service", "planned closure", "good service"]
+  if headlines.contains(raw.lowercased()) || headlines.contains(s.lowercased()) {
+    return nil
+  }
+
+  s = f.uppercased() + s.dropFirst()
+  if s.count > max, let sp = s.prefix(max).lastIndex(of: " ") {
+    s = String(s[..<sp]) + "…"
+  }
+  return s
+}
+
 // MARK: - Dedicated Disruption Bottom View for Dynamic Island Expanded
 public struct DisruptionExpandedBottomView: View {
   let state: MyCommuteLiveActivityAttributes.ContentState
@@ -683,23 +736,14 @@ public struct DisruptionExpandedBottomView: View {
   }
 
   private var causeText: String? {
-    // Reason field first (unsevered), legacy statusText parse as fallback.
-    if let reason = state.reason, !reason.isEmpty {
-      return reason
+    if let reason = state.reason, let cleaned = cleanDisruptionReason(reason) {
+      return cleaned
     }
-    let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !raw.isEmpty else { return nil }
-    for separator in [" — ", " - ", ": "] {
-      if let sepRange = raw.range(of: separator) {
-        let remainder = String(raw[sepRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        if !remainder.isEmpty { return remainder }
-      }
+    if let raw = state.statusText.trimmingCharacters(in: .whitespacesAndNewlines) as String?,
+       let cleaned = cleanDisruptionReason(raw) {
+      return cleaned
     }
-    let headlines = ["severe delays", "minor delays", "suspended", "part suspended", "special service", "planned closure"]
-    if headlines.contains(raw.lowercased()) {
-      return nil
-    }
-    return raw
+    return nil
   }
 
   public var body: some View {
